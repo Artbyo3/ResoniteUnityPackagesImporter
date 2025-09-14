@@ -107,6 +107,9 @@
     <Reference Include="System">
       <HintPath>..\..\..\SteamLibrary\steamapps\common\Resonite\Resonite_Data\Managed\System.dll</HintPath>
     </Reference>
+	<Reference Include="System.Memory">
+      <HintPath>..\..\..\SteamLibrary\steamapps\common\Resonite\Resonite_Data\Managed\System.Memory.dll</HintPath>
+    </Reference>
     <Reference Include="UnityFrooxEngineRunner">
       <HintPath>..\..\..\SteamLibrary\steamapps\common\Resonite\Resonite_Data\Managed\UnityFrooxEngineRunner.dll</HintPath>
     </Reference>
