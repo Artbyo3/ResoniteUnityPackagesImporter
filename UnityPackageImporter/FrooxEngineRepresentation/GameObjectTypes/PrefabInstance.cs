@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using FrooxEngine;
@@ -27,7 +28,7 @@ public class PrefabInstance : IUnityObject
         if (instanciated) return;
 
         await default(ToBackground);
-        
+
         UnityPackageImporter.Msg("is m_SourcePrefab instanciated?: " + (m_SourcePrefab != null));
         UnityPackageImporter.Msg("is m_Modification instanciated?: " + (m_Modification != null));
         UnityPackageImporter.Msg("is m_ObjectHideFlags instanciated?: " + m_ObjectHideFlags.ToString());
@@ -79,13 +80,15 @@ public class PrefabInstance : IUnityObject
             if (importask != null) return;
 
             ImportRoot = new GameObject();
-            await default(ToWorld);
-            if (importer.unityProjectImporter.SharedImportedFBXScenes.ContainsKey(m_SourcePrefab.guid))
+            string resolvedFbxGuid = ResolveFBXGuid(importer, m_SourcePrefab?.guid);
+            if (!string.IsNullOrEmpty(resolvedFbxGuid) && importer.unityProjectImporter.SharedImportedFBXScenes.ContainsKey(resolvedFbxGuid))
             {
-                importask = await importer.unityProjectImporter.SharedImportedFBXScenes[m_SourcePrefab.guid].MakeCopyAndPopulatePrefabData();
+                importask = await importer.unityProjectImporter.SharedImportedFBXScenes[resolvedFbxGuid].MakeCopyAndPopulatePrefabData();
                 ImportRoot.frooxEngineSlot = importask.FinishedFileSlot;
-                ImportRoot.frooxEngineSlot.SetParent(targetParent);
-
+                await default(ToWorld);
+                // The template is authored in prefab-local space. Keeping its world
+                // transform cancels the import container's placement near the user.
+                ImportRoot.frooxEngineSlot.SetParent(targetParent, false);
                 await default(ToBackground);
 
                 SourceObj importrootsource = new SourceObj();
@@ -96,7 +99,7 @@ public class PrefabInstance : IUnityObject
                 this.PrefabHashes = importask.FILEID_To_Slot_Pairs;
                 this.PrefabHashes.Add(importrootsource, ImportRoot);
                 List<IUnityObject> modifiedObjects = new List<IUnityObject>();
-                if (m_Modification != null)
+                if (m_Modification != null && this.PrefabHashes != null)
                 {
                     foreach (ModsPrefab mod in m_Modification.m_Modifications)
                     {
@@ -136,7 +139,7 @@ public class PrefabInstance : IUnityObject
                 foreach (IUnityObject obj in modifiedObjects)
                 {
                     // This is so that it can find it's source, which is ourselves to prevent errors - @989onan
-                    obj.m_PrefabInstance = new Dictionary<string, ulong> { { "fileID", this.id } }; 
+                    obj.m_PrefabInstance = new Dictionary<string, ulong> { { "fileID", this.id } };
                     try
                     {
                         UnityPackageImporter.Msg("reinitializing object that was modified. the object has an id of: \"" + obj.m_CorrespondingSourceObject.fileID + "\"");
@@ -185,7 +188,7 @@ public class PrefabInstance : IUnityObject
         {
             UnityPackageImporter.Warn("The prefab with a file id of \"" + id.ToString() + "\" in the structure scene is malformed!!! The file source of the prefab doesn't exist in the imported package or file list set.");
         }
-        
+
 
         instanciated = true;
     }
@@ -195,7 +198,7 @@ public class PrefabInstance : IUnityObject
     public override string ToString()
     {
         StringBuilder result = new StringBuilder();
-        
+
         if (m_SourcePrefab != null)
         {
             result.AppendLine("m_SourcePrefab: " + m_SourcePrefab.ToString());
@@ -232,9 +235,51 @@ public class PrefabInstance : IUnityObject
         return result.ToString();
     }
 
-    
+    private string ResolveFBXGuid(IUnityStructureImporter importer, string sourceGuid)
+    {
+        if (string.IsNullOrEmpty(sourceGuid)) return null;
+        if (importer?.unityProjectImporter?.SharedImportedFBXScenes == null) return null;
 
+        var visited = new HashSet<string>();
+        string currentGuid = sourceGuid;
+        while (!string.IsNullOrEmpty(currentGuid) && visited.Add(currentGuid))
+        {
+            if (importer.unityProjectImporter.SharedImportedFBXScenes.ContainsKey(currentGuid))
+            {
+                return currentGuid;
+            }
 
+            if (importer.unityProjectImporter.ListOfPrefabs != null && importer.unityProjectImporter.ListOfPrefabs.TryGetValue(currentGuid, out string prefabFile) && File.Exists(prefabFile))
+            {
+                string fbxGuid = FindSourceGuidInPrefabFile(prefabFile);
+                if (!string.IsNullOrEmpty(fbxGuid))
+                {
+                    currentGuid = fbxGuid;
+                    continue;
+                }
+            }
+            break;
+        }
+        return null;
+    }
 
-
+    private static string FindSourceGuidInPrefabFile(string file)
+    {
+        try
+        {
+            foreach (var line in File.ReadLines(file))
+            {
+                if (line.Contains("m_SourcePrefab:") && line.Contains("guid:"))
+                {
+                    var parts = line.Split(new[] { "guid:" }, StringSplitOptions.None);
+                    if (parts.Length > 1)
+                    {
+                        return parts[1].Split(new[] { ',', ' ', '}', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)[0].Trim();
+                    }
+                }
+            }
+        }
+        catch { }
+        return null;
+    }
 }

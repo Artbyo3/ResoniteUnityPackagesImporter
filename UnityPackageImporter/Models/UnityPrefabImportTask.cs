@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -33,12 +33,13 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
     public async Task StartImport()
     {
         StringBuilder debugPrefab = new StringBuilder();
-        try 
+        try
         {
             existingIUnityObjects = new Dictionary<ulong, IUnityObject>();
             await default(ToWorld);
             this.CurrentStructureRootSlot = unityProjectImporter.world.AddSlot(Path.GetFileName(ID.Value));
-            this.CurrentStructureRootSlot.SetParent(this.allimportsroot, false);
+            // A prefab is an independent world object; importer UI and temporary
+            // FBX templates must not become its transform or lifetime owner.
             this.CurrentStructureRootSlot.GlobalPosition = this.GlobalIndicatorPosition;
             Slot indicator = this.unityProjectImporter.root.AddSlot("Unity Prefab Import Indicator");
             indicator.GlobalPosition = this.GlobalIndicatorPosition;
@@ -154,7 +155,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
 
             UnityPackageImporter.Msg("Yaml generation done");
             UnityPackageImporter.Msg("Setting up IK Inline");
-            
+
             // Create humanoid stuff for prefabs that are inline.
             await default(ToWorld);
             foreach (var obj in existingIUnityObjects)
@@ -163,34 +164,43 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 {
                     FrooxEngineRepresentation.GameObjectTypes.PrefabInstance prefab = obj.Value as FrooxEngineRepresentation.GameObjectTypes.PrefabInstance;
 
-                    await UnityProjectImporter.SettupHumanoid(
-                        prefab.importask,
-                        prefab.ImportRoot.frooxEngineSlot,
-                        true);
+                    if (prefab != null && prefab.importask != null && prefab.ImportRoot != null && prefab.ImportRoot.frooxEngineSlot != null)
+                    {
+                        await UnityProjectImporter.SettupHumanoid(
+                            prefab.importask,
+                            prefab.ImportRoot.frooxEngineSlot,
+                            true);
+                    }
                 }
             }
 
-            
+
             foreach (var obj in existingIUnityObjects)
             {
                 if (obj.Value.GetType() == typeof(FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer))
                 {
                     var newobj = (obj.Value as FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer);
                     await default(ToWorld);
+                    if (newobj.createdMeshRenderer == null)
+                    {
+                        UnityPackageImporter.Warn("Skipping missing renderer " + newobj.id + " in prefab " + ID.Value);
+                        continue;
+                    }
                     newobj.createdMeshRenderer.Enabled = newobj.m_Enabled == 1;
                     await default(ToBackground);
                 }
             }
 
             progressIndicator?.UpdateProgress(0f, "", "setting up IK for prefab.");
-            
+
             foreach (var obj in existingIUnityObjects)
             {
                 if (obj.Value.GetType() != typeof(FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer))
                     continue;
 
                 var newobj = (obj.Value as FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer);
-                if (newobj.createdMeshRenderer.Slot.Parent.Name != "RootNode")
+                if (newobj.createdMeshRenderer?.Slot?.Parent?.Name != "RootNode" ||
+                    string.IsNullOrEmpty(newobj.m_Mesh?.guid))
                     continue;
 
                 if (this.unityProjectImporter.SharedImportedFBXScenes.TryGetValue(newobj.m_Mesh.guid, out FileImportTaskScene importedfbx))
@@ -198,7 +208,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                     await default(ToWorld);
                     await UnityProjectImporter.SettupHumanoid(importedfbx, this.CurrentStructureRootSlot, true);
                     await default(ToBackground);
-                    break; 
+                    break;
                     // All skinned mesh renderers should go to the current prefab if they're under the root.
                     // I think that is the root above in the if statement with "RootNode" - @989onan
                 }
@@ -217,9 +227,8 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
             UnityPackageImporter.Warn("Prefab hit critical import error! dumping!");
             UnityPackageImporter.Warn(e.Message + e.StackTrace);
             UnityPackageImporter.Msg(debugPrefab.ToString());
-            FrooxEngineBootstrap.LogStream.Flush();
             progressIndicator?.ProgressFail("Failed to decode the Unity Prefab due to an error!");
-            throw e;
+            throw;
         }
 
         await default(ToBackground);

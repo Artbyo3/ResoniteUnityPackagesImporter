@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using FrooxEngine;
@@ -15,6 +16,9 @@ public class SkinnedMeshRenderer : IUnityObject
     public int m_Enabled = 1;
     public List<FileImportHelperTaskMaterial> materials = new List<FileImportHelperTaskMaterial>();
     public List<SourceObj> m_Materials = new List<SourceObj>();
+    public List<float> m_BlendShapeWeights;
+    [YamlDotNet.Serialization.YamlIgnore]
+    public string[] SourceBlendShapeNames;
     public SourceObj m_Mesh;
     public List<Dictionary<string, ulong>> m_Bones;
     public FrooxEngine.SkinnedMeshRenderer createdMeshRenderer;
@@ -58,14 +62,15 @@ public class SkinnedMeshRenderer : IUnityObject
                                     await gameobj.InstanciateAsync(importer);
                                     await default(ToWorld);
                                     this.createdMeshRenderer = newskin.createdMeshRenderer;
+                                    this.SourceBlendShapeNames = newskin.SourceBlendShapeNames;
                                     this.materials = newskin.materials;
                                     this.m_Materials = newskin.m_Materials;
                                     UnityPackageImporter.Warn("assigned skinned mesh renderer \"" + newskin.createdMeshRenderer.Slot.Name + "\" some properties from one already created by a prefab.");
                                 }
-                                catch (Exception ex)
+                                catch (Exception)
                                 {
                                     UnityPackageImporter.Warn("The prefab is malformed!!! a skinned mesh render with a guid of \"" + m_CorrespondingSourceObject.guid + "\" could not assign itself to a prefab hash!");
-                                    throw ex;
+                                    throw;
                                 }
                             }
                             else
@@ -73,10 +78,10 @@ public class SkinnedMeshRenderer : IUnityObject
                                 UnityPackageImporter.Warn("The prefab is malformed!!! a skinned mesh render with a guid of \"" + m_CorrespondingSourceObject.guid + "\" could not find/create it's parent game obj!");
                             }
                         }
-                        catch (Exception ex)
+                        catch (Exception)
                         {
                             UnityPackageImporter.Warn("The prefab is malformed!!! a skinned mesh render with a guid of \"" + m_CorrespondingSourceObject.guid + "\" could not create it's parent game obj!");
-                            throw ex;
+                            throw;
                         }
                     }
                     else
@@ -125,6 +130,7 @@ public class SkinnedMeshRenderer : IUnityObject
                                 parentobj.frooxEngineSlot.Destroy();
                                 parentobj.frooxEngineSlot = newslot;
                                 this.createdMeshRenderer = newslot.GetComponent<FrooxEngine.SkinnedMeshRenderer>();
+                                this.SourceBlendShapeNames = newskin.SourceBlendShapeNames;
                                 await default(ToBackground);
 
                             }
@@ -147,7 +153,7 @@ public class SkinnedMeshRenderer : IUnityObject
 
 
         }
-        catch (Exception ex)
+        catch (Exception)
         {
             try
             {
@@ -165,7 +171,7 @@ public class SkinnedMeshRenderer : IUnityObject
                 }
             }
             //UnityPackageImporter.Warn(ex.Message, ex.StackTrace);
-            throw ex;
+            throw;
         }
 
         FrooxEngine.SkinnedMeshRenderer FoundMesh = this.createdMeshRenderer;
@@ -178,8 +184,11 @@ public class SkinnedMeshRenderer : IUnityObject
             //FoundMesh.Mesh.ReferenceID = (skinnedMeshRenderer as FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer).createdMeshRenderer.Mesh.ReferenceID;
             await default(ToWorld);
             importer.progressIndicator?.UpdateProgress(0f, "", "now loading a skinned mesh renderer named \"" + FoundMesh.Slot.Name + "\" ");
+            var meshWait = System.Diagnostics.Stopwatch.StartNew();
             while (!FoundMesh.Mesh.IsAssetAvailable)
             {
+                if (meshWait.Elapsed > TimeSpan.FromMinutes(2))
+                    throw new TimeoutException("Mesh did not become available within two minutes: " + FoundMesh.Slot.Name);
                 await default(NextUpdate);
                 //UnityPackageImporter.Msg("Waiting for mesh assets for: \"" + mesh.Slot.Name + "\"");
             }
@@ -200,7 +209,9 @@ public class SkinnedMeshRenderer : IUnityObject
                 this.m_AABB.m_Extent["y"],
                 this.m_AABB.m_Extent["z"]
                 ));*/
-            FoundMesh.BoundsComputeMethod.Value = SkinnedBounds.SlowRealtimeAccurate; //use generated colliders
+            // Renderer-computed bounds culled Uruki's weapon at close range even
+            // while its body remained visible. Bone-based bounds avoid that feedback.
+            FoundMesh.BoundsComputeMethod.Value = SkinnedBounds.MediumPerBoneApproximate;
             await default(ToBackground);
 
             Dictionary<string, Slot> bonemappings = new Dictionary<string, Slot>();
@@ -219,7 +230,7 @@ public class SkinnedMeshRenderer : IUnityObject
                         if (gameobj.m_Name.EndsWith(" 1"))
                         {
                             string removed = gameobj.m_Name.Substring(0, gameobj.m_Name.LastIndexOf(" 1"));
-                            if (FoundMesh.Mesh.Asset.Data.bones.Find(bone => bone.Name == removed) != null)
+                            if (FoundMesh.Mesh.Asset.Data.Bones.FirstOrDefault(bone => bone.Name == removed) != null)
                             {
                                 bonemappings.Add(removed, gameobj.frooxEngineSlot); //take care of meshes that have the same names as bone (EX: "Head" mesh and "Head" bone)
                                 continue;
@@ -251,7 +262,7 @@ public class SkinnedMeshRenderer : IUnityObject
 
             UnityPackageImporter.Msg("Setting up blend shapes");
             await default(ToWorld);
-            FoundMesh.SetupBlendShapes();
+            FrooxInternalBridge.SetupBlendShapes(FoundMesh);
             await default(ToBackground);
 
 
@@ -285,6 +296,12 @@ public class SkinnedMeshRenderer : IUnityObject
 
 
         }
+
+        await default(ToWorld);
+        BlendShapeDefaults.ApplyNamed(m_BlendShapeWeights, SourceBlendShapeNames, FoundMesh.BlendShapeIndex,
+            (index, weight) => FoundMesh.BlendShapeWeights[index] = weight,
+            warning => UnityPackageImporter.Warn($"{FoundMesh.Slot.Name}: {warning}"));
+        await default(ToBackground);
 
         for (int i = 0; i < m_Materials.Count; i++)
         {
@@ -366,8 +383,7 @@ public class SkinnedMeshRenderer : IUnityObject
                 UnityPackageImporter.Warn("Could not attach material \"" + counter.ToString() + "\" on mesh \"" + FoundMesh.Slot.Name + "\" from skinned mesh renderer data. It's probably not in the project or in the files you dragged over.");
                 UnityPackageImporter.Warn("stacktrace for material \"" + counter.ToString() + "\" on mesh \"" + FoundMesh.Slot.Name + "\"");
                 UnityPackageImporter.Warn(e.Message);
-                await default(ToWorld);
-                FoundMesh.Materials.Add(await new FileImportHelperTaskMaterial(importer.unityProjectImporter).runImportFileMaterialsAsync());
+                FoundMesh.Materials.Add().Target = await new FileImportHelperTaskMaterial(importer.unityProjectImporter).runImportFileMaterialsAsync();
                 await default(ToBackground);
             }
             counter++;
@@ -414,11 +430,11 @@ public class SkinnedMeshRenderer : IUnityObject
             result.AppendLine("createdMeshRenderer" + createdMeshRenderer.ToString());
         else
             result.AppendLine("createdMeshRenderer: null");
-        
+
         return result.ToString();
     }
 
-    
+
 }
 //to store aabb data to bring into froox engine for skinned mesh renderers
 public class AABB

@@ -1,10 +1,11 @@
-﻿using Elements.Assets;
+using Elements.Assets;
 using Elements.Core;
 using FrooxEngine;
 using FrooxEngine.FinalIK;
 using FrooxEngine.ProtoFlux;
 using HarmonyLib;
 using ResoniteModLoader;
+using Renderite.Shared;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -14,7 +15,6 @@ using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using UnityEngine;
 using UnityPackageImporter.Extractor;
 using UnityPackageImporter.FrooxEngineRepresentation;
 using UnityPackageImporter.FrooxEngineRepresentation.GameObjectTypes;
@@ -450,7 +450,7 @@ namespace UnityPackageImporter
                     await metadata.ScanFile(task.fileImportTask.file + UnityPackageImporter.UNITY_META_EXTENSION, taskSlot);
                     await default(ToWorld);
                     UnityPackageImporter.Msg("returning to main thread and checking if we found a biped rig.");
-                    task.fileImportTask.isBiped = metadata.modelBoneHumanoidAssignments.IsBiped;
+                    task.fileImportTask.isBiped = metadata.IsBiped;
                 }
                 await default(ToBackground);
 
@@ -490,7 +490,7 @@ namespace UnityPackageImporter
                         BodyNode node = BodyNode.NONE;
                         try
                         {
-                            node = metadata.modelBoneHumanoidAssignments.Bones.FirstOrDefault(i => i.Value.Target.Name.Equals(slot.Name)).key;
+                            node = metadata.storagebones.FirstOrDefault(i => i.Value != null && i.Value.Name.Equals(slot.Name)).Key;
                         }
                         catch (Exception) { } //this is to catch key not found so we shouldn't handle this.
 

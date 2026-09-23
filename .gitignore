@@ -338,3 +338,7 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+
+# Local diagnostic dumps and session scripts
+scripts/*
+!scripts/Install-PreparedMod.ps1

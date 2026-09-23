@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using FrooxEngine;
+using Renderite.Shared;
 using UnityPackageImporter.FrooxEngineRepresentation;
 using UnityPackageImporter.Models;
 using YamlDotNet.Serialization;
@@ -12,9 +13,14 @@ namespace UnityPackageImporter;
 public class MetaDataFile
 {
     public float GlobalScale = 1;
+    public float UnitScaleFactor = 100f;
+    public bool UseFileUnits = true;
+    public bool UseFileScale = true;
+    public float CalculatedScaleFactor = 1f;
     private float LastScaleGlobalScale = 1;
     public Dictionary<string, SourceObj> externalObjects = new Dictionary<string, SourceObj>();
-    private Dictionary<BodyNode, Slot> storagebones = new Dictionary<BodyNode, Slot>();
+    public Dictionary<BodyNode, Slot> storagebones = new Dictionary<BodyNode, Slot>();
+    public bool IsBiped => storagebones.Count > 0;
     public Dictionary<long, string> fileIDToRecycleName = new Dictionary<long, string>();
     public MetaDataFile() { }
             
@@ -56,6 +62,12 @@ public class MetaDataFile
         storagebones.Clear();
         fileIDToRecycleName.Clear();
         externalObjects.Clear();
+        GlobalScale = 1f;
+        UnitScaleFactor = 100f;
+        UseFileUnits = true;
+        UseFileScale = true;
+        CalculatedScaleFactor = 1f;
+        LastScaleGlobalScale = 1f;
 
         // Bonereading section
         string boneName = string.Empty;
@@ -64,6 +76,29 @@ public class MetaDataFile
 
         foreach (string line in File.ReadLines(task.file + UnityPackageImporter.UNITY_META_EXTENSION))
         {
+            string trimmed = line.Trim();
+            if (trimmed.StartsWith("globalScale:") || trimmed.StartsWith("m_ScaleFactor:"))
+            {
+                string valStr = trimmed.Split(':')[1].Trim();
+                if (float.TryParse(valStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float gs))
+                {
+                    GlobalScale = gs;
+                }
+                continue;
+            }
+            if (trimmed.StartsWith("useFileUnits:") || trimmed.StartsWith("m_UseFileUnits:"))
+            {
+                string valStr = trimmed.Split(':')[1].Trim();
+                UseFileUnits = valStr == "1" || valStr.Equals("true", StringComparison.OrdinalIgnoreCase);
+                continue;
+            }
+            if (trimmed.StartsWith("useFileScale:") || trimmed.StartsWith("m_UseFileScale:"))
+            {
+                string valStr = trimmed.Split(':')[1].Trim();
+                UseFileScale = valStr == "1" || valStr.Equals("true", StringComparison.OrdinalIgnoreCase);
+                continue;
+            }
+
             if(line.StartsWith("  fileIDToRecycleName:"))
             {
                 sectiontype = 1;
@@ -122,13 +157,14 @@ public class MetaDataFile
                     {
                         await default(ToWorld);
                         UnityPackageImporter.Msg("finding bone: "+ boneName);
-                        Rig.BoneNode bone = new Rig.BoneNode(ModelRootSlot.FindChild(boneName, false, false, -1), HumanoidNameToEnum(boneNameHuman));
+                        Slot boneSlot = ModelRootSlot.FindChild(boneName, false, false, -1);
+                        BodyNode bodyNodeType = HumanoidNameToEnum(boneNameHuman);
                         
                         //so that we add the bone without parsing it's children
                         //if we use """AssignBones(Rig.BoneNode root, bool ignoreDuplicates)""" that will cause errors.
-                        if (!storagebones.ContainsKey(bone.boneType))
+                        if (!storagebones.ContainsKey(bodyNodeType))
                         {
-                            storagebones.Add(bone.boneType, bone.bone);
+                            storagebones.Add(bodyNodeType, boneSlot);
                         }
                         await default(ToBackground);
                         boneName = string.Empty;
@@ -164,7 +200,13 @@ public class MetaDataFile
                     break;
             }
         }
-        GlobalScale = LastScaleGlobalScale;
+        if (!string.IsNullOrEmpty(task.file) && File.Exists(task.file))
+        {
+            UnitScaleFactor = ModelScaleHelper.GetFbxUnitScaleFactor(task.file);
+        }
+        CalculatedScaleFactor = ModelScaleHelper.CalculateEffectiveScale(GlobalScale, UseFileUnits, UseFileScale, UnitScaleFactor);
+        GlobalScale = CalculatedScaleFactor;
+        UnityPackageImporter.Msg($"Parsed model scale for '{Path.GetFileName(task.file)}': globalScale={GlobalScale}, useFileUnits={UseFileUnits}, useFileScale={UseFileScale}, unitScaleFactor={UnitScaleFactor} -> CalculatedScaleFactor={CalculatedScaleFactor}");
     }
 
     // Since Unity names and FrooxEngine names are the same, just parse them as enums and return.

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityPackageImporter.FrooxEngineRepresentation;
@@ -41,7 +41,7 @@ public class YamlToFrooxEngine
                     //Since deserializing happens before adding to the list and those are done syncronously with each other, it is fine.
                     existingIUnityObjects.Add(doc.id, doc);
                 }
-                catch (Exception e)
+                catch (Exception)
                 {
                     try
                     {
@@ -54,7 +54,7 @@ public class YamlToFrooxEngine
                         UnityPackageImporter.Msg("Duplicate key probably for Yaml\"" + FilePath + "\"just ignore this.");
                         UnityPackageImporter.Warn(e2.Message + e2.StackTrace);
                     }
-                    throw e;
+                    throw;
 
                 }
             }
@@ -62,7 +62,7 @@ public class YamlToFrooxEngine
             {
                 UnityPackageImporter.Msg("Couldn't evaluate node type for Yaml\"" + FilePath + "\". stacktrace below");
                 UnityPackageImporter.Warn(e.Message + e.StackTrace);
-                throw e; //TODO: REMOVE
+                throw; //TODO: REMOVE
             }
         }
 
