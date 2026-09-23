@@ -341,4 +341,6 @@ healthchecksdb
 
 # Local diagnostic dumps and session scripts
 scripts/*
-!scripts/Install-PreparedMod.ps1
+!scripts/Install-PreparedMod.ps1
+*.zip
+
