@@ -1,7 +1,7 @@
 # UnityPackageImporter for Resonite
 
-> # ⚠️ NOTICE: 100% AI-GENERATED CODEBASE
-> **This entire mod, its core algorithms, bugfixes, refactors, and documentation were written 100% by AI (LLM pair-programming agents).**
+> # ⚠️ NOTICE: AI-DEVELOPED FORK & MODERN OVERHAUL
+> **This modern fork, including its stabilization refactors, lilToon material mapping engine, FBX auto-scaling, bugfixes, regression test suite, and documentation, was developed 100% using AI (LLM pair-programming agents), built on top of the original human-authored foundation by [dfgHiatus](https://github.com/dfgHiatus/ResoniteUnityPackagesImporter).**
 >
 > If you are a modder, developer, or curious user wanting to explore or modify this codebase, **we strongly recommend using an AI coding agent** (such as Gemini, Claude, ChatGPT, Cursor, or GitHub Copilot) to navigate and explain the code to you.
 
