@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Elements.Core;
 using FrooxEngine;
 using FrooxEngine.FinalIK;
+using Renderite.Shared;
 using UnityPackageImporter.Models;
 
 
@@ -13,9 +14,17 @@ namespace UnityPackageImporter;
 
 public class UnityProjectImporter
 {
+    private readonly object dependencyLock = new();
+    private readonly Dictionary<string, string> mutableAssetIndex;
+    private readonly List<MissingMaterialBinding> missingMaterialBindings = new();
+
     public ReadOnlyDictionary<string, string> ListOfMetas;
     public readonly Slot importTaskAssetRoot;
-    public List<FileImportHelperTaskMaterial> TasksMaterials = new List<FileImportHelperTaskMaterial>();  
+    public List<FileImportHelperTaskMaterial> TasksMaterials = new List<FileImportHelperTaskMaterial>();
+    internal readonly AsyncImportCache<IAssetProvider<Material>> MaterialImports = new();
+    internal readonly AsyncImportCache<StaticTexture2D> TextureImports = new();
+    internal readonly AsyncImportCache<StaticTexture2D> RampImports = new();
+    internal readonly AsyncImportCache<StaticTexture2D> CompositeImports = new();
     public Dictionary<string, FileImportTaskScene> SharedImportedFBXScenes = new Dictionary<string, FileImportTaskScene>();
     public ReadOnlyDictionary<string, string> AssetIDDict;
     public ReadOnlyDictionary<string, string> ListOfUnityScenes;
@@ -23,37 +32,190 @@ public class UnityProjectImporter
     public Slot root;
     public World world;
     public ReadOnlyDictionary<string, string> ListOfPrefabs;
+    public IReadOnlyList<string> PackageNames { get; }
 
-    public UnityProjectImporter(IEnumerable<string> files, Dictionary<string, string> AssetIDDict, Dictionary<string, string> ListOfPrefabs, Dictionary<string, string> ListOfMetas, Dictionary<string, string> ListOfUnityScenes, Slot root, Slot assetsRoot, World world)
+    public UnityProjectImporter(
+        IEnumerable<string> files,
+        Dictionary<string, string> AssetIDDict,
+        Dictionary<string, string> ListOfPrefabs,
+        Dictionary<string, string> ListOfMetas,
+        Dictionary<string, string> ListOfUnityScenes,
+        Slot root,
+        Slot assetsRoot,
+        World world,
+        IReadOnlyList<string> packageNames)
     {
-        this.files = files as List<string>;
+        this.files = files.ToList();
         this.importTaskAssetRoot = assetsRoot;
         this.root = root;
+        this.PackageNames = packageNames?.ToArray() ?? Array.Empty<string>();
 
         // These are read only, since they're for reference only. this allows us to be thread safe since we should only be reading not writing.
         this.ListOfPrefabs = new ReadOnlyDictionary<string, string>(ListOfPrefabs);
         this.ListOfMetas = new ReadOnlyDictionary<string, string>(ListOfMetas);
-        this.AssetIDDict = new ReadOnlyDictionary<string, string>(AssetIDDict);
+        this.mutableAssetIndex = new Dictionary<string, string>(AssetIDDict, StringComparer.OrdinalIgnoreCase);
+        this.AssetIDDict = new ReadOnlyDictionary<string, string>(this.mutableAssetIndex);
         this.ListOfUnityScenes = new ReadOnlyDictionary<string, string>(ListOfUnityScenes);
         this.world = world;
     }
 
+    internal void RegisterMissingMaterial(
+        FrooxEngine.SkinnedMeshRenderer renderer,
+        int materialIndex,
+        string materialGuid)
+    {
+        if (renderer == null || materialIndex < 0 || string.IsNullOrWhiteSpace(materialGuid)) return;
+        lock (dependencyLock)
+        {
+            if (missingMaterialBindings.Any(binding =>
+                    ReferenceEquals(binding.Renderer, renderer) &&
+                    binding.MaterialIndex == materialIndex &&
+                    binding.MaterialGuid.Equals(materialGuid, StringComparison.OrdinalIgnoreCase)))
+                return;
+
+            missingMaterialBindings.Add(new MissingMaterialBinding
+            {
+                Renderer = renderer,
+                MaterialIndex = materialIndex,
+                MaterialGuid = materialGuid,
+                RendererName = renderer.Slot?.Name ?? "Mesh"
+            });
+        }
+    }
+
+    internal MaterialDependencySummary GetMissingMaterialSummary()
+    {
+        List<MissingMaterialBinding> pending;
+        lock (dependencyLock)
+            pending = missingMaterialBindings.Where(binding => !binding.Resolved).ToList();
+
+        return MaterialDependencyDiagnostics.Analyze(
+            pending.GroupBy(binding => binding.Renderer)
+                .Select(group => group.Select(binding => binding.MaterialGuid)),
+            Array.Empty<string>());
+    }
+
+    internal IReadOnlyList<string> GetMissingMaterialGuids()
+    {
+        lock (dependencyLock)
+            return missingMaterialBindings
+                .Where(binding => !binding.Resolved)
+                .Select(binding => binding.MaterialGuid)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(guid => guid, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+    }
+
+    internal bool CanResolveAnyMaterial(IEnumerable<string> assetGuids)
+    {
+        var candidates = new HashSet<string>(assetGuids ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
+        lock (dependencyLock)
+            return missingMaterialBindings.Any(binding =>
+                !binding.Resolved && candidates.Contains(binding.MaterialGuid));
+    }
+
+    internal async Task<MaterialResolutionResult> ResolveMissingMaterialsAsync(
+        IReadOnlyDictionary<string, string> dependencyAssets)
+    {
+        if (dependencyAssets == null)
+            return new MaterialResolutionResult(GetMissingMaterialSummary(), 0);
+
+        lock (dependencyLock)
+        {
+            foreach (var asset in dependencyAssets)
+                if (!mutableAssetIndex.ContainsKey(asset.Key))
+                    mutableAssetIndex.Add(asset.Key, asset.Value);
+        }
+
+        List<MissingMaterialBinding> resolvable;
+        lock (dependencyLock)
+            resolvable = missingMaterialBindings
+                .Where(binding => !binding.Resolved && mutableAssetIndex.ContainsKey(binding.MaterialGuid))
+                .ToList();
+
+        int restored = 0;
+        foreach (var materialGroup in resolvable.GroupBy(
+                     binding => binding.MaterialGuid,
+                     StringComparer.OrdinalIgnoreCase))
+        {
+            try
+            {
+                string materialGuid = materialGroup.Key;
+                string materialPath;
+                lock (dependencyLock)
+                    materialPath = mutableAssetIndex[materialGuid];
+
+                // FileImportHelperTaskMaterial creates its asset slot in the constructor,
+                // so it must be constructed while holding the world update lock.
+                await default(ToWorld);
+                var materialTask = new FileImportHelperTaskMaterial(
+                    materialGuid,
+                    materialPath,
+                    this);
+                await default(ToBackground);
+                var material = await materialTask.runImportFileMaterialsAsync();
+
+                await default(ToWorld);
+                foreach (var binding in materialGroup)
+                {
+                    if (binding.Renderer == null || binding.Renderer.IsDestroyed)
+                    {
+                        binding.Resolved = true;
+                        continue;
+                    }
+
+                    while (binding.Renderer.Materials.Count <= binding.MaterialIndex)
+                        binding.Renderer.Materials.Add();
+                    binding.Renderer.Materials[binding.MaterialIndex] = material;
+                    binding.Resolved = true;
+                    restored++;
+                }
+                await default(ToBackground);
+            }
+            catch (Exception ex)
+            {
+                UnityPackageImporter.Warn(
+                    "Could not restore material '" + materialGroup.Key + "' on " +
+                    materialGroup.Count() + " renderer assignment(s): " + ex);
+                await default(ToBackground);
+            }
+        }
+
+        return new MaterialResolutionResult(GetMissingMaterialSummary(), restored);
+    }
+
     public async Task StartImports()
+    {
+        try
+        {
+            await ImportProject();
+        }
+        finally
+        {
+            await default(ToWorld);
+            foreach (var task in SharedImportedFBXScenes.Values)
+                task.DestroyTemplate();
+            SharedImportedFBXScenes.Clear();
+        }
+    }
+
+    private async Task ImportProject()
     {
         await default(ToBackground);
         UnityPackageImporter.Msg("Start Project Importing for unitypackage");
+        FrooxInternalBridge.ValidateModelImportApi();
 
         // I feel so smart making the wait all import fbx tasks code. - @989onan
         await default(ToWorld);
-        IEnumerable<FileImportTaskScene> fbx_tasks = FillFBXFiles();
-        
+        var fbx_tasks = FillFBXFiles().ToArray();
+
         await Task.WhenAll(fbx_tasks.Select(task => task.RunnerWrapper()).ToArray());
         await default(ToBackground);
-        // Now we have a full list of meta files and prefabs regarding this import file list from our prefix (where ever this is even if not a unity package folder) we now begin the hard part *drums* making the files go onto the model! 
+        // Now we have a full list of meta files and prefabs regarding this import file list from our prefix (where ever this is even if not a unity package folder) we now begin the hard part *drums* making the files go onto the model!
         List<IUnityStructureImporter> unityImportTasks = new List<IUnityStructureImporter>();
         int total = this.ListOfPrefabs.Count + this.ListOfUnityScenes.Count;
         int rowSize = MathX.Max(1, MathX.CeilToInt(MathX.Sqrt((float)total)));
-        
+
         float3 GlobalPosition = new float3(0,0,0);
         floatQ GlobalRotation = new floatQ(0, 0, 0, 1);
 
@@ -81,33 +243,26 @@ public class UnityProjectImporter
         await default(ToWorld);
         await Task.WhenAll(unityImportTasks.Select(task => task.StartImport()));
         UnityPackageImporter.Msg("Finished project importing! Cleaning up...");
+        await MaterialDependencyCoordinator.ShowIfNeededAsync(this);
         await default(ToBackground);
 
-        foreach (FileImportTaskScene obj in this.SharedImportedFBXScenes.Values)
-        {
-            await default(ToWorld);
-            obj.FinishedFileSlot.Destroy();
-            await default(ToBackground);
-        }
-
-        SharedImportedFBXScenes.Clear();
         UnityPackageImporter.Msg("All finished!");
     }
 
     private IEnumerable<FileImportTaskScene> FillFBXFiles()
     {
         int total = 0;
-        
+
         foreach (KeyValuePair<string,string> pair in AssetIDDict)
         {
             string[] filename = pair.Value.Split('.');
             if(new string[]{"fbx"}.Contains(filename[filename.Length-1].ToLower())){
 
-                if (!SharedImportedFBXScenes.ContainsKey(pair.key))
+                if (!SharedImportedFBXScenes.ContainsKey(pair.Key))
                 {
-                    total++;          
+                    total++;
                 }
-            }     
+            }
         }
 
         int rowSize = MathX.Max(1, MathX.CeilToInt(MathX.Sqrt((float)total)));
@@ -118,30 +273,42 @@ public class UnityProjectImporter
             string[] filename = pair.Value.Split('.');
             if (new string[] { "fbx" }.Contains(filename[filename.Length - 1].ToLower()))
             {
-                if (!SharedImportedFBXScenes.ContainsKey(pair.key))
+                if (!SharedImportedFBXScenes.ContainsKey(pair.Key))
                 {
                     UnityPackageImporter.Debug("now importing \"" + pair.Value + "\" for later use by prefabs and scenes!");
-                    FileImportTaskScene importtask = new FileImportTaskScene(this.root, pair.key, this, this.AssetIDDict[pair.key], (GlobalRotation * UniversalImporter.GridOffset(ref counter, rowSize)) + GlobalPosition);
-                    this.SharedImportedFBXScenes.Add(pair.key, importtask);
+                    FileImportTaskScene importtask = new FileImportTaskScene(this.root, pair.Key, this, this.AssetIDDict[pair.Key], (GlobalRotation * UniversalImporter.GridOffset(ref counter, rowSize)) + GlobalPosition);
+                    this.SharedImportedFBXScenes.Add(pair.Key, importtask);
                     yield return importtask;
 
                 }
             }
         }
-        
-        yield break;   
+
+        yield break;
     }
 
     // This is static for a reason to be shared, don't use any fields from this importer that aren't static, and make sure to use locking to be thread safe
     public static async Task SettupHumanoid(FileImportTaskScene task, Slot FBXRoot, bool needsScaleComp)
     {
+        if (task == null || FBXRoot == null)
+        {
+            UnityPackageImporter.Warn("SettupHumanoid skipped: task or FBXRoot was null.");
+            return;
+        }
+
         UnityPackageImporter.Msg("checking if this FBX is a humanoid");
         Slot taskSlot = FBXRoot;
 
+        // A shared FBX task can feed several prefabs concurrently. Bone Slots belong
+        // to this instance, so never rescan/mutate the template's metadata here.
+        var instanceMetadata = new MetaDataFile();
+        await instanceMetadata.ScanFile(task, FBXRoot);
+        await default(ToWorld);
+        if (taskSlot.GetComponent<VRIK>() != null) return;
         BipedRig biped = taskSlot.AttachComponent<BipedRig>();
-        await task.metafile.ScanFile(task, FBXRoot);
-        await task.metafile.GenerateComponents(biped);
-        
+        await instanceMetadata.GenerateComponents(biped);
+        await default(ToWorld);
+
         // EXPLAINATION OF THIS CODE:
         // We are using the froox engine data made from assimp to force our model onto what we generated instead of
         // What froox engine made. This is better than asking froox engine to fully import the model for us
@@ -150,7 +317,8 @@ public class UnityProjectImporter
 
             await default(ToWorld);
 
-            Slot movecenter = taskSlot.Parent.AddSlot(taskSlot.Name + " - Move Me With This!");
+            Slot parentSlot = taskSlot.Parent ?? taskSlot.World.RootSlot;
+            Slot movecenter = parentSlot.AddSlot(taskSlot.Name + " - Move Me With This!");
             movecenter.TRS = taskSlot.TRS;
             taskSlot.SetParent(movecenter);
 
@@ -170,16 +338,14 @@ public class UnityProjectImporter
                 // Put our stuff under a slot called rootnode so froox engine can set this model up as an avatar
                 await default(ToWorld);
                 Slot rootnode = FBXRoot; // Intentional - @989onan
-               
-                UnityPackageImporter.Msg("Scaling up/down armature to file's global scale.");
-                //Make the bone distances bigger since this model's file may have been exported 100X smaller
+
+                UnityPackageImporter.Msg("Registering bones to rig.");
                 await default(ToWorld);
                 foreach (Slot slot in rootnode.GetAllChildren(false).ToArray())
                 {
                     if (null == slot.GetComponent<FrooxEngine.SkinnedMeshRenderer>())
                     {
-                        UnityPackageImporter.Msg("adding bone " + slot.Name +" with scale \""+ task.metafile.GlobalScale + "\"");
-                        slot.LocalPosition *= needsScaleComp?task.metafile.GlobalScale:1;
+                        UnityPackageImporter.Msg("adding bone " + slot.Name);
                         rig.Bones.AddUnique(slot);
                     }
 
@@ -187,7 +353,7 @@ public class UnityProjectImporter
                     BodyNode node = BodyNode.NONE;
                     try
                     {
-                        node = biped.Bones.FirstOrDefault(i => i.Value.Target.Name.Equals(slot.Name)).key;
+                        node = biped.Bones.FirstOrDefault(i => i.Value != null && i.Value.Name.Equals(slot.Name)).Key;
                     }
                     catch (Exception) { } //this is to catch key not found so we shouldn't handle this.
 
@@ -234,17 +400,20 @@ public class UnityProjectImporter
                 await default(ToBackground);
 
                 Elements.Core.BoundingBox boundingBox = Elements.Core.BoundingBox.Empty();
-                
+
                 await default(ToWorld);
                 float num = FBXRoot.ComputeBoundingBox(true, FBXRoot, null, null).Size.y/1.8f;
 
-                rootnode.LocalScale /= new float3(num, num, num);
+                if (float.IsFinite(num) && num > 0.000001f)
+                    rootnode.LocalScale /= new float3(num, num, num);
+                else
+                    UnityPackageImporter.Warn("Cannot normalize humanoid height because mesh bounds are empty or invalid: " + task.file);
                 await default(ToBackground);
 
 
                 UnityPackageImporter.Msg("attaching VRIK");
                 await default(ToWorld);
-                
+
                 await default(ToBackground);
                 UnityPackageImporter.Msg("Initializing VRIK");
                 await default(ToWorld);
@@ -279,12 +448,12 @@ public class UnityProjectImporter
                 Slot slot8 = biped[BodyNode.RightFoot];
                 Slot slot9 = biped.TryGetBone(BodyNode.LeftToes);
                 Slot slot10 = biped.TryGetBone(BodyNode.RightToes);
-                ModelImporter.SetupDraggable(slot3, vrik.Solver, vrik.Solver.spine.IKPositionHead, vrik.Solver.spine.IKRotationHead, vrik.Solver.spine.PositionWeight);
-                ModelImporter.SetupDraggable(slot4, vrik.Solver, vrik.Solver.spine.IKPositionPelvis, vrik.Solver.spine.IKRotationPelvis, vrik.Solver.spine.PelvisPositionWeight);
-                ModelImporter.SetupDraggable(slot5, vrik.Solver, vrik.Solver.leftArm.IKPosition, vrik.Solver.leftArm.IKRotation, vrik.Solver.leftArm.PositionWeight);
-                ModelImporter.SetupDraggable(slot6, vrik.Solver, vrik.Solver.rightArm.IKPosition, vrik.Solver.rightArm.IKRotation, vrik.Solver.rightArm.RotationWeight);
-                ModelImporter.SetupDraggable(slot9 ?? slot7, vrik.Solver, vrik.Solver.leftLeg.IKPosition, vrik.Solver.leftLeg.IKRotation, vrik.Solver.leftLeg.PositionWeight);
-                ModelImporter.SetupDraggable(slot10 ?? slot8, vrik.Solver, vrik.Solver.rightLeg.IKPosition, vrik.Solver.rightLeg.IKRotation, vrik.Solver.rightLeg.PositionWeight);
+                FrooxInternalBridge.SetupDraggable(slot3, vrik.Solver, vrik.Solver.spine.IKPositionHead, vrik.Solver.spine.IKRotationHead, vrik.Solver.spine.PositionWeight);
+                FrooxInternalBridge.SetupDraggable(slot4, vrik.Solver, vrik.Solver.spine.IKPositionPelvis, vrik.Solver.spine.IKRotationPelvis, vrik.Solver.spine.PelvisPositionWeight);
+                FrooxInternalBridge.SetupDraggable(slot5, vrik.Solver, vrik.Solver.leftArm.IKPosition, vrik.Solver.leftArm.IKRotation, vrik.Solver.leftArm.PositionWeight);
+                FrooxInternalBridge.SetupDraggable(slot6, vrik.Solver, vrik.Solver.rightArm.IKPosition, vrik.Solver.rightArm.IKRotation, vrik.Solver.rightArm.RotationWeight);
+                FrooxInternalBridge.SetupDraggable(slot9 ?? slot7, vrik.Solver, vrik.Solver.leftLeg.IKPosition, vrik.Solver.leftLeg.IKRotation, vrik.Solver.leftLeg.PositionWeight);
+                FrooxInternalBridge.SetupDraggable(slot10 ?? slot8, vrik.Solver, vrik.Solver.rightLeg.IKPosition, vrik.Solver.rightLeg.IKRotation, vrik.Solver.rightLeg.PositionWeight);
                 taskSlot.AttachComponent<DestroyRoot>();
                 DynamicVariableSpace avatar = taskSlot.AttachComponent<DynamicVariableSpace>();
                 avatar.SpaceName.Value = "Avatar"; //hehe random bias, go! - @989onan

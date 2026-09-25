@@ -338,3 +338,33 @@ ASALocalRun/
 
 # BeatPulse healthcheck temp database
 healthchecksdb
+
+# Local diagnostic dumps and session scripts
+scripts/*
+!scripts/Install-PreparedMod.ps1
+*.zip
+
+# Private local development and live-test data
+/scratch/
+/private/
+/local-data/
+/test-packages/
+/evidence/
+*.unitypackage
+*.fbx
+*.blend
+*.vrm
+*.glb
+*.gltf
+*.psd
+*.tga
+*.exr
+*.dll
+*.dmp
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+secrets.*
+credentials.*

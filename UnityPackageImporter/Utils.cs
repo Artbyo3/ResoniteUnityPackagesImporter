@@ -1,4 +1,4 @@
-﻿using FrooxEngine;
+using FrooxEngine;
 using System;
 using System.IO;
 using System.Linq;
@@ -8,8 +8,6 @@ namespace UnityPackageImporter;
 
 internal static class Utils
 {
-    private static readonly MD5 hasher = MD5.Create();
-
     internal static bool ContainsUnicodeCharacter(string input)
     {
         const int MaxAnsiCode = 255;
@@ -19,7 +17,8 @@ internal static class Utils
     internal static string GenerateMD5(string filepath)
     {
         // Credit to delta for this method https://github.com/XDelta/
-        var stream = File.OpenRead(filepath);
+        using var hasher = MD5.Create();
+        using var stream = File.OpenRead(filepath);
         var hash = hasher.ComputeHash(stream);
         return BitConverter.ToString(hash).Replace("-", "");
     }
@@ -38,5 +37,17 @@ internal static class Utils
     internal static bool GetBoolFromULong(ulong IsEnabled)
     {
         return IsEnabled == 1;
+    }
+
+    internal static void AddRange<TKey, TValue>(this System.Collections.Generic.IDictionary<TKey, TValue> dict, System.Collections.Generic.IDictionary<TKey, TValue> other)
+    {
+        if (other == null) return;
+        foreach (var kvp in other)
+        {
+            if (!dict.ContainsKey(kvp.Key))
+            {
+                dict.Add(kvp.Key, kvp.Value);
+            }
+        }
     }
 }

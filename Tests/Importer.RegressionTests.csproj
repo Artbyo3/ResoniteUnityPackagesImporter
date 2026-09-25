@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <DefineConstants>$(DefineConstants);REGRESSION_TESTS</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../UnityPackageImporter/UnityPackageExtractor.cs" Link="UnityPackageExtractor.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AsyncImportCache.cs" Link="AsyncImportCache.cs" />
+    <Compile Include="../UnityPackageImporter/Models/UnityPropertyPath.cs" Link="UnityPropertyPath.cs" />
+    <Compile Include="../UnityPackageImporter/Models/BlendShapeDefaults.cs" Link="BlendShapeDefaults.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ModelScaleHelper.cs" Link="ModelScaleHelper.cs" />
+    <Compile Include="../UnityPackageImporter/Models/RampGenerator.cs" Link="RampGenerator.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ExpressionMenuParser.cs" Link="ExpressionMenuParser.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AvatarStateReconstructor.cs" Link="AvatarStateReconstructor.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AvatarPackageIndex.cs" Link="AvatarPackageIndex.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ModularAvatarMergePlanner.cs" Link="ModularAvatarMergePlanner.cs" />
+    <Compile Include="../UnityPackageImporter/Models/OutfitInstallIdentity.cs" Link="OutfitInstallIdentity.cs" />
+    <Compile Include="../UnityPackageImporter/Models/MaterialDependencyDiagnostics.cs" Link="MaterialDependencyDiagnostics.cs" />
+    <Compile Include="../UnityPackageImporter/Models/UnityPackageAssetIndex.cs" Link="UnityPackageAssetIndex.cs" />
+  </ItemGroup>
+</Project>

@@ -1,37 +1,74 @@
-# UnityPackageImporter
+# Unity Package Importer for Resonite
 
-A [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for [Resonite VR](https://Resonite.com/) that facilitates the import of Unity Packages.
+An experimental [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for importing Unity packages into [Resonite](https://resonite.com/), with an emphasis on VRChat avatars and Modular Avatar clothing.
+
+This fork is under active development. It is useful for testing, but it does not yet reproduce every Unity, VRChat, shader, animation, or Modular Avatar feature.
+
+## Current capabilities
+
+- Safely extracts Unity packages with archive traversal, collision, corruption, and resource-limit checks.
+- Reconstructs Unity prefab and scene hierarchies, meshes, transforms, materials, bones, and blendshape defaults.
+- Normalizes common meter and centimeter FBX imports.
+- Converts a supported subset of lilToon material properties to `XiexeToonMaterial`.
+- Generates deterministic shadow-ramp textures when compatible lilToon data is available.
+- Resolves material dependencies supplied in a later Unity package without reimporting the model.
+- Reads the expression menu, parameters, and animator assets referenced by individual VRChat avatar descriptors.
+- Detects supported Modular Avatar metadata, including Merge Armature and Bone Proxy.
+- Installs supported Modular Avatar clothing on a selected avatar using a copied source, rollback on failure, and per-outfit installation records.
+- Keeps imported prefab roots independent from the importer interface.
+- Includes 70 regression tests plus checks against the installed Resonite engine API.
+
+## Known limitations
+
+- Skinned-mesh bounds are improved but can still cull some avatar parts incorrectly. This remains an active investigation.
+- Modular Avatar support covers a limited subset. Shape Changer, full menu installation, and many build-time components are still planned.
+- VRChat animator and expression behavior is reconstructed only for supported cases.
+- VRC PhysBones are not translated yet.
+- Poiyomi, VRCFury, custom shaders, and custom Unity editor pipelines are outside the current compatibility target.
+- lilToon conversion is an approximation; advanced or animated shader features may be skipped.
+- Some packages split models and materials across multiple Unity packages and require the missing-material workflow.
+
+The importer reports unsupported or missing data where it can detect it. Keep the original Unity project and package files as the source of truth.
 
 ## Installation
+
+This project currently targets experienced testers.
+
 1. Install [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader).
-2. Place [UnityPackageImporter.dll](https://github.com/dfgHiatus/ResoniteUnityPackagesImporter/releases/latest/download/UnityPackageImporter.dll) into your `rml_mods` folder. This folder should be at `C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_mods` for a default install. You can create it if it's missing, or if you launch the game once with ResoniteModLoader installed it will create the folder for you.
-3. Do the same for any other files on the release page.
-4. Start the game. If you want to verify that the mod is working you can check your Resonite logs.
+2. Build the project as described below.
+3. Close Resonite.
+4. Copy `UnityPackageImporter.dll` from `UnityPackageImporter/bin/Release/` into the Resonite `rml_mods` directory.
+5. Start Resonite and drag a `.unitypackage` into the game.
 
-## FAQs
-1. <b>What does this mod do exactly?</b> This mod solely extracts the assets of Unity Packages and imports them into Resonite
-1. <b>Will this mod setup avatars for me?</b> No, you'll need to set them up normally. It will do materials and textures though sometimes.
-1. <b>What kind of unity packages can I import?</b> Anything! Avatar packages, world packages, anything you can think of!
-1. <b>Will this mod run on the Linux version of the game?</b> Yes
-1. <b>How many packages can I import at once?</b> In theory you should be able to import many at once, but in my experience one at a time is your best friend here given the <i>massive</i> file size Unity Packages can be
-1. <b>Help! The files I imported are file-looking things!</b> Using [ResoniteModSettings](https://github.com/badhaloninja/ResoniteModSettings), you'll see the topmost option is to "Import files directly into Resonite". You can set this to false, but be wary as you may import thousands of things all at once!
-1. <b>What kind of files does this mod import?</b>
-Presently, it supports:
-- Text
-- Images
-- Documents 
-- 3D Models (including point clouds)
-- Audio
-- Fonts
-- Videos
-- And raw binary variants of the above for file sharing
-- Prefabs (ALPHA)
-- Scenes (ALPHA)
-9. <b>What will this mod NOT import?</b>
-- Particle systems
-- Animations/Animators
-- Dynamic Bones
-- Phys Bones
+Do not replace the DLL while Resonite or Renderite is running.
 
-## Known Issues and Limitations
-- This might hang a little bit during import. Recommended to import one unity package at a time, pairs nicely with [ResoniteModSettings](https://github.com/badhaloninja/ResoniteModSettings)
+## Building
+
+Requirements:
+
+- .NET 10 SDK
+- A local Resonite installation
+- ResoniteModLoader
+
+The project defaults to the standard Steam installation directory. Override the `GamePath` MSBuild property if Resonite is installed elsewhere.
+
+```powershell
+dotnet build UnityPackageImporter/UnityPackageImporter.csproj -c Release
+dotnet run --project Tests/Importer.RegressionTests.csproj -c Release
+```
+
+The regression suite covers package extraction, caching, prefab overrides, blendshape mapping, scale handling, material diagnostics, avatar asset selection, and Modular Avatar planning. Visual correctness still requires an in-game import test.
+
+## Repository hygiene
+
+Do not commit Unity packages, extracted avatar assets, models, textures from purchased packages, Resonite logs, live-session evidence, credentials, or local configuration. The ignore rules cover common forms of these files, but contributors must review staged changes before committing.
+
+## Credits
+
+Maintained by **Artbyo3**.
+
+Built from the original project by [dfgHiatus](https://github.com/dfgHiatus/ResoniteUnityPackagesImporter) and its contributors.
+
+## License
+
+Licensed under the [MIT License](LICENSE).

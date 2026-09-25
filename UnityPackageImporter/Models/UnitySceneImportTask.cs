@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Elements.Core;
@@ -40,7 +41,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
             await default(ToWorld);
 
             this.CurrentStructureRootSlot = unityProjectImporter.world.AddSlot(Path.GetFileName(ID.Value));
-            this.CurrentStructureRootSlot.SetParent(this.allimportsroot, false);
+            // Preserve scene coordinates beneath an independent identity root.
             this.CurrentStructureRootSlot.GlobalPosition = new float3(0, 0, 0);
             Slot indicator = this.unityProjectImporter.root.AddSlot("Unity Scene Import Indicator");
             indicator.GlobalPosition = GlobalIndicatorPosition;
@@ -110,7 +111,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
                     UnityPackageImporter.Warn("Scene IUnityObject could not be turned into a string!");
                     UnityPackageImporter.Msg("Scene IUnityObject ID: \"" + obj.Value.id.ToString() + "\"");
                     UnityPackageImporter.Warn(e.Message + e.StackTrace);
-                } 
+                }
             }
 
             await default(ToBackground);
@@ -149,6 +150,15 @@ public class UnitySceneImportTask: IUnityStructureImporter
             }
 
             UnityPackageImporter.Msg("re-enabling skinned mesh renderers in scene \""+ID.Value+"\"");
+
+            var renderersToEnable = existingIUnityObjects.Values
+                .OfType<FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer>()
+                .Select(renderer => renderer.createdMeshRenderer)
+                .Where(renderer => renderer != null)
+                .ToList();
+            await SkinnedBoundsPolicy.StabilizeBeforeEnableAsync(
+                renderersToEnable,
+                "Unity scene activation");
 
             await default(ToBackground);
             foreach (var obj in existingIUnityObjects)
@@ -195,8 +205,8 @@ public class UnitySceneImportTask: IUnityStructureImporter
                                         UnityPackageImporter.Msg("A prefab (source fbx id: \"" + prefab.id.ToString() + "\") in scene \"" + this.ID.Value + "\" that probably points to another prefab was attempted to be imported. TODO: FIX THIS"); //TODO: FIX THIS!
                                     }
                                 }
-                            }                       
-                        }                     
+                            }
+                        }
                     }
                 }
             }
@@ -213,9 +223,8 @@ public class UnitySceneImportTask: IUnityStructureImporter
             UnityPackageImporter.Warn("Scene \"" + ID.Value + "\" hit critical import error! dumping!");
             UnityPackageImporter.Warn(e.Message + e.StackTrace);
             UnityPackageImporter.Msg(debugScene.ToString());
-            FrooxEngineBootstrap.LogStream.Flush();
             progressIndicator?.ProgressFail("Failed to decode the Unity Scene due to an error!");
-            throw e;        
+            throw;
         }
     }
 }

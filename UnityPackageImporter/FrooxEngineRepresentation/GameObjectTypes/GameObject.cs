@@ -24,7 +24,7 @@ public class GameObject: IUnityObject
         if (instanciated) return;
 
         await default(ToWorld);
-        if (m_CorrespondingSourceObject.guid == null && frooxEngineSlot == null)
+        if (m_CorrespondingSourceObject?.guid == null && frooxEngineSlot == null)
         {
             frooxEngineSlot = importer.unityProjectImporter.world.AddSlot(this.m_Name);
             frooxEngineSlot.SetParent(importer.CurrentStructureRootSlot, true); // Let in-game user managers not freak out that we're doing stuff in root.
