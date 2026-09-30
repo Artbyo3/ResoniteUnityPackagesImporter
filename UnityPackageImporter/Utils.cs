@@ -1,19 +1,12 @@
 using FrooxEngine;
 using System;
 using System.IO;
-using System.Linq;
 using System.Security.Cryptography;
 
 namespace UnityPackageImporter;
 
 internal static class Utils
 {
-    internal static bool ContainsUnicodeCharacter(string input)
-    {
-        const int MaxAnsiCode = 255;
-        return input.Any(c => c > MaxAnsiCode);
-    }
-
     internal static string GenerateMD5(string filepath)
     {
         // Credit to delta for this method https://github.com/XDelta/

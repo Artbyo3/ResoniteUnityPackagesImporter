@@ -196,10 +196,6 @@ public class Transform: IUnityObject
         return result.ToString();
     }
 
-    public async Task UpdateSelf(IUnityStructureImporter importer)
-    {
-        await CreateSelf(importer);
-    }
 }
 
 public class TransformFloat4

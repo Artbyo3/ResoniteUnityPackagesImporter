@@ -14,21 +14,25 @@ namespace UnityPackageImporter.Models;
 
 internal class UnityPrefabImportTask : IUnityStructureImporter
 {
-    public List<Slot> oldSlots = new List<Slot>();
     public Dictionary<ulong, IUnityObject> existingIUnityObjects { get; set; }
     public Slot CurrentStructureRootSlot { get; set; }
     public Slot allimportsroot { get; set; }
     public KeyValuePair<string, string> ID { get; set; }
     private float3 GlobalIndicatorPosition;
+    private floatQ GlobalIndicatorRotation;
     public ProgressBarInterface progressIndicator { get; set; }
+    internal Func<float, Task> ReportProgress { get; set; }
+    internal AvatarPackageManifest Manifest { get; private set; }
+    private bool expressionsBuilt;
     public UnityProjectImporter unityProjectImporter { get; set; }
 
-    public UnityPrefabImportTask(float3 globalPosition, Slot root, KeyValuePair<string, string> ID, UnityProjectImporter unityProjectImporter)
+    public UnityPrefabImportTask(float3 globalPosition, Slot root, KeyValuePair<string, string> ID, UnityProjectImporter unityProjectImporter, floatQ? globalRotation = null)
     {
         this.ID = ID;
         this.unityProjectImporter = unityProjectImporter;
         this.allimportsroot = root;
         this.GlobalIndicatorPosition = globalPosition;
+        this.GlobalIndicatorRotation = globalRotation ?? floatQ.Identity;
     }
 
     public async Task StartImport()
@@ -42,16 +46,21 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
             // A prefab is an independent world object; importer UI and temporary
             // FBX templates must not become its transform or lifetime owner.
             this.CurrentStructureRootSlot.GlobalPosition = this.GlobalIndicatorPosition;
-            Slot indicator = this.unityProjectImporter.root.AddSlot("Unity Prefab Import Indicator");
-            indicator.GlobalPosition = this.GlobalIndicatorPosition;
-            indicator.PersistentSelf = false;
-            this.progressIndicator = await indicator.SpawnEntity<ProgressBarInterface, LegacySegmentCircleProgress>(FavoriteEntity.ProgressBar);
-            progressIndicator?.Initialize(false);
+            this.CurrentStructureRootSlot.GlobalRotation = this.GlobalIndicatorRotation;
+            if (this.progressIndicator == null && ReportProgress == null)
+            {
+                Slot indicator = this.unityProjectImporter.root.AddSlot("Unity Prefab Import Indicator");
+                indicator.GlobalPosition = this.GlobalIndicatorPosition;
+                indicator.GlobalRotation = this.GlobalIndicatorRotation;
+                indicator.PersistentSelf = false;
+                this.progressIndicator = await indicator.SpawnEntity<ProgressBarInterface, LegacySegmentCircleProgress>(FavoriteEntity.ProgressBar);
+                progressIndicator?.Initialize(false);
+            }
             await default(ToBackground);
 
 
             progressIndicator?.UpdateProgress(0f, "", "now loading unity YAML objects for Prefab.");
-            AvatarPackageManifest avatarManifest = AvatarPackageIndex.ParseFile(this.ID.Value);
+            AvatarPackageManifest avatarManifest = Manifest = AvatarPackageIndex.ParseFile(this.ID.Value);
             this.existingIUnityObjects  = YamlToFrooxEngine.parseYaml(this.ID.Value);
 
             int totalProgress = 0;
@@ -81,6 +90,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
 
                 UnityEngineObjectWrapper.addedProgress.TryGetValue(type, out progressitem);
                 progress += progressitem;
+                if (ReportProgress != null) await ReportProgress(MathX.Clamp01((float)progress / (float)totalProgress) * 0.85f);
                 progressIndicator?.UpdateProgress(MathX.Clamp01((float)progress / (float)totalProgress), "", "now loading " + this.existingIUnityObjects.Count.ToString() + "/" + counter.ToString() + " objects for Prefab");
                 UnityPackageImporter.Msg("loading object for prefab \"" + ID.Value + "\" with an id of \"" + obj.Value.id.ToString() + "\"");
                 try
@@ -166,8 +176,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                         {
                             await UnityProjectImporter.SettupHumanoid(
                                 prefab.importask,
-                                prefab.ImportRoot.frooxEngineSlot,
-                                true);
+                                prefab.ImportRoot.frooxEngineSlot);
                         }
                     }
                 }
@@ -221,7 +230,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                     if (this.unityProjectImporter.SharedImportedFBXScenes.TryGetValue(newobj.m_Mesh.guid, out FileImportTaskScene importedfbx))
                     {
                         await default(ToWorld);
-                        await UnityProjectImporter.SettupHumanoid(importedfbx, this.CurrentStructureRootSlot, true);
+                        await UnityProjectImporter.SettupHumanoid(importedfbx, this.CurrentStructureRootSlot);
                         await default(ToBackground);
                         break;
                         // All skinned mesh renderers should go to the current prefab if they're under the root.
@@ -234,13 +243,42 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 }
             }
 
-            // Reconstruct each avatar from the references on its own descriptor.
-            // A package can contain many unrelated avatars, menus and controllers;
-            // choosing the first package-wide menu mixes their behavior together.
+            if (ReportProgress == null) await BuildExpressionsAsync();
+
+            if (avatarManifest.ModularAvatarComponents.Count > 0)
+            {
+                UnityPackageImporter.Msg(
+                    "Detected " + avatarManifest.ModularAvatarComponents.Count +
+                    " Modular Avatar component(s) in " + Path.GetFileName(ID.Value) +
+                    ". Compatibility data was indexed; installation behavior will be applied only by supported component handlers.");
+            }
+
+            if (ReportProgress != null) await ReportProgress(1f);
+            progressIndicator?.ProgressDone("Finished Prefab!");
+            progressIndicator?.UpdateProgress(1f, "", "Finished!");
+
+        }
+        catch (Exception e)
+        {
+            UnityPackageImporter.Warn("Prefab hit critical import error! dumping!");
+            UnityPackageImporter.Warn(e.Message + e.StackTrace);
+            UnityPackageImporter.Msg(debugPrefab.ToString());
+            progressIndicator?.ProgressFail("Failed to decode the Unity Prefab due to an error!");
+            throw;
+        }
+
+        await default(ToBackground);
+        UnityPackageImporter.Msg("Yaml generation done");
+        UnityPackageImporter.Msg("Prefab finished!");
+    }
+    internal async Task BuildExpressionsAsync()
+    {
+        if (expressionsBuilt || Manifest == null) return;
+        expressionsBuilt = true;
             try
             {
                 var animClips = AvatarStateReconstructor.ParseAllAnimationClips(this.unityProjectImporter.files);
-                foreach (var avatar in avatarManifest.Avatars)
+                foreach (var avatar in Manifest.Avatars)
                 {
                     if (avatar.GameObjectFileId <= 0 ||
                         !existingIUnityObjects.TryGetValue((ulong)avatar.GameObjectFileId, out IUnityObject descriptorObject) ||
@@ -276,50 +314,6 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 UnityPackageImporter.Warn("Failed to reconstruct expressions menu: " + ex);
             }
 
-            if (avatarManifest.ModularAvatarComponents.Count > 0)
-            {
-                UnityPackageImporter.Msg(
-                    "Detected " + avatarManifest.ModularAvatarComponents.Count +
-                    " Modular Avatar component(s) in " + Path.GetFileName(ID.Value) +
-                    ". Compatibility data was indexed; installation behavior will be applied only by supported component handlers.");
-
-                if (avatarManifest.IsModularAvatarAttachment)
-                {
-                    try
-                    {
-                        await ModularAvatarAttachmentInstaller.AttachAsync(
-                            this.CurrentStructureRootSlot,
-                            avatarManifest,
-                            this.existingIUnityObjects,
-                            this.unityProjectImporter.AssetIDDict,
-                            ID.Key,
-                            ID.Value);
-                        await default(ToBackground);
-                    }
-                    catch (Exception ex)
-                    {
-                        UnityPackageImporter.Warn(
-                            "Failed to initialize Modular Avatar attachment installer for " +
-                            Path.GetFileName(ID.Value) + ": " + ex);
-                    }
-                }
-            }
-
-            progressIndicator?.ProgressDone("Finished Prefab!");
-            progressIndicator?.UpdateProgress(1f, "", "Finished!");
-
-        }
-        catch (Exception e)
-        {
-            UnityPackageImporter.Warn("Prefab hit critical import error! dumping!");
-            UnityPackageImporter.Warn(e.Message + e.StackTrace);
-            UnityPackageImporter.Msg(debugPrefab.ToString());
-            progressIndicator?.ProgressFail("Failed to decode the Unity Prefab due to an error!");
-            throw;
-        }
-
-        await default(ToBackground);
-        UnityPackageImporter.Msg("Yaml generation done");
-        UnityPackageImporter.Msg("Prefab finished!");
     }
+
 }

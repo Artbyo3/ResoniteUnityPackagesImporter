@@ -198,17 +198,6 @@ public class SkinnedMeshRenderer : IUnityObject
             FoundMesh.Enabled = false;
 
 
-            /*//TODO: These are scaled wrong, causing the mesh to scale weirdly. come back later to this, maybe?. - @989onan
-            FoundMesh.ExplicitLocalBounds.Value =
-            Elements.Core.BoundingBox.CenterSize(
-                new Elements.Core.float3(
-                    this.m_AABB.m_Center["x"],
-                    this.m_AABB.m_Center["y"],
-                    this.m_AABB.m_Center["z"]),
-                new Elements.Core.float3(this.m_AABB.m_Extent["x"],
-                this.m_AABB.m_Extent["y"],
-                this.m_AABB.m_Extent["z"]
-                ));*/
             await default(ToBackground);
 
             Dictionary<string, Slot> bonemappings = new Dictionary<string, Slot>();
@@ -273,7 +262,6 @@ public class SkinnedMeshRenderer : IUnityObject
                 {
                     if (importer.existingIUnityObjects.TryGetValue(((Transform)bone_trans).m_GameObject["fileID"], out IUnityObject bone_obj))
                     {
-                        GameObject obj2 = bone_obj as GameObject;
                         await default(ToWorld);
                         await bone_obj.InstanciateAsync(importer);
                         await default(ToBackground);

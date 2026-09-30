@@ -3,10 +3,12 @@ using System.IO.Compression;
 using System.Text;
 using UnityPackageImporter.Extractor;
 using UnityPackageImporter.Models;
+using UnityPackageImporter.UI;
 
 if (args.Length == 2 && args[0] == "--engine-api") return EngineApiCheck.Run(args[1]);
 if (args.Length == 3 && args[0] == "--packages") return PackageAudit.Run(args[1], args[2]);
 if (args.Length == 3 && args[0] == "--dump-type") return EngineApiCheck.DumpType(args[1], args[2]);
+if (args.Length == 3 && args[0] == "--ui-bundle") return UITemplateAudit.Run(args[1], args[2]);
 
 var tests = new List<(string Name, Action Run)>();
 void Test(string name, Action run) => tests.Add((name, run));
@@ -341,7 +343,8 @@ Test("Unknown prefab properties are reported without throwing", () =>
 Test("Blendshape defaults convert Unity percentages without clamping", () =>
 {
     var actual = new float[5];
-    BlendShapeDefaults.Apply(new[] { 0f, 50f, 100f, -25f, 150f }, actual.Length,
+    var names = new[] { "First", "Second", "Third", "Fourth", "Fifth" };
+    BlendShapeDefaults.ApplyNamed(new[] { 0f, 50f, 100f, -25f, 150f }, names, name => Array.IndexOf(names, name),
         (i, value) => actual[i] = value, warning => throw new Exception(warning));
     Check(actual.SequenceEqual(new[] { 0f, .5f, 1f, -.25f, 1.5f }), "Incorrect blendshape units.");
 });
@@ -350,18 +353,25 @@ Test("Blendshape overrides reach renderer values and preserve untouched defaults
     var target = new OverrideFixture { m_BlendShapeWeights = new() { 20f, 30f, 40f } };
     Check(UnityPropertyPath.TrySet(target, "m_BlendShapeWeights.Array.data[1]", "75", null, out var error), error);
     var actual = new float[3];
-    BlendShapeDefaults.Apply(target.m_BlendShapeWeights, actual.Length,
+    var names = new[] { "First", "Second", "Third" };
+    BlendShapeDefaults.ApplyNamed(target.m_BlendShapeWeights, names, name => Array.IndexOf(names, name),
         (i, value) => actual[i] = value, warning => throw new Exception(warning));
     Check(actual.SequenceEqual(new[] { .2f, .75f, .4f }), "Sparse override lost defaults.");
 });
-Test("Blendshape invalid and surplus values do not overwrite renderer data", () =>
+Test("Named blendshape invalid and stripped values do not overwrite renderer data", () =>
 {
     var actual = new[] { .3f, .4f };
     var warnings = new List<string>();
-    BlendShapeDefaults.Apply(new[] { float.NaN, 50f, 100f }, actual.Length,
+    var imported = new[] { "First", "Second" };
+    BlendShapeDefaults.ApplyNamed(new[] { float.NaN, 50f, 100f }, new[] { "First", "Second", "Empty" },
+        name => Array.IndexOf(imported, name),
         (i, value) => actual[i] = value, warnings.Add);
-    Check(actual.SequenceEqual(new[] { .3f, .5f }) && warnings.Count == 2, "Unsafe weights were applied.");
-    BlendShapeDefaults.Apply(null!, actual.Length, (_, _) => throw new Exception("Unexpected write"), warnings.Add);
+    Check(actual.SequenceEqual(new[] { .3f, .5f }) && warnings.Count == 1, "Unsafe weights were applied.");
+    BlendShapeDefaults.ApplyNamed(new[] { 0f, 0f, 0f }, imported, name => Array.IndexOf(imported, name),
+        (_, _) => throw new Exception("Incomplete source names wrote a weight"), warnings.Add);
+    Check(warnings.Count == 2, "Incomplete source names were not reported.");
+    BlendShapeDefaults.ApplyNamed(null!, imported, name => Array.IndexOf(imported, name),
+        (_, _) => throw new Exception("Unexpected write"), warnings.Add);
 });
 
 int failed = 0;
@@ -934,8 +944,8 @@ MonoBehaviour:
         { "22222222222222222222222222222222", subMenuFile }
     };
 
-    var (rootMenu, _) = ExpressionMenuParser.DiscoverMenuHierarchy(new[] { rootMenuFile, subMenuFile }, assetIdDict);
-    Check(rootMenu != null, "Must discover root menu");
+    var (rootMenu, _) = ExpressionMenuParser.LoadMenuHierarchy("rootguid000000000000000000000000", null!, assetIdDict);
+    Check(rootMenu != null, "Must load the selected root menu");
     Check(rootMenu.Controls.Count == 1, "Root menu must have 1 control");
     Check(rootMenu.Controls[0].Name == "Clothing", "Control name must be Clothing");
     Check(rootMenu.Controls[0].IsSubMenu, "Clothing must be a submenu");
@@ -1073,6 +1083,76 @@ Test("ResolveSlotNamesForControl fuzzy animation clip matching", () =>
 
     var resolved = AvatarStateReconstructor.ResolveSlotNamesForControl("Arm Warmer", "C_15", clips, candidateSlots);
     Check(resolved.Count == 1 && resolved[0] == "C_warmers_top", "Arm Warmer must resolve to C_warmers_top via fuzzy clip match");
+});
+
+Test("Straight-line showroom positioning locks clothing prefabs into a horizontal line", () =>
+{
+    int totalPrefabs = 4;
+    float spacing = 1.15f;
+    var positions = new List<(float x, float y, float z)>();
+    for (int i = 0; i < totalPrefabs; i++)
+    {
+        var offset = ((i - (totalPrefabs - 1) * 0.5f) * spacing, 0f, 0f);
+        positions.Add(offset);
+    }
+
+    Check(positions.Count == 4, "Must generate 4 positions");
+    Check(Math.Abs(positions[0].x - (-1.725f)) < 0.001f, "First item must be at x=-1.725");
+    Check(Math.Abs(positions[1].x - (-0.575f)) < 0.001f, "Second item must be at x=-0.575");
+    Check(Math.Abs(positions[2].x - 0.575f) < 0.001f, "Third item must be at x=0.575");
+    Check(Math.Abs(positions[3].x - 1.725f) < 0.001f, "Fourth item must be at x=1.725");
+    foreach (var p in positions)
+    {
+        Check(p.y == 0f && p.z == 0f, "Y and Z must be 0 for straight line lock");
+    }
+});
+
+Test("Cardinal 90-degree yaw snap snaps arbitrary diagonal angles strictly to 0, 90, 180, or 270", () =>
+{
+    float SnapYaw(float fx, float fz)
+    {
+        float lenSq = fx * fx + fz * fz;
+        if (lenSq < 0.0001f) return 0f;
+        if (MathF.Abs(fz) >= MathF.Abs(fx))
+            return fz >= 0f ? 0f : 180f;
+        return fx >= 0f ? 90f : 270f;
+    }
+
+    Check(SnapYaw(0f, 1f) == 0f, "North (+Z) must snap to 0");
+    Check(SnapYaw(1f, 0f) == 90f, "East (+X) must snap to 90");
+    Check(SnapYaw(0f, -1f) == 180f, "South (-Z) must snap to 180");
+    Check(SnapYaw(-1f, 0f) == 270f, "West (-X) must snap to 270");
+
+    Check(SnapYaw(0.3f, 0.9f) == 0f, "Slightly East of North must snap to 0");
+    Check(SnapYaw(0.9f, 0.3f) == 90f, "Slightly North of East must snap to 90");
+    Check(SnapYaw(0.9f, -0.3f) == 90f, "Slightly South of East must snap to 90");
+    Check(SnapYaw(0.3f, -0.9f) == 180f, "Slightly East of South must snap to 180");
+    Check(SnapYaw(-0.3f, -0.9f) == 180f, "Slightly West of South must snap to 180");
+    Check(SnapYaw(-0.9f, -0.3f) == 270f, "Slightly South of West must snap to 270");
+    Check(SnapYaw(-0.9f, 0.3f) == 270f, "Slightly North of West must snap to 270");
+    Check(SnapYaw(-0.3f, 0.9f) == 0f, "Slightly West of North must snap to 0");
+});
+
+Test("Bundled UI rejects corrupted assets and unsafe cache paths", () => InTemp(root =>
+{
+    byte[] payload = Encoding.UTF8.GetBytes("approved native package fixture");
+    string hash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(payload));
+    TemplateIntegrity.Verify(payload, hash);
+    Throws<InvalidDataException>(() => TemplateIntegrity.Verify(Encoding.UTF8.GetBytes("changed"), hash));
+    Throws<InvalidDataException>(() => TemplateIntegrity.SafeCacheFile(root, "../outside"));
+    Throws<InvalidDataException>(() => TemplateIntegrity.SafeCacheFile(root, new string('z', 64)));
+    Check(Path.GetDirectoryName(TemplateIntegrity.SafeCacheFile(root, hash)) == Path.GetFullPath(root), "Cache write must stay inside the cache directory");
+}));
+
+Test("UI contracts reject unsupported schemas and ambiguous path escapes", () =>
+{
+    TemplateContract Parse(string json) { using var data = new MemoryStream(Encoding.UTF8.GetBytes(json)); return TemplateContract.Read(data); }
+    string valid = """{"schemaVersion":1,"templateVersion":"1.0.0","rootName":"Approved","bindings":{"create":{"path":["Panel","Create"],"type":"FrooxEngine.UIX.Button","index":0}}}""";
+    Check(Parse(valid).Bindings["create"].Path[1] == "Create", "Contract must preserve stable role paths");
+    Throws<InvalidDataException>(() => Parse(valid.Replace("\"schemaVersion\":1", "\"schemaVersion\":2")));
+    Throws<InvalidDataException>(() => Parse(valid.Replace("\"Panel\"", "\"..\"")));
+    Throws<InvalidDataException>(() => Parse(valid.Replace("\"Panel\"", "\"Panel/other\"")));
+    Throws<InvalidDataException>(() => Parse(valid.Replace("\"index\":0", "\"index\":-1")));
 });
 
 foreach (var test in tests)

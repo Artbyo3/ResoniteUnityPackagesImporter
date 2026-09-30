@@ -1,25 +1,20 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
-using Elements.Assets;
 using Elements.Core;
 using FrooxEngine;
-using FrooxEngine.UIX;
 using Renderite.Shared;
 using UnityPackageImporter.FrooxEngineRepresentation;
 using UnityGameObject = UnityPackageImporter.FrooxEngineRepresentation.GameObjectTypes.GameObject;
-using UnitySkinnedMeshRenderer = UnityPackageImporter.FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer;
 
 namespace UnityPackageImporter.Models;
 
 /// <summary>
-/// Adds a local, session-backed context menu to imported Modular Avatar
-/// attachments. Installation always operates on a duplicate so the imported
-/// source remains available for inspection and recovery.
+/// Installs supported Modular Avatar attachments from the station. Installation
+/// operates on a duplicate so the source remains available for recovery.
 /// </summary>
 internal static class ModularAvatarAttachmentInstaller
 {
@@ -94,454 +89,59 @@ internal static class ModularAvatarAttachmentInstaller
                                  SchemaVersion == OutfitInstallIdentity.CurrentSchemaVersion;
     }
 
-    public static async Task AttachAsync(
+    internal static List<BipedRig> GetAvailableAvatarRigs(Slot contextSlot) => FindAvatarRigs(contextSlot);
+
+    internal static async Task<bool> TryInstallDirectlyAsync(
         Slot attachmentRoot,
         AvatarPackageManifest manifest,
         Dictionary<ulong, IUnityObject> unityObjects,
-        IReadOnlyDictionary<string, string> availableAssets,
+        BipedRig targetRig,
         string prefabGuid,
-        string prefabFile)
+        string prefabFile,
+        bool installOutfitMenu = true)
     {
-        if (attachmentRoot == null || manifest == null || unityObjects == null) return;
+        if (attachmentRoot == null || manifest == null || unityObjects == null || targetRig == null)
+            return false;
 
-        var identity = OutfitInstallIdentity.FromPrefab(prefabGuid, prefabFile);
-
-        var mergeBindings = ResolveMergeSources(attachmentRoot, manifest, unityObjects);
-        if (mergeBindings.Count == 0)
+        try
         {
-            UnityPackageImporter.Warn(
-                "Modular Avatar attachment '" + attachmentRoot.Name +
-                "' has no resolvable Merge Armature component; no installer menu was added.");
-            return;
-        }
-        var boneProxyBindings = ResolveBoneProxies(attachmentRoot, manifest, unityObjects);
+            var identity = OutfitInstallIdentity.FromPrefab(prefabGuid, prefabFile);
+            var mergeBindings = ResolveMergeSources(attachmentRoot, manifest, unityObjects);
+            var boneProxyBindings = ResolveBoneProxies(attachmentRoot, manifest, unityObjects);
 
-        await default(ToWorld);
+            if (mergeBindings.Count == 0 && boneProxyBindings.Count == 0)
+                return false;
 
-        var existingInstaller = attachmentRoot.Children.FirstOrDefault(child => child.Name == InstallerSlotName);
-        existingInstaller?.Destroy();
-
-        var installerSlot = attachmentRoot.AddSlot(InstallerSlotName);
-        installerSlot.OrderOffset = 2000;
-
-        var source = installerSlot.AttachComponent<ContextMenuItemSource>();
-        source.Label.Value = "Install Modular Avatar Clothing";
-        source.Color.Value = new colorX(0.38f, 0.75f, 0.55f, 1f);
-        source.CloseMenuOnPress.Value = false;
-
-        var rootItem = attachmentRoot.AttachComponent<RootContextMenuItem>();
-        rootItem.Item.Target = source;
-
-        var submenu = installerSlot.AttachComponent<ContextMenuSubmenu>();
-        var itemsRoot = installerSlot.AddSlot("Avatars");
-        submenu.ItemsRoot.Target = itemsRoot;
-
-        void RefreshCandidates()
-        {
-            if (attachmentRoot.IsDestroyed || itemsRoot.IsDestroyed) return;
-            itemsRoot.DestroyChildren();
-
-            var candidates = FindAvatarRigs(attachmentRoot);
-            if (candidates.Count == 0)
+            string currentError = GetTargetError(mergeBindings, boneProxyBindings, targetRig);
+            if (currentError != null)
             {
-                AddStatusItem(itemsRoot, "No configured avatars found");
-                return;
+                UnityPackageImporter.Warn("Could not install on " + targetRig.Slot.Name + ": " + currentError);
+                return false;
             }
 
-            foreach (var rig in candidates)
-            {
-                string error = GetTargetError(mergeBindings, boneProxyBindings, rig);
-                var itemSlot = itemsRoot.AddSlot(rig.Slot.Name);
-                var item = itemSlot.AttachComponent<ContextMenuItemSource>();
-
-                var existingRecord = FindInstallationRecord(rig.Slot, identity);
-                if (existingRecord?.Match == OutfitInstallMatch.Current)
-                {
-                    if (existingRecord.IsHealthy)
-                    {
-                        BindOutfitToggle(item, existingRecord, rig.Slot.Name);
-                    }
-                    else
-                    {
-                        item.Label.Value = rig.Slot.Name + " (installation needs repair)";
-                        item.Color.Value = new colorX(0.85f, 0.55f, 0.25f, 1f);
-                        item.ButtonEnabled.Value = false;
-                    }
-                    continue;
-                }
-                if (existingRecord?.Match == OutfitInstallMatch.UpdateAvailable)
-                {
-                    item.Label.Value = rig.Slot.Name + " (update available)";
-                    item.Color.Value = new colorX(0.85f, 0.65f, 0.28f, 1f);
-                    item.ButtonEnabled.Value = false;
-                    continue;
-                }
-
-                item.Label.Value = error == null
-                    ? "Install copy on " + rig.Slot.Name
-                    : rig.Slot.Name + " (incompatible)";
-                item.Color.Value = error == null
-                    ? new colorX(0.45f, 0.82f, 0.62f, 1f)
-                    : new colorX(0.75f, 0.38f, 0.38f, 1f);
-                item.ButtonEnabled.Value = error == null;
-                item.CloseMenuOnPress.Value = true;
-
-                if (error == null)
-                {
-                    var selectedRig = rig;
-                    bool installing = false;
-                    AddLocalPressedHandler(item, (_, _) => attachmentRoot.StartGlobalTask(async () =>
-                    {
-                        await default(ToWorld);
-                        if (installing || item.IsDestroyed) return;
-                        installing = true;
-                        item.ButtonEnabled.Value = false;
-                        item.Label.Value = "Installing on " + selectedRig.Slot.Name + "...";
-                        try
-                        {
-                            string currentError = GetTargetError(mergeBindings, boneProxyBindings, selectedRig);
-                            if (currentError != null) throw new InvalidOperationException(currentError);
-                            var installed = await InstallCopyAsync(
-                                attachmentRoot,
-                                mergeBindings,
-                                boneProxyBindings,
-                                selectedRig,
-                                identity);
-                            source.Label.Value = "Installed copy on " + selectedRig.Slot.Name;
-                            if (!item.IsDestroyed)
-                                BindOutfitToggle(item, installed, selectedRig.Slot.Name);
-                            UnityPackageImporter.Msg(
-                                "Installed Modular Avatar attachment '" + attachmentRoot.Name +
-                                "' on '" + selectedRig.Slot.Name + "' as '" + installed.InstalledRoot.Name + "'.");
-                        }
-                        catch (Exception ex)
-                        {
-                            installing = false;
-                            if (!item.IsDestroyed)
-                            {
-                                item.Label.Value = "Retry on " + selectedRig.Slot.Name;
-                                item.ButtonEnabled.Value = true;
-                            }
-                            source.Label.Value = "Install failed - see log";
-                            UnityPackageImporter.Error(
-                                "Failed to install Modular Avatar attachment '" + attachmentRoot.Name +
-                                "' on '" + selectedRig.Slot.Name + "': " + ex);
-                        }
-                    }));
-                }
-            }
-        }
-
-        AddLocalPressedHandler(source, (_, _) => RefreshCandidates());
-        RefreshCandidates();
-        var materialDependencies = MaterialDependencyDiagnostics.Analyze(
-            unityObjects.Values
-                .OfType<UnitySkinnedMeshRenderer>()
-                .Select(renderer => (renderer.m_Materials ?? new List<SourceObj>())
-                    .Select(material => material?.guid)),
-            availableAssets?.Keys ?? Array.Empty<string>());
-        SpawnReportPanel(
-            attachmentRoot,
-            manifest,
-            unityObjects,
-            mergeBindings,
-            boneProxyBindings,
-            materialDependencies,
-            identity);
-
-        await default(ToBackground);
-        UnityPackageImporter.Msg(
-            "Added Modular Avatar installer menu to '" + attachmentRoot.Name +
-            "' for " + mergeBindings.Count + " Merge Armature and " +
-            boneProxyBindings.Count + " Bone Proxy component(s).");
-    }
-
-    private static void SpawnReportPanel(
-        Slot attachmentRoot,
-        AvatarPackageManifest manifest,
-        Dictionary<ulong, IUnityObject> unityObjects,
-        IReadOnlyList<MergeSourceBinding> mergeBindings,
-        IReadOnlyList<BoneProxyBinding> boneProxyBindings,
-        MaterialDependencySummary materialDependencies,
-        OutfitInstallIdentity identity)
-    {
-        if (attachmentRoot == null || attachmentRoot.IsDestroyed) return;
-
-        var panelRoot = attachmentRoot.World.AddSlot(
-            "Unity Package Import Report - " + attachmentRoot.Name);
-        var panelPosition = attachmentRoot.GlobalPosition + new float3(0f, 1.05f, -0.45f);
-
-        var candidates = FindAvatarRigs(attachmentRoot)
-            .Select(rig => (Rig: rig, Error: GetTargetError(mergeBindings, boneProxyBindings, rig)))
-            .ToList();
-        var compatibleCandidates = candidates
-            .Where(candidate => candidate.Error == null ||
-                                FindInstallationRecord(candidate.Rig.Slot, identity) != null)
-            .Select(candidate => candidate.Rig)
-            .ToList();
-        var existingRecords = compatibleCandidates
-            .Select(rig => FindInstallationRecord(rig.Slot, identity))
-            .Where(record => record != null)
-            .ToList();
-        bool hasCurrentInstall = existingRecords.Any(record =>
-            record.Match == OutfitInstallMatch.Current && record.IsHealthy);
-        bool hasUpdateAvailable = existingRecords.Any(record =>
-            record.Match == OutfitInstallMatch.UpdateAvailable);
-        int targetRows = Math.Max(1, compatibleCandidates.Count);
-        float compactHeight = 520f + Math.Max(0, targetRows - 1) * 70f;
-        var compactSize = new float2(640f, compactHeight);
-        var expandedSize = new float2(640f, compactHeight + 220f);
-
-        LocaleString title = "Unity Import";
-        var ui = RadiantUI_Panel.SetupPanel(
-            panelRoot,
-            title,
-            compactSize,
-            true,
-            true);
-        RadiantUI_Constants.SetupEditorStyle(ui, true);
-        ui.Style.TextAlignment = Alignment.TopLeft;
-        ui.Style.ButtonTextAlignment = Alignment.MiddleCenter;
-        ui.VerticalLayout(14f, 18f, Alignment.TopLeft, true, false);
-
-        int gameObjectCount = unityObjects.Values.Count(value => value is UnityGameObject);
-        string detectedHandlers = string.Join(
-            " • ",
-            manifest.ModularAvatarComponents
-                .GroupBy(component => component.Kind)
-                .OrderBy(group => group.Key.ToString(), StringComparer.Ordinal)
-                .Select(group => FormatComponentKind(group.Key) + " ×" + group.Count()));
-
-        string displayName = attachmentRoot.Name.EndsWith(".prefab", StringComparison.OrdinalIgnoreCase)
-            ? attachmentRoot.Name[..^7]
-            : attachmentRoot.Name;
-        LocaleString heading =
-            "<b>" + displayName + "</b><br>" +
-            "<color=#AAB5C7>Modular Avatar clothing</color>";
-        ui.Text(heading, 30f, false, Alignment.TopLeft, true);
-
-        LocaleString summary = hasUpdateAvailable
-            ? "<color=#FFCA70><b>Update available</b></color><br>" +
-              "<color=#D7DCE5>Your installed outfit remains unchanged.</color>"
-            : hasCurrentInstall
-                ? "<color=#72DFA0><b>Outfit installed</b></color><br>" +
-                  "<color=#D7DCE5>Move or rename it however you like.</color>"
-                : "<color=#72DFA0><b>Ready to install</b></color><br>" +
-                  "<color=#D7DCE5>This clothing can be installed safely.</color>";
-        ui.Text(summary, 24f, false, Alignment.TopLeft, true);
-
-        string readiness = boneProxyBindings.Count > 0
-            ? "Armature, bone targets and bounds are ready."
-            : "Armature, bones and bounds are ready.";
-        LocaleString translated = "<color=#8C97AA>" + readiness + "</color>";
-        ui.Text(translated, 17f, false, Alignment.TopLeft, true);
-
-        LocaleString limitations =
-            "<color=#FFCA70><b>Some features will be skipped</b></color><br>" +
-            "<color=#AAB5C7>Blendshape links, menus and toggles.</color>";
-        ui.Text(limitations, 17f, false, Alignment.TopLeft, true);
-
-        LocaleString targetHeading = hasCurrentInstall
-            ? "<b>Manage outfit</b>"
-            : "<b>Choose an avatar</b>";
-        ui.Text(targetHeading, 22f, false, Alignment.TopLeft, true);
-
-        foreach (var rig in compatibleCandidates)
-        {
-            var selectedRig = rig;
-            var existingRecord = FindInstallationRecord(selectedRig.Slot, identity);
-            LocaleString buttonLabel = existingRecord?.Match switch
-            {
-                OutfitInstallMatch.Current when existingRecord.IsHealthy =>
-                    "Outfit enabled • " + selectedRig.Slot.Name,
-                OutfitInstallMatch.Current => "Installation needs repair • " + selectedRig.Slot.Name,
-                OutfitInstallMatch.UpdateAvailable => "Update available • " + selectedRig.Slot.Name,
-                _ => "Install on " + selectedRig.Slot.Name
-            };
-            var installButton = ui.Button(buttonLabel);
-            if (existingRecord?.Match == OutfitInstallMatch.Current && existingRecord.IsHealthy)
-            {
-                BindOutfitToggle(installButton, existingRecord, selectedRig.Slot.Name);
-                StyleReportButton(installButton, 56f, 20f);
-                continue;
-            }
-            if (existingRecord != null)
-            {
-                installButton.Enabled = false;
-                StyleReportButton(installButton, 56f, 20f);
-                continue;
-            }
-
-            bool installing = false;
-            AddLocalPressedHandler(installButton, (_, _) => attachmentRoot.StartGlobalTask(async () =>
-            {
-                await default(ToWorld);
-                if (installing || installButton.IsDestroyed) return;
-                installing = true;
-                installButton.Enabled = false;
-                installButton.LabelText = "Installing...";
-                try
-                {
-                    string currentError = GetTargetError(mergeBindings, boneProxyBindings, selectedRig);
-                    if (currentError != null) throw new InvalidOperationException(currentError);
-                    var installed = await InstallCopyAsync(
-                        attachmentRoot,
-                        mergeBindings,
-                        boneProxyBindings,
-                        selectedRig,
-                        identity);
-                    if (!installButton.IsDestroyed)
-                        BindOutfitToggle(installButton, installed, selectedRig.Slot.Name);
-                    UnityPackageImporter.Msg(
-                        "Installed Modular Avatar attachment '" + attachmentRoot.Name +
-                        "' on '" + selectedRig.Slot.Name + "' as '" + installed.InstalledRoot.Name + "'.");
-                }
-                catch (Exception ex)
-                {
-                    if (!installButton.IsDestroyed)
-                    {
-                        installButton.LabelText = "Retry on " + selectedRig.Slot.Name;
-                        installButton.Enabled = true;
-                    }
-                    installing = false;
-                    UnityPackageImporter.Error(
-                        "Failed to install Modular Avatar attachment '" + attachmentRoot.Name +
-                        "' on '" + selectedRig.Slot.Name + "': " + ex);
-                }
-            }));
-            StyleReportButton(installButton, 56f, 20f);
-        }
-
-        if (compatibleCandidates.Count == 0)
-        {
-            LocaleString noTargets = "<color=#AAB5C7>No compatible avatar found nearby.</color>";
-            ui.Text(noTargets, 17f, false, Alignment.TopLeft, true);
-        }
-
-        LocaleString refreshLabel = "Search again";
-        var refreshButton = ui.Button(refreshLabel);
-        AddLocalPressedHandler(refreshButton, (_, _) => attachmentRoot.StartGlobalTask(async () =>
-        {
-            await default(ToWorld);
-            if (attachmentRoot.IsDestroyed) return;
-            // Build the replacement first so a transient error cannot destroy the
-            // only usable report panel.
-            SpawnReportPanel(
+            var installed = await InstallCopyAsync(
                 attachmentRoot,
-                manifest,
-                unityObjects,
                 mergeBindings,
                 boneProxyBindings,
-                materialDependencies,
+                targetRig,
                 identity);
-            if (!panelRoot.IsDestroyed) panelRoot.Destroy();
-        }));
-        StyleReportButton(refreshButton, 56f, 22f);
 
-        ui.PushStyle();
-        ui.Style.ButtonColor = new colorX(0.10f, 0.11f, 0.14f, 1f);
-        ui.Style.HighlightColor = new colorX(0.28f, 0.31f, 0.39f, 1f);
-        ui.Style.TextColor = new colorX(0.47f, 0.66f, 1f, 1f);
-        ui.Style.PreferredHeight = 44f;
-        LocaleString detailsLabel = "Show details";
-        var detailsButton = ui.Button(detailsLabel);
-        ui.PopStyle();
-        detailsButton.Slot.Name = "Advanced Mode";
-        StyleReportButton(detailsButton, 44f, 17f);
-        detailsButton.Label.Color.Value = new colorX(0.47f, 0.66f, 1f, 1f);
-
-        LocaleString detailText =
-            "<b>Import details</b><br>" +
-            "<color=#8C97AA>Parsed:</color> " + unityObjects.Count + " objects • " +
-            gameObjectCount + " GameObjects<br>" +
-            "<color=#8C97AA>Detected:</color> " +
-            (string.IsNullOrWhiteSpace(detectedHandlers) ? "None" : detectedHandlers) + "<br><br>" +
-            "<color=#72DFA0><b>Translated</b></color><br>" +
-            "Bone mapping" + (boneProxyBindings.Count > 0 ? " • Bone Proxy placement" : "") +
-            " • safe installation record • outfit Enabled • accurate bounds<br><br>" +
-            "<color=#FFCA70><b>Skipped</b></color><br>" +
-            (materialDependencies.HasMissingAssets
-                ? "Missing materials ×" + materialDependencies.MissingAssetCount + " • "
-                : "") +
-            "Blendshape Sync • menus • parameters • toggles<br><br>" +
-            "<color=#8C97AA>The imported source remains untouched.</color>";
-        var advancedDetails = ui.Text(detailText, 16f, false, Alignment.TopLeft, true);
-        advancedDetails.Slot.Name = "Advanced Details";
-        var advancedLayout = advancedDetails.Slot.GetComponent<LayoutElement>() ??
-                             advancedDetails.Slot.AttachComponent<LayoutElement>();
-        advancedLayout.PreferredHeight.Value = 190f;
-        advancedDetails.Slot.ActiveSelf = false;
-
-        var smoothSize = panelRoot.AttachComponent<SmoothValue<float2>>();
-        smoothSize.TargetValue.Value = compactSize;
-        smoothSize.Speed.Value = 8f;
-        smoothSize.WriteBack.Value = false;
-        smoothSize.Value.Target = ui.Canvas.Size;
-
-        var sizeDriver = detailsButton.Slot.AttachComponent<BooleanValueDriver<float2>>();
-        sizeDriver.FalseValue.Value = compactSize;
-        sizeDriver.TrueValue.Value = expandedSize;
-        sizeDriver.State.Value = false;
-        sizeDriver.TargetField.Target = smoothSize.TargetValue;
-
-        var labelDriver = detailsButton.Slot.AttachComponent<BooleanValueDriver<string>>();
-        labelDriver.FalseValue.Value = "Show details";
-        labelDriver.TrueValue.Value = "Hide details";
-        labelDriver.State.Value = false;
-        labelDriver.TargetField.Target = detailsButton.Label.Content;
-
-        var detailsDriver = detailsButton.Slot.AttachComponent<BooleanValueDriver<bool>>();
-        detailsDriver.FalseValue.Value = false;
-        detailsDriver.TrueValue.Value = true;
-        detailsDriver.State.Value = false;
-        detailsDriver.TargetField.Target = advancedDetails.Slot.ActiveSelf_Field;
-
-        detailsButton.Slot.AttachComponent<ButtonToggle>().TargetValue.Target = sizeDriver.State;
-        detailsButton.Slot.AttachComponent<ButtonToggle>().TargetValue.Target = labelDriver.State;
-        detailsButton.Slot.AttachComponent<ButtonToggle>().TargetValue.Target = detailsDriver.State;
-
-        ui.NestOut();
-        panelRoot.GlobalPosition = panelPosition;
-        panelRoot.GlobalRotation = attachmentRoot.GlobalRotation;
-        panelRoot.GlobalScale = new float3(0.00065f, 0.00065f, 0.00065f);
-    }
-
-    private static void StyleReportButton(Button button, float height, float textSize)
-    {
-        var layout = button.Slot.GetComponent<LayoutElement>() ??
-                     button.Slot.AttachComponent<LayoutElement>();
-        layout.PreferredHeight.Value = height;
-
-        if (button.Label != null)
-        {
-            button.Label.Size.Value = textSize;
-            button.Label.HorizontalAlign.Value = TextHorizontalAlignment.Center;
-            button.Label.VerticalAlign.Value = TextVerticalAlignment.Middle;
+            if (installed == null || !installed.IsHealthy) return false;
+            await default(ToWorld);
+            if (installOutfitMenu && !installed.RecordRoot.Children.Any(child => child.Name == "Outfit Controls"))
+            {
+                var controls = installed.RecordRoot.AddSlot("Outfit Controls");
+                var source = controls.AttachComponent<ContextMenuItemSource>();
+                BindOutfitToggle(source, installed, installed.RecordRoot.Name);
+                targetRig.Slot.AttachComponent<RootContextMenuItem>().Item.Target = source;
+            }
+            return true;
         }
-
-        var background = button.Slot.GetComponent<Image>();
-        if (background != null)
+        catch (Exception ex)
         {
-            background.NineSliceSizing.Value = NineSliceSizing.FixedSize;
-            background.PreserveAspect.Value = true;
+            UnityPackageImporter.Error("Failed to install attachment '" + attachmentRoot.Name + "' directly: " + ex);
+            return false;
         }
-    }
-
-    private static void BindOutfitToggle(
-        Button button,
-        InstallationRecordHandle record,
-        string avatarName)
-    {
-        if (button == null || button.IsDestroyed || record == null || !record.IsHealthy) return;
-
-        button.Enabled = true;
-        button.Slot.AttachComponent<ButtonToggle>().TargetValue.Target = record.Enabled.Value;
-        var labelDriver = button.Slot.AttachComponent<BooleanValueDriver<string>>();
-        labelDriver.FalseValue.Value = "Outfit disabled • " + avatarName;
-        labelDriver.TrueValue.Value = "Outfit enabled • " + avatarName;
-        labelDriver.State.Value = record.Enabled.Value.Value;
-        labelDriver.TargetField.Target = button.Label.Content;
-        CopyEnabledState(record, labelDriver.State, button.Slot);
     }
 
     private static void BindOutfitToggle(
@@ -572,21 +172,6 @@ internal static class ModularAvatarAttachmentInstaller
         copy.Source.Target = record.Enabled.Value;
         copy.Target.Target = target;
         copy.WriteBack.Value = false;
-    }
-
-    private static string FormatComponentKind(ModularAvatarComponentKind kind)
-    {
-        return kind switch
-        {
-            ModularAvatarComponentKind.MergeArmature => "Merge Armature",
-            ModularAvatarComponentKind.OutfitRoot => "Outfit Root",
-            ModularAvatarComponentKind.BoneProxy => "Bone Proxy",
-            ModularAvatarComponentKind.BlendshapeSync => "Blendshape Sync",
-            ModularAvatarComponentKind.MenuInstaller => "Menu Installer",
-            ModularAvatarComponentKind.Parameters => "Parameters",
-            ModularAvatarComponentKind.ObjectToggle => "Object Toggle",
-            _ => kind.ToString()
-        };
     }
 
     private static List<MergeSourceBinding> ResolveMergeSources(
@@ -669,11 +254,22 @@ internal static class ModularAvatarAttachmentInstaller
         return result.OrderBy(binding => binding.IndexPath.Length).ToList();
     }
 
+    internal static bool IsOwnedAvatar(BipedRig rig, User localUser)
+    {
+        if (rig == null || rig.IsDestroyed || rig.Slot.IsDestroyed || localUser == null || rig.World != localUser.World) return false;
+        var protections = rig.Slot.GetComponentsInParents<FrooxEngine.CommonAvatar.SimpleAvatarProtection>();
+        if (protections.Any(protection => protection.User.Target != localUser)) return false;
+        if (rig.Slot.ActiveUser != null) return rig.Slot.ActiveUser == localUser;
+        if (protections.Count > 0) return true;
+        return rig.Slot.GetAllocatingUser() == localUser;
+    }
+
     private static List<BipedRig> FindAvatarRigs(Slot attachmentRoot)
     {
         return attachmentRoot.World.RootSlot.GetAllChildren(false)
             .Select(slot => slot.GetComponent<BipedRig>())
-            .Where(rig => rig != null && !rig.IsDestroyed && rig.Bones.Count > 0)
+            .Where(rig => rig != null && !rig.IsDestroyed && rig.Slot.IsActive && rig.Bones.Count > 0)
+            .Where(rig => IsOwnedAvatar(rig, attachmentRoot.World.LocalUser))
             .Where(rig => rig.Slot != attachmentRoot && !rig.Slot.IsChildOf(attachmentRoot, true))
             .GroupBy(rig => rig.Slot)
             .Select(group => group.First())
@@ -689,6 +285,7 @@ internal static class ModularAvatarAttachmentInstaller
         if (targetRig == null || targetRig.IsDestroyed || targetRig.Slot == null || targetRig.Slot.IsDestroyed)
             return "Avatar is no longer available";
 
+        if (!IsOwnedAvatar(targetRig, targetRig.World.LocalUser)) return "This avatar is not owned by the local user";
         try
         {
             return ValidateTarget(mergeBindings, boneProxyBindings, targetRig);
@@ -744,7 +341,7 @@ internal static class ModularAvatarAttachmentInstaller
         BipedRig targetRig,
         OutfitInstallIdentity identity)
     {
-        if (attachmentRoot.IsDestroyed || targetRig == null || targetRig.IsDestroyed)
+        if (attachmentRoot.IsDestroyed || !IsOwnedAvatar(targetRig, attachmentRoot.World.LocalUser))
             throw new InvalidOperationException("The attachment or target avatar no longer exists.");
 
         var existingRecord = FindInstallationRecord(targetRig.Slot, identity);
@@ -773,6 +370,8 @@ internal static class ModularAvatarAttachmentInstaller
             installedRoot.SetIdentityTransform();
             bool installedRootActive = installedRoot.ActiveSelf;
             installedRoot.ActiveSelf = false;
+            var copiedFootTag = installedRoot.Children.FirstOrDefault(child => child.Name == "Foot Level Tag");
+            copiedFootTag?.Destroy();
             ownedRoots.Add(new OwnedRoot
             {
                 Slot = installedRoot,
@@ -805,7 +404,7 @@ internal static class ModularAvatarAttachmentInstaller
             var prepared = new List<PreparedMerge>();
             foreach (var binding in clonedBindings)
             {
-                var targetRoot = ResolveTargetRoot(targetRig.Slot, binding)
+                var targetRoot = ResolveTargetRoot(targetRig.Slot, binding, installedRoot)
                     ?? throw new InvalidOperationException(
                         "Target armature path '" + binding.Definition.MergeTargetPath + "' was not found.");
 
@@ -1007,7 +606,7 @@ internal static class ModularAvatarAttachmentInstaller
             activeDriver.FalseValue.Value = false;
             activeDriver.TrueValue.Value = owned.ActiveWhenEnabled;
             activeDriver.State.Value = false;
-            activeDriver.TargetField.Target = owned.Slot.ActiveSelf_Field;
+            activeDriver.TargetField.ForceLink(owned.Slot.ActiveSelf_Field);
             enabled.Drives.Add().ForceLink(activeDriver.State);
         }
 
@@ -1028,7 +627,7 @@ internal static class ModularAvatarAttachmentInstaller
             componentDriver.FalseValue.Value = false;
             componentDriver.TrueValue.Value = owned.EnabledWhenOutfitEnabled;
             componentDriver.State.Value = false;
-            componentDriver.TargetField.Target = owned.Component.EnabledField;
+            componentDriver.TargetField.ForceLink(owned.Component.EnabledField);
             enabled.Drives.Add().ForceLink(componentDriver.State);
         }
 
@@ -1156,39 +755,6 @@ internal static class ModularAvatarAttachmentInstaller
             }
         }
         copiedMenu?.Destroy();
-    }
-
-    private static void AddStatusItem(Slot itemsRoot, string label)
-    {
-        var slot = itemsRoot.AddSlot(label);
-        var source = slot.AttachComponent<ContextMenuItemSource>();
-        source.Label.Value = label;
-        source.Color.Value = new colorX(0.6f, 0.6f, 0.6f, 1f);
-        source.ButtonEnabled.Value = false;
-    }
-
-    private static void AddLocalPressedHandler(ContextMenuItemSource source, ButtonEventHandler handler)
-    {
-        // Publicizer exposes ContextMenuItemSource's event and its compiler backing
-        // field with the same name. Reflection selects the event unambiguously.
-        var eventInfo = typeof(ContextMenuItemSource).GetEvent(
-            "LocalPressed",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        if (eventInfo == null)
-            throw new MissingMemberException(typeof(ContextMenuItemSource).FullName, "LocalPressed");
-        eventInfo.AddEventHandler(source, handler);
-    }
-
-    private static void AddLocalPressedHandler(Button button, ButtonEventHandler handler)
-    {
-        // Publicizer exposes both the local event and its backing field under the
-        // same name, so ordinary event syntax is ambiguous at compile time.
-        var eventInfo = typeof(Button).GetEvent(
-            "LocalPressed",
-            BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
-        if (eventInfo == null)
-            throw new MissingMemberException(typeof(Button).FullName, "LocalPressed");
-        eventInfo.AddEventHandler(button, handler);
     }
 
     private static Slot ResolveBoneProxyTarget(
@@ -1333,7 +899,7 @@ internal static class ModularAvatarAttachmentInstaller
         };
     }
 
-    private static Slot ResolveTargetRoot(Slot avatarRoot, MergeSourceBinding binding)
+    private static Slot ResolveTargetRoot(Slot avatarRoot, MergeSourceBinding binding, Slot excludedHierarchy = null)
     {
         var parts = SplitPath(binding.Definition.MergeTargetPath);
         string targetName = parts.Length > 0 ? parts[^1] : null;
@@ -1350,6 +916,7 @@ internal static class ModularAvatarAttachmentInstaller
         if (string.IsNullOrEmpty(targetName)) return null;
 
         var candidates = EnumerateSelfAndChildren(avatarRoot)
+            .Where(slot => excludedHierarchy == null || (slot != excludedHierarchy && !slot.IsChildOf(excludedHierarchy, true)))
             .Where(slot => slot.Name.Equals(targetName, StringComparison.Ordinal))
             .ToList();
         if (parts.Length > 1)

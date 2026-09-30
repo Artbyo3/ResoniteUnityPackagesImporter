@@ -342,9 +342,12 @@ healthchecksdb
 # Local diagnostic dumps and session scripts
 scripts/*
 !scripts/Install-PreparedMod.ps1
+!scripts/Prepare-StationTemplates.py
+!scripts/RunStationDemo.py
 *.zip
 
 # Private local development and live-test data
+/.resoloop/
 /scratch/
 /private/
 /local-data/

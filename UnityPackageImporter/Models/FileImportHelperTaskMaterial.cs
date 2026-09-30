@@ -20,6 +20,9 @@ public class FileImportHelperTaskMaterial
     public UnityProjectImporter importer;
     public IAssetProvider<Material> finalMaterial;
     public bool ismissing = false;
+    internal string MaterialGuid => myID;
+    internal string SourceFile => file;
+    private readonly bool forceToon;
 
     public static string materialNameIdentifyEndingPrefab = " - Material";
     private static readonly HashSet<string> LilToonGuids = new(StringComparer.OrdinalIgnoreCase)
@@ -49,14 +52,16 @@ public class FileImportHelperTaskMaterial
         "850fc1e041d8e1346be7f5244dc049fa", // lts_twopass
     };
 
-    public FileImportHelperTaskMaterial(string myID, string file, UnityProjectImporter importer)
+    public FileImportHelperTaskMaterial(string myID, string file, UnityProjectImporter importer, bool forceToon = false)
     {
         this.importer = importer;
         this.file = file;
         this.myID = myID;
+        this.forceToon = forceToon;
+        importer.TasksMaterials.Add(this);
         UnityPackageImporter.Msg("Importing material with ID: \"" + myID + "\" from file: " + file);
         assetsRoot = importer.importTaskAssetRoot;
-        matslot = assetsRoot.FindChildOrAdd(Path.GetFileNameWithoutExtension(this.file) + " [" + myID + "]" + materialNameIdentifyEndingPrefab);
+        matslot = assetsRoot.FindChildOrAdd(Path.GetFileNameWithoutExtension(this.file) + " [" + myID + (forceToon ? "-toon" : "") + "]" + materialNameIdentifyEndingPrefab);
     }
 
     // To assign a material to a missing material during import if the fbx doesn't have a definition for it
@@ -79,7 +84,7 @@ public class FileImportHelperTaskMaterial
     {
         await default(ToBackground);
         if (ismissing) return finalMaterial;
-        finalMaterial = await importer.MaterialImports.GetOrAdd(myID, ImportFileMaterial);
+        finalMaterial = await importer.MaterialImports.GetOrAdd(myID + (forceToon ? ":toon" : ":automatic"), ImportFileMaterial);
         return finalMaterial;
     }
 
@@ -211,7 +216,7 @@ public class FileImportHelperTaskMaterial
             }
         }
 
-        if (isLilToon)
+        if (isLilToon || forceToon)
         {
             try
             {

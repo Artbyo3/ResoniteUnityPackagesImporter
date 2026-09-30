@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "templateVersion": "1.0.1",
+  "rootName": "[UnityPackage Pre-Import Prompt - New Prototype]",
+  "bindings": {
+    "filenameSource": {
+      "path": [],
+      "type": "FrooxEngine.ValueField<string>",
+      "index": 1
+    },
+    "import": {
+      "path": [
+        "Prompt Canvas",
+        "Prompt Content",
+        "Import Unity Package",
+        "Labeled Button"
+      ],
+      "type": "FrooxEngine.UIX.Button",
+      "index": 0
+    },
+    "raw": {
+      "path": [
+        "Prompt Canvas",
+        "Prompt Content",
+        "Import as Raw File",
+        "Labeled Button"
+      ],
+      "type": "FrooxEngine.UIX.Button",
+      "index": 0
+    },
+    "cancel": {
+      "path": [
+        "Prompt Canvas",
+        "Prompt Content",
+        "Cancel",
+        "Labeled Button"
+      ],
+      "type": "FrooxEngine.UIX.Button",
+      "index": 0
+    },
+    "filename": {
+      "path": [
+        "Prompt Canvas",
+        "Prompt Content",
+        "Package Summary",
+        "Package Name"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "size": {
+      "path": [
+        "Prompt Canvas",
+        "Prompt Content",
+        "Package Summary",
+        "Package Details"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    }
+  }
+}

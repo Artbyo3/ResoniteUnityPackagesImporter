@@ -9,7 +9,6 @@ using Assimp.Configs;
 using Elements.Core;
 using FrooxEngine;
 using HashDepot;
-using MonoMod.Utils;
 using SkyFrost.Base;
 using UnityPackageImporter.FrooxEngineRepresentation;
 using UnityPackageImporter.FrooxEngineRepresentation.GameObjectTypes;
@@ -24,14 +23,11 @@ public class FileImportTaskScene
     private UnityProjectImporter importer;
     public string assetID;
     public Slot importTaskAssetSlot;
-    public bool import_finished = false;
     public MetaDataFile metafile;
     private ProgressBarInterface importDialogue;
 
     private Slot targetSlot;
     public Slot FinishedFileSlot = null;
-    public bool postprocessfinished = false;
-    public bool running = false;
     private readonly object importLock = new();
     private Task importTask;
     private float3 globalPosition;
@@ -76,7 +72,6 @@ public class FileImportTaskScene
         {
             if (importTask == null)
             {
-                running = true;
                 importTask = ImportFileMeshes();
             }
             return importTask;
@@ -189,7 +184,6 @@ public class FileImportTaskScene
         }
 
         this.importDialogue?.ProgressDone("Finished task for file " + Path.GetFileName(file));
-        this.running = false;
     }
 
 

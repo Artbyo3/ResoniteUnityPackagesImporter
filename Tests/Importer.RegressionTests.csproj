@@ -7,6 +7,7 @@
     <DefineConstants>$(DefineConstants);REGRESSION_TESTS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../UnityPackageImporter/UI/TemplateContract.cs" Link="TemplateContract.cs" />
     <Compile Include="../UnityPackageImporter/UnityPackageExtractor.cs" Link="UnityPackageExtractor.cs" />
     <Compile Include="../UnityPackageImporter/Models/AsyncImportCache.cs" Link="AsyncImportCache.cs" />
     <Compile Include="../UnityPackageImporter/Models/UnityPropertyPath.cs" Link="UnityPropertyPath.cs" />

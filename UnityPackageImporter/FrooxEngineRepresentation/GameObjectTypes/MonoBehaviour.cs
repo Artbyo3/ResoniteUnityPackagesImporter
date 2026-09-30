@@ -22,7 +22,6 @@ public class MonoBehaviour : IUnityObject
             await default(ToWorld);
             await slotOnity.InstanciateAsync(importer);
             await default(ToBackground);
-            Slot componenttarget = (slotOnity as GameObject).frooxEngineSlot;
         }
     }
 }

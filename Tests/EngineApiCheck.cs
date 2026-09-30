@@ -96,6 +96,27 @@ internal static class EngineApiCheck
                 string mName = metadata.GetString(method.Name);
                 var decoded = method.DecodeSignature(new TypeNames(), (object?)null);
                 Console.WriteLine($"  {mName}({string.Join(", ", decoded.ParameterTypes)}) : {decoded.ReturnType}");
+                if (method.RelativeVirtualAddress != 0)
+                {
+                    try
+                    {
+                        var body = pe.GetMethodBody(method.RelativeVirtualAddress);
+                        var bytes = body.GetILBytes();
+                        for (int i = 0; i < bytes.Length - 4; i++)
+                        {
+                            if (bytes[i] == 0x72) // ldstr opcode
+                            {
+                                int token = BitConverter.ToInt32(bytes, i + 1);
+                                var uHandle = System.Reflection.Metadata.Ecma335.MetadataTokens.UserStringHandle(token & 0xFFFFFF);
+                                try {
+                                    string str = metadata.GetUserString(uHandle);
+                                    Console.WriteLine($"      ldstr: \"{str}\"");
+                                } catch {}
+                            }
+                        }
+                    }
+                    catch { }
+                }
             }
         }
         return 0;

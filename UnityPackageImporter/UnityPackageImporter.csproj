@@ -5,6 +5,7 @@
     <Nullable>disable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <PathMap>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/..'))=/_/</PathMap>
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
     <GamePath Condition="'$(GamePath)' == ''">C:\Program Files (x86)\Steam\steamapps\common\Resonite\</GamePath>
     <GamePath>$([MSBuild]::EnsureTrailingSlash('$(GamePath)'))</GamePath>
@@ -12,7 +13,7 @@
     <OutputPath>bin\$(Configuration)\</OutputPath>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="UnityStructureImporter.cs" />
+    <EmbeddedResource Include="UI/Templates/*.json;UI/Templates/*.ResonitePackage" LogicalName="UnityPackageImporter.UI.Templates.%(Filename)%(Extension)" />
     <PackageReference Include="Krafs.Publicizer" Version="2.2.1" PrivateAssets="all" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
   </ItemGroup>
@@ -62,5 +63,8 @@
   <Target Name="ValidateGamePath" BeforeTargets="ResolveAssemblyReferences">
     <Error Condition="!Exists('$(GamePath)FrooxEngine.dll')" Text="Resonite assemblies were not found. Set GamePath to your Resonite installation directory." />
     <Error Condition="!Exists('$(GamePath)Libraries/ResoniteModLoader.dll')" Text="ResoniteModLoader.dll was not found under GamePath/Libraries. Install ResoniteModLoader before building." />
+  </Target>
+  <Target Name="ValidateStationTemplates" BeforeTargets="BeforeBuild" Condition="'$(SkipUITemplateValidation)' != 'true'">
+    <Error Condition="!Exists('UI/Templates/station.ResonitePackage') Or !Exists('UI/Templates/pre-import.ResonitePackage') Or !Exists('UI/Templates/manifest.json')" Text="Export both approved native UI packages and run python scripts/Prepare-StationTemplates.py before building. SkipUITemplateValidation=true is for compile checks only; that DLL cannot be installed." />
   </Target>
 </Project>

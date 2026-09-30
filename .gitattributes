@@ -3,6 +3,10 @@
 ###############################################################################
 * text=auto
 
+# The embedded bundle manifest hashes these exact bytes across platforms.
+UnityPackageImporter/UI/Templates/*.json text eol=lf
+UnityPackageImporter/UI/Templates/*.ResonitePackage binary
+
 ###############################################################################
 # Set default behavior for command prompt diff.
 #

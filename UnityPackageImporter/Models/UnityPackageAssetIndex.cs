@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 
 #nullable disable
 
@@ -11,7 +10,6 @@ internal sealed class UnityPackageAssetIndex
 {
     public Dictionary<string, string> Assets { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, string> Prefabs { get; } = new(StringComparer.OrdinalIgnoreCase);
-    public Dictionary<string, string> Metas { get; } = new(StringComparer.OrdinalIgnoreCase);
     public Dictionary<string, string> Scenes { get; } = new(StringComparer.OrdinalIgnoreCase);
     public List<string> OtherFiles { get; } = new();
     public List<string> Conflicts { get; } = new();
@@ -45,7 +43,6 @@ internal sealed class UnityPackageAssetIndex
             }
 
             result.Assets.Add(guid, assetPath);
-            result.Metas.Add(guid, file);
             string assetExtension = Path.GetExtension(assetPath).ToLowerInvariant();
             if (assetExtension == ".prefab") result.Prefabs.Add(guid, assetPath);
             else if (assetExtension == ".unity") result.Scenes.Add(guid, assetPath);

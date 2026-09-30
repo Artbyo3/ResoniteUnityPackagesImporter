@@ -196,8 +196,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
                                         await default(ToWorld);
                                         await UnityProjectImporter.SettupHumanoid(
                                         prefab.importask,
-                                        prefab.ImportRoot.frooxEngineSlot,
-                                        false);
+                                        prefab.ImportRoot.frooxEngineSlot);
                                         await default(ToBackground);
                                     }
                                     else

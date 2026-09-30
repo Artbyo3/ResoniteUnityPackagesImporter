@@ -7,19 +7,33 @@ namespace UnityPackageImporter.Models;
 
 /// <summary>
 /// Keeps skinned bounds behavior consistent before and after Modular Avatar
-/// bone remapping. Per-bone bounds substantially improved observed close-range
-/// culling on Uruki; renderers without usable bones use static mesh bounds.
+/// bone remapping. Completed native Resonite FBX imports use static mesh bounds
+/// with no explicit override, so reconstructed renderers mirror that behavior.
 /// </summary>
 internal static class SkinnedBoundsPolicy
 {
-    // Resonite's skinned bounds calculator needs the duplicated hierarchy to
-    // survive several world updates before its renderers are activated. Three
-    // updates is the engine's known-safe boundary for duplicated avatars.
+    // The duplicated hierarchy still needs to settle before its renderers are
+    // activated. Three updates is the engine's known-safe boundary for cloned
+    // skinned hierarchies and keeps bone references stable before activation.
     private const int HierarchyStabilizationUpdates = 3;
 
     public static void ApplyAfterBones(SkinnedMeshRenderer renderer, string context)
     {
         if (renderer == null || renderer.IsDestroyed) return;
+
+        // Native model imports finish in Static mode and leave
+        // ExplicitLocalBounds empty, allowing the mesh asset's bounds to be
+        // used. MediumPerBoneApproximate fell back to SlowRealtimeAccurate on
+        // 27 of 28 matching Uruki renderers and reproduced inconsistent
+        // culling, even though every bone reference matched the native import.
+        if (renderer.Mesh?.Target != null)
+        {
+            renderer.BoundsComputeMethod.Value = SkinnedBounds.Static;
+        }
+        else
+        {
+            renderer.BoundsComputeMethod.Value = SkinnedBounds.MediumPerBoneApproximate;
+        }
 
         int validBones = 0;
         for (int i = 0; i < renderer.Bones.Count; i++)
@@ -30,20 +44,19 @@ internal static class SkinnedBoundsPolicy
 
         if (validBones == 0)
         {
-            renderer.BoundsComputeMethod.Value = SkinnedBounds.Static;
             UnityPackageImporter.Warn(
-                "Using static bounds for skinned renderer '" + renderer.Slot.Name +
-                "' because it has no usable bones" + FormatContext(context) + ".");
+                "Skinned renderer '" + renderer.Slot.Name +
+                "' has no usable bone references" + FormatContext(context) +
+                "; native-style static mesh bounds remain active.");
             return;
         }
 
-        renderer.BoundsComputeMethod.Value = SkinnedBounds.MediumPerBoneApproximate;
         if (validBones != renderer.Bones.Count)
         {
             UnityPackageImporter.Warn(
                 "Skinned renderer '" + renderer.Slot.Name + "' has " +
                 (renderer.Bones.Count - validBones) + " missing bone reference(s)" +
-                FormatContext(context) + "; per-bone bounds will use the remaining bones.");
+                FormatContext(context) + "; native-style static mesh bounds remain active.");
         }
     }
 

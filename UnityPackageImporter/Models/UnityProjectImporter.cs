@@ -18,19 +18,20 @@ public class UnityProjectImporter
     private readonly Dictionary<string, string> mutableAssetIndex;
     private readonly List<MissingMaterialBinding> missingMaterialBindings = new();
 
-    public ReadOnlyDictionary<string, string> ListOfMetas;
     public readonly Slot importTaskAssetRoot;
     public List<FileImportHelperTaskMaterial> TasksMaterials = new List<FileImportHelperTaskMaterial>();
     internal readonly AsyncImportCache<IAssetProvider<Material>> MaterialImports = new();
     internal readonly AsyncImportCache<StaticTexture2D> TextureImports = new();
     internal readonly AsyncImportCache<StaticTexture2D> RampImports = new();
     internal readonly AsyncImportCache<StaticTexture2D> CompositeImports = new();
+    private readonly Dictionary<SkinnedMeshRenderer, IAssetProvider<Material>[]> automaticMaterials = new();
     public Dictionary<string, FileImportTaskScene> SharedImportedFBXScenes = new Dictionary<string, FileImportTaskScene>();
     public ReadOnlyDictionary<string, string> AssetIDDict;
     public ReadOnlyDictionary<string, string> ListOfUnityScenes;
     public List<string> files;
     public Slot root;
     public World world;
+    internal UnityStationHandle Station { get; set; }
     public ReadOnlyDictionary<string, string> ListOfPrefabs;
     public IReadOnlyList<string> PackageNames { get; }
 
@@ -38,7 +39,6 @@ public class UnityProjectImporter
         IEnumerable<string> files,
         Dictionary<string, string> AssetIDDict,
         Dictionary<string, string> ListOfPrefabs,
-        Dictionary<string, string> ListOfMetas,
         Dictionary<string, string> ListOfUnityScenes,
         Slot root,
         Slot assetsRoot,
@@ -52,7 +52,6 @@ public class UnityProjectImporter
 
         // These are read only, since they're for reference only. this allows us to be thread safe since we should only be reading not writing.
         this.ListOfPrefabs = new ReadOnlyDictionary<string, string>(ListOfPrefabs);
-        this.ListOfMetas = new ReadOnlyDictionary<string, string>(ListOfMetas);
         this.mutableAssetIndex = new Dictionary<string, string>(AssetIDDict, StringComparer.OrdinalIgnoreCase);
         this.AssetIDDict = new ReadOnlyDictionary<string, string>(this.mutableAssetIndex);
         this.ListOfUnityScenes = new ReadOnlyDictionary<string, string>(ListOfUnityScenes);
@@ -95,23 +94,43 @@ public class UnityProjectImporter
             Array.Empty<string>());
     }
 
-    internal IReadOnlyList<string> GetMissingMaterialGuids()
-    {
-        lock (dependencyLock)
-            return missingMaterialBindings
-                .Where(binding => !binding.Resolved)
-                .Select(binding => binding.MaterialGuid)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .OrderBy(guid => guid, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-    }
-
     internal bool CanResolveAnyMaterial(IEnumerable<string> assetGuids)
     {
         var candidates = new HashSet<string>(assetGuids ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
         lock (dependencyLock)
             return missingMaterialBindings.Any(binding =>
                 !binding.Resolved && candidates.Contains(binding.MaterialGuid));
+    }
+
+    internal async Task ApplyMaterialPresetAsync(Slot root, string preset)
+    {
+        await default(ToWorld);
+        var renderers = root.GetComponentsInChildren<SkinnedMeshRenderer>();
+        foreach (var renderer in renderers)
+            if (!automaticMaterials.ContainsKey(renderer))
+                automaticMaterials.Add(renderer, renderer.Materials.ToArray());
+        if (preset == "Automatic")
+        {
+            foreach (var renderer in renderers)
+                for (int i = 0; i < automaticMaterials[renderer].Length && i < renderer.Materials.Count; i++)
+                    renderer.Materials[i] = automaticMaterials[renderer][i];
+            return;
+        }
+        if (preset != "XiexeToon") throw new ArgumentException("Unknown generated shader preset.", nameof(preset));
+        var replacements = new Dictionary<IAssetProvider<Material>, IAssetProvider<Material>>();
+        foreach (var material in automaticMaterials.Where(pair => renderers.Contains(pair.Key)).SelectMany(pair => pair.Value).Where(value => value != null).Distinct())
+        {
+            var source = TasksMaterials.FirstOrDefault(task => !task.ismissing && !string.IsNullOrEmpty(task.MaterialGuid) && task.finalMaterial == material);
+            if (source == null) continue;
+            var task = new FileImportHelperTaskMaterial(source.MaterialGuid, source.SourceFile, this, true);
+            var converted = await task.runImportFileMaterialsAsync();
+            await default(ToWorld);
+            replacements[material] = converted;
+        }
+        foreach (var renderer in renderers)
+            for (int i = 0; i < automaticMaterials[renderer].Length && i < renderer.Materials.Count; i++)
+                if (automaticMaterials[renderer][i] != null && replacements.TryGetValue(automaticMaterials[renderer][i], out var material))
+                    renderer.Materials[i] = material;
     }
 
     internal async Task<MaterialResolutionResult> ResolveMissingMaterialsAsync(
@@ -167,6 +186,8 @@ public class UnityProjectImporter
                     while (binding.Renderer.Materials.Count <= binding.MaterialIndex)
                         binding.Renderer.Materials.Add();
                     binding.Renderer.Materials[binding.MaterialIndex] = material;
+                    if (automaticMaterials.TryGetValue(binding.Renderer, out var automatic) && binding.MaterialIndex < automatic.Length)
+                        automatic[binding.MaterialIndex] = material;
                     binding.Resolved = true;
                     restored++;
                 }
@@ -207,12 +228,16 @@ public class UnityProjectImporter
 
         // I feel so smart making the wait all import fbx tasks code. - @989onan
         await default(ToWorld);
+        Station?.UpdateProgress(0.1f, "Loading meshes and materials", "メッシュとマテリアルを読み込み中", "");
         var fbx_tasks = FillFBXFiles().ToArray();
 
         await Task.WhenAll(fbx_tasks.Select(task => task.RunnerWrapper()).ToArray());
         await default(ToBackground);
         // Now we have a full list of meta files and prefabs regarding this import file list from our prefix (where ever this is even if not a unity package folder) we now begin the hard part *drums* making the files go onto the model!
         List<IUnityStructureImporter> unityImportTasks = new List<IUnityStructureImporter>();
+        bool isWorldOrScene = this.ListOfUnityScenes.Count > 0;
+        bool isClothingOrAvatar = !isWorldOrScene && this.ListOfPrefabs.Count > 0;
+
         int total = this.ListOfPrefabs.Count + this.ListOfUnityScenes.Count;
         int rowSize = MathX.Max(1, MathX.CeilToInt(MathX.Sqrt((float)total)));
 
@@ -220,15 +245,63 @@ public class UnityProjectImporter
         floatQ GlobalRotation = new floatQ(0, 0, 0, 1);
 
         await default(ToWorld);
-        this.world.LocalUser.GetPointInFrontOfUser(out GlobalPosition, out GlobalRotation, null, null, 0.7f,true);
+        this.world.LocalUser.GetPointInFrontOfUser(out GlobalPosition, out GlobalRotation, null, null, 0.7f, true);
         await default(ToBackground);
         int counter = 0;
+        int prefabTotal = this.ListOfPrefabs.Count;
+
+        // Cardinal 90° yaw snap logic for avatars/clothing:
+        // Project forward gaze onto horizontal XZ plane and snap to nearest cardinal axis (0°, 90°, 180°, 270°)
+        // so that spawned items align strictly to World X or World Z with zero diagonal tilt.
+        float3 rawForward = GlobalRotation * float3.Forward;
+        float fx = rawForward.x;
+        float fz = rawForward.z;
+        float lenSq = fx * fx + fz * fz;
+
+        float snappedYaw;
+        if (lenSq < 0.0001f)
+        {
+            snappedYaw = 0f;
+        }
+        else if (MathF.Abs(fz) >= MathF.Abs(fx))
+        {
+            snappedYaw = fz >= 0f ? 0f : 180f;
+        }
+        else
+        {
+            snappedYaw = fx >= 0f ? 90f : 270f;
+        }
+
+        floatQ snappedRotation = floatQ.Euler(0f, snappedYaw, 0f);
+        floatQ taskRotation = isClothingOrAvatar ? snappedRotation : GlobalRotation;
+
+        UnityStationHandle stationHandle = Station;
 
         foreach (KeyValuePair<string,string> Prefab in this.ListOfPrefabs)
         {
             UnityPackageImporter.Msg("create prefab import task obj for prefab \"" + Prefab.Value + "\"");
             await default(ToWorld);
-            unityImportTasks.Add(new UnityPrefabImportTask((GlobalRotation * UniversalImporter.GridOffset(ref counter, rowSize)) + GlobalPosition, root, Prefab, this));
+
+            float3 spawnPosition;
+            if (isClothingOrAvatar)
+            {
+                // Avatars & clothing: strictly lock into a single horizontal straight line aligned to the cardinal axis (1.15m spacing)
+                float spacing = 1.15f;
+                float3 right = snappedRotation * float3.Right;
+                float3 lineOffset = right * ((counter - (prefabTotal - 1) * 0.5f) * spacing);
+                spawnPosition = GlobalPosition + lineOffset;
+            }
+            else
+            {
+                // Worlds and scenes: standard grid offset
+                spawnPosition = (GlobalRotation * UniversalImporter.GridOffset(ref counter, rowSize)) + GlobalPosition;
+            }
+            counter++;
+
+            var task = new UnityPrefabImportTask(spawnPosition, root, Prefab, this, taskRotation);
+            if (stationHandle != null)
+                task.ReportProgress = async value => { await default(ToWorld); stationHandle.ReportPrefab(task, value); };
+            unityImportTasks.Add(task);
             await default(ToBackground);
         }
 
@@ -241,11 +314,16 @@ public class UnityProjectImporter
         }
 
         await default(ToWorld);
+        stationHandle?.RegisterPrefabs(unityImportTasks.OfType<UnityPrefabImportTask>());
         await Task.WhenAll(unityImportTasks.Select(task => task.StartImport()));
-        UnityPackageImporter.Msg("Finished project importing! Cleaning up...");
-        await MaterialDependencyCoordinator.ShowIfNeededAsync(this);
-        await default(ToBackground);
+        await default(ToWorld);
+        if (stationHandle != null)
+        {
+            await stationHandle.StageAsync(this, unityImportTasks.OfType<UnityPrefabImportTask>().ToList());
+            await stationHandle.CompleteSuccessAsync();
+        }
 
+        await default(ToBackground);
         UnityPackageImporter.Msg("All finished!");
     }
 
@@ -288,7 +366,7 @@ public class UnityProjectImporter
     }
 
     // This is static for a reason to be shared, don't use any fields from this importer that aren't static, and make sure to use locking to be thread safe
-    public static async Task SettupHumanoid(FileImportTaskScene task, Slot FBXRoot, bool needsScaleComp)
+    public static async Task SettupHumanoid(FileImportTaskScene task, Slot FBXRoot)
     {
         if (task == null || FBXRoot == null)
         {
@@ -398,8 +476,6 @@ public class UnityProjectImporter
                 }
 
                 await default(ToBackground);
-
-                Elements.Core.BoundingBox boundingBox = Elements.Core.BoundingBox.Empty();
 
                 await default(ToWorld);
                 float num = FBXRoot.ComputeBoundingBox(true, FBXRoot, null, null).Size.y/1.8f;

@@ -37,7 +37,6 @@ public class RotationConstraint: IUnityObject
         await default(ToWorld);
         await slotunity.InstanciateAsync(importer);
         await default(ToBackground);
-        Slot componenttarget = (slotunity as GameObject).frooxEngineSlot;
 
         foreach (TransformSource source in m_Sources)
         {
@@ -55,10 +54,7 @@ public class RotationConstraint: IUnityObject
                         await targetgameobj.InstanciateAsync(importer);
                         await default(ToBackground);
 
-                        Slot rotationsource = (targetgameobj as GameObject).frooxEngineSlot;
-                        // source.weight; //use this!!!!!!!!
-
-                        //TODO do something here. - @989onan 
+                        // Rotation and source weights are not translated yet.
                     }
                 }
                 catch (Exception e)

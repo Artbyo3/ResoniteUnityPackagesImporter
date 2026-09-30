@@ -17,10 +17,8 @@ public class MetaDataFile
     public bool UseFileUnits = true;
     public bool UseFileScale = true;
     public float CalculatedScaleFactor = 1f;
-    private float LastScaleGlobalScale = 1;
     public Dictionary<string, SourceObj> externalObjects = new Dictionary<string, SourceObj>();
     public Dictionary<BodyNode, Slot> storagebones = new Dictionary<BodyNode, Slot>();
-    public bool IsBiped => storagebones.Count > 0;
     public Dictionary<long, string> fileIDToRecycleName = new Dictionary<long, string>();
     public MetaDataFile() { }
             
@@ -67,7 +65,6 @@ public class MetaDataFile
         UseFileUnits = true;
         UseFileScale = true;
         CalculatedScaleFactor = 1f;
-        LastScaleGlobalScale = 1f;
 
         // Bonereading section
         string boneName = string.Empty;
@@ -120,27 +117,8 @@ public class MetaDataFile
                 sectiontype = 0;
                 continue;
             }
-            if (line.StartsWith("    - name:"))
-            {
-                UnityPackageImporter.Msg("Name of scale is: \""+line.Split(':')[1].Trim()+"\"");
-            }
-            if (line.StartsWith("      scale:"))
-            {
-                UnityPackageImporter.Msg("scaleblock3.5");
-                try
-                {
-                    string numberStr = line.Split(':')[2].Split(',')[0].Trim();
-                    UnityPackageImporter.Msg("found scale last \"" + numberStr + "\", parsing to get our scale");
-                    LastScaleGlobalScale = Math.Abs(float.Parse(numberStr));
-                }
-                catch
-                {
-                    UnityPackageImporter.Msg("scaleblock fail");
-                    UnityPackageImporter.Msg("scaleblock fail");
-                }
-                continue;
-            }
-
+            // Per-bone scales are separate from the model-wide import scale.
+            if (line.StartsWith("      scale:")) continue;
             switch (sectiontype)
             {
                 case 0:

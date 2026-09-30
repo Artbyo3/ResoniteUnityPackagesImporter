@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
-using System.Linq;
 
 namespace UnityPackageImporter.Models;
 
@@ -237,90 +236,4 @@ public static class ExpressionMenuParser
         return false;
     }
 
-    public static (VrcMenu RootMenu, Dictionary<string, VrcParameter> Parameters) DiscoverMenuHierarchy(
-        IEnumerable<string> files,
-        IDictionary<string, string> assetIdDict)
-    {
-        // 1. Invert assetIdDict to get path -> guid
-        var pathToGuid = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var kvp in assetIdDict)
-        {
-            if (!string.IsNullOrEmpty(kvp.Value))
-            {
-                pathToGuid[kvp.Value] = kvp.Key;
-            }
-        }
-
-        // 2. Scan for ExpressionsMenu and ExpressionParameters files
-        var menusByGuid = new Dictionary<string, VrcMenu>(StringComparer.OrdinalIgnoreCase);
-        Dictionary<string, VrcParameter> parameters = null;
-
-        foreach (var file in files)
-        {
-            if (!file.EndsWith(".asset", StringComparison.OrdinalIgnoreCase)) continue;
-            if (!File.Exists(file)) continue;
-
-            string header = "";
-            try
-            {
-                using var sr = new StreamReader(file);
-                char[] buf = new char[500];
-                int read = sr.Read(buf, 0, buf.Length);
-                header = new string(buf, 0, read);
-            }
-            catch { continue; }
-
-            if (header.Contains("MANUKA_ExpressionParameters") || header.Contains("parameters:") || header.Contains("m_EditorClassIdentifier:") && header.Contains("parameters"))
-            {
-                if (parameters == null || parameters.Count == 0)
-                {
-                    parameters = ParseParameters(file);
-                }
-            }
-
-            if (header.Contains("controls:") || header.Contains("ExpressionsMenu"))
-            {
-                pathToGuid.TryGetValue(file, out string guid);
-                var menu = ParseMenu(file, guid);
-                if (menu != null && menu.Controls.Count > 0)
-                {
-                    if (!string.IsNullOrEmpty(guid))
-                    {
-                        menusByGuid[guid] = menu;
-                    }
-                    else
-                    {
-                        menusByGuid[menu.Name] = menu;
-                    }
-                }
-            }
-        }
-
-        parameters ??= new Dictionary<string, VrcParameter>(StringComparer.OrdinalIgnoreCase);
-
-        if (menusByGuid.Count == 0) return (null, parameters);
-
-        // 3. Link submenus
-        var referencedSubMenuGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var menu in menusByGuid.Values)
-        {
-            foreach (var control in menu.Controls)
-            {
-                if (control.IsSubMenu && !string.IsNullOrEmpty(control.SubMenuGuid))
-                {
-                    referencedSubMenuGuids.Add(control.SubMenuGuid);
-                    if (menusByGuid.TryGetValue(control.SubMenuGuid, out var sub))
-                    {
-                        control.SubMenu = sub;
-                    }
-                }
-            }
-        }
-
-        // 4. Root menu is the menu not referenced as a submenu by any other menu
-        VrcMenu rootMenu = menusByGuid.Values.FirstOrDefault(m => !string.IsNullOrEmpty(m.Guid) && !referencedSubMenuGuids.Contains(m.Guid))
-                           ?? menusByGuid.Values.FirstOrDefault();
-
-        return (rootMenu, parameters);
-    }
 }
