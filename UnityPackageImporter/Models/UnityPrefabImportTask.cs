@@ -42,11 +42,15 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
         {
             existingIUnityObjects = new Dictionary<ulong, IUnityObject>();
             await default(ToWorld);
-            this.CurrentStructureRootSlot = unityProjectImporter.world.AddSlot(Path.GetFileName(ID.Value));
-            // A prefab is an independent world object; importer UI and temporary
-            // FBX templates must not become its transform or lifetime owner.
-            this.CurrentStructureRootSlot.GlobalPosition = this.GlobalIndicatorPosition;
-            this.CurrentStructureRootSlot.GlobalRotation = this.GlobalIndicatorRotation;
+            unityProjectImporter.Session?.Check();
+            this.CurrentStructureRootSlot = unityProjectImporter.Session?.CreateStructure(
+                Path.GetFileName(ID.Value), GlobalIndicatorPosition, GlobalIndicatorRotation)
+                ?? unityProjectImporter.world.AddSlot(Path.GetFileName(ID.Value));
+            if (unityProjectImporter.Session == null)
+            {
+                this.CurrentStructureRootSlot.GlobalPosition = this.GlobalIndicatorPosition;
+                this.CurrentStructureRootSlot.GlobalRotation = this.GlobalIndicatorRotation;
+            }
             if (this.progressIndicator == null && ReportProgress == null)
             {
                 Slot indicator = this.unityProjectImporter.root.AddSlot("Unity Prefab Import Indicator");
@@ -84,6 +88,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
             // Instanciate our objects to generate our prefab entirely, using the ids we assigned ealier to identify our prefab elements in our list.
             foreach (KeyValuePair<ulong,IUnityObject> obj in existingIUnityObjects)
             {
+                unityProjectImporter.Session?.Check();
                 counter++;
                 Type type = obj.Value.GetType();
                 int progressitem = 4;
@@ -97,7 +102,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 {
                     await obj.Value.InstanciateAsync(this);
                 }
-                catch (Exception e)
+                catch (Exception e) when (e is not OperationCanceledException)
                 {
                     UnityPackageImporter.Warn("Prefab IUnityObject failed to instanciate!");
                     UnityPackageImporter.Msg("Prefab IUnityObject ID: \"" + obj.Value.id.ToString() + "\"");
@@ -213,7 +218,9 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 }
             }
 
-            if (avatarManifest.ShouldSetUpHumanoid)
+            await default(ToWorld);
+            if (avatarManifest.ShouldSetUpHumanoid &&
+                !CurrentStructureRootSlot.GetComponentsInChildren<BipedRig>().Any(rig => rig.IsBiped))
             {
                 progressIndicator?.UpdateProgress(0f, "", "setting up humanoid rig for prefab.");
 

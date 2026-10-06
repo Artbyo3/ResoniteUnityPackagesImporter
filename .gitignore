@@ -344,6 +344,7 @@ scripts/*
 !scripts/Install-PreparedMod.ps1
 !scripts/Prepare-StationTemplates.py
 !scripts/RunStationDemo.py
+!scripts/FindResoniteLink.py
 *.zip
 
 # Private local development and live-test data

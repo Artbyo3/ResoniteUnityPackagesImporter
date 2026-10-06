@@ -185,8 +185,11 @@ public class SkinnedMeshRenderer : IUnityObject
             await default(ToWorld);
             importer.progressIndicator?.UpdateProgress(0f, "", "now loading a skinned mesh renderer named \"" + FoundMesh.Slot.Name + "\" ");
             var meshWait = System.Diagnostics.Stopwatch.StartNew();
-            while (!FoundMesh.Mesh.IsAssetAvailable)
+            while (true)
             {
+                importer.unityProjectImporter.Session?.Check();
+                if (FoundMesh.IsDestroyed) throw new OperationCanceledException("Imported mesh was removed.");
+                if (FoundMesh.Mesh.IsAssetAvailable) break;
                 if (meshWait.Elapsed > TimeSpan.FromMinutes(2))
                     throw new TimeoutException("Mesh did not become available within two minutes: " + FoundMesh.Slot.Name);
                 await default(NextUpdate);

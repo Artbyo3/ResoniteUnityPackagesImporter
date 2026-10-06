@@ -40,32 +40,22 @@ public class UnitySceneImportTask: IUnityStructureImporter
             existingIUnityObjects = new Dictionary<ulong, IUnityObject>();
             await default(ToWorld);
 
-            this.CurrentStructureRootSlot = unityProjectImporter.world.AddSlot(Path.GetFileName(ID.Value));
-            // Preserve scene coordinates beneath an independent identity root.
-            this.CurrentStructureRootSlot.GlobalPosition = new float3(0, 0, 0);
-            Slot indicator = this.unityProjectImporter.root.AddSlot("Unity Scene Import Indicator");
-            indicator.GlobalPosition = GlobalIndicatorPosition;
-            indicator.PersistentSelf = false;
-            this.progressIndicator = await indicator.SpawnEntity<ProgressBarInterface, LegacySegmentCircleProgress>(FavoriteEntity.ProgressBar);
-            progressIndicator?.Initialize(false);
+            unityProjectImporter.Session?.Check();
+            this.CurrentStructureRootSlot = unityProjectImporter.Session?.CreateStructure(
+                Path.GetFileName(ID.Value), float3.Zero, floatQ.Identity)
+                ?? unityProjectImporter.world.AddSlot(Path.GetFileName(ID.Value));
+            if (unityProjectImporter.Station == null)
+            {
+                Slot indicator = this.unityProjectImporter.root.AddSlot("Unity Scene Import Indicator");
+                indicator.GlobalPosition = GlobalIndicatorPosition;
+                indicator.PersistentSelf = false;
+                this.progressIndicator = await indicator.SpawnEntity<ProgressBarInterface, LegacySegmentCircleProgress>(FavoriteEntity.ProgressBar);
+                progressIndicator?.Initialize(false);
+            }
 
             progressIndicator?.UpdateProgress(0f, "", "now loading unity YAML objects for Scene.");
             await default(ToBackground);
 
-            // We first have to remove "stripped" since those cause yaml parsing errors
-            string[] initialstream = File.ReadAllLines(ID.Value);
-            string[] newcontent = new string[initialstream.Length];
-            for (int i = 0; i < initialstream.Length; i++)
-            {
-                string line = initialstream[i];
-                newcontent[i] = line;
-                if (line.StartsWith("--- !u!"))
-                {
-                    newcontent[i] = newcontent[i].Replace(" stripped", "");
-                }
-            }
-
-            File.WriteAllLines(ID.Value, newcontent);
             this.existingIUnityObjects = YamlToFrooxEngine.parseYaml(this.ID.Value);
             int totalProgress = 0;
 
@@ -84,6 +74,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
             await default(ToWorld);
             foreach (var obj in existingIUnityObjects)
             {
+                unityProjectImporter.Session?.Check();
                 counter++;
                 Type type = obj.Value.GetType();
                 int progressitem = 4;
@@ -96,7 +87,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
                 {
                     await obj.Value.InstanciateAsync(this);
                 }
-                catch (Exception e)
+                catch (Exception e) when (e is not OperationCanceledException)
                 {
                     UnityPackageImporter.Warn("Scene IUnityObject failed to instanciate!");
                     UnityPackageImporter.Msg("Scene IUnityObject ID: \"" + obj.Value.id.ToString() + "\"");

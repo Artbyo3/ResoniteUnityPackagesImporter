@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Assimp;
 using Assimp.Configs;
@@ -83,9 +84,13 @@ public class FileImportTaskScene
         UnityPackageImporter.Msg("Start code block for file import for file " + file);
 
         await default(ToWorld);
-        Slot Indicator = importer.world.AddSlot("FBX Import Indicator", false);
-        Indicator.GlobalPosition = globalPosition;
-        importDialogue = await Indicator.SpawnEntity<ProgressBarInterface, LegacySegmentCircleProgress>(FavoriteEntity.ProgressBar);
+        importer.Session?.Check();
+        if (importer.Station == null)
+        {
+            Slot indicator = importer.world.AddSlot("FBX Import Indicator", false);
+            indicator.GlobalPosition = globalPosition;
+            importDialogue = await indicator.SpawnEntity<ProgressBarInterface, LegacySegmentCircleProgress>(FavoriteEntity.ProgressBar);
+        }
         await default(ToBackground);
 
         await default(ToWorld);
@@ -129,7 +134,9 @@ public class FileImportTaskScene
         this.importDialogue?.UpdateProgress(0f, "", "importing nodes into froox engine, file: " + Path.GetFileName(file));
 
         await default(ToWorld);
+        importer.Session?.Check();
         await ImportNodeAsync(scene.RootNode, targetSlot, data);
+        importer.Session?.Check();
 
         UnityPackageImporter.Msg("retrieving scene root for file: " + Path.GetFileName(file));
 
@@ -194,7 +201,8 @@ public class FileImportTaskScene
         copy.file = this.file;
         await default(ToWorld);
         UnityPackageImporter.Msg("target slot instanciated?: "+(copy.targetSlot != null));
-        copy.targetSlot = copy.targetSlot.Duplicate(null, false, null);
+        importer.Session?.Check();
+        copy.targetSlot = copy.targetSlot.Duplicate(importer.root, false, null);
         copy.FinishedFileSlot = copy.targetSlot;
         copy.metafile = new MetaDataFile();
         copy.FILEID_To_Slot_Pairs.Clear();
@@ -234,8 +242,12 @@ public class FileImportTaskScene
             copy.sourceBlendShapeNames.TryGetValue(mesh.Slot.Name, out skinnedrenderer.SourceBlendShapeNames);
 
             await default(ToWorld);
-            while (!mesh.Mesh.IsAssetAvailable)
+            while (true)
             {
+                importer.Session?.Check();
+                if (mesh.IsDestroyed || copy.targetSlot.IsDestroyed)
+                    throw new OperationCanceledException("Imported mesh was removed while loading.");
+                if (mesh.Mesh.IsAssetAvailable) break;
                 await default(NextUpdate);
             }
             await default(ToWorld);
@@ -345,14 +357,64 @@ public class FileImportTaskScene
     }
 
 
-    private static Task ImportNodeAsync(Node node, Slot targetSlot, object data)
+    private Task ImportNodeAsync(Node node, Slot targetSlot, object data)
     {
-        TaskCompletionSource<bool> taskCompletionSource = new TaskCompletionSource<bool>();
-        targetSlot.StartCoroutine(ImportNodeWrapper(node, targetSlot, data, taskCompletionSource));
-        return taskCompletionSource.Task;
+        // Called on the world context. Native import must outlive a disappearing UI,
+        // while its completion must never depend on a disposed coroutine enumerator.
+        var world = importer.world;
+        var cancellationToken = importer.Session?.Token ?? CancellationToken.None;
+        cancellationToken.ThrowIfCancellationRequested();
+        if (targetSlot.IsDestroyed || world.IsDisposed || world.RootSlot.IsDestroyed)
+            throw new OperationCanceledException("Model import target is no longer available.");
+
+        var completion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Coroutine coroutine = default;
+        int targetRemoved = 0;
+
+        void Unsubscribe()
+        {
+            ((IDestroyable)targetSlot).Destroyed -= OnTargetDestroyed;
+            world.WorldDestroyed -= OnWorldDestroyed;
+        }
+
+        void Finished(Coroutine _)
+        {
+            Unsubscribe();
+            if (cancellationToken.IsCancellationRequested || Volatile.Read(ref targetRemoved) != 0)
+                completion.TrySetCanceled(cancellationToken);
+            else
+                completion.TrySetException(new InvalidOperationException("Engine model import was interrupted."));
+        }
+
+        void Removed()
+        {
+            Interlocked.Exchange(ref targetRemoved, 1);
+            if (!coroutine.IsNull) coroutine.Stop();
+            // World disposal clears the engine queues without running their callbacks.
+            Finished(coroutine);
+        }
+
+        void OnTargetDestroyed(IDestroyable _) => Removed();
+        void OnWorldDestroyed(World _) => Removed();
+
+        ((IDestroyable)targetSlot).Destroyed += OnTargetDestroyed;
+        world.WorldDestroyed += OnWorldDestroyed;
+        try
+        {
+            coroutine = world.Coroutines.StartCoroutine(
+                ImportNodeWrapper(node, targetSlot, data, completion, cancellationToken,
+                    () => Volatile.Read(ref targetRemoved) != 0), Finished);
+        }
+        catch (Exception error)
+        {
+            Unsubscribe();
+            completion.TrySetException(error);
+        }
+        return completion.Task;
     }
 
-    private static IEnumerator<Context> ImportNodeWrapper(Node node, Slot targetSlot, object data, TaskCompletionSource<bool> completion = null)
+    private static IEnumerator<Context> ImportNodeWrapper(Node node, Slot targetSlot, object data,
+        TaskCompletionSource<bool> completion, CancellationToken cancellationToken, Func<bool> targetRemoved)
     {
         try
         {
@@ -372,11 +434,17 @@ public class FileImportTaskScene
                     Context current = default;
                     try
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        // Only read the event flag here: native steps can resume on the
+                        // background context, where hierarchy inspection is inappropriate.
+                        if (targetRemoved())
+                            throw new OperationCanceledException("Model import target was removed.");
                         hasNext = steps.MoveNext();
                         if (hasNext) current = steps.Current;
                     }
+                    catch (OperationCanceledException) { completion.TrySetCanceled(cancellationToken); }
                     catch (Exception error) { completion.TrySetException(error); }
-                    if (completion.Task.IsFaulted) yield break;
+                    if (completion.Task.IsCompleted) yield break;
                     if (!hasNext) break;
                     yield return current;
                 }

@@ -6,6 +6,7 @@ using ResoniteModLoader;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using UnityPackageImporter.Extractor;
 using UnityPackageImporter.Models;
@@ -51,10 +52,10 @@ public class UnityPackageImporter : ResoniteMod
         Engine.Current.RunPostInit(() => AssetPatch("unitypackage"));
     }
 
-    public static string[] DecomposeUnityPackage(string file)
+    public static string[] DecomposeUnityPackage(string file, CancellationToken cancellationToken = default)
     {
         var dir = Path.Combine(cachePath, "v2", Utils.GenerateMD5(file));
-        var files = UnityPackageExtractor.Unpack(file, dir);
+        var files = UnityPackageExtractor.Unpack(file, dir, cancellationToken: cancellationToken);
         Msg($"Extracted or reused {files.Count} files from {Path.GetFileName(file)}");
         return files.ToArray();
     }
@@ -114,52 +115,53 @@ public class UnityPackageImporter : ResoniteMod
         }
     }
 
-    private static async Task Scanfiles(List<string> hasUnityPackage, Slot slot, World world, UnityStationHandle station, bool companionCandidate)
+    private static async Task<bool> Scanfiles(List<string> hasUnityPackage, Slot slot, World world, UnityStationHandle station, bool companionCandidate, ImportSession session = null)
     {
         List<Task> imports = new List<Task>();
         await default(ToBackground);
         var scanthesefiles = new List<string>();
         foreach (string unitypackage in hasUnityPackage)
         {
-            scanthesefiles.AddRange(DecomposeUnityPackage(unitypackage));
+            scanthesefiles.AddRange(DecomposeUnityPackage(unitypackage, session?.Token ?? default));
         }
 
         Msg("CALLING FindPrefabsAndMetas for " + hasUnityPackage.Count + " package(s) as one dependency-aware import");
         if (companionCandidate)
         {
             var index = UnityPackageAssetIndex.Build(scanthesefiles);
-            await MaterialDependencyCoordinator.TryResolveWaitingAsync(world, index.Assets);
-            return;
+            return await MaterialDependencyCoordinator.TryResolveWaitingAsync(world, index.Assets);
         }
         List<string> notprefabsandmetas = (await FindPrefabsAndMetas(
             scanthesefiles,
             slot,
             imports,
             world,
-            hasUnityPackage.Select(Path.GetFileName).ToArray(), station)).ToList();
-        if (Config.GetValue(dumpPackageContents))
-        {
-            if (Config.GetValue(ImportPrefab))
-            {
-                //get all files that don't have metas
-                BatchFolderImporter.BatchImport(slot, scanthesefiles.FindAll(i => !Path.GetExtension(i).ToLower().Equals(UNITY_META_EXTENSION)), Config.GetValue(importAsRawFiles));
-            }
-            else
-            {
-                //bring in no prefabs or metas
-                BatchFolderImporter.BatchImport(slot, notprefabsandmetas, Config.GetValue(importAsRawFiles));
-            }
-        }
-
+            hasUnityPackage.Select(Path.GetFileName).ToArray(), station, session)).ToList();
         await default(ToWorld);
         await Task.WhenAll(imports);
+        await default(ToWorld);
+        session?.Check();
         if (imports.Count == 0 && station != null)
         {
             station.ShowEmptyPackage(Path.GetFileName(hasUnityPackage[0]));
             await station.CompleteSuccessAsync();
         }
+        if (Config.GetValue(dumpPackageContents))
+        {
+            await default(ToWorld);
+            session?.Check();
+            // Explicit content dumping remains the engine's ordinary, independent
+            // import flow. BatchImport destroys its launcher: never give it staging.
+            var launcher = world.AddSlot("Unity Package Contents", false);
+            launcher.GlobalPosition = slot.GlobalPosition;
+            var dump = Config.GetValue(ImportPrefab)
+                ? scanthesefiles.Where(file => !Path.GetExtension(file).Equals(UNITY_META_EXTENSION, System.StringComparison.OrdinalIgnoreCase))
+                : notprefabsandmetas;
+            BatchFolderImporter.BatchImport(launcher, dump, Config.GetValue(importAsRawFiles));
+        }
         await default(ToBackground);
         Msg("FINISHED ALL IMPORTS AND DONE WITH ALL TASKS!!");
+        return true;
     }
 
     private static async Task<IEnumerable<string>> FindPrefabsAndMetas(
@@ -168,7 +170,8 @@ public class UnityPackageImporter : ResoniteMod
         List<Task> imports,
         World world,
         IReadOnlyList<string> packageNames,
-        UnityStationHandle station)
+        UnityStationHandle station,
+        ImportSession session)
     {
         Msg("Start Finding Prefabs and Metas");
         var fileList = files.ToList();
@@ -191,10 +194,10 @@ public class UnityPackageImporter : ResoniteMod
                 AssetIDDict,
                 ListOfPrefabs,
                 ListOfUnityScenes,
-                importSlotContainment,
-                world.AssetsSlot.AddSlot("UnityPackageImport - Assets"),
+                session?.Staging ?? importSlotContainment,
+                session?.Assets ?? world.AssetsSlot.AddSlot("UnityPackageImport - Assets"),
                 world,
-                packageNames) { Station = station }.StartImports());
+                packageNames) { Station = station, Session = session }.StartImports());
             await default(ToBackground);
         }
 
@@ -233,11 +236,8 @@ public class UnityPackageImporter : ResoniteMod
             {
                 Msg("Start import of unity packages.");
                 var slot = world.AddSlot("Unity Package Import");
-                // We want scenes to position themselves at 0,0,0.
-                // There is an edge case where the thing this is parented under would be moving, but that's just a skill issue on the user's part. - @989onan
-                slot.GlobalPosition = new float3(0, 0, 0);
-                // Let in-game user managers not freak out that we're doing stuff in root. - @989onan
-                slot.SetParent(world.LocalUserSpace, true);
+                // Identity session transform preserves authored scene coordinates and units.
+                slot.PersistentSelf = false;
                 var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                 slot.StartGlobalTask(async () =>
                 {
@@ -267,29 +267,39 @@ public class UnityPackageImporter : ResoniteMod
     private static async Task RunPackageImportAsync(List<string> files, Slot assets, World world, float3 position, floatQ rotation)
     {
         await default(ToWorld);
-        if (MaterialDependencyCoordinator.HasWaiting(world))
-        {
-            await Scanfiles(files, assets, world, null, true);
-            return;
-        }
-        var prompt = await PreImportPrompt.SpawnAsync(world, position, rotation, files);
-        var choice = await prompt.WaitAsync();
+        PreImportPrompt prompt = null;
         UnityStationHandle station = null;
+        ImportSession session = null;
+        bool raw = false;
         try
         {
+            if (MaterialDependencyCoordinator.HasWaiting(world) &&
+                await Scanfiles(files, assets, world, null, true)) return;
             await default(ToWorld);
-            if (choice == PackageImportChoice.Cancel) { if (!assets.IsDestroyed) assets.Destroy(); return; }
+            prompt = await PreImportPrompt.SpawnAsync(world, position, rotation, files);
+            var choice = await prompt.WaitAsync();
+            await default(ToWorld);
+            if (choice == PackageImportChoice.Cancel) return;
             if (choice == PackageImportChoice.Raw)
             {
                 assets.GlobalPosition = position;
                 assets.GlobalRotation = rotation;
                 foreach (string file in files) await UniversalImporter.ImportRawFile(assets, new ImportItem(file));
+                assets.PersistentSelf = true;
+                raw = true;
                 return;
             }
-            station = await UnityStationBuilder.BuildStationAsync(world, position, rotation);
+            session = new ImportSession(assets);
+            station = await UnityStationBuilder.BuildStationAsync(world, position, rotation, session);
             station.UpdateProgress(0f, "Extracting Unity package", "Unity パッケージを展開中", Path.GetFileName(files[0]), 0, files.Count);
             prompt.Close();
-            await Scanfiles(files, assets, world, station, false);
+            using (session.Enter())
+                await Scanfiles(files, session.Staging, world, station, false, session);
+        }
+        catch (System.OperationCanceledException) when (session?.Token.IsCancellationRequested == true)
+        {
+            await default(ToWorld);
+            await session.CleanupAsync();
         }
         catch (System.Exception ex)
         {
@@ -297,7 +307,16 @@ public class UnityPackageImporter : ResoniteMod
             station?.CompleteFailure(ex.Message);
             throw;
         }
-        finally { await default(ToWorld); prompt.Close(); }
+        finally
+        {
+            await default(ToWorld);
+            prompt?.Close();
+            if (station == null && !raw)
+            {
+                if (session != null) await session.CleanupAsync();
+                else if (!assets.IsDestroyed) assets.DestroyPreservingAssets();
+            }
+        }
     }
 
 

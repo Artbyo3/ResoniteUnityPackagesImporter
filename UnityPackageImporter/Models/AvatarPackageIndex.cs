@@ -30,6 +30,7 @@ public sealed class VrcAvatarDefinition
     public long GameObjectFileId { get; init; }
     public string GameObjectName { get; init; } = "";
     public string ScriptGuid { get; init; } = "";
+    public UnityPosition? ViewPosition { get; init; }
     public UnityAssetReference ExpressionsMenu { get; init; }
     public UnityAssetReference ExpressionParameters { get; init; }
     public IReadOnlyList<VrcAnimationLayerReference> BaseAnimationLayers { get; init; } = Array.Empty<VrcAnimationLayerReference>();
@@ -37,6 +38,9 @@ public sealed class VrcAvatarDefinition
     public UnityAssetReference FxController =>
         BaseAnimationLayers.FirstOrDefault(layer => layer.LayerType == 5)?.AnimatorController;
 }
+
+// Unity descriptor coordinates, before the imported GameObject transform is applied.
+public readonly record struct UnityPosition(float X, float Y, float Z);
 
 public enum ModularAvatarComponentKind
 {
@@ -183,6 +187,7 @@ public static class AvatarPackageIndex
                     GameObjectFileId = gameObjectFileId,
                     GameObjectName = gameObjectName ?? "",
                     ScriptGuid = script.Guid,
+                    ViewPosition = ReadPosition(document.Lines, "ViewPosition"),
                     ExpressionsMenu = menu,
                     ExpressionParameters = parameters,
                     BaseAnimationLayers = ReadAnimationLayers(document.Lines)
@@ -273,6 +278,22 @@ public static class AvatarPackageIndex
         return int.TryParse(ReadScalar(lines, field), NumberStyles.Integer, CultureInfo.InvariantCulture, out int value)
             ? value
             : fallback;
+    }
+
+    private static UnityPosition? ReadPosition(IReadOnlyList<string> lines, string field)
+    {
+        string value = ReadScalar(lines, field);
+        if (value == null) return null;
+        float[] coordinates = new float[3];
+        string[] axes = { "x", "y", "z" };
+        for (int i = 0; i < axes.Length; i++)
+        {
+            var match = Regex.Match(value, @"(?:\{|,)\s*" + axes[i] + @":\s*(?<value>[^,}]+)", RegexOptions.CultureInvariant);
+            if (!match.Success || !float.TryParse(match.Groups["value"].Value.Trim(),
+                    NumberStyles.Float, CultureInfo.InvariantCulture, out coordinates[i]) || !float.IsFinite(coordinates[i]))
+                return null;
+        }
+        return new UnityPosition(coordinates[0], coordinates[1], coordinates[2]);
     }
 
     private static UnityAssetReference ReadReference(IReadOnlyList<string> lines, string field)

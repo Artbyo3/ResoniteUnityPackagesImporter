@@ -21,9 +21,6 @@ This fork is under active development. It is useful for testing, but it does not
 
 ## Known limitations
 
-- The bundled station integration is experimental. Avatar equipping, installed-outfit visibility/toggles, and temporary-object cleanup still need runtime fixes and validation.
-- Some internal FBX/scene stages still display separate native progress indicators.
-
 - Skinned-mesh bounds now mirror completed native Resonite FBX imports by using the mesh asset's static bounds without an explicit override. This needs broader live validation across avatars and Modular Avatar attachments.
 - Modular Avatar support covers a limited subset. Shape Changer, full menu installation, and many build-time components are still planned.
 - VRChat animator and expression behavior is reconstructed only for supported cases.

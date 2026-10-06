@@ -32,6 +32,7 @@ public class UnityProjectImporter
     public Slot root;
     public World world;
     internal UnityStationHandle Station { get; set; }
+    internal ImportSession Session { get; set; }
     public ReadOnlyDictionary<string, string> ListOfPrefabs;
     public IReadOnlyList<string> PackageNames { get; }
 
@@ -105,6 +106,7 @@ public class UnityProjectImporter
     internal async Task ApplyMaterialPresetAsync(Slot root, string preset)
     {
         await default(ToWorld);
+        Session?.Check();
         var renderers = root.GetComponentsInChildren<SkinnedMeshRenderer>();
         foreach (var renderer in renderers)
             if (!automaticMaterials.ContainsKey(renderer))
@@ -125,6 +127,7 @@ public class UnityProjectImporter
             var task = new FileImportHelperTaskMaterial(source.MaterialGuid, source.SourceFile, this, true);
             var converted = await task.runImportFileMaterialsAsync();
             await default(ToWorld);
+            Session?.Check();
             replacements[material] = converted;
         }
         foreach (var renderer in renderers)
@@ -167,6 +170,7 @@ public class UnityProjectImporter
                 // FileImportHelperTaskMaterial creates its asset slot in the constructor,
                 // so it must be constructed while holding the world update lock.
                 await default(ToWorld);
+                Session?.Check();
                 var materialTask = new FileImportHelperTaskMaterial(
                     materialGuid,
                     materialPath,
@@ -193,7 +197,7 @@ public class UnityProjectImporter
                 }
                 await default(ToBackground);
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 UnityPackageImporter.Warn(
                     "Could not restore material '" + materialGroup.Key + "' on " +
@@ -222,6 +226,7 @@ public class UnityProjectImporter
 
     private async Task ImportProject()
     {
+        Session?.Check();
         await default(ToBackground);
         UnityPackageImporter.Msg("Start Project Importing for unitypackage");
         FrooxInternalBridge.ValidateModelImportApi();
@@ -232,6 +237,7 @@ public class UnityProjectImporter
         var fbx_tasks = FillFBXFiles().ToArray();
 
         await Task.WhenAll(fbx_tasks.Select(task => task.RunnerWrapper()).ToArray());
+        Session?.Check();
         await default(ToBackground);
         // Now we have a full list of meta files and prefabs regarding this import file list from our prefix (where ever this is even if not a unity package folder) we now begin the hard part *drums* making the files go onto the model!
         List<IUnityStructureImporter> unityImportTasks = new List<IUnityStructureImporter>();
@@ -317,10 +323,15 @@ public class UnityProjectImporter
         stationHandle?.RegisterPrefabs(unityImportTasks.OfType<UnityPrefabImportTask>());
         await Task.WhenAll(unityImportTasks.Select(task => task.StartImport()));
         await default(ToWorld);
+        Session?.Check();
         if (stationHandle != null)
         {
-            await stationHandle.StageAsync(this, unityImportTasks.OfType<UnityPrefabImportTask>().ToList());
             await stationHandle.CompleteSuccessAsync();
+            Session?.Check();
+            // Scene packages have no selection action: completion commits their scenes.
+            foreach (var scene in unityImportTasks.OfType<UnitySceneImportTask>())
+                Session?.Commit(scene.CurrentStructureRootSlot);
+            await stationHandle.StageAsync(this, unityImportTasks.OfType<UnityPrefabImportTask>().ToList());
         }
 
         await default(ToBackground);
@@ -476,16 +487,6 @@ public class UnityProjectImporter
                 }
 
                 await default(ToBackground);
-
-                await default(ToWorld);
-                float num = FBXRoot.ComputeBoundingBox(true, FBXRoot, null, null).Size.y/1.8f;
-
-                if (float.IsFinite(num) && num > 0.000001f)
-                    rootnode.LocalScale /= new float3(num, num, num);
-                else
-                    UnityPackageImporter.Warn("Cannot normalize humanoid height because mesh bounds are empty or invalid: " + task.file);
-                await default(ToBackground);
-
 
                 UnityPackageImporter.Msg("attaching VRIK");
                 await default(ToWorld);

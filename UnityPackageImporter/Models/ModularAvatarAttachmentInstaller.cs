@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Elements.Core;
 using FrooxEngine;
@@ -98,8 +99,11 @@ internal static class ModularAvatarAttachmentInstaller
         BipedRig targetRig,
         string prefabGuid,
         string prefabFile,
-        bool installOutfitMenu = true)
+        bool installOutfitMenu = true,
+        CancellationToken cancellationToken = default)
     {
+        await default(ToWorld);
+        cancellationToken.ThrowIfCancellationRequested();
         if (attachmentRoot == null || manifest == null || unityObjects == null || targetRig == null)
             return false;
 
@@ -124,18 +128,37 @@ internal static class ModularAvatarAttachmentInstaller
                 mergeBindings,
                 boneProxyBindings,
                 targetRig,
-                identity);
+                identity,
+                cancellationToken);
 
-            if (installed == null || !installed.IsHealthy) return false;
             await default(ToWorld);
+            if (installed == null || !installed.IsHealthy) return false;
+            // The installation is committed. Finish its optional controls even if the
+            // station closes now; do not report a completed outfit as cancelled.
             if (installOutfitMenu && !installed.RecordRoot.Children.Any(child => child.Name == "Outfit Controls"))
             {
-                var controls = installed.RecordRoot.AddSlot("Outfit Controls");
-                var source = controls.AttachComponent<ContextMenuItemSource>();
-                BindOutfitToggle(source, installed, installed.RecordRoot.Name);
-                targetRig.Slot.AttachComponent<RootContextMenuItem>().Item.Target = source;
+                Slot controls = null;
+                RootContextMenuItem contextItem = null;
+                try
+                {
+                    controls = installed.RecordRoot.AddSlot("Outfit Controls");
+                    var source = controls.AttachComponent<ContextMenuItemSource>();
+                    BindOutfitToggle(source, installed, installed.RecordRoot.Name);
+                    contextItem = targetRig.Slot.AttachComponent<RootContextMenuItem>();
+                    contextItem.Item.Target = source;
+                }
+                catch (Exception ex)
+                {
+                    if (contextItem != null && !contextItem.IsDestroyed) contextItem.Destroy();
+                    if (controls != null && !controls.IsDestroyed) controls.Destroy();
+                    UnityPackageImporter.Warn("Outfit installed, but its optional menu could not be created: " + ex.Message);
+                }
             }
             return true;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -256,7 +279,7 @@ internal static class ModularAvatarAttachmentInstaller
 
     internal static bool IsOwnedAvatar(BipedRig rig, User localUser)
     {
-        if (rig == null || rig.IsDestroyed || rig.Slot.IsDestroyed || localUser == null || rig.World != localUser.World) return false;
+        if (rig == null || rig.IsDestroyed || rig.Slot.IsDestroyed || localUser == null || rig.World != localUser.World || ImportSession.IsTemporary(rig.Slot)) return false;
         var protections = rig.Slot.GetComponentsInParents<FrooxEngine.CommonAvatar.SimpleAvatarProtection>();
         if (protections.Any(protection => protection.User.Target != localUser)) return false;
         if (rig.Slot.ActiveUser != null) return rig.Slot.ActiveUser == localUser;
@@ -339,8 +362,11 @@ internal static class ModularAvatarAttachmentInstaller
         IReadOnlyList<MergeSourceBinding> mergeBindings,
         IReadOnlyList<BoneProxyBinding> boneProxyBindings,
         BipedRig targetRig,
-        OutfitInstallIdentity identity)
+        OutfitInstallIdentity identity,
+        CancellationToken cancellationToken = default)
     {
+        await default(ToWorld);
+        cancellationToken.ThrowIfCancellationRequested();
         if (attachmentRoot.IsDestroyed || !IsOwnedAvatar(targetRig, attachmentRoot.World.LocalUser))
             throw new InvalidOperationException("The attachment or target avatar no longer exists.");
 
@@ -351,6 +377,7 @@ internal static class ModularAvatarAttachmentInstaller
                 throw new InvalidOperationException(
                     "This outfit has an incomplete installation record. " +
                     "The existing avatar state was left untouched.");
+            cancellationToken.ThrowIfCancellationRequested();
             return existingRecord;
         }
         if (existingRecord?.Match == OutfitInstallMatch.UpdateAvailable)
@@ -365,6 +392,7 @@ internal static class ModularAvatarAttachmentInstaller
         var ownedRoots = new List<OwnedRoot>();
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             installedRoot = attachmentRoot.Duplicate(targetRig.Slot, false);
             installedRoot.Name = attachmentRoot.Name + " [Installed on " + targetRig.Slot.Name + "]";
             installedRoot.SetIdentityTransform();
@@ -463,6 +491,7 @@ internal static class ModularAvatarAttachmentInstaller
                 .ToList();
             foreach (var renderer in renderers)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 for (int i = 0; i < renderer.Bones.Count; i++)
                 {
                     var bone = renderer.Bones[i];
@@ -477,6 +506,7 @@ internal static class ModularAvatarAttachmentInstaller
             {
                 foreach (var retained in merge.Plan.RetainedRoots)
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     var source = merge.SourceSlots[retained.SourceId];
                     if (boneMap.ContainsKey(source)) continue;
                     var targetParent = merge.TargetSlots[retained.TargetParentId];
@@ -495,6 +525,7 @@ internal static class ModularAvatarAttachmentInstaller
 
             foreach (var proxy in clonedBoneProxies)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 var target = ResolveBoneProxyTarget(targetRig, proxy.Definition)
                     ?? throw new InvalidOperationException(
                         "Bone Proxy target was not found for '" + proxy.SourceSlot.Name + "'.");
@@ -517,6 +548,12 @@ internal static class ModularAvatarAttachmentInstaller
                 renderers,
                 "Modular Avatar activation");
 
+            await default(ToWorld);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (attachmentRoot.IsDestroyed || installedRoot.IsDestroyed ||
+                !IsOwnedAvatar(targetRig, attachmentRoot.World.LocalUser))
+                throw new InvalidOperationException("The attachment or target avatar is no longer available.");
+            ImportSession.PreserveAssetsForOutput(attachmentRoot);
             var record = CreateInstallationRecord(
                 targetRig,
                 attachmentRoot.Name,
@@ -529,6 +566,7 @@ internal static class ModularAvatarAttachmentInstaller
         }
         catch
         {
+            await default(ToWorld);
             if (recordRoot != null && !recordRoot.IsDestroyed)
                 recordRoot.Destroy();
             foreach (var moved in movedRetainedRoots.Where(slot => slot != null && !slot.IsDestroyed))

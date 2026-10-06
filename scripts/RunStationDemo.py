@@ -4,6 +4,7 @@ import json
 import sys
 from pathlib import Path
 import websockets
+from FindResoniteLink import DEFAULT_SECONDS, DiscoveryError, resolve_port
 
 sys.stdout.reconfigure(encoding='utf-8')
 
@@ -373,9 +374,22 @@ async def run_demo(port: int):
 
         print("\n>>> DEMO FINISHED SUCCESSFULLY!\n")
 
+async def main(args):
+    if args.port is None:
+        print("Discovering local ResoniteLink sessions...")
+    port = await resolve_port(args.port, selector=args.session, seconds=args.discovery_seconds)
+    await run_demo(port)
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Run Station Prototype Demo Cycle")
-    parser.add_argument("--port", type=int, default=19834, help="ResoniteLink port (default: 19834)")
+    parser.add_argument("--port", type=int, help="Explicit ResoniteLink port; otherwise use native discovery")
+    parser.add_argument("--session", help="Exact session name or ID when several local worlds announce Link")
+    parser.add_argument("--discovery-seconds", type=float, default=DEFAULT_SECONDS,
+                        help="Native discovery window (default: 12 seconds)")
     args = parser.parse_args()
 
-    asyncio.run(run_demo(args.port))
+    try:
+        asyncio.run(main(args))
+    except DiscoveryError as error:
+        parser.exit(1, f"ERROR: {error}\n")

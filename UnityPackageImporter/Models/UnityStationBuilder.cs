@@ -14,8 +14,10 @@ namespace UnityPackageImporter.Models;
 internal sealed class UnityStationHandle
 {
     private readonly StationTemplate ui;
+    private readonly ImportSession session;
     private readonly Dictionary<UnityPrefabImportTask, float> progress = new();
     private readonly HashSet<UnityPrefabImportTask> created = new();
+    private readonly HashSet<UnityPrefabImportTask> failedCreation = new();
     private readonly Dictionary<UnityPrefabImportTask, string> names = new();
     private readonly Dictionary<UnityPrefabImportTask, string> presets = new();
     private List<UnityPrefabImportTask> items = new();
@@ -24,18 +26,21 @@ internal sealed class UnityStationHandle
     private UnityProjectImporter importer;
     private MaterialDependencySession dependencies;
     private int selected = -1, lifecycle;
-    private bool busy, ready, failed;
+    private bool busy, ready;
     public Slot RootSlot => ui.Root;
-    public bool IsAlive => !ui.Host.IsDestroyed && !ui.Root.IsDestroyed;
+    public bool IsAlive => !ui.Host.IsDestroyed && !ui.Root.IsDestroyed && !session.Token.IsCancellationRequested;
     private UnityPrefabImportTask Current => items.Count == 0 || selected < 0 ? null : items[selected];
     private bool IsOutfit => Current?.Manifest?.IsModularAvatarAttachment == true;
     private bool IsAvatar => !IsOutfit && Current != null && (Current.Manifest?.IsAvatarPrefab == true ||
         Current.CurrentStructureRootSlot.GetComponentInChildren<BipedRig>() != null);
 
-    internal UnityStationHandle(StationTemplate template)
+    internal UnityStationHandle(StationTemplate template, ImportSession importSession)
     {
         ui = template;
-        Bind("close", CloseAsync);
+        session = importSession;
+        session.BindUi(ui.Host, ui.Root);
+        ui.Host.SetParent(session.Root, true);
+        Bind("close", CloseAsync, allowWhileBusy: true);
         Bind("previous", () => SelectAsync(selected - 1));
         Bind("next", () => SelectAsync(selected + 1));
         Bind("create", CreateAvatarAsync);
@@ -69,18 +74,24 @@ internal sealed class UnityStationHandle
         foreach (var row in rowTemplate.Parent.Children.ToArray()) if (row != rowTemplate) row.Destroy();
         rowTemplate.ActiveSelf = false;
         ResetOutcome();
+        _ = ui.Root.World.RootSlot.StartGlobalTask(MonitorLifetimeAsync);
     }
     private T Get<T>(string key) where T : class, IWorldElement => ui.Get<T>(key);
-    private void Bind(string key, Func<Task> action, bool replace = true)
+    private void Bind(string key, Func<Task> action, bool replace = true, bool allowWhileBusy = false)
     {
         Button button = Get<Button>(key);
         if (replace) ReleaseFixtureActions(button);
         NativeButtonEvents.Pressed(button, (_, _) =>
         {
-            if (!IsAlive || busy) return;
-            RootSlot.StartGlobalTask(async () =>
+            if (!IsAlive || busy && !allowWhileBusy) return;
+            RootSlot.World.RootSlot.StartGlobalTask(async () =>
             {
-                try { await action(); }
+                try
+                {
+                    if (allowWhileBusy) await action();
+                    else using (session.Enter()) await action();
+                }
+                catch (OperationCanceledException) when (session.Token.IsCancellationRequested) { }
                 catch (Exception ex)
                 {
                     await default(ToWorld);
@@ -127,7 +138,6 @@ internal sealed class UnityStationHandle
     {
         if (!IsAlive) return;
         lifecycle++;
-        failed = true;
         ResetOutcome();
         ui.SetLocalized("failure", "Import failed: " + Escape(reason), "インポート失敗: " + Escape(reason));
         Get<ValueField<bool>>("failure").Value.Value = true;
@@ -141,14 +151,14 @@ internal sealed class UnityStationHandle
         ResetOutcome();
         Get<ValueField<bool>>("success").Value.Value = true;
         Get<SmoothValue<float>>("arc").TargetValue.Value = 360f;
-        await Task.Delay(3500);
+        await Task.Delay(3500, session.Token);
         await default(ToWorld);
         if (!IsAlive || generation != lifecycle) return;
         Get<BooleanValueDriver<float3>>("cardScale").State.Value = false;
         Get<BooleanValueDriver<float3>>("cardPosition").State.Value = false;
         Get<SmoothValue<float>>("arc").Speed.Value = 3f;
         Get<SmoothValue<float>>("arc").TargetValue.Value = 0f;
-        await Task.Delay(2000);
+        await Task.Delay(2000, session.Token);
         await default(ToWorld);
         if (IsAlive && generation == lifecycle) Get<SmoothValue<float>>("arc").Speed.Value = 10f;
     }
@@ -162,10 +172,8 @@ internal sealed class UnityStationHandle
         {
             names[item] = Path.GetFileNameWithoutExtension(item.ID.Value);
             presets[item] = "Automatic";
-            item.CurrentStructureRootSlot.ActiveSelf = false;
         }
         ready = true;
-        _ = RootSlot.World.RootSlot.StartGlobalTask(MonitorLifetimeAsync);
         if (items.Count == 0)
         {
             ShowEmptyPackage(project.PackageNames.FirstOrDefault() ?? "Package", project.ListOfUnityScenes.Count > 0);
@@ -191,16 +199,19 @@ internal sealed class UnityStationHandle
     private async Task MonitorLifetimeAsync()
     {
         var world = RootSlot.World;
-        while (IsAlive && !world.RootSlot.IsDestroyed) await Task.Delay(1000);
-        await default(ToWorld);
-        if (world.RootSlot.IsDestroyed) return;
+        while (true)
+        {
+            await Task.Delay(200);
+            if (world.RootSlot.IsDestroyed) { _ = session.CancelAsync(); return; }
+            await default(ToWorld);
+            if (!IsAlive || session.Root.IsDestroyed) break;
+        }
         dependencies?.Continue();
-        foreach (var item in items)
-            if (!item.CurrentStructureRootSlot.IsDestroyed) item.CurrentStructureRootSlot.ActiveSelf = true;
+        await session.CleanupAsync();
     }
     private void SetActions(bool enabled)
     {
-        Get<Button>("create").Enabled = enabled && Current != null && !created.Contains(Current);
+        Get<Button>("create").Enabled = enabled && Current != null && !created.Contains(Current) && !failedCreation.Contains(Current);
         Get<Button>("install").Enabled = enabled && Current != null && selectedAvatar != null &&
             ModularAvatarAttachmentInstaller.IsOwnedAvatar(selectedAvatar, RootSlot.World.LocalUser);
         Get<Button>("previous").Enabled = enabled && items.Count > 1;
@@ -232,8 +243,8 @@ internal sealed class UnityStationHandle
     private void RebuildPreview()
     {
         if (preview != null && !preview.IsDestroyed) preview.Destroy();
-        if (Current == null || Current.CurrentStructureRootSlot.IsDestroyed) return;
-        preview = Current.CurrentStructureRootSlot.Duplicate(Get<Slot>("preview"), false);
+        if (Current == null || Current.CurrentStructureRootSlot.IsDestroyed || created.Contains(Current) || failedCreation.Contains(Current)) return;
+        preview = session.Envelope(Current.CurrentStructureRootSlot).Duplicate(Get<Slot>("preview"), false);
         preview.SetIdentityTransform();
         preview.ActiveSelf = true;
         preview.PersistentSelf = false;
@@ -245,7 +256,7 @@ internal sealed class UnityStationHandle
         var parent = rowTemplate.Parent;
         foreach (var child in parent.Children.ToArray()) if (child != rowTemplate) child.Destroy();
         var candidates = ModularAvatarAttachmentInstaller.GetAvailableAvatarRigs(Current?.CurrentStructureRootSlot ?? RootSlot)
-            .Where(rig => !rig.Slot.IsChildOf(RootSlot, true)).ToArray();
+            .Where(rig => !rig.Slot.IsChildOf(session.Root, true)).ToArray();
         for (int i = 0; i < candidates.Length; i++)
         {
             BipedRig candidate = candidates[i];
@@ -264,6 +275,7 @@ internal sealed class UnityStationHandle
             }
             NativeButtonEvents.Pressed(button, (_, _) =>
             {
+                if (!IsAlive || busy) return;
                 if (!ModularAvatarAttachmentInstaller.IsOwnedAvatar(candidate, RootSlot.World.LocalUser)) return;
                 selectedAvatar = candidate;
                 Get<Text>("targetName").Content.Value = "<b>" + Escape(candidate.Slot.Name) + "</b>";
@@ -278,41 +290,59 @@ internal sealed class UnityStationHandle
     }
     private async Task CreateAvatarAsync()
     {
-        if (Current == null || IsOutfit || created.Contains(Current)) return;
+        if (Current == null || IsOutfit || created.Contains(Current) || failedCreation.Contains(Current)) return;
         var item = Current;
         busy = true;
         SetActions(false);
         try
         {
             var source = item.CurrentStructureRootSlot;
+            var envelope = session.Envelope(source);
+            bool avatar = IsAvatar;
+            bool protect = Get<Checkbox>("protect").State.Value;
             if (Get<Checkbox>("expressions").State.Value) await item.BuildExpressionsAsync();
             await default(ToWorld);
+            session.Check();
             string name = Get<Text>("name").Content.Value;
-            source.Name = string.IsNullOrWhiteSpace(name) ? names[item] : name.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ').Trim();
-            if (IsAvatar && Get<Checkbox>("protect").State.Value) source.GetComponentOrAttach<SimpleAvatarProtection>().User.Target = source.World.LocalUser;
-            source.GlobalPosition = Get<Slot>("preview").GlobalPosition;
-            source.GlobalRotation = Get<Slot>("preview").GlobalRotation;
-            source.ActiveSelf = true;
-            source.PersistentSelf = true;
+            envelope.Name = string.IsNullOrWhiteSpace(name) ? names[item] : name.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ').Trim();
+            envelope.GlobalPosition = Get<Slot>("preview").GlobalPosition;
+            envelope.GlobalRotation = Get<Slot>("preview").GlobalRotation;
+            if (avatar) await NativeAvatarCreation.CreateAsync(item, envelope, protect, session.Token);
+            await default(ToWorld);
+            session.Check();
+            if (Get<Checkbox>("avatarReceipt").State.Value) SaveReceipt(envelope, item);
+            session.Commit(source);
             created.Add(item);
-            if (Get<Checkbox>("avatarReceipt").State.Value) SaveReceipt(source, item);
             if (preview != null && !preview.IsDestroyed) preview.Destroy();
+        }
+        catch
+        {
+            await default(ToWorld);
+            // Native creation can have partially configured a rig. Never release or
+            // finalize that same partial object a second time; cleanup still owns it.
+            failedCreation.Add(item);
+            if (preview != null && !preview.IsDestroyed) preview.Destroy();
+            throw;
         }
         finally { await default(ToWorld); busy = false; if (IsAlive) SetActions(true); }
     }
     private async Task InstallOutfitAsync()
     {
         if (Current == null || !IsOutfit || selectedAvatar == null) return;
+        var item = Current;
+        var target = selectedAvatar;
+        bool receipt = Get<Checkbox>("outfitReceipt").State.Value;
+        bool menu = Get<Checkbox>("outfitMenu").State.Value;
         busy = true;
         SetActions(false);
         try
         {
-            bool success = await ModularAvatarAttachmentInstaller.TryInstallDirectlyAsync(Current.CurrentStructureRootSlot,
-                Current.Manifest, Current.existingIUnityObjects, selectedAvatar, Current.ID.Key, Current.ID.Value,
-                Get<Checkbox>("outfitMenu").State.Value);
+            bool success = await ModularAvatarAttachmentInstaller.TryInstallDirectlyAsync(item.CurrentStructureRootSlot,
+                item.Manifest, item.existingIUnityObjects, target, item.ID.Key, item.ID.Value,
+                menu, session.Token);
             await default(ToWorld);
             if (!success) throw new InvalidOperationException("The outfit could not be installed safely on the selected avatar.");
-            if (Get<Checkbox>("outfitReceipt").State.Value) SaveReceipt(selectedAvatar.Slot, Current);
+            if (receipt && IsAlive && !target.IsDestroyed) SaveReceipt(target.Slot, item);
         }
         finally { await default(ToWorld); busy = false; if (IsAlive) SetActions(true); }
     }
@@ -326,6 +356,7 @@ internal sealed class UnityStationHandle
         {
             await importer.ApplyMaterialPresetAsync(Current.CurrentStructureRootSlot, preset);
             await default(ToWorld);
+            session.Check();
             presets[Current] = preset;
             Get<ValueField<string>>("shaderValue").Value.Value = preset;
             RebuildPreview();
@@ -344,15 +375,17 @@ internal sealed class UnityStationHandle
     {
         lifecycle++;
         dependencies?.Continue();
-        Get<SmoothValue<float>>("arc").TargetValue.Value = 0f;
-        Get<SmoothValue<float>>("arc").Speed.Value = 3f;
-        Get<BooleanValueDriver<float3>>("cardScale").State.Value = false;
-        Get<BooleanValueDriver<float3>>("cardPosition").State.Value = false;
-        if (!ready && !failed) return;
-        await Task.Delay(2000);
-        await default(ToWorld);
-        foreach (var item in items) if (!item.CurrentStructureRootSlot.IsDestroyed) item.CurrentStructureRootSlot.ActiveSelf = true;
-        if (!ui.Host.IsDestroyed) ui.Host.Destroy();
+        using (session.Enter())
+        {
+            _ = session.CancelAsync();
+            Get<SmoothValue<float>>("arc").TargetValue.Value = 0f;
+            Get<SmoothValue<float>>("arc").Speed.Value = 3f;
+            Get<BooleanValueDriver<float3>>("cardScale").State.Value = false;
+            Get<BooleanValueDriver<float3>>("cardPosition").State.Value = false;
+            await Task.Delay(2000);
+            await default(ToWorld);
+        }
+        await session.CleanupAsync();
     }
     private string BuildReceipt(UnityPrefabImportTask item, bool japanese = false) =>
         (japanese ? "プレハブ: " : "Prefab: ") + Path.GetFileName(item.ID.Value) +
@@ -369,10 +402,14 @@ internal sealed class UnityStationHandle
 
 internal static class UnityStationBuilder
 {
-    public static async Task<UnityStationHandle> BuildStationAsync(World world, float3 position, floatQ rotation)
+    public static async Task<UnityStationHandle> BuildStationAsync(World world, float3 position, floatQ rotation, ImportSession session)
     {
-        var template = await StationTemplateLoader.LoadAsync("station", world, position, rotation);
-        try { return new UnityStationHandle(template); }
+        // Preserve yaw while removing gaze pitch and roll from the floor pedestal.
+        float3 forward = rotation * float3.Forward;
+        float yaw = forward.x * forward.x + forward.z * forward.z < 0.000001f ? 0f
+            : MathF.Atan2(forward.x, forward.z) * (180f / MathF.PI);
+        var template = await StationTemplateLoader.LoadAsync("station", world, position, floatQ.Euler(0f, yaw, 0f));
+        try { return new UnityStationHandle(template, session); }
         catch { if (!template.Host.IsDestroyed) template.Host.Destroy(); throw; }
     }
 }

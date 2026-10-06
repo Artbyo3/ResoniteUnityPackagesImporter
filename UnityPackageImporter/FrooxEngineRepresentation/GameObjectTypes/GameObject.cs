@@ -24,10 +24,10 @@ public class GameObject: IUnityObject
         if (instanciated) return;
 
         await default(ToWorld);
+        importer.unityProjectImporter.Session?.Check();
         if (m_CorrespondingSourceObject?.guid == null && frooxEngineSlot == null)
         {
-            frooxEngineSlot = importer.unityProjectImporter.world.AddSlot(this.m_Name);
-            frooxEngineSlot.SetParent(importer.CurrentStructureRootSlot, true); // Let in-game user managers not freak out that we're doing stuff in root.
+            frooxEngineSlot = importer.CurrentStructureRootSlot.AddSlot(this.m_Name);
             frooxEngineSlot.ActiveSelf = m_IsActive == 1 ? true : false;
         }
         else if (frooxEngineSlot != null)

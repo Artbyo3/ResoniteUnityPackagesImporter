@@ -1155,6 +1155,10 @@ Test("UI contracts reject unsupported schemas and ambiguous path escapes", () =>
     Throws<InvalidDataException>(() => Parse(valid.Replace("\"index\":0", "\"index\":-1")));
 });
 
+ImportLifetimeTests.Register(Test);
+
+AvatarViewpointTests.Register(Test);
+
 foreach (var test in tests)
 {
     try { test.Run(); Console.WriteLine("PASS " + test.Name); }

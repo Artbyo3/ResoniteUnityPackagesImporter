@@ -31,7 +31,21 @@ internal static class MaterialDependencyCoordinator
     private static readonly Dictionary<World, MaterialDependencySession> WaitingByWorld = new();
     internal static bool HasWaiting(World world)
     {
-        lock (Sync) return world != null && WaitingByWorld.TryGetValue(world, out var session) && session.IsUsable && session.IsWaiting;
+        lock (Sync)
+        {
+            if (world == null || !WaitingByWorld.TryGetValue(world, out var session)) return false;
+            if (session.IsUsable && session.IsWaiting) return true;
+            RemoveWorld(world);
+            return false;
+        }
+    }
+    private static void RemoveWorld(World world)
+    {
+        lock (Sync)
+        {
+            WaitingByWorld.Remove(world);
+            world.WorldDestroyed -= RemoveWorld;
+        }
     }
     internal static void BeginWaiting(MaterialDependencySession session)
     {
@@ -40,6 +54,7 @@ internal static class MaterialDependencyCoordinator
         lock (Sync)
         {
             WaitingByWorld.TryGetValue(session.World, out replaced);
+            if (replaced == null) session.World.WorldDestroyed += RemoveWorld;
             WaitingByWorld[session.World] = session;
         }
         if (replaced != null && replaced != session) replaced.Back();
@@ -47,7 +62,7 @@ internal static class MaterialDependencyCoordinator
     internal static void StopWaiting(MaterialDependencySession session)
     {
         lock (Sync)
-            if (WaitingByWorld.TryGetValue(session.World, out var current) && current == session) WaitingByWorld.Remove(session.World);
+            if (WaitingByWorld.TryGetValue(session.World, out var current) && current == session) RemoveWorld(session.World);
     }
     public static async Task<bool> TryResolveWaitingAsync(World world, IReadOnlyDictionary<string, string> assets)
     {
@@ -55,7 +70,7 @@ internal static class MaterialDependencyCoordinator
         lock (Sync)
         {
             if (world == null || !WaitingByWorld.TryGetValue(world, out session)) return false;
-            if (!session.IsUsable) { WaitingByWorld.Remove(world); return false; }
+            if (!session.IsUsable) { RemoveWorld(world); return false; }
         }
         if (!session.CanUse(assets?.Keys))
         {
@@ -63,8 +78,7 @@ internal static class MaterialDependencyCoordinator
             session.NoMatch();
             return false;
         }
-        await session.ApplyAsync(assets);
-        return true;
+        return await session.ApplyAsync(assets);
     }
 }
 
@@ -104,20 +118,22 @@ internal sealed class MaterialDependencySession
         station.SetCompanionState(false, false);
     }
     public void NoMatch() => station.SetCompanionState(true, true, "This package has no matching materials", "このパッケージに対応するマテリアルがありません");
-    public async Task ApplyAsync(IReadOnlyDictionary<string, string> assets)
+    public async Task<bool> ApplyAsync(IReadOnlyDictionary<string, string> assets)
     {
         await applyLock.WaitAsync();
-        if (!CanUse(assets?.Keys)) { applyLock.Release(); return; }
+        if (!CanUse(assets?.Keys)) { applyLock.Release(); return false; }
         applying = true;
         int request = generation;
         try
         {
+            using var operation = importer.Session?.Enter();
             await default(ToWorld);
+            importer.Session?.Check();
             station.SetCompanionState(true, true, "Connecting materials", "マテリアルを接続中");
             var result = await importer.ResolveMissingMaterialsAsync(assets);
             await default(ToWorld);
             station.RefreshMaterials();
-            if (request != generation || !IsUsable) return;
+            if (request != generation || !IsUsable) return true;
             if (result.Remaining.HasMissingAssets)
                 station.SetCompanionState(true, true, "More materials are needed", "追加のマテリアルが必要です");
             else
@@ -129,6 +145,7 @@ internal sealed class MaterialDependencySession
                 await default(ToWorld);
                 if (request == generation) station.SetCompanionState(false, false);
             }
+            return true;
         }
         finally { applying = false; applyLock.Release(); }
     }

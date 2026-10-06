@@ -3,11 +3,11 @@
   "version": "1.0.1",
   "templates": {
     "station": {
-      "packageSha256": "99eb983fcecc328f766ddd1ce7420ed4ab51e7c82cd2eea253c51fba67774ec2",
+      "packageSha256": "e80140eaa153309507c3e97052891db5aaf066b21201f3f3e5fe17b375f5a79a",
       "contractSha256": "b2b73fff736be18e08c1a72f7160691b5fe46e154c5f3d5ff37b424b1ef5b66e"
     },
     "pre-import": {
-      "packageSha256": "ac87673848700d01899fcc86912546ef529e8effd4f6645819cd51578c76bb79",
+      "packageSha256": "51e70bb0c6a79bc86a0cd291babd17785a39ecb47947e0cc8a9852a2437668c1",
       "contractSha256": "8622a053b694b39e175033158410b68b4aca04f82fc58d8fd1bf7421fb53ac93"
     }
   }
