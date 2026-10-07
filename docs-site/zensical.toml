@@ -1,0 +1,40 @@
+[project]
+site_name = "Unity Package Importer"
+site_description = "Getting started with the Unity Package Importer mod for Resonite."
+site_url = "https://artbyo3.github.io/ResoniteUnityPackagesImporter/"
+repo_url = "https://github.com/Artbyo3/ResoniteUnityPackagesImporter"
+docs_dir = "pages"
+site_dir = "site"
+nav = [
+  "index.md",
+  { "Get started" = [
+    "getting-started/index.md",
+    "getting-started/installation.md",
+  ] },
+  { "Compatibility" = [
+    "reference/compatibility/index.md",
+    "reference/compatibility/unity-packages.md",
+    "reference/compatibility/modular-avatar.md",
+    "reference/compatibility/vrcfury.md",
+    { "Shaders and materials" = [
+      "reference/compatibility/shaders/index.md",
+      "reference/compatibility/shaders/liltoon.md",
+      "reference/compatibility/shaders/poiyomi.md",
+    ] },
+  ] },
+  { "Legal" = [
+    "legal/index.md",
+    "legal/third-party-notices.md",
+  ] },
+]
+
+extra_css = ["stylesheets/landing.css", "stylesheets/notice.css"]
+
+[project.theme]
+custom_dir = "overrides"
+features = ["navigation.sections", "navigation.path", "search.highlight"]
+
+[project.theme.palette]
+scheme = "default"
+primary = "blue"
+accent = "green"

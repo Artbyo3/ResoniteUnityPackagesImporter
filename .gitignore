@@ -372,3 +372,6 @@ scripts/*
 !.env.example
 secrets.*
 credentials.*
+/docs-site/site/
+/docs-site/.cache/
+/docs-site/.uv-cache/

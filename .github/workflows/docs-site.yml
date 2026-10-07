@@ -1,0 +1,66 @@
+name: Documentation site
+
+on:
+  pull_request:
+    paths:
+      - "docs-site/**"
+      - ".github/workflows/docs-site.yml"
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish the reviewed site to GitHub Pages"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: documentation-site
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Check documentation build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install site generator
+        run: python -m pip install -r docs-site/requirements.txt
+      - name: Build site
+        working-directory: docs-site
+        run: zensical build --clean
+
+  publish:
+    name: Publish to GitHub Pages
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install site generator
+        run: python -m pip install -r docs-site/requirements.txt
+      - name: Build site
+        working-directory: docs-site
+        run: zensical build --clean
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: docs-site/site
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
