@@ -89,6 +89,11 @@ internal static class NativeAvatarCreation
                 envelope.GetComponent<VRIKAvatar>() == null || envelope.GetComponent<AvatarGroup>() == null)
                 throw new InvalidOperationException("Native avatar creation did not finish. The import has not been released.");
 
+            // The native creator now owns the IK reference spaces. Retire only
+            // movement parents recorded by this prefab's import preparation,
+            // preserving authored slots, world transforms and renderer references.
+            item.CompleteHumanoidHierarchy(envelope);
+
             // Native protection is attached to the root and renderers. Assign the
             // importing user consistently before this object can leave staging.
             if (protectAvatar)

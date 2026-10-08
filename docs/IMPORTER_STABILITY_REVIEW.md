@@ -34,6 +34,14 @@ Keep it separate until the checks below pass. The approved UI templates are unch
   hand and both feet. Native controller calibration rotation is unchanged because
   it already matches the installed engine's AvatarCreator.
 - The extension-registration success message now interpolates its extension.
+- Humanoid preparation returns ownership of its temporary movement parent to the
+  prefab task. After native avatar creation, both IK reference spaces must point
+  to the finished avatar root before that parent can be retired. Its children are
+  reparented with the engine's world-transform-preserving operation, and only the
+  emptied, recorded parent is destroyed. Authored same-named objects are never
+  selected for removal. Changed or externally edited hierarchy fails before
+  releasing the avatar. Import previews and ordinary scene imports retain their
+  preparation behavior. Existing previously created avatars are not migrated.
 
 ## Materials and maintainability
 
@@ -117,7 +125,7 @@ removes only confirmed unused fields, root-argument plumbing and the oversized
 model class catalogue. Import scheduling and rig behavior are preserved.
 
 Validated on this branch: Release build succeeded with zero warnings/errors;
-100/100 C# regressions and 16/16 Python tests passed. All seven engine
+107/107 C# regressions and 16/16 Python tests passed. All seven engine
 reflection signature checks passed against the installed engine assemblies.
 
 Run from the repository root:
@@ -133,6 +141,14 @@ pixels and mask direction, concurrent cache writes, authored bone ordering,
 ambiguity rejection and existing import-lifetime races. Engine API metadata checks
 verify signatures without starting Resonite. These checks cannot validate rendering,
 tracking, or the engine's live transfer queue.
+
+The movement-parent follow-up adds seven regressions for ownership, both IK
+reference-space handoffs, cross-avatar isolation, changed/destroyed hierarchies,
+cycles, repeated completion and failed promotion. Those tests exercise the
+production lifecycle policy with a hierarchy double. They do not execute native
+transform math or prove rendered/posed equivalence in Resonite. Native metadata
+inspection confirmed that `VRIKAvatar.Setup` moves both solver spaces to its own
+avatar root; the implementation also checks those actual targets at runtime.
 
 ### Post-install skin initialization correction
 
@@ -169,6 +185,12 @@ with the official Unity SDK; the material limitations above remain open.
 
 - A brief user test no longer reproduced disappearing geometry on the tested
   avatar. This is a limited pass, not validation across all affected models.
+- **Root-level duplicate output remains open.** The user reports that at least
+  one later test still produced an extra avatar outside the station. The earlier
+  mixed-scene ownership change addresses a known path, not every possible cause.
+  Identify the remaining path from a reproducible package and live hierarchy in
+  a future session; do not infer that it is the same scene-commit bug. Further
+  investigation is deferred at the user's request.
 - The reported general blendshape reset was not confirmed on retest. Do not
   treat it as an established regression or conflate it with face-tracking
   drivers. Animator-controlled defaults require a separate investigation.
@@ -184,10 +206,10 @@ with the official Unity SDK; the material limitations above remain open.
   the Animator controller, and parsed expression parameters are discarded by the
   menu-building caller. Full Animator default-state support is not implemented.
   This item is deferred at the user's request; no code fix has been applied.
-- The importer-generated movement wrapper remains inside the completed avatar.
-  It is created by humanoid preparation, and finalization releases the complete
-  envelope. Review removal or avoidance of that temporary hierarchy while
-  preserving transforms and solver references; do not delete by a name match.
+- The importer-generated movement wrapper was retained inside completed avatars.
+  It came from humanoid preparation, and finalization released the complete
+  envelope without retiring it. The ownership/finalization change above addresses
+  that path in the review build; fresh in-game validation is still pending.
 
 ### Live verification checklist
 
@@ -202,6 +224,10 @@ with the official Unity SDK; the material limitations above remain open.
 4. Create/equip an avatar and check both hands, palms, thumbs and controller/tool
    anchors. The small draggable correction does not establish a fix for every
    reported hand twist. First-person head hiding remains a separate investigation.
+   Also verify the import-only movement parent is absent after creation, while
+   model position, rotation, scale, clothing and skin references are unchanged.
+   Test an authored nested transform, preview switching and station deletion;
+   moving the finished avatar must still move its entire rig normally.
 5. Compare representative lilToon materials with the SDK: opaque/cutout/transparent,
    shadows, normals, emission, MatCap and outlines. Include layered makeup and
    alpha-masked clothing so the documented fallback tradeoff is visible.

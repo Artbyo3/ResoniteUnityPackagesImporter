@@ -23,6 +23,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
     internal Func<float, Task> ReportProgress { get; set; }
     internal AvatarPackageManifest Manifest { get; private set; }
     private bool expressionsBuilt;
+    private readonly List<ImportedHumanoidRig> preparedHumanoids = new();
     public UnityProjectImporter unityProjectImporter { get; set; }
 
     public UnityPrefabImportTask(float3 globalPosition, KeyValuePair<string, string> ID, UnityProjectImporter unityProjectImporter, floatQ? globalRotation = null)
@@ -178,7 +179,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
 
                         if (prefab != null && prefab.importask != null && prefab.ImportRoot != null && prefab.ImportRoot.frooxEngineSlot != null)
                         {
-                            await HumanoidRigSetup.SetupAsync(
+                            await PrepareHumanoidAsync(
                                 prefab.importask,
                                 prefab.ImportRoot.frooxEngineSlot);
                         }
@@ -236,7 +237,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                     if (this.unityProjectImporter.SharedImportedFBXScenes.TryGetValue(newobj.m_Mesh.guid, out FileImportTaskScene importedfbx))
                     {
                         await default(ToWorld);
-                        await HumanoidRigSetup.SetupAsync(importedfbx, this.CurrentStructureRootSlot);
+                        await PrepareHumanoidAsync(importedfbx, this.CurrentStructureRootSlot);
                         await default(ToBackground);
                         break;
                         // All skinned mesh renderers should go to the current prefab if they're under the root.
@@ -277,6 +278,19 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
         UnityPackageImporter.Msg("Yaml generation done");
         UnityPackageImporter.Msg("Prefab finished!");
     }
+    private async Task PrepareHumanoidAsync(FileImportTaskScene task, Slot rigRoot)
+    {
+        var prepared = await HumanoidRigSetup.SetupAsync(task, rigRoot);
+        await default(ToWorld);
+        if (prepared != null) preparedHumanoids.Add(prepared);
+    }
+
+    internal void CompleteHumanoidHierarchy(Slot avatarRoot)
+    {
+        foreach (var prepared in preparedHumanoids)
+            prepared.CompleteAvatar(avatarRoot);
+    }
+
     internal async Task BuildExpressionsAsync()
     {
         if (expressionsBuilt || Manifest == null) return;

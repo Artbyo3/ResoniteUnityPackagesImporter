@@ -12,12 +12,12 @@ namespace UnityPackageImporter.Models;
 // Per-instance metadata avoids sharing live bone references between prefabs.
 internal static class HumanoidRigSetup
 {
-    internal static async Task SetupAsync(FileImportTaskScene task, Slot FBXRoot)
+    internal static async Task<ImportedHumanoidRig> SetupAsync(FileImportTaskScene task, Slot FBXRoot)
     {
         if (task == null || FBXRoot == null)
         {
             UnityPackageImporter.Warn("SettupHumanoid skipped: task or FBXRoot was null.");
-            return;
+            return null;
         }
 
         UnityPackageImporter.Msg("checking if this FBX is a humanoid");
@@ -28,15 +28,14 @@ internal static class HumanoidRigSetup
         var instanceMetadata = new MetaDataFile();
         await instanceMetadata.ScanFile(task, FBXRoot);
         await default(ToWorld);
-        if (taskSlot.GetComponent<VRIK>() != null) return;
+        if (taskSlot.GetComponent<VRIK>() != null) return null;
         BipedRig biped = taskSlot.AttachComponent<BipedRig>();
         await instanceMetadata.GenerateComponents(biped);
         await default(ToWorld);
 
-        // EXPLAINATION OF THIS CODE:
-        // We are using the froox engine data made from assimp to force our model onto what we generated instead of
-        // What froox engine made. This is better than asking froox engine to fully import the model for us
-        // We get more control this way.
+        // Unity metadata supplies the imported biped mapping. The movement parent
+        // is an import-time IK reference space, owned by the returned preparation.
+        // Native avatar creation must release it before the prefab is committed.
         if (biped.IsBiped) {
 
             await default(ToWorld);
@@ -168,9 +167,10 @@ internal static class HumanoidRigSetup
                 FrooxInternalBridge.SetupDraggable(slot10 ?? slot8, vrik.Solver, vrik.Solver.rightLeg.IKPosition, vrik.Solver.rightLeg.IKRotation, vrik.Solver.rightLeg.PositionWeight);
                 taskSlot.AttachComponent<DestroyRoot>();
                 DynamicVariableSpace avatar = taskSlot.AttachComponent<DynamicVariableSpace>();
-                avatar.SpaceName.Value = "Avatar"; //hehe random bias, go! - @989onan
+                avatar.SpaceName.Value = "Avatar";
                 taskSlot.AttachComponent<ObjectRoot>();
                 await default(ToBackground);
+                return new ImportedHumanoidRig(movecenter, rootnode, vrik);
             }
             else
             {
@@ -182,5 +182,6 @@ internal static class HumanoidRigSetup
             UnityPackageImporter.Msg("this prefab is not biped. ");
         }
         await default(ToBackground);
+        return null;
     }
 }

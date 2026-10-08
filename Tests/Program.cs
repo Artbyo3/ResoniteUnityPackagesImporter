@@ -1060,6 +1060,7 @@ MaterialConversionTests.Register(Test);
 NativeSkinBindingTests.Register(Test);
 
 AvatarViewpointTests.Register(Test);
+TemporaryRigParentTests.Register(Test);
 
 foreach (var test in tests)
 {
