@@ -74,6 +74,41 @@ VRCFury adapters should interpret their own settings and reuse only equivalent
 operations. Begin with an actual second use case, rather than abstracting unknown
 future components. No new MA/VRCFury component support is claimed here.
 
+### Future animation conversion boundary (design only)
+
+Consider both Modular Avatar and VRCFury before implementing this boundary.
+Their components can modify or generate the eventual Animator configuration;
+reading only the controller referenced by the original prefab is insufficient.
+The current component index does not yet recognize MA Merge Animator, and it
+does not provide VRCFury conversion.
+
+Use framework-specific readers for detection, dependencies and build semantics,
+feeding shared behavior operations only where their meanings agree. Preserve
+parameter scopes/defaults, object identity and binding-path changes, layer order,
+merge/replace rules, and conditions when they affect a supported behavior. Do not
+infer an Animator's effective default from a menu label or a Boolean parameter in
+isolation. Build a supported behavior plan, not an unbounded reimplementation of
+Unity's entire Animator or the upstream editor pipelines.
+
+Start with small fixtures from both frameworks for the same visible behavior,
+such as clothing visibility and its default state. Compare against each
+framework's actual Unity build output before calling those cases supported.
+Unresolved dependencies and unsupported animation constructs need explicit
+reporting. Considering both frameworks now reduces rework; it cannot guarantee
+that no changes will be needed later. Reassess this design before implementation.
+
+Official references checked for this planning note:
+
+- [MA Merge Animator](https://modular-avatar.nadena.dev/docs/reference/merge-animator):
+  binding-path modes, layer priority, replacement and Write Defaults handling.
+- [MA Parameters](https://modular-avatar.nadena.dev/docs/reference/parameters):
+  parameter scope, renaming and default overrides.
+- [VRCFury Full Controller](https://vrcfury.com/components/full-controller/):
+  controller/menu/parameter merging, path rewriting and parameter isolation.
+- [VRCFury Toggle](https://vrcfury.com/components/toggle/):
+  authored toggle defaults and rest-pose options. These are not equivalent to
+  blindly driving all related objects from one initially false value.
+
 ## Offline verification
 
 The subsequent [maintainability pass](CODE_CLEANUP.md) separates mod registration,
