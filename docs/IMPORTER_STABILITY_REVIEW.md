@@ -121,6 +121,32 @@ culling, scale, or hand-orientation reports are resolved.
 
 ## Required before merging
 
+### Follow-up observations — 2026-10-08
+
+- A brief user test no longer reproduced disappearing geometry on the tested
+  avatar. This is a limited pass, not validation across all affected models.
+- The reported general blendshape reset was not confirmed on retest. Do not
+  treat it as an established regression or conflate it with face-tracking
+  drivers. Animator-controlled defaults require a separate investigation.
+- **Lower priority: expression-menu initialization changes clothing visibility.**
+  The user can restore the clothing through the generated menu. Code inspection
+  confirms that grouped toggles create a `ValueMultiDriver<bool>` without setting
+  its initial value, then force-link the targets' active fields. The native
+  driver's change handler writes that initially false value to every valid
+  target. This is a concrete reset path, but the affected live targets have not
+  been inspected. Preserve existing states when creating controls; mixed states,
+  inverted Animator conditions and parameter defaults must not be collapsed into
+  an assumed shared Boolean. The current heuristic menu mapping does not evaluate
+  the Animator controller, and parsed expression parameters are discarded by the
+  menu-building caller. Full Animator default-state support is not implemented.
+  This item is deferred at the user's request; no code fix has been applied.
+- The importer-generated movement wrapper remains inside the completed avatar.
+  It is created by humanoid preparation, and finalization releases the complete
+  envelope. Review removal or avoidance of that temporary hierarchy while
+  preserving transforms and solver references; do not delete by a name match.
+
+### Live verification checklist
+
 1. Import a mixed scene/prefab package. Only the station preview should be visible.
    Close it and check for leftover scenes. Separately verify scene-only output.
 2. Compare the same model imported natively and through this branch. Check head/body
