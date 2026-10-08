@@ -107,6 +107,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                     UnityPackageImporter.Warn("Prefab IUnityObject failed to instanciate!");
                     UnityPackageImporter.Msg("Prefab IUnityObject ID: \"" + obj.Value.id.ToString() + "\"");
                     UnityPackageImporter.Warn(e.Message + e.StackTrace);
+                    throw new InvalidDataException("Could not build prefab component " + obj.Value.id + " (" + type.Name + ").", e);
                 }
                 try
                 {
@@ -200,7 +201,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 .ToList();
             await SkinnedBoundsPolicy.StabilizeBeforeEnableAsync(
                 renderersToEnable,
-                "Unity prefab activation");
+                "Unity prefab activation", unityProjectImporter.Session?.Token ?? default);
 
             foreach (var obj in existingIUnityObjects)
             {
@@ -316,7 +317,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 }
 
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 UnityPackageImporter.Warn("Failed to reconstruct expressions menu: " + ex);
             }

@@ -22,8 +22,6 @@ public class UnityProjectImporter
     public List<FileImportHelperTaskMaterial> TasksMaterials = new List<FileImportHelperTaskMaterial>();
     internal readonly AsyncImportCache<IAssetProvider<Material>> MaterialImports = new();
     internal readonly AsyncImportCache<StaticTexture2D> TextureImports = new();
-    internal readonly AsyncImportCache<StaticTexture2D> RampImports = new();
-    internal readonly AsyncImportCache<StaticTexture2D> CompositeImports = new();
     private readonly Dictionary<SkinnedMeshRenderer, IAssetProvider<Material>[]> automaticMaterials = new();
     public Dictionary<string, FileImportTaskScene> SharedImportedFBXScenes = new Dictionary<string, FileImportTaskScene>();
     public ReadOnlyDictionary<string, string> AssetIDDict;
@@ -241,8 +239,9 @@ public class UnityProjectImporter
         await default(ToBackground);
         // Now we have a full list of meta files and prefabs regarding this import file list from our prefix (where ever this is even if not a unity package folder) we now begin the hard part *drums* making the files go onto the model!
         List<IUnityStructureImporter> unityImportTasks = new List<IUnityStructureImporter>();
-        bool isWorldOrScene = this.ListOfUnityScenes.Count > 0;
-        bool isClothingOrAvatar = !isWorldOrScene && this.ListOfPrefabs.Count > 0;
+        // A bundled demonstration scene does not change the station's prefab
+        // selection flow. Only scene-only packages publish scenes automatically.
+        bool isClothingOrAvatar = this.ListOfPrefabs.Count > 0;
 
         int total = this.ListOfPrefabs.Count + this.ListOfUnityScenes.Count;
         int rowSize = MathX.Max(1, MathX.CeilToInt(MathX.Sqrt((float)total)));
@@ -329,8 +328,9 @@ public class UnityProjectImporter
             await stationHandle.CompleteSuccessAsync();
             Session?.Check();
             // Scene packages have no selection action: completion commits their scenes.
-            foreach (var scene in unityImportTasks.OfType<UnitySceneImportTask>())
-                Session?.Commit(scene.CurrentStructureRootSlot);
+            if (!isClothingOrAvatar)
+                foreach (var scene in unityImportTasks.OfType<UnitySceneImportTask>())
+                    Session?.Commit(scene.CurrentStructureRootSlot);
             await stationHandle.StageAsync(this, unityImportTasks.OfType<UnityPrefabImportTask>().ToList());
         }
 
@@ -528,7 +528,7 @@ public class UnityProjectImporter
                 FrooxInternalBridge.SetupDraggable(slot3, vrik.Solver, vrik.Solver.spine.IKPositionHead, vrik.Solver.spine.IKRotationHead, vrik.Solver.spine.PositionWeight);
                 FrooxInternalBridge.SetupDraggable(slot4, vrik.Solver, vrik.Solver.spine.IKPositionPelvis, vrik.Solver.spine.IKRotationPelvis, vrik.Solver.spine.PelvisPositionWeight);
                 FrooxInternalBridge.SetupDraggable(slot5, vrik.Solver, vrik.Solver.leftArm.IKPosition, vrik.Solver.leftArm.IKRotation, vrik.Solver.leftArm.PositionWeight);
-                FrooxInternalBridge.SetupDraggable(slot6, vrik.Solver, vrik.Solver.rightArm.IKPosition, vrik.Solver.rightArm.IKRotation, vrik.Solver.rightArm.RotationWeight);
+                FrooxInternalBridge.SetupDraggable(slot6, vrik.Solver, vrik.Solver.rightArm.IKPosition, vrik.Solver.rightArm.IKRotation, vrik.Solver.rightArm.PositionWeight);
                 FrooxInternalBridge.SetupDraggable(slot9 ?? slot7, vrik.Solver, vrik.Solver.leftLeg.IKPosition, vrik.Solver.leftLeg.IKRotation, vrik.Solver.leftLeg.PositionWeight);
                 FrooxInternalBridge.SetupDraggable(slot10 ?? slot8, vrik.Solver, vrik.Solver.rightLeg.IKPosition, vrik.Solver.rightLeg.IKRotation, vrik.Solver.rightLeg.PositionWeight);
                 taskSlot.AttachComponent<DestroyRoot>();

@@ -107,7 +107,7 @@ public class UnityPackageImporter : ResoniteMod
             // Add our ImportExtension to the list
             specialValue.GetType().GetMethod("Add").Invoke(specialValue, new[] { importExt });
 
-            Debug("{extension} import extension added successfully");
+            Debug($"{extension} import extension added successfully");
         }
         catch (System.Exception ex)
         {

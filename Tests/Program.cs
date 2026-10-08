@@ -491,106 +491,6 @@ Test("Model scale factor and unit scaling handles meter avatars and centimeter a
     Check(Math.Abs(cmEffective - 0.01f) < 1e-5f, $"Centimeter accessory effective scale should be 0.01, got {cmEffective}");
 }));
 
-Test("GenerateShadowRampPng produces valid PNG header and chunks", () =>
-{
-    var baseCol = RampColor.White;
-    var sh1 = new RampColor(0.6f, 0.6f, 0.7f, 1f);
-    var sh2 = new RampColor(0.3f, 0.3f, 0.4f, 1f);
-
-    byte[] png = RampGenerator.GenerateShadowRampPng(baseCol, sh1, 0.5f, 0.1f, sh2, 0.25f, 0.1f, 256, 4);
-    Check(png.Length > 50, "PNG output too small.");
-
-    // Check PNG signature
-    byte[] expectedSig = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
-    for (int i = 0; i < 8; i++)
-    {
-        Check(png[i] == expectedSig[i], $"PNG signature mismatch at byte {i}");
-    }
-
-    // Check IHDR, IDAT, IEND chunk presence
-    string ascii = Encoding.ASCII.GetString(png);
-    Check(ascii.Contains("IHDR"), "Missing IHDR chunk");
-    Check(ascii.Contains("IDAT"), "Missing IDAT chunk");
-    Check(ascii.Contains("IEND"), "Missing IEND chunk");
-});
-
-Test("GenerateShadowRampPng gradient endpoints match deep shadow and base colors", () =>
-{
-    var baseCol = new RampColor(1.0f, 0.9f, 0.8f, 1f);
-    var sh1 = new RampColor(0.5f, 0.4f, 0.3f, 1f);
-    var sh2 = new RampColor(0.2f, 0.1f, 0.05f, 1f);
-
-    // Hard borders (blur = 0) to test exact endpoints
-    byte[] png = RampGenerator.GenerateShadowRampPng(baseCol, sh1, 0.6f, 0.0f, sh2, 0.3f, 0.0f, 256, 1);
-    Check(png.Length > 0, "Generated PNG must not be empty");
-
-    // Decompress IDAT to inspect raw pixel scanline
-    // IDAT starts at offset 33 (8 sig + 4 len + 4 IHDR + 13 data + 4 crc)
-    // Find IDAT chunk
-    int idatIdx = -1;
-    for (int i = 0; i < png.Length - 4; i++)
-    {
-        if (png[i] == 'I' && png[i + 1] == 'D' && png[i + 2] == 'A' && png[i + 3] == 'T')
-        {
-            idatIdx = i;
-            break;
-        }
-    }
-    Check(idatIdx >= 0, "Could not find IDAT chunk");
-    int idatLen = (png[idatIdx - 4] << 24) | (png[idatIdx - 3] << 16) | (png[idatIdx - 2] << 8) | png[idatIdx - 1];
-
-    byte[] decompressed;
-    using (var ms = new MemoryStream(png, idatIdx + 4, idatLen))
-    using (var zlib = new ZLibStream(ms, CompressionMode.Decompress))
-    using (var outMs = new MemoryStream())
-    {
-        zlib.CopyTo(outMs);
-        decompressed = outMs.ToArray();
-    }
-
-    // 1 row: 1 filter byte + 256 * 4 RGBA bytes = 1025 bytes
-    Check(decompressed.Length == 1025, $"Expected 1025 decompressed bytes, got {decompressed.Length}");
-    Check(decompressed[0] == 0, "Filter byte must be 0 (None)");
-
-    // Pixel at x=0 (u=0): deep shadow
-    int r0 = decompressed[1];
-    int g0 = decompressed[2];
-    int b0 = decompressed[3];
-    int a0 = decompressed[4];
-    Check(Math.Abs(r0 - (int)(sh2.R * 255f)) <= 1, $"Deep shadow R mismatch: {r0} vs {sh2.R * 255f}");
-    Check(Math.Abs(g0 - (int)(sh2.G * 255f)) <= 1, $"Deep shadow G mismatch: {g0} vs {sh2.G * 255f}");
-    Check(a0 == 255, "Alpha must be 255");
-
-    // Pixel at x=255 (u=1.0): base color
-    int rEnd = decompressed[1 + 255 * 4];
-    int gEnd = decompressed[2 + 255 * 4];
-    int bEnd = decompressed[3 + 255 * 4];
-    Check(Math.Abs(rEnd - (int)(baseCol.R * 255f)) <= 1, $"Base lit R mismatch: {rEnd} vs {baseCol.R * 255f}");
-    Check(Math.Abs(gEnd - (int)(baseCol.G * 255f)) <= 1, $"Base lit G mismatch: {gEnd} vs {baseCol.G * 255f}");
-});
-
-Test("RampGenerator hash determinism and file caching", () => InTemp(root =>
-{
-    var baseCol = RampColor.White;
-    var sh1 = new RampColor(0.7f, 0.7f, 0.7f, 1f);
-    var sh2 = new RampColor(0.4f, 0.4f, 0.4f, 1f);
-
-    string hash1 = RampGenerator.GetRampHash(baseCol, sh1, 0.5f, 0.1f, sh2, 0.25f, 0.1f);
-    string hash2 = RampGenerator.GetRampHash(baseCol, sh1, 0.5f, 0.1f, sh2, 0.25f, 0.1f);
-    Check(hash1 == hash2, "Identical inputs must yield identical hash");
-
-    string hashDiff = RampGenerator.GetRampHash(baseCol, new RampColor(0.8f, 0.7f, 0.7f, 1f), 0.5f, 0.1f, sh2, 0.25f, 0.1f);
-    Check(hash1 != hashDiff, "Different inputs must yield different hash");
-
-    string file1 = RampGenerator.GetOrCreateRampFile(root, baseCol, sh1, 0.5f, 0.1f, sh2, 0.25f, 0.1f);
-    Check(File.Exists(file1), "Ramp file must be written to disk");
-
-    var writeTime1 = File.GetLastWriteTimeUtc(file1);
-    string file2 = RampGenerator.GetOrCreateRampFile(root, baseCol, sh1, 0.5f, 0.1f, sh2, 0.25f, 0.1f);
-    Check(file1 == file2, "GetOrCreateRampFile must return same cached path");
-    Check(File.GetLastWriteTimeUtc(file2) == writeTime1, "Cached file must not be rewritten");
-}));
-
 Test("LilToon multilayer makeup, alpha mask, and shadow mask detection in material data", () => InTemp(root =>
 {
     var faceMat = Path.Combine(root, "face.mat");
@@ -1156,6 +1056,7 @@ Test("UI contracts reject unsupported schemas and ambiguous path escapes", () =>
 });
 
 ImportLifetimeTests.Register(Test);
+MaterialConversionTests.Register(Test);
 
 AvatarViewpointTests.Register(Test);
 

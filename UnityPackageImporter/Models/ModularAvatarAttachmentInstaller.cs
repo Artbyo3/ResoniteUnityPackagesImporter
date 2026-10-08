@@ -546,7 +546,7 @@ internal static class ModularAvatarAttachmentInstaller
 
             await SkinnedBoundsPolicy.StabilizeBeforeEnableAsync(
                 renderers,
-                "Modular Avatar activation");
+                "Modular Avatar activation", cancellationToken);
 
             await default(ToWorld);
             cancellationToken.ThrowIfCancellationRequested();

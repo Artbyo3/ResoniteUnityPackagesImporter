@@ -123,6 +123,7 @@ public class FileImportTaskScene
             assimpContext.Dispose();
         }
 
+        importer.Session?.Check();
         this.importDialogue?.UpdateProgress(0f, "", "Preprocessing scene for file " + Path.GetFileName(file));
         if (scene?.RootNode == null)
             throw new InvalidDataException("Model has no scene root: " + file);
@@ -242,22 +243,15 @@ public class FileImportTaskScene
             copy.sourceBlendShapeNames.TryGetValue(mesh.Slot.Name, out skinnedrenderer.SourceBlendShapeNames);
 
             await default(ToWorld);
-            while (true)
-            {
-                importer.Session?.Check();
-                if (mesh.IsDestroyed || copy.targetSlot.IsDestroyed)
-                    throw new OperationCanceledException("Imported mesh was removed while loading.");
-                if (mesh.Mesh.IsAssetAvailable) break;
-                await default(NextUpdate);
-            }
+            await ImportMeshReadiness.WaitAsync(new[] { mesh }, importer.Session?.Token ?? default);
             await default(ToWorld);
 
-            Dictionary<string, Slot> bonemappings = new Dictionary<string, Slot>();
-            foreach (var bone in skinnedrenderer.createdMeshRenderer.Mesh.Asset.Data.Bones)
-            {
-                bonemappings.Add(bone.Name, copy.FinishedFileSlot.FindChildInHierarchy(bone.Name));
-            }
-            skinnedrenderer.createdMeshRenderer.SetupBones(bonemappings);
+            // Duplicate already remaps references inside the copied hierarchy.
+            // Searching by name here can replace a bone with an unrelated mesh
+            // or a same-named bone in a different armature.
+            foreach (var bone in mesh.Bones)
+                if (bone != null && !IsInside(bone, copy.FinishedFileSlot))
+                    throw new InvalidDataException("Copied skin still references the FBX template: " + mesh.Slot.Name);
               FrooxInternalBridge.SetupBlendShapes(skinnedrenderer.createdMeshRenderer);
               // Each prefab owns a separate list. Sparse Unity overrides must keep
               // the copied mesh's defaults at all untouched indices.
@@ -339,7 +333,7 @@ public class FileImportTaskScene
                     skinnedrenderer.createdMeshRenderer.Materials.Add().Target = material;
                     await default(ToBackground);
                 }
-                catch (Exception e)
+                catch (Exception e) when (e is not OperationCanceledException)
                 {
                     UnityPackageImporter.Warn("Could not attach material  \"" + counter.ToString() + "\" for initial import on mesh \"" + skinnedrenderer.createdMeshRenderer.Slot.Name + "\" from skinned mesh renderer data. It's probably not in the project or in the files you dragged over.");
                     UnityPackageImporter.Warn("stacktrace for material \"" + counter.ToString() + "\" for initial import on mesh \"" + skinnedrenderer.createdMeshRenderer.Slot.Name + "\"");
@@ -354,6 +348,13 @@ public class FileImportTaskScene
         }
 
         return copy;
+    }
+
+    private static bool IsInside(Slot slot, Slot root)
+    {
+        for (var current = slot; current != null; current = current.Parent)
+            if (current == root) return true;
+        return false;
     }
 
 

@@ -41,12 +41,8 @@ internal static class NativeAvatarCreation
         // Match native readiness before its non-cancellable finalization begins.
         // This keeps cancellation responsive during unfinished asset downloads.
         var meshes = envelope.GetComponentsInChildren<SkinnedMeshRenderer>();
-        while (meshes.Any(mesh => !mesh.IsDestroyed && mesh.Mesh.Target != null && !mesh.Mesh.IsAssetAvailable))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (envelope.IsDestroyed) throw new OperationCanceledException("The import was removed.");
-            await default(NextUpdate);
-        }
+        await ImportMeshReadiness.WaitAsync(meshes, cancellationToken);
+        await default(ToWorld);
         cancellationToken.ThrowIfCancellationRequested();
 
         // Capture the authored viewpoint before changing object-root boundaries.

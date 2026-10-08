@@ -92,6 +92,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
                     UnityPackageImporter.Warn("Scene IUnityObject failed to instanciate!");
                     UnityPackageImporter.Msg("Scene IUnityObject ID: \"" + obj.Value.id.ToString() + "\"");
                     UnityPackageImporter.Warn(e.Message + e.StackTrace);
+                    throw new InvalidDataException("Could not build scene component " + obj.Value.id + " (" + type.Name + ").", e);
                 }
                 try
                 {
@@ -149,7 +150,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
                 .ToList();
             await SkinnedBoundsPolicy.StabilizeBeforeEnableAsync(
                 renderersToEnable,
-                "Unity scene activation");
+                "Unity scene activation", unityProjectImporter.Session?.Token ?? default);
 
             await default(ToBackground);
             foreach (var obj in existingIUnityObjects)

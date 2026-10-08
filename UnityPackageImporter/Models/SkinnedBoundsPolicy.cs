@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using FrooxEngine;
 
@@ -7,25 +8,22 @@ namespace UnityPackageImporter.Models;
 
 /// <summary>
 /// Keeps skinned bounds behavior consistent before and after Modular Avatar
-/// bone remapping. Completed native Resonite FBX imports use static mesh bounds
-/// with no explicit override, so reconstructed renderers mirror that behavior.
+/// bone remapping. Static mode caches bounds for the native bone hierarchies;
+/// correct bone references are essential. It is not a substitute for valid rig data.
 /// </summary>
 internal static class SkinnedBoundsPolicy
 {
     // The duplicated hierarchy still needs to settle before its renderers are
-    // activated. Three updates is the engine's known-safe boundary for cloned
-    // skinned hierarchies and keeps bone references stable before activation.
+    // activated. Allow engine update queues to process the copied references.
+    // This delay alone does not prove that a malformed rig has valid bounds.
     private const int HierarchyStabilizationUpdates = 3;
 
     public static void ApplyAfterBones(SkinnedMeshRenderer renderer, string context)
     {
         if (renderer == null || renderer.IsDestroyed) return;
 
-        // Native model imports finish in Static mode and leave
-        // ExplicitLocalBounds empty, allowing the mesh asset's bounds to be
-        // used. MediumPerBoneApproximate fell back to SlowRealtimeAccurate on
-        // 27 of 28 matching Uruki renderers and reproduced inconsistent
-        // culling, even though every bone reference matched the native import.
+        // Preserve the native static policy. Do not force enlarged explicit
+        // bounds or realtime recomputation to conceal invalid skin references.
         if (renderer.Mesh?.Target != null)
         {
             renderer.BoundsComputeMethod.Value = SkinnedBounds.Static;
@@ -68,8 +66,11 @@ internal static class SkinnedBoundsPolicy
     /// </summary>
     public static async Task StabilizeBeforeEnableAsync(
         IEnumerable<SkinnedMeshRenderer> renderers,
-        string context)
+        string context,
+        CancellationToken cancellationToken = default)
     {
+        await default(ToWorld);
+        cancellationToken.ThrowIfCancellationRequested();
         var liveRenderers = renderers?
             .Where(renderer => renderer != null && !renderer.IsDestroyed)
             .Distinct()
@@ -77,9 +78,11 @@ internal static class SkinnedBoundsPolicy
 
         if (liveRenderers.Count == 0) return;
 
-        await default(ToWorld);
         for (int i = 0; i < HierarchyStabilizationUpdates; i++)
+        {
             await default(NextUpdate);
+            cancellationToken.ThrowIfCancellationRequested();
+        }
 
         foreach (var renderer in liveRenderers)
             ApplyAfterBones(renderer, context);

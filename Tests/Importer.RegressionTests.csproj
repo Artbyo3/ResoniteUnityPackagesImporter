@@ -7,6 +7,11 @@
     <DefineConstants>$(DefineConstants);REGRESSION_TESTS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="YamlDotNet" Version="16.3.0" />
+    <Compile Include="../UnityPackageImporter/Models/UnityMaterialData.cs" Link="UnityMaterialData.cs" />
+    <Compile Include="../UnityPackageImporter/Models/LilToonSettings.cs" Link="LilToonSettings.cs" />
+    <Compile Include="../UnityPackageImporter/Models/LilToonRamp.cs" Link="LilToonRamp.cs" />
+    <Compile Include="../UnityPackageImporter/Models/SkinBoneMapping.cs" Link="SkinBoneMapping.cs" />
     <Compile Include="../UnityPackageImporter/UI/TemplateContract.cs" Link="TemplateContract.cs" />
     <Compile Include="../UnityPackageImporter/UnityPackageExtractor.cs" Link="UnityPackageExtractor.cs" />
     <Compile Include="../UnityPackageImporter/Models/AsyncImportCache.cs" Link="AsyncImportCache.cs" />
@@ -14,7 +19,7 @@
     <Compile Include="../UnityPackageImporter/Models/UnityPropertyPath.cs" Link="UnityPropertyPath.cs" />
     <Compile Include="../UnityPackageImporter/Models/BlendShapeDefaults.cs" Link="BlendShapeDefaults.cs" />
     <Compile Include="../UnityPackageImporter/Models/ModelScaleHelper.cs" Link="ModelScaleHelper.cs" />
-    <Compile Include="../UnityPackageImporter/Models/RampGenerator.cs" Link="RampGenerator.cs" />
+    <Compile Include="../UnityPackageImporter/Models/RgbaPng.cs" Link="RgbaPng.cs" />
     <Compile Include="../UnityPackageImporter/Models/ExpressionMenuParser.cs" Link="ExpressionMenuParser.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarStateReconstructor.cs" Link="AvatarStateReconstructor.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarPackageIndex.cs" Link="AvatarPackageIndex.cs" />

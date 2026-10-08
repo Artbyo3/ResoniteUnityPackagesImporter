@@ -63,8 +63,8 @@ public class SkinnedMeshRenderer : IUnityObject
                                     await default(ToWorld);
                                     this.createdMeshRenderer = newskin.createdMeshRenderer;
                                     this.SourceBlendShapeNames = newskin.SourceBlendShapeNames;
-                                    this.materials = newskin.materials;
-                                    this.m_Materials = newskin.m_Materials;
+                                    this.materials = new List<FileImportHelperTaskMaterial>(newskin.materials);
+                                    this.m_Materials = new List<SourceObj>(newskin.m_Materials);
                                     UnityPackageImporter.Warn("assigned skinned mesh renderer \"" + newskin.createdMeshRenderer.Slot.Name + "\" some properties from one already created by a prefab.");
                                 }
                                 catch (Exception)
@@ -102,6 +102,7 @@ public class SkinnedMeshRenderer : IUnityObject
 
                     importer.existingIUnityObjects.TryGetValue(m_GameObject["fileID"], out IUnityObject parentobj_inc);
                     parentobj = parentobj_inc as GameObject;
+                    if (parentobj == null) throw new System.IO.InvalidDataException("Skinned renderer has no parent GameObject.");
 
                     UnityPackageImporter.Msg("Importing skinned mesh renderer via mesh guid. this id is: \"" + this.id + "\", parentobj = " + parentobj.ToString());
                     foreach (var pair in importedfbx2.FILEID_To_Slot_Pairs)
@@ -122,7 +123,7 @@ public class SkinnedMeshRenderer : IUnityObject
 
                                 Slot newslot = newskin.createdMeshRenderer.Slot.Duplicate(parentobj.frooxEngineSlot.Parent, false, new DuplicationSettings());
                                 newslot.TRS = parentobj.frooxEngineSlot.TRS;
-                                foreach (Slot child in parentobj.frooxEngineSlot.Children)
+                                foreach (Slot child in parentobj.frooxEngineSlot.Children.ToArray())
                                 {
                                     child.SetParent(newslot, false);
                                 }
@@ -132,6 +133,7 @@ public class SkinnedMeshRenderer : IUnityObject
                                 this.createdMeshRenderer = newslot.GetComponent<FrooxEngine.SkinnedMeshRenderer>();
                                 this.SourceBlendShapeNames = newskin.SourceBlendShapeNames;
                                 await default(ToBackground);
+                                break;
 
                             }
                         }
@@ -142,10 +144,8 @@ public class SkinnedMeshRenderer : IUnityObject
                     UnityPackageImporter.Warn("The prefab is malformed!!! a skinned mesh render with a guid of \"" + m_Mesh.guid + "\" could not find the pre-imported FBX!");
                 }
 
-                if (parentobj == null)
-                {
-                    UnityPackageImporter.Warn("The prefab is malformed!!! a skinned mesh render with a guid of \"" + m_Mesh.guid + "\" could not find/create it's parent game obj with name \"" + parentobj.frooxEngineSlot.Name + "\"!");
-                }
+                if (createdMeshRenderer == null)
+                    throw new System.IO.InvalidDataException("No imported mesh matches renderer " + id + ".");
             }
 
 
@@ -175,6 +175,8 @@ public class SkinnedMeshRenderer : IUnityObject
         }
 
         FrooxEngine.SkinnedMeshRenderer FoundMesh = this.createdMeshRenderer;
+        if (FoundMesh == null)
+            throw new System.IO.InvalidDataException("Skinned renderer " + id + " could not be reconstructed.");
 
 
         int counter = 0;
@@ -184,17 +186,7 @@ public class SkinnedMeshRenderer : IUnityObject
             //FoundMesh.Mesh.ReferenceID = (skinnedMeshRenderer as FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer).createdMeshRenderer.Mesh.ReferenceID;
             await default(ToWorld);
             importer.progressIndicator?.UpdateProgress(0f, "", "now loading a skinned mesh renderer named \"" + FoundMesh.Slot.Name + "\" ");
-            var meshWait = System.Diagnostics.Stopwatch.StartNew();
-            while (true)
-            {
-                importer.unityProjectImporter.Session?.Check();
-                if (FoundMesh.IsDestroyed) throw new OperationCanceledException("Imported mesh was removed.");
-                if (FoundMesh.Mesh.IsAssetAvailable) break;
-                if (meshWait.Elapsed > TimeSpan.FromMinutes(2))
-                    throw new TimeoutException("Mesh did not become available within two minutes: " + FoundMesh.Slot.Name);
-                await default(NextUpdate);
-                //UnityPackageImporter.Msg("Waiting for mesh assets for: \"" + mesh.Slot.Name + "\"");
-            }
+            await ImportMeshReadiness.WaitAsync(new[] { FoundMesh }, importer.unityProjectImporter.Session?.Token ?? default);
             await default(ToWorld);
             //below comment is done at the humanoid stage, so that shite doesn't get in the way of players - @989onan
             //FoundMesh.Enabled = this.m_Enabled == 1; //in case it's disabled in unity, this will make it disabled when imported;
@@ -203,50 +195,24 @@ public class SkinnedMeshRenderer : IUnityObject
 
             await default(ToBackground);
 
-            Dictionary<string, Slot> bonemappings = new Dictionary<string, Slot>();
-            UnityPackageImporter.Msg("gathering bones for model.");
-            foreach (Dictionary<string, ulong> bonemap in this.m_Bones)
-            {
-                if (importer.existingIUnityObjects.TryGetValue(bonemap["fileID"], out IUnityObject unityObject))
-                {
-                    FrooxEngineRepresentation.GameObjectTypes.Transform obj = unityObject as FrooxEngineRepresentation.GameObjectTypes.Transform;
-                    await default(ToWorld);
-                    await obj.InstanciateAsync(importer);
-                    await default(ToBackground);
-                    if (importer.existingIUnityObjects.TryGetValue(obj.m_GameObjectID, out IUnityObject unityObjectGame))
-                    {
-                        GameObject gameobj = unityObjectGame as GameObject;
-                        if (gameobj.m_Name.EndsWith(" 1"))
-                        {
-                            string removed = gameobj.m_Name.Substring(0, gameobj.m_Name.LastIndexOf(" 1"));
-                            if (FoundMesh.Mesh.Asset.Data.Bones.FirstOrDefault(bone => bone.Name == removed) != null)
-                            {
-                                bonemappings.Add(removed, gameobj.frooxEngineSlot); //take care of meshes that have the same names as bone (EX: "Head" mesh and "Head" bone)
-                                continue;
-                            }
-                        }
-                        bonemappings.Add(gameobj.frooxEngineSlot.Name, gameobj.frooxEngineSlot);
-
-                    }
-                    else
-                    {
-                        UnityPackageImporter.Msg("Couldn't find bone (error 2) for skinned mesh renderer on your prefab! This is bad!");
-                    }
-
-                }
-                else
-                {
-                    UnityPackageImporter.Msg("Couldn't find bone for skinned mesh renderer on your prefab! This is bad!");
-                }
-
-
-            }
-
-
-
             await default(ToWorld);
-            UnityPackageImporter.Msg("setting up bones for model.");
-            FoundMesh.SetupBones(bonemappings);
+            var authored = new List<(string Name, Slot Bone)>();
+            foreach (var reference in m_Bones ?? new List<Dictionary<string, ulong>>())
+            {
+                if (!reference.TryGetValue("fileID", out var fileId) ||
+                    !importer.existingIUnityObjects.TryGetValue(fileId, out var entry) || entry is not Transform transform)
+                    continue; // Native import may strip unused bones; required names are validated below.
+                await transform.InstanciateAsync(importer);
+                await default(ToWorld);
+                importer.unityProjectImporter.Session?.Check();
+                if (!importer.existingIUnityObjects.TryGetValue(transform.m_GameObjectID, out var gameEntry) ||
+                    gameEntry is not GameObject game || game.frooxEngineSlot == null)
+                    continue;
+                authored.Add((game.frooxEngineSlot.Name, game.frooxEngineSlot));
+            }
+            var mapped = SkinBoneMapping.Resolve(FoundMesh.Mesh.Asset.Data.Bones.Select(bone => bone.Name), authored);
+            FoundMesh.Bones.Clear();
+            foreach (var bone in mapped) FoundMesh.Bones.Add().Target = bone;
             SkinnedBoundsPolicy.ApplyAfterBones(FoundMesh, "Unity prefab import");
             await default(ToBackground);
 
@@ -259,31 +225,6 @@ public class SkinnedMeshRenderer : IUnityObject
 
 
             await default(ToBackground);
-            foreach (Dictionary<string, ulong> item in m_Bones)
-            {
-                if (importer.existingIUnityObjects.TryGetValue(item["fileID"], out IUnityObject bone_trans))
-                {
-                    if (importer.existingIUnityObjects.TryGetValue(((Transform)bone_trans).m_GameObject["fileID"], out IUnityObject bone_obj))
-                    {
-                        await default(ToWorld);
-                        await bone_obj.InstanciateAsync(importer);
-                        await default(ToBackground);
-                    }
-                }
-                else
-                {
-                    UnityPackageImporter.Warn("The prefab is malformed!!! a skinned mesh render  with the name \"" + FoundMesh.Slot.Name.ToString() + "\" couldn't find it's bone with an id of \"" + item["fileID"].ToString() + "\" Your renderer will come out mis-shapen!");
-                }
-
-            }
-
-
-
-
-
-
-
-
         }
 
         await default(ToWorld);
@@ -343,7 +284,7 @@ public class SkinnedMeshRenderer : IUnityObject
 
 
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 UnityPackageImporter.Warn("Importing a material at index \"" + i + "\" on skinnedmeshrenderer named \"" + FoundMesh.Slot.Name + "\" threw an error!");
                 UnityPackageImporter.Warn(e.Message + e.StackTrace);
@@ -368,7 +309,7 @@ public class SkinnedMeshRenderer : IUnityObject
                 FoundMesh.Materials.Add().Target = await materialtask.runImportFileMaterialsAsync();
                 await default(ToBackground);
             }
-            catch (Exception e)
+            catch (Exception e) when (e is not OperationCanceledException)
             {
                 UnityPackageImporter.Warn("Could not attach material \"" + counter.ToString() + "\" on mesh \"" + FoundMesh.Slot.Name + "\" from skinned mesh renderer data. It's probably not in the project or in the files you dragged over.");
                 UnityPackageImporter.Warn("stacktrace for material \"" + counter.ToString() + "\" on mesh \"" + FoundMesh.Slot.Name + "\"");
