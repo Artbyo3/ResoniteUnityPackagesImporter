@@ -16,7 +16,6 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
 {
     public Dictionary<ulong, IUnityObject> existingIUnityObjects { get; set; }
     public Slot CurrentStructureRootSlot { get; set; }
-    public Slot allimportsroot { get; set; }
     public KeyValuePair<string, string> ID { get; set; }
     private float3 GlobalIndicatorPosition;
     private floatQ GlobalIndicatorRotation;
@@ -26,11 +25,10 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
     private bool expressionsBuilt;
     public UnityProjectImporter unityProjectImporter { get; set; }
 
-    public UnityPrefabImportTask(float3 globalPosition, Slot root, KeyValuePair<string, string> ID, UnityProjectImporter unityProjectImporter, floatQ? globalRotation = null)
+    public UnityPrefabImportTask(float3 globalPosition, KeyValuePair<string, string> ID, UnityProjectImporter unityProjectImporter, floatQ? globalRotation = null)
     {
         this.ID = ID;
         this.unityProjectImporter = unityProjectImporter;
-        this.allimportsroot = root;
         this.GlobalIndicatorPosition = globalPosition;
         this.GlobalIndicatorRotation = globalRotation ?? floatQ.Identity;
     }
@@ -180,7 +178,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
 
                         if (prefab != null && prefab.importask != null && prefab.ImportRoot != null && prefab.ImportRoot.frooxEngineSlot != null)
                         {
-                            await UnityProjectImporter.SettupHumanoid(
+                            await HumanoidRigSetup.SetupAsync(
                                 prefab.importask,
                                 prefab.ImportRoot.frooxEngineSlot);
                         }
@@ -238,7 +236,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                     if (this.unityProjectImporter.SharedImportedFBXScenes.TryGetValue(newobj.m_Mesh.guid, out FileImportTaskScene importedfbx))
                     {
                         await default(ToWorld);
-                        await UnityProjectImporter.SettupHumanoid(importedfbx, this.CurrentStructureRootSlot);
+                        await HumanoidRigSetup.SetupAsync(importedfbx, this.CurrentStructureRootSlot);
                         await default(ToBackground);
                         break;
                         // All skinned mesh renderers should go to the current prefab if they're under the root.

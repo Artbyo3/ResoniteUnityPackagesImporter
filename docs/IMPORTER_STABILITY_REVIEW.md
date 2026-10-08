@@ -76,6 +76,11 @@ future components. No new MA/VRCFury component support is claimed here.
 
 ## Offline verification
 
+The subsequent [maintainability pass](CODE_CLEANUP.md) separates mod registration,
+Harmony interception, package coordination and humanoid rig preparation. It
+removes only confirmed unused fields, root-argument plumbing and the oversized
+model class catalogue. Import scheduling and rig behavior are preserved.
+
 Validated on this branch: Release build succeeded with zero warnings/errors;
 100/100 C# regressions and 16/16 Python tests passed. All seven engine
 reflection signature checks passed against the installed engine assemblies.
@@ -140,6 +145,12 @@ culling, scale, or hand-orientation reports are resolved.
 8. Verify malformed/failed model imports show failure, not completed partial output.
    The previously observed binary-FBX parser rejection still requires a source
    fixture and native-import comparison; it has not been fixed speculatively.
+9. Check nested prefab/scene overrides and source-object identity against authored
+   Unity data, including non-humanoid imports. Some handlers still provide only
+   partial translation. Existing humanoid guards and expression-menu handling
+   do not establish complete support for every Unity or VRChat component. These
+   are retained verification items from the removed legacy TODO, not new claims
+   of implementation or confirmed regressions.
 
 Single-option navigation is already disabled by the existing station code.
 The remaining rendering, scale and tracking questions should be resolved with

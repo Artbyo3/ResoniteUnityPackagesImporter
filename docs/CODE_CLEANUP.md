@@ -1,4 +1,51 @@
-# Dead-code review — 2026-09-30
+# Dead-code reviews
+
+## Review branch follow-up — 2026-10-07
+
+This pass is on `codex/importer-stability`. It changes source organization and
+removes confirmed unused plumbing; it does not claim to resolve rendering,
+tracking or material-fidelity issues that need a live comparison.
+
+- The mod entry point now owns configuration and engine registration.
+  `UniversalImporterPatch` owns Harmony interception and mixed-drop completion.
+  `PackageImportCoordinator` owns extraction, project scheduling and the
+  prompt/station lifecycle. The existing public extraction method delegates to it.
+- `HumanoidRigSetup` now owns the shared per-instance humanoid preparation used
+  by both scenes and prefabs. It is separate from native avatar creation and
+  retains the existing rig logic. The old misspelled helper was replaced at all
+  three call sites.
+- Removed `allimportsroot` from the structure-import interface and its two
+  implementations, along with the unused constructor argument. Actual staging
+  ownership remains in `ImportSession`.
+- Removed the unread `MissingMaterialBinding.RendererName` property. Renderer
+  references and material restoration remain in use.
+- Replaced the large two-way Unity class catalogue with four typed model class
+  IDs. The catalogue was used only to match FBX metadata, not to dispatch YAML
+  components. Both class names and their numerical IDs are preserved.
+- Removed the stale `UnityPackageImporter/TODO.txt`. Remaining nested-prefab,
+  scale and incomplete-conversion questions are retained in
+  [the stability review](IMPORTER_STABILITY_REVIEW.md); implemented items are no
+  longer repeated in an obsolete task list.
+
+Whole-repository reference searches and call-site review established the unused
+members. This was not a new exhaustive Roslyn dead-code scan. YAML model fields,
+partial component handlers, config attributes and engine callbacks remain
+because direct-call counts do not establish whether they are unused.
+
+Moved package and humanoid method bodies were compared with the previous commit
+after normalizing only their relocated symbols. Their control flow, cleanup,
+cancellation and world/background await boundaries are unchanged. Runtime
+validation remains necessary before merging this branch.
+
+Validation for this follow-up: the production Release build has zero warnings
+and errors, all 100 C# regressions pass, and all seven engine API metadata checks
+pass. The test harness still emits existing nullable-analysis warnings in linked
+production sources and fixtures; this refactor does not change those files.
+Compiled Harmony target/parameter bindings and config registration metadata match
+the pre-cleanup build, as do engine initialization instructions. The installed
+mod's hash still matches that pre-cleanup build; this pass is not installed.
+
+## Original review — 2026-09-30
 
 The review used the project's actual compiler inputs and Roslyn semantic references, followed by manual checks for YAML deserialization, interface dispatch, Harmony patches, configuration registration, and engine reflection. A missing direct caller was treated as a review candidate, not sufficient evidence for deletion.
 

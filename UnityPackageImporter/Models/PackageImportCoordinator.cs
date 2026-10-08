@@ -1,0 +1,170 @@
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Elements.Core;
+using FrooxEngine;
+using UnityPackageImporter.Extractor;
+using UnityPackageImporter.UI;
+using static global::UnityPackageImporter.UnityPackageImporter;
+
+namespace UnityPackageImporter.Models;
+
+// Owns package extraction and the prompt/station lifecycle. Individual project
+// imports handle models and materials; the mod entry point only registers hooks.
+internal static class PackageImportCoordinator
+{
+    internal static string[] ExtractPackage(string file, CancellationToken cancellationToken = default)
+    {
+        var dir = Path.Combine(cachePath, "v2", Utils.GenerateMD5(file));
+        var files = UnityPackageExtractor.Unpack(file, dir, cancellationToken: cancellationToken);
+        UnityPackageImporter.Msg($"Extracted or reused {files.Count} files from {Path.GetFileName(file)}");
+        return files.ToArray();
+    }
+
+    private static async Task<bool> ExtractAndImportAsync(List<string> packages, Slot slot, World world, UnityStationHandle station, bool companionCandidate, ImportSession session = null)
+    {
+        List<Task> imports = new List<Task>();
+        await default(ToBackground);
+        var extractedFiles = new List<string>();
+        foreach (string unitypackage in packages)
+        {
+            extractedFiles.AddRange(ExtractPackage(unitypackage, session?.Token ?? default));
+        }
+
+        UnityPackageImporter.Msg("CALLING FindPrefabsAndMetas for " + packages.Count + " package(s) as one dependency-aware import");
+        if (companionCandidate)
+        {
+            var index = UnityPackageAssetIndex.Build(extractedFiles);
+            return await MaterialDependencyCoordinator.TryResolveWaitingAsync(world, index.Assets);
+        }
+        List<string> otherFiles = (await StartProjectImportAsync(
+            extractedFiles,
+            slot,
+            imports,
+            world,
+            packages.Select(Path.GetFileName).ToArray(), station, session)).ToList();
+        await default(ToWorld);
+        await Task.WhenAll(imports);
+        await default(ToWorld);
+        session?.Check();
+        if (imports.Count == 0 && station != null)
+        {
+            station.ShowEmptyPackage(Path.GetFileName(packages[0]));
+            await station.CompleteSuccessAsync();
+        }
+        if (Config.GetValue(dumpPackageContents))
+        {
+            await default(ToWorld);
+            session?.Check();
+            // Explicit content dumping remains the engine's ordinary, independent
+            // import flow. BatchImport destroys its launcher: never give it staging.
+            var launcher = world.AddSlot("Unity Package Contents", false);
+            launcher.GlobalPosition = slot.GlobalPosition;
+            var dump = Config.GetValue(ImportPrefab)
+                ? extractedFiles.Where(file => !Path.GetExtension(file).Equals(UNITY_META_EXTENSION, System.StringComparison.OrdinalIgnoreCase))
+                : otherFiles;
+            BatchFolderImporter.BatchImport(launcher, dump, Config.GetValue(importAsRawFiles));
+        }
+        await default(ToBackground);
+        UnityPackageImporter.Msg("FINISHED ALL IMPORTS AND DONE WITH ALL TASKS!!");
+        return true;
+    }
+
+    private static async Task<IEnumerable<string>> StartProjectImportAsync(
+        IEnumerable<string> files,
+        Slot importRoot,
+        List<Task> imports,
+        World world,
+        IReadOnlyList<string> packageNames,
+        UnityStationHandle station,
+        ImportSession session)
+    {
+        UnityPackageImporter.Msg("Start Finding Prefabs and Metas");
+        var fileList = files.ToList();
+        foreach (var file in fileList)
+            UnityPackageImporter.Msg("A file being imported is \""+file+"\"");
+        var assetIndex = UnityPackageAssetIndex.Build(fileList);
+        foreach (string conflict in assetIndex.Conflicts) UnityPackageImporter.Warn(conflict);
+
+        var AssetIDDict = assetIndex.Assets;
+        var ListOfPrefabs = assetIndex.Prefabs;
+        var ListOfUnityScenes = assetIndex.Scenes;
+
+        UnityPackageImporter.Msg("Creating importer object");
+
+        if (Config.GetValue(ImportPrefab) && (ListOfPrefabs.Count > 0 || ListOfUnityScenes.Count > 0))
+        {
+            await default(ToWorld);
+            imports.Add(new UnityProjectImporter(
+                files,
+                AssetIDDict,
+                ListOfPrefabs,
+                ListOfUnityScenes,
+                session?.Staging ?? importRoot,
+                session?.Assets ?? world.AssetsSlot.AddSlot("UnityPackageImport - Assets"),
+                world,
+                packageNames) { Station = station, Session = session }.StartImports());
+            await default(ToBackground);
+        }
+
+        UnityPackageImporter.Msg("end Finding Prefabs and Metas");
+        return assetIndex.OtherFiles.ToArray();
+    }
+
+    internal static async Task ImportAsync(List<string> files, Slot assets, World world, float3 position, floatQ rotation)
+    {
+        await default(ToWorld);
+        PreImportPrompt prompt = null;
+        UnityStationHandle station = null;
+        ImportSession session = null;
+        bool raw = false;
+        try
+        {
+            if (MaterialDependencyCoordinator.HasWaiting(world) &&
+                await ExtractAndImportAsync(files, assets, world, null, true)) return;
+            await default(ToWorld);
+            prompt = await PreImportPrompt.SpawnAsync(world, position, rotation, files);
+            var choice = await prompt.WaitAsync();
+            await default(ToWorld);
+            if (choice == PackageImportChoice.Cancel) return;
+            if (choice == PackageImportChoice.Raw)
+            {
+                assets.GlobalPosition = position;
+                assets.GlobalRotation = rotation;
+                foreach (string file in files) await UniversalImporter.ImportRawFile(assets, new ImportItem(file));
+                assets.PersistentSelf = true;
+                raw = true;
+                return;
+            }
+            session = new ImportSession(assets);
+            station = await UnityStationBuilder.BuildStationAsync(world, position, rotation, session);
+            station.UpdateProgress(0f, "Extracting Unity package", "Unity パッケージを展開中", Path.GetFileName(files[0]), 0, files.Count);
+            prompt.Close();
+            using (session.Enter())
+                await ExtractAndImportAsync(files, session.Staging, world, station, false, session);
+        }
+        catch (System.OperationCanceledException) when (session?.Token.IsCancellationRequested == true)
+        {
+            await default(ToWorld);
+            await session.CleanupAsync();
+        }
+        catch (System.Exception ex)
+        {
+            await default(ToWorld);
+            station?.CompleteFailure(ex.Message);
+            throw;
+        }
+        finally
+        {
+            await default(ToWorld);
+            prompt?.Close();
+            if (station == null && !raw)
+            {
+                if (session != null) await session.CleanupAsync();
+                else if (!assets.IsDestroyed) assets.DestroyPreservingAssets();
+            }
+        }
+    }
+}

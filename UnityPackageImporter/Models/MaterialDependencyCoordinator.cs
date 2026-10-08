@@ -9,7 +9,6 @@ internal sealed class MissingMaterialBinding
     public SkinnedMeshRenderer Renderer { get; init; }
     public int MaterialIndex { get; init; }
     public string MaterialGuid { get; init; }
-    public string RendererName { get; init; }
     public bool Resolved { get; set; }
 }
 

@@ -11,7 +11,6 @@ public interface IUnityStructureImporter
     UnityProjectImporter unityProjectImporter { get; set; }
     ProgressBarInterface progressIndicator { get; set; }
     Slot CurrentStructureRootSlot { get; set; }
-    public Slot allimportsroot { get; set; }
     public KeyValuePair<string,string> ID { get; set; }
     Task StartImport();
 }

@@ -17,18 +17,16 @@ public class UnitySceneImportTask: IUnityStructureImporter
     public Slot CurrentStructureRootSlot { get; set; }
 
     public KeyValuePair<string, string> ID { get; set; }
-    public Slot allimportsroot { get; set; }
 
     private float3 GlobalIndicatorPosition;
     public ProgressBarInterface progressIndicator { get; set; }
 
     public UnityProjectImporter unityProjectImporter { get; set; }
 
-    public UnitySceneImportTask(float3 globalPosition, Slot root, KeyValuePair<string, string> ID, UnityProjectImporter unityProjectImporter)
+    public UnitySceneImportTask(float3 globalPosition, KeyValuePair<string, string> ID, UnityProjectImporter unityProjectImporter)
     {
         this.ID = ID;
         this.unityProjectImporter = unityProjectImporter;
-        this.allimportsroot = root;
         this.GlobalIndicatorPosition = globalPosition;
     }
 
@@ -186,7 +184,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
                                     if (unityProjectImporter.SharedImportedFBXScenes.ContainsKey(prefab.m_SourcePrefab.guid))
                                     {
                                         await default(ToWorld);
-                                        await UnityProjectImporter.SettupHumanoid(
+                                        await HumanoidRigSetup.SetupAsync(
                                         prefab.importask,
                                         prefab.ImportRoot.frooxEngineSlot);
                                         await default(ToBackground);
