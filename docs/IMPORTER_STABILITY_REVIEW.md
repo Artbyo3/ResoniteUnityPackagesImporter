@@ -123,6 +123,15 @@ culling, scale, or hand-orientation reports are resolved.
 
 ### Follow-up observations — 2026-10-08
 
+The user's acceptance criterion is fidelity to the avatar's authored Unity
+configuration wherever it can be reproduced. Preserve serialized appearance and
+visibility, and reproduce supported Animator defaults from their actual logic.
+A generated Resonite menu must not arbitrarily replace those values. When
+Animator behavior is unsupported, retain the available imported state and report
+the gap rather than inferring state from menu labels or parameter names alone.
+The user also reports improved but still insufficient lilToon appearance compared
+with the official Unity SDK; the material limitations above remain open.
+
 - A brief user test no longer reproduced disappearing geometry on the tested
   avatar. This is a limited pass, not validation across all affected models.
 - The reported general blendshape reset was not confirmed on retest. Do not
