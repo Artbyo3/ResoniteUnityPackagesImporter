@@ -172,6 +172,12 @@ culling, scale, or hand-orientation reports are resolved.
 
 ## Required before merging
 
+The subsequent [offline bug audit](BUG_AUDIT_2026-10-08.md) records three further
+follow-ups: texture-only companion recovery, dependency-aware outfit revision
+detection, and concurrent installs from separate stations. This was an
+inspection-only pass with no production changes; the note distinguishes
+executable helper reproductions from engine paths that still need live tests.
+
 ### Follow-up observations — 2026-10-08
 
 The user's acceptance criterion is fidelity to the avatar's authored Unity
