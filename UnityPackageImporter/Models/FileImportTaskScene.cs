@@ -139,6 +139,13 @@ public class FileImportTaskScene
         await ImportNodeAsync(scene.RootNode, targetSlot, data);
         importer.Session?.Check();
 
+        // ImportNode only creates the hierarchy/mesh assets. Resonite's complete
+        // ImportModel pipeline binds skins afterwards, once every node exists.
+        // Do that once on the FBX template so Duplicate can remap valid references.
+        await InitializeSkinsAsync();
+        await default(ToWorld);
+        importer.Session?.Check();
+
         UnityPackageImporter.Msg("retrieving scene root for file: " + Path.GetFileName(file));
 
         Slot sceneRootSlot = FrooxInternalBridge.TryGetSlot(data, scene.RootNode);
@@ -249,9 +256,7 @@ public class FileImportTaskScene
             // Duplicate already remaps references inside the copied hierarchy.
             // Searching by name here can replace a bone with an unrelated mesh
             // or a same-named bone in a different armature.
-            foreach (var bone in mesh.Bones)
-                if (bone != null && !IsInside(bone, copy.FinishedFileSlot))
-                    throw new InvalidDataException("Copied skin still references the FBX template: " + mesh.Slot.Name);
+            ValidateSkin(mesh, copy.FinishedFileSlot);
               FrooxInternalBridge.SetupBlendShapes(skinnedrenderer.createdMeshRenderer);
               // Each prefab owns a separate list. Sparse Unity overrides must keep
               // the copied mesh's defaults at all untouched indices.
@@ -355,6 +360,50 @@ public class FileImportTaskScene
         for (var current = slot; current != null; current = current.Parent)
             if (current == root) return true;
         return false;
+    }
+
+    private async Task InitializeSkinsAsync()
+    {
+        await default(ToWorld);
+        importer.Session?.Check();
+        var skins = targetSlot.GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>().ToArray();
+        await ImportMeshReadiness.WaitAsync(skins, importer.Session?.Token ?? default);
+        await default(ToWorld);
+        importer.Session?.Check();
+        foreach (var skin in skins)
+        {
+            if (skin.Mesh.Target is not StaticMesh staticMesh)
+                throw new InvalidDataException("Native model import did not produce a static mesh provider.");
+            var mapping = SkinBoneMapping.ResolveNative(skin.Mesh.Asset.Data.Bones.Select(bone => bone.Name),
+                FrooxInternalBridge.TryGetBoneMapping(data, staticMesh), () => BoneCandidates(targetSlot));
+            skin.SetupBones(mapping);
+            ValidateSkin(skin, targetSlot);
+            FrooxInternalBridge.SetupBlendShapes(skin);
+        }
+        UnityPackageImporter.Msg($"Initialized native bone bindings for {skins.Length} imported skin(s).");
+    }
+
+    private static IEnumerable<(string Name, Slot Bone)> BoneCandidates(Slot root)
+    {
+        // Match the native fallback's candidate scope, but reject ambiguous
+        // names rather than selecting whichever same-named joint appears first.
+        if (root.GetComponent<FrooxEngine.MeshRenderer>() != null) yield break;
+        yield return (root.Name, root);
+        foreach (var child in root.Children)
+            foreach (var candidate in BoneCandidates(child)) yield return candidate;
+    }
+
+    private static void ValidateSkin(FrooxEngine.SkinnedMeshRenderer skin, Slot root)
+    {
+        try
+        {
+            SkinBoneMapping.Validate(skin.Mesh.Asset.Data.BoneCount, skin.Bones,
+                bone => !bone.IsDestroyed && IsInside(bone, root));
+        }
+        catch (InvalidDataException error)
+        {
+            throw new InvalidDataException("Invalid bone bindings for '" + skin.Slot.Name + "': " + error.Message, error);
+        }
     }
 
 

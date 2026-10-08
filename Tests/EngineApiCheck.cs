@@ -18,6 +18,7 @@ internal static class EngineApiCheck
             ("ModelImporter", "SetupDraggable", 5),
             ("ModelImportData", ".ctor", 6),
             ("ModelImportData", "TryGetSlot", 1),
+            ("ModelImportData", "TryGetBoneMapping", 1),
             ("SkinnedMeshRenderer", "SetupBlendShapes", 0)
         };
         int failed = 0;
@@ -34,6 +35,9 @@ internal static class EngineApiCheck
                     if (metadata.GetString(method.Name) != methodName) continue;
                     var decoded = method.DecodeSignature(new TypeNames(), (object?)null);
                     if (methodName == "TryGetSlot" && !decoded.ParameterTypes.SequenceEqual(new[] { "Assimp.Node" })) continue;
+                    if (methodName == "TryGetBoneMapping" &&
+                        (!decoded.ParameterTypes.SequenceEqual(new[] { "FrooxEngine.StaticMesh" }) ||
+                         decoded.ReturnType != "System.Collections.Generic.Dictionary`2<String,FrooxEngine.Slot>")) continue;
                     var signature = metadata.GetBlobReader(method.Signature);
                     var header = signature.ReadSignatureHeader();
                     if (header.IsGeneric) signature.ReadCompressedInteger();

@@ -29,6 +29,10 @@ public static class FrooxInternalBridge
         _modelImportDataType?.GetMethod("TryGetSlot", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance,
             null, new Type[] { typeof(Assimp.Node) }, null);
 
+    private static readonly MethodInfo _tryGetBoneMappingMethod =
+        _modelImportDataType?.GetMethod("TryGetBoneMapping", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance,
+            null, new[] { typeof(StaticMesh) }, null);
+
     private static readonly ConstructorInfo _modelImportDataConstructor =
         _modelImportDataType?.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance,
             null, new[] { typeof(string), typeof(Assimp.Scene), typeof(Slot), typeof(Slot), typeof(ModelImportSettings), typeof(IProgressIndicator) }, null);
@@ -36,7 +40,7 @@ public static class FrooxInternalBridge
     public static void ValidateModelImportApi()
     {
         if (_preprocessSceneMethod == null || _importNodeMethod == null ||
-            _modelImportDataConstructor == null || _tryGetSlotMethod == null)
+            _modelImportDataConstructor == null || _tryGetSlotMethod == null || _tryGetBoneMappingMethod == null)
             throw new MissingMethodException("This Resonite version has an incompatible model import API. Prefab and scene import is unavailable.");
     }
 
@@ -76,6 +80,14 @@ public static class FrooxInternalBridge
             return (IEnumerator<Context>)_importNodeMethod.Invoke(null, new object[] { node, targetSlot, data });
         }
         throw new MissingMethodException("ModelImporter.ImportNode is unavailable.");
+    }
+
+    public static Dictionary<string, Slot> TryGetBoneMapping(object modelImportData, StaticMesh mesh)
+    {
+        if (modelImportData == null) throw new ArgumentNullException(nameof(modelImportData));
+        if (mesh == null) throw new ArgumentNullException(nameof(mesh));
+        if (_tryGetBoneMappingMethod == null) throw new MissingMethodException("ModelImportData.TryGetBoneMapping is unavailable.");
+        return (Dictionary<string, Slot>)_tryGetBoneMappingMethod.Invoke(modelImportData, new object[] { mesh });
     }
 
     public static void SetupDraggable(Slot slot, object solver, object pos, object rot, object weight)

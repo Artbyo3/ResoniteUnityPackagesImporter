@@ -1057,6 +1057,7 @@ Test("UI contracts reject unsupported schemas and ambiguous path escapes", () =>
 
 ImportLifetimeTests.Register(Test);
 MaterialConversionTests.Register(Test);
+NativeSkinBindingTests.Register(Test);
 
 AvatarViewpointTests.Register(Test);
 

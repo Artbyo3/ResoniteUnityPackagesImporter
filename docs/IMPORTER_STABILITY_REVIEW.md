@@ -12,9 +12,15 @@ Keep it separate until the checks below pass. The approved UI templates are unch
 - Prefab/scene component exceptions propagate to the import failure path instead
   of continuing to a success banner. Unsupported components that the importer
   deliberately ignores remain a separate compatibility limitation.
+- FBX templates complete native bone initialization before they can be copied.
+  The node importer alone does not bind skins; the full native model importer
+  does that in a later step. Use its per-mesh bone map, then initialize blendshapes.
+  Models without a native bone map require unambiguous exact joint names.
 - Full FBX duplicates retain the engine's remapped skin references. The old
   hierarchy-wide name search could replace a bone with an unrelated same-named
-  object. Copies are checked for references back into the temporary FBX template.
+  object. Copies are checked for the expected bone count, missing/destroyed
+  targets, and references back into the temporary FBX template. An empty bone
+  list only passes for a mesh whose asset actually requires no bones.
 - Reconstructed skins map only their authored Unity bone references into Assimp
   mesh order. Missing or ambiguous matches fail with an explanation. Each prefab
   owns its material lists; overrides no longer share those mutable lists.
@@ -71,7 +77,7 @@ future components. No new MA/VRCFury component support is claimed here.
 ## Offline verification
 
 Validated on this branch: Release build succeeded with zero warnings/errors;
-94/94 C# regressions and 16/16 Python tests passed. All six existing engine
+100/100 C# regressions and 16/16 Python tests passed. All seven engine
 reflection signature checks passed against the installed engine assemblies.
 
 Run from the repository root:
@@ -87,6 +93,26 @@ pixels and mask direction, concurrent cache writes, authored bone ordering,
 ambiguity rejection and existing import-lifetime races. Engine API metadata checks
 verify signatures without starting Resonite. These checks cannot validate rendering,
 tracking, or the engine's live transfer queue.
+
+### Post-install skin initialization correction
+
+The first review build produced invisible avatar geometry in a user test. The
+native engine's import sequence established a concrete regression: calling
+`ImportNode` creates skinned renderers but does not run the later `SetupBones`
+step. Removing the old name-based reconstruction without adding that native
+finalization left the template and its copies with empty bone lists. The old
+copy check iterated existing references and therefore incorrectly accepted zero.
+
+Initialization now happens once on the template, using
+`ModelImportData.TryGetBoneMapping` followed by `SetupBones` and blendshape setup.
+The exact native method signature is checked offline. Six additional regressions
+cover native mapping precedence, incomplete maps, ambiguous legacy names, empty
+and partial binding lists, invalid copy references, and boneless blendshape meshes.
+
+This fixes the confirmed missing-initialization path in code. A fresh import is
+still required to verify rendered geometry; existing imported objects are not
+repaired automatically. It is not evidence that the older distance-dependent
+culling, scale, or hand-orientation reports are resolved.
 
 ## Required before merging
 
