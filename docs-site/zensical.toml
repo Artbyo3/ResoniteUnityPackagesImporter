@@ -7,7 +7,7 @@ docs_dir = "pages"
 site_dir = "site"
 nav = [
   "index.md",
-  { "Get started" = [
+  { "Project status" = [
     "getting-started/index.md",
     "getting-started/installation.md",
   ] },
