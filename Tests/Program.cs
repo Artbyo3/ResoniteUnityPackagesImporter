@@ -985,54 +985,6 @@ Test("ResolveSlotNamesForControl fuzzy animation clip matching", () =>
     Check(resolved.Count == 1 && resolved[0] == "C_warmers_top", "Arm Warmer must resolve to C_warmers_top via fuzzy clip match");
 });
 
-Test("Straight-line showroom positioning locks clothing prefabs into a horizontal line", () =>
-{
-    int totalPrefabs = 4;
-    float spacing = 1.15f;
-    var positions = new List<(float x, float y, float z)>();
-    for (int i = 0; i < totalPrefabs; i++)
-    {
-        var offset = ((i - (totalPrefabs - 1) * 0.5f) * spacing, 0f, 0f);
-        positions.Add(offset);
-    }
-
-    Check(positions.Count == 4, "Must generate 4 positions");
-    Check(Math.Abs(positions[0].x - (-1.725f)) < 0.001f, "First item must be at x=-1.725");
-    Check(Math.Abs(positions[1].x - (-0.575f)) < 0.001f, "Second item must be at x=-0.575");
-    Check(Math.Abs(positions[2].x - 0.575f) < 0.001f, "Third item must be at x=0.575");
-    Check(Math.Abs(positions[3].x - 1.725f) < 0.001f, "Fourth item must be at x=1.725");
-    foreach (var p in positions)
-    {
-        Check(p.y == 0f && p.z == 0f, "Y and Z must be 0 for straight line lock");
-    }
-});
-
-Test("Cardinal 90-degree yaw snap snaps arbitrary diagonal angles strictly to 0, 90, 180, or 270", () =>
-{
-    float SnapYaw(float fx, float fz)
-    {
-        float lenSq = fx * fx + fz * fz;
-        if (lenSq < 0.0001f) return 0f;
-        if (MathF.Abs(fz) >= MathF.Abs(fx))
-            return fz >= 0f ? 0f : 180f;
-        return fx >= 0f ? 90f : 270f;
-    }
-
-    Check(SnapYaw(0f, 1f) == 0f, "North (+Z) must snap to 0");
-    Check(SnapYaw(1f, 0f) == 90f, "East (+X) must snap to 90");
-    Check(SnapYaw(0f, -1f) == 180f, "South (-Z) must snap to 180");
-    Check(SnapYaw(-1f, 0f) == 270f, "West (-X) must snap to 270");
-
-    Check(SnapYaw(0.3f, 0.9f) == 0f, "Slightly East of North must snap to 0");
-    Check(SnapYaw(0.9f, 0.3f) == 90f, "Slightly North of East must snap to 90");
-    Check(SnapYaw(0.9f, -0.3f) == 90f, "Slightly South of East must snap to 90");
-    Check(SnapYaw(0.3f, -0.9f) == 180f, "Slightly East of South must snap to 180");
-    Check(SnapYaw(-0.3f, -0.9f) == 180f, "Slightly West of South must snap to 180");
-    Check(SnapYaw(-0.9f, -0.3f) == 270f, "Slightly South of West must snap to 270");
-    Check(SnapYaw(-0.9f, 0.3f) == 270f, "Slightly North of West must snap to 270");
-    Check(SnapYaw(-0.3f, 0.9f) == 0f, "Slightly West of North must snap to 0");
-});
-
 Test("Bundled UI rejects corrupted assets and unsafe cache paths", () => InTemp(root =>
 {
     byte[] payload = Encoding.UTF8.GetBytes("approved native package fixture");
@@ -1058,6 +1010,9 @@ Test("UI contracts reject unsupported schemas and ambiguous path escapes", () =>
 ImportLifetimeTests.Register(Test);
 MaterialConversionTests.Register(Test);
 NativeSkinBindingTests.Register(Test);
+ClothingFoundationTests.Register(Test);
+MaterialRecoveryTests.Register(Test);
+InitialToggleBindingTests.Register(Test);
 
 AvatarViewpointTests.Register(Test);
 TemporaryRigParentTests.Register(Test);

@@ -17,28 +17,58 @@ internal static class PackageImportCoordinator
 {
     internal static string[] ExtractPackage(string file, CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         var dir = Path.Combine(cachePath, "v2", Utils.GenerateMD5(file));
+        cancellationToken.ThrowIfCancellationRequested();
         var files = UnityPackageExtractor.Unpack(file, dir, cancellationToken: cancellationToken);
         UnityPackageImporter.Msg($"Extracted or reused {files.Count} files from {Path.GetFileName(file)}");
         return files.ToArray();
     }
 
-    private static async Task<bool> ExtractAndImportAsync(List<string> packages, Slot slot, World world, UnityStationHandle station, bool companionCandidate, ImportSession session = null)
+    private static List<string> ExtractPackages(IEnumerable<string> packages, CancellationToken cancellation)
     {
-        List<Task> imports = new List<Task>();
-        await default(ToBackground);
         var extractedFiles = new List<string>();
         foreach (string unitypackage in packages)
         {
-            extractedFiles.AddRange(ExtractPackage(unitypackage, session?.Token ?? default));
+            cancellation.ThrowIfCancellationRequested();
+            extractedFiles.AddRange(ExtractPackage(unitypackage, cancellation));
         }
+        cancellation.ThrowIfCancellationRequested();
+        return extractedFiles;
+    }
 
-        UnityPackageImporter.Msg("CALLING FindPrefabsAndMetas for " + packages.Count + " package(s) as one dependency-aware import");
-        if (companionCandidate)
+    private static async Task<bool> TryImportCompanionAsync(List<string> packages, World world)
+    {
+        await default(ToWorld);
+        var request = MaterialDependencyCoordinator.CaptureWaiting(world);
+        if (request == null) return false;
+        try
         {
+            // Include extraction in the owner's drain, not only the eventual
+            // material assignments. No-match releases this lease before the
+            // package is offered as an unrelated ordinary import.
+            using var operation = request.Enter();
+            await default(ToBackground);
+            var extractedFiles = ExtractPackages(packages, request.Token);
             var index = UnityPackageAssetIndex.Build(extractedFiles);
-            return await MaterialDependencyCoordinator.TryResolveWaitingAsync(world, index.Assets);
+            request.Token.ThrowIfCancellationRequested();
+            return await request.ResolveAsync(index.Assets);
         }
+        catch (System.OperationCanceledException) when (request.Token.IsCancellationRequested)
+        {
+            // Closing the owner already schedules its cleanup. Consume the
+            // cancelled drop; do not create a new station or clean a borrowed
+            // session from inside its own outstanding operation.
+            return true;
+        }
+    }
+
+    private static async Task<bool> ExtractAndImportAsync(List<string> packages, Slot slot, World world, UnityStationHandle station, ImportSession session)
+    {
+        List<Task> imports = new List<Task>();
+        await default(ToBackground);
+        var extractedFiles = ExtractPackages(packages, session.Token);
+        UnityPackageImporter.Msg("CALLING FindPrefabsAndMetas for " + packages.Count + " package(s) as one dependency-aware import");
         List<string> otherFiles = (await StartProjectImportAsync(
             extractedFiles,
             slot,
@@ -122,8 +152,7 @@ internal static class PackageImportCoordinator
         bool raw = false;
         try
         {
-            if (MaterialDependencyCoordinator.HasWaiting(world) &&
-                await ExtractAndImportAsync(files, assets, world, null, true)) return;
+            if (await TryImportCompanionAsync(files, world)) return;
             await default(ToWorld);
             prompt = await PreImportPrompt.SpawnAsync(world, position, rotation, files);
             var choice = await prompt.WaitAsync();
@@ -143,7 +172,7 @@ internal static class PackageImportCoordinator
             station.UpdateProgress(0f, "Extracting Unity package", "Unity パッケージを展開中", Path.GetFileName(files[0]), 0, files.Count);
             prompt.Close();
             using (session.Enter())
-                await ExtractAndImportAsync(files, session.Staging, world, station, false, session);
+                await ExtractAndImportAsync(files, session.Staging, world, station, session);
         }
         catch (System.OperationCanceledException) when (session?.Token.IsCancellationRequested == true)
         {

@@ -193,11 +193,11 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 UnityPackageImporter.Msg("Skipping standalone humanoid rig setup for Modular Avatar attachment");
             }
 
-            var renderersToEnable = existingIUnityObjects.Values
-                .OfType<FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer>()
-                .Select(renderer => renderer.createdMeshRenderer)
-                .Where(renderer => renderer != null)
-                .ToList();
+            await default(ToWorld);
+            // The YAML index omits inherited FBX skins without overrides.
+            // Finalize the complete imported hierarchy, including inactive skins.
+            var renderersToEnable = CurrentStructureRootSlot
+                .GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>();
             await SkinnedBoundsPolicy.StabilizeBeforeEnableAsync(
                 renderersToEnable,
                 "Unity prefab activation", unityProjectImporter.Session?.Token ?? default);

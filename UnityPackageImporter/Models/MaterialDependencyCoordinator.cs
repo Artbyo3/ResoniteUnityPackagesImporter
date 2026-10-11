@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using FrooxEngine;
 
@@ -28,14 +30,14 @@ internal static class MaterialDependencyCoordinator
 {
     private static readonly object Sync = new();
     private static readonly Dictionary<World, MaterialDependencySession> WaitingByWorld = new();
-    internal static bool HasWaiting(World world)
+    internal static MaterialDependencyRequest CaptureWaiting(World world)
     {
         lock (Sync)
         {
-            if (world == null || !WaitingByWorld.TryGetValue(world, out var session)) return false;
-            if (session.IsUsable && session.IsWaiting) return true;
+            if (world == null || !WaitingByWorld.TryGetValue(world, out var session)) return null;
+            if (session.IsUsable && session.IsWaiting) return session.CaptureRequest();
             RemoveWorld(world);
-            return false;
+            return null;
         }
     }
     private static void RemoveWorld(World world)
@@ -63,25 +65,42 @@ internal static class MaterialDependencyCoordinator
         lock (Sync)
             if (WaitingByWorld.TryGetValue(session.World, out var current) && current == session) RemoveWorld(session.World);
     }
-    public static async Task<bool> TryResolveWaitingAsync(World world, IReadOnlyDictionary<string, string> assets)
+}
+
+// A dropped package belongs to the request that was waiting when it arrived.
+// It must not migrate to another station while extraction is in progress.
+internal sealed class MaterialDependencyRequest
+{
+    private readonly MaterialDependencySession owner;
+    private readonly int generation;
+    public CancellationToken Token => owner.Token;
+    public IDisposable Enter() => owner.Enter();
+
+    public MaterialDependencyRequest(MaterialDependencySession owner, int generation)
     {
-        MaterialDependencySession session;
-        lock (Sync)
+        this.owner = owner;
+        this.generation = generation;
+    }
+
+    public async Task<bool> ResolveAsync(IReadOnlyDictionary<string, string> assets)
+    {
+        Token.ThrowIfCancellationRequested();
+        await default(ToWorld);
+        Token.ThrowIfCancellationRequested();
+        // Back, Continue, or another station taking over discards this request.
+        // A stale drop must not unexpectedly open a new independent import.
+        if (!owner.IsCurrentRequest(generation)) return true;
+        if (!owner.CanUse(assets?.Keys))
         {
-            if (world == null || !WaitingByWorld.TryGetValue(world, out session)) return false;
-            if (!session.IsUsable) { RemoveWorld(world); return false; }
-        }
-        if (!session.CanUse(assets?.Keys))
-        {
-            await default(ToWorld);
-            session.NoMatch();
+            owner.NoMatch();
             return false;
         }
-        return await session.ApplyAsync(assets);
+        return await owner.ApplyAsync(assets, generation);
     }
 }
 
-// UI lifetime and extraction lifetime are independent. Only an explicit request arms the next package.
+// Only an explicit request arms the next package. Its extraction and resolution
+// belong to the existing import session, without creating a second station.
 internal sealed class MaterialDependencySession
 {
     private readonly UnityProjectImporter importer;
@@ -91,8 +110,12 @@ internal sealed class MaterialDependencySession
     private int generation;
     public World World => importer.world;
     public bool IsWaiting { get; private set; }
-    public bool IsUsable => station.IsAlive && World != null && !World.RootSlot.IsDestroyed;
+    public CancellationToken Token => importer.Session?.Token ?? default;
+    public bool IsUsable => !Token.IsCancellationRequested && station.IsAlive && World != null && !World.RootSlot.IsDestroyed;
     public MaterialDependencySession(UnityProjectImporter project, UnityStationHandle handle) { importer = project; station = handle; }
+    internal IDisposable Enter() => importer.Session?.Enter();
+    internal MaterialDependencyRequest CaptureRequest() => new(this, generation);
+    internal bool IsCurrentRequest(int request) => request == generation && IsUsable && IsWaiting;
     public bool CanUse(IEnumerable<string> ids) => IsUsable && IsWaiting && importer.CanResolveAnyMaterial(ids);
     public void BeginWaiting()
     {
@@ -117,20 +140,22 @@ internal sealed class MaterialDependencySession
         station.SetCompanionState(false, false);
     }
     public void NoMatch() => station.SetCompanionState(true, true, "This package has no matching materials", "このパッケージに対応するマテリアルがありません");
-    public async Task<bool> ApplyAsync(IReadOnlyDictionary<string, string> assets)
+    internal async Task<bool> ApplyAsync(IReadOnlyDictionary<string, string> assets, int request)
     {
-        await applyLock.WaitAsync();
-        if (!CanUse(assets?.Keys)) { applyLock.Release(); return false; }
-        applying = true;
-        int request = generation;
+        await applyLock.WaitAsync(Token);
         try
         {
             using var operation = importer.Session?.Enter();
             await default(ToWorld);
             importer.Session?.Check();
+            if (!IsCurrentRequest(request)) return true;
+            if (!CanUse(assets?.Keys)) return false;
+            applying = true;
             station.SetCompanionState(true, true, "Connecting materials", "マテリアルを接続中");
             var result = await importer.ResolveMissingMaterialsAsync(assets);
             await default(ToWorld);
+            importer.Session?.Check();
+            if (!IsUsable) return true;
             station.RefreshMaterials();
             if (request != generation || !IsUsable) return true;
             if (result.Remaining.HasMissingAssets)
@@ -140,9 +165,10 @@ internal sealed class MaterialDependencySession
                 IsWaiting = false;
                 MaterialDependencyCoordinator.StopWaiting(this);
                 station.SetCompanionState(true, true, "Materials ready", "マテリアルの準備ができました");
-                await Task.Delay(1000);
+                await Task.Delay(1000, importer.Session?.Token ?? default);
                 await default(ToWorld);
-                if (request == generation) station.SetCompanionState(false, false);
+                importer.Session?.Check();
+                if (request == generation && IsUsable) station.SetCompanionState(false, false);
             }
             return true;
         }

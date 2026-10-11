@@ -4,45 +4,6 @@ using System.Linq;
 
 namespace UnityPackageImporter.Models;
 
-public sealed class MergeHierarchyNode
-{
-    public string Id { get; init; } = "";
-    public string Name { get; init; } = "";
-    public bool StartsNestedMerge { get; init; }
-    public IReadOnlyList<MergeHierarchyNode> Children { get; init; } = Array.Empty<MergeHierarchyNode>();
-}
-
-public sealed class MergeBoneMapping
-{
-    public string SourceId { get; init; } = "";
-    public string SourcePath { get; init; } = "";
-    public string TargetId { get; init; } = "";
-    public string TargetPath { get; init; } = "";
-}
-
-public sealed class RetainedBoneRoot
-{
-    public string SourceId { get; init; } = "";
-    public string SourcePath { get; init; } = "";
-    public string TargetParentId { get; init; } = "";
-    public string TargetParentPath { get; init; } = "";
-    public string Reason { get; init; } = "";
-}
-
-public sealed class MergePlanConflict
-{
-    public string SourcePath { get; init; } = "";
-    public string Message { get; init; } = "";
-}
-
-public sealed class ModularAvatarMergePlan
-{
-    public IReadOnlyList<MergeBoneMapping> Mappings { get; init; } = Array.Empty<MergeBoneMapping>();
-    public IReadOnlyList<RetainedBoneRoot> RetainedRoots { get; init; } = Array.Empty<RetainedBoneRoot>();
-    public IReadOnlyList<MergePlanConflict> Conflicts { get; init; } = Array.Empty<MergePlanConflict>();
-    public bool CanApply => Conflicts.Count == 0;
-}
-
 /// <summary>
 /// Produces an immutable, reviewable Merge Armature plan. Matching follows
 /// Modular Avatar's direct-child, prefix/suffix-aware zip merge behavior.
@@ -50,7 +11,18 @@ public sealed class ModularAvatarMergePlan
 /// </summary>
 public static class ModularAvatarMergePlanner
 {
-    public static ModularAvatarMergePlan CreatePlan(
+    // MA AvatarObjectReference stores this marker for the avatar root; ordinary
+    // referencePath values are exact paths relative to that root.
+    public static T ResolveTarget<T>(T avatarRoot, IEnumerable<T> candidates,
+        string referencePath, string sourceName, string prefix, string suffix,
+        Func<T, string> name, Func<T, string> relativePath) where T : class
+    {
+        if (referencePath == "$$$AVATAR_ROOT$$$") return avatarRoot;
+        TryRemoveAffixes(sourceName, prefix, suffix, out string inferredName);
+        return BoneAttachmentTarget.Resolve(candidates, referencePath, inferredName, name, relativePath);
+    }
+
+    public static BoneAttachmentPlan CreatePlan(
         MergeHierarchyNode sourceRoot,
         MergeHierarchyNode targetRoot,
         string prefix = "",
@@ -69,11 +41,11 @@ public static class ModularAvatarMergePlanner
         AddMapping(sourceRoot, sourceRoot.Name, targetRoot, targetRoot.Name);
         Scan(sourceRoot, sourceRoot.Name, targetRoot, targetRoot.Name);
 
-        return new ModularAvatarMergePlan
+        return new BoneAttachmentPlan
         {
-            Mappings = mappings,
-            RetainedRoots = retained,
-            Conflicts = conflicts
+            Mappings = mappings.AsReadOnly(),
+            RetainedRoots = retained.AsReadOnly(),
+            Conflicts = conflicts.AsReadOnly()
         };
 
         void Scan(MergeHierarchyNode source, string sourcePath, MergeHierarchyNode target, string targetPath)

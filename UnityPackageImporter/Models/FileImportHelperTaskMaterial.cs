@@ -125,10 +125,9 @@ public class FileImportHelperTaskMaterial
             if (fbMainTexGuid != null)
             {
                 var texData = GetTexData(textures, "_MainTex", "_BaseMap", "_MainTexture", "_1st_ShadeMap");
-                var tex = await ImportTexture(fbMainTexGuid);
+                await AssignTextureAsync(fbMainTexGuid, pbs.AlbedoTexture);
                 await default(ToWorld);
                 importer.Session?.Check();
-                pbs.AlbedoTexture.Target = tex;
                 pbs.TextureScale.Value = new float2(texData.sx, texData.sy);
                 pbs.TextureOffset.Value = new float2(texData.ox, texData.oy);
                 await default(ToBackground);
@@ -138,10 +137,7 @@ public class FileImportHelperTaskMaterial
             string normalGuid = GetTexGuid(textures, "_BumpMap");
             if (normalGuid != null)
             {
-                var tex = await ImportTexture(normalGuid, normalMap: true);
-                await default(ToWorld);
-                importer.Session?.Check();
-                pbs.NormalMap.Target = tex;
+                await AssignTextureAsync(normalGuid, pbs.NormalMap, normalMap: true);
                 await default(ToBackground);
                 importer.Session?.Check();
             }
@@ -149,10 +145,7 @@ public class FileImportHelperTaskMaterial
             string metallicGuid = GetTexGuid(textures, "_MetallicGlossMap");
             if (metallicGuid != null)
             {
-                var tex = await ImportTexture(metallicGuid);
-                await default(ToWorld);
-                importer.Session?.Check();
-                pbs.MetallicMap.Target = tex;
+                await AssignTextureAsync(metallicGuid, pbs.MetallicMap);
                 await default(ToBackground);
                 importer.Session?.Check();
             }
@@ -160,10 +153,7 @@ public class FileImportHelperTaskMaterial
             string emissionGuid = GetTexGuid(textures, "_EmissionMap");
             if (emissionGuid != null)
             {
-                var tex = await ImportTexture(emissionGuid);
-                await default(ToWorld);
-                importer.Session?.Check();
-                pbs.EmissiveMap.Target = tex;
+                await AssignTextureAsync(emissionGuid, pbs.EmissiveMap);
                 await default(ToBackground);
                 importer.Session?.Check();
             }
@@ -171,10 +161,7 @@ public class FileImportHelperTaskMaterial
             string occlusionGuid = GetTexGuid(textures, "_OcclusionMap");
             if (occlusionGuid != null)
             {
-                var tex = await ImportTexture(occlusionGuid);
-                await default(ToWorld);
-                importer.Session?.Check();
-                pbs.OcclusionMap.Target = tex;
+                await AssignTextureAsync(occlusionGuid, pbs.OcclusionMap);
                 await default(ToBackground);
                 importer.Session?.Check();
             }
@@ -241,11 +228,56 @@ public class FileImportHelperTaskMaterial
         return null;
     }
 
-    public Task<StaticTexture2D> ImportTexture(string idtarget, bool multiplyRgbByAlpha = false, bool normalMap = false)
+    internal async Task AssignTextureAsync(string guid, AssetRef<ITexture2D> target,
+        bool multiplyRgbByAlpha = false, bool normalMap = false)
+    {
+        var texture = await ImportTexture(guid, multiplyRgbByAlpha, normalMap);
+        await default(ToWorld);
+        importer.Session?.Check();
+        // The asset index may have changed while the first attempt was
+        // completing. Do not leave a newly resolvable field waiting for another
+        // companion package merely because it missed the resolution snapshot.
+        if (texture == null && importer.AssetIDDict.ContainsKey(guid))
+        {
+            texture = await ImportTexture(guid, multiplyRgbByAlpha, normalMap);
+            await default(ToWorld);
+            importer.Session?.Check();
+        }
+        target.Target = texture;
+        if (texture != null) return;
+
+        importer.MissingTextureAssignments.Register(target, guid,
+            () => ImportTexture(guid, multiplyRgbByAlpha, normalMap), async (restored, cancellation) =>
+        {
+            await default(ToWorld);
+            cancellation.ThrowIfCancellationRequested();
+            importer.Session?.Check();
+            if (matslot.IsDestroyed || target.IsDisposed) return true;
+            // A user may have assigned a replacement in the meantime.
+            if (target.Target != null) return true;
+            target.Target = restored;
+            return true;
+        });
+    }
+
+    public async Task<StaticTexture2D> ImportTexture(string idtarget, bool multiplyRgbByAlpha = false, bool normalMap = false)
     {
         importer.Session?.Check();
-        return importer.TextureImports.GetOrAdd(idtarget + (multiplyRgbByAlpha ? ":alpha-rgb" : "") + (normalMap ? ":normal" : ""),
+        string key = idtarget.ToLowerInvariant() + (multiplyRgbByAlpha ? ":alpha-rgb" : "") + (normalMap ? ":normal" : "");
+        var texture = await importer.TextureImports.GetOrAdd(key,
             () => ImportTextureCore(idtarget, multiplyRgbByAlpha, normalMap));
+        importer.Session?.Check();
+        if (texture == null && importer.AssetIDDict.ContainsKey(idtarget))
+        {
+            // A missing attempt can finish after companion invalidation. Retry
+            // that key once now that its source is available, retaining any
+            // successful or still-running attempt started by another caller.
+            importer.TextureImports.RetryUnsuccessful(key);
+            texture = await importer.TextureImports.GetOrAdd(key,
+                () => ImportTextureCore(idtarget, multiplyRgbByAlpha, normalMap));
+            importer.Session?.Check();
+        }
+        return texture;
     }
 
     private async Task<StaticTexture2D> ImportTextureCore(string idtarget, bool multiplyRgbByAlpha, bool normalMap)

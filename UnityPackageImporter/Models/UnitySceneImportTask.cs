@@ -141,11 +141,11 @@ public class UnitySceneImportTask: IUnityStructureImporter
 
             UnityPackageImporter.Msg("re-enabling skinned mesh renderers in scene \""+ID.Value+"\"");
 
-            var renderersToEnable = existingIUnityObjects.Values
-                .OfType<FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer>()
-                .Select(renderer => renderer.createdMeshRenderer)
-                .Where(renderer => renderer != null)
-                .ToList();
+            await default(ToWorld);
+            // Include skins inherited from FBX instances, even when the scene
+            // contains no individual YAML override for those renderers.
+            var renderersToEnable = CurrentStructureRootSlot
+                .GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>();
             await SkinnedBoundsPolicy.StabilizeBeforeEnableAsync(
                 renderersToEnable,
                 "Unity scene activation", unityProjectImporter.Session?.Token ?? default);

@@ -139,10 +139,6 @@ public class FileImportTaskScene
         await ImportNodeAsync(scene.RootNode, targetSlot, data);
         importer.Session?.Check();
 
-        // ImportNode only creates the hierarchy/mesh assets. Resonite's complete
-        // ImportModel pipeline binds skins afterwards, once every node exists.
-        // Do that once on the FBX template so Duplicate can remap valid references.
-        await InitializeSkinsAsync();
         await default(ToWorld);
         importer.Session?.Check();
 
@@ -164,7 +160,11 @@ public class FileImportTaskScene
             await default(ToBackground);
         }
 
+        // Match native ImportModel ordering: finish hierarchy transforms, then
+        // bind and finalize every skin before exposing the template to copies.
+        await InitializeSkinsAsync();
         await default(ToWorld);
+        importer.Session?.Check();
         sceneRootSlot.Tag = "PREFABROOTTAG1234";
         await default(ToBackground);
 
@@ -379,6 +379,11 @@ public class FileImportTaskScene
             skin.SetupBones(mapping);
             ValidateSkin(skin, targetSlot);
             FrooxInternalBridge.SetupBlendShapes(skin);
+            // ImportNode starts skins in SlowRealtimeAccurate. Native ImportModel
+            // finishes every skin with its final bounds policy after binding.
+            // Do this on the template too: skins without YAML overrides may
+            // never be instantiated individually by the prefab importer.
+            SkinnedBoundsPolicy.ApplyAfterBones(skin, "native FBX template finalization");
         }
         UnityPackageImporter.Msg($"Initialized native bone bindings for {skins.Length} imported skin(s).");
     }

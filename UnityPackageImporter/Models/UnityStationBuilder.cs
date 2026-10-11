@@ -339,7 +339,7 @@ internal sealed class UnityStationHandle
         {
             bool success = await ModularAvatarAttachmentInstaller.TryInstallDirectlyAsync(item.CurrentStructureRootSlot,
                 item.Manifest, item.existingIUnityObjects, target, item.ID.Key, item.ID.Value,
-                menu, session.Token);
+                menu, session.Token, assetFiles: importer.AssetIDDict);
             await default(ToWorld);
             if (!success) throw new InvalidOperationException("The outfit could not be installed safely on the selected avatar.");
             if (receipt && IsAlive && !target.IsDestroyed) SaveReceipt(target.Slot, item);

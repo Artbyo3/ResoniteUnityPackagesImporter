@@ -20,6 +20,7 @@ public class UnityProjectImporter
     public List<FileImportHelperTaskMaterial> TasksMaterials = new List<FileImportHelperTaskMaterial>();
     internal readonly AsyncImportCache<IAssetProvider<Material>> MaterialImports = new();
     internal readonly AsyncImportCache<StaticTexture2D> TextureImports = new();
+    internal readonly PendingAssetAssignments<StaticTexture2D> MissingTextureAssignments = new();
     private readonly Dictionary<SkinnedMeshRenderer, IAssetProvider<Material>[]> automaticMaterials = new();
     public Dictionary<string, FileImportTaskScene> SharedImportedFBXScenes = new Dictionary<string, FileImportTaskScene>();
     public ReadOnlyDictionary<string, string> AssetIDDict;
@@ -47,10 +48,12 @@ public class UnityProjectImporter
         this.root = root;
         this.PackageNames = packageNames?.ToArray() ?? Array.Empty<string>();
 
-        // These are read only, since they're for reference only. this allows us to be thread safe since we should only be reading not writing.
+        // Publish asset-index snapshots: a companion package must not mutate a
+        // dictionary while background material importers are reading it.
         this.ListOfPrefabs = new ReadOnlyDictionary<string, string>(ListOfPrefabs);
         this.mutableAssetIndex = new Dictionary<string, string>(AssetIDDict, StringComparer.OrdinalIgnoreCase);
-        this.AssetIDDict = new ReadOnlyDictionary<string, string>(this.mutableAssetIndex);
+        this.AssetIDDict = new ReadOnlyDictionary<string, string>(
+            new Dictionary<string, string>(this.mutableAssetIndex, StringComparer.OrdinalIgnoreCase));
         this.ListOfUnityScenes = new ReadOnlyDictionary<string, string>(ListOfUnityScenes);
         this.world = world;
     }
@@ -87,15 +90,16 @@ public class UnityProjectImporter
         return MaterialDependencyDiagnostics.Analyze(
             pending.GroupBy(binding => binding.Renderer)
                 .Select(group => group.Select(binding => binding.MaterialGuid)),
-            Array.Empty<string>());
+            Array.Empty<string>(), MissingTextureAssignments.MissingAssetGuids);
     }
 
     internal bool CanResolveAnyMaterial(IEnumerable<string> assetGuids)
     {
         var candidates = new HashSet<string>(assetGuids ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
         lock (dependencyLock)
-            return missingMaterialBindings.Any(binding =>
-                !binding.Resolved && candidates.Contains(binding.MaterialGuid));
+            if (missingMaterialBindings.Any(binding =>
+                !binding.Resolved && candidates.Contains(binding.MaterialGuid))) return true;
+        return MissingTextureAssignments.CanResolveAny(candidates);
     }
 
     internal async Task ApplyMaterialPresetAsync(Slot root, string preset)
@@ -137,12 +141,17 @@ public class UnityProjectImporter
         if (dependencyAssets == null)
             return new MaterialResolutionResult(GetMissingMaterialSummary(), 0);
 
+        Session?.Check();
         lock (dependencyLock)
         {
             foreach (var asset in dependencyAssets)
                 if (!mutableAssetIndex.ContainsKey(asset.Key))
                     mutableAssetIndex.Add(asset.Key, asset.Value);
+            AssetIDDict = new ReadOnlyDictionary<string, string>(
+                new Dictionary<string, string>(mutableAssetIndex, StringComparer.OrdinalIgnoreCase));
         }
+        MaterialImports.RetryUnsuccessful();
+        TextureImports.RetryUnsuccessful();
 
         List<MissingMaterialBinding> resolvable;
         lock (dependencyLock)
@@ -174,6 +183,8 @@ public class UnityProjectImporter
                 var material = await materialTask.runImportFileMaterialsAsync();
 
                 await default(ToWorld);
+                Session?.Check();
+                if (material == null) continue;
                 foreach (var binding in materialGroup)
                 {
                     if (binding.Renderer == null || binding.Renderer.IsDestroyed)
@@ -200,6 +211,10 @@ public class UnityProjectImporter
                 await default(ToBackground);
             }
         }
+
+        restored += await MissingTextureAssignments.ResolveAsync(AssetIDDict.Keys,
+            Session?.Token ?? default,
+            (guid, exception) => UnityPackageImporter.Warn("Could not restore texture '" + guid + "': " + exception));
 
         return new MaterialResolutionResult(GetMissingMaterialSummary(), restored);
     }

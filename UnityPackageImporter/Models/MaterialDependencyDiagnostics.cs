@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 
@@ -8,6 +9,7 @@ internal sealed class MaterialDependencySummary
     public int MissingAssetCount { get; init; }
     public int AffectedRendererCount { get; init; }
     public int MissingReferenceCount { get; init; }
+    public int MissingTextureCount { get; init; }
     public IReadOnlyList<string> MissingAssetGuids { get; init; } = Array.Empty<string>();
 
     public bool HasMissingAssets => MissingAssetCount > 0;
@@ -16,8 +18,9 @@ internal sealed class MaterialDependencySummary
 internal static class MaterialDependencyDiagnostics
 {
     public static MaterialDependencySummary Analyze(
-        IEnumerable<IEnumerable<string>> rendererMaterialGuids,
-        IEnumerable<string> availableAssetGuids)
+        IEnumerable<IEnumerable<string>>? rendererMaterialGuids,
+        IEnumerable<string>? availableAssetGuids,
+        IEnumerable<string>? unresolvedTextureGuids = null)
     {
         var available = new HashSet<string>(
             availableAssetGuids ?? Array.Empty<string>(),
@@ -48,6 +51,17 @@ internal static class MaterialDependencyDiagnostics
             }
         }
 
+        // Texture assignments remain unresolved until their fields are repaired,
+        // even when a companion has added the file to the asset index.
+        var missingTextures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var guid in unresolvedTextureGuids ?? Array.Empty<string>())
+        {
+            if (string.IsNullOrWhiteSpace(guid)) continue;
+            missing.Add(guid);
+            missingTextures.Add(guid);
+            missingReferences++;
+        }
+
         var sortedMissing = new List<string>(missing);
         sortedMissing.Sort(StringComparer.OrdinalIgnoreCase);
         return new MaterialDependencySummary
@@ -55,6 +69,7 @@ internal static class MaterialDependencyDiagnostics
             MissingAssetCount = sortedMissing.Count,
             AffectedRendererCount = affectedRenderers,
             MissingReferenceCount = missingReferences,
+            MissingTextureCount = missingTextures.Count,
             MissingAssetGuids = sortedMissing
         };
     }

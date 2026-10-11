@@ -132,12 +132,11 @@ internal static class LilToonMaterialConverter
         {
             var guid = data.Texture(property);
             if (guid == null) return;
-            var texture = await owner.ImportTexture(guid, multiplyRgbByAlpha:
+            await owner.AssignTextureAsync(guid, target, multiplyRgbByAlpha:
                 !generic && (property == "_EmissionMap" || property == "_MatCapTex"),
                 normalMap: property == "_BumpMap" || property == "_Bump2ndMap");
             await default(ToWorld);
             owner.importer.Session?.Check();
-            target.Target = texture;
             var uv = data.Textures[property];
             if (scale != null) scale.Value = new float2(uv.sx, uv.sy);
             if (offset != null) offset.Value = new float2(uv.ox, uv.oy);

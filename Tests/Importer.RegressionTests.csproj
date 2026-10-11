@@ -15,6 +15,8 @@
     <Compile Include="../UnityPackageImporter/UI/TemplateContract.cs" Link="TemplateContract.cs" />
     <Compile Include="../UnityPackageImporter/UnityPackageExtractor.cs" Link="UnityPackageExtractor.cs" />
     <Compile Include="../UnityPackageImporter/Models/AsyncImportCache.cs" Link="AsyncImportCache.cs" />
+    <Compile Include="../UnityPackageImporter/Models/PendingAssetAssignments.cs" Link="PendingAssetAssignments.cs" />
+    <Compile Include="../UnityPackageImporter/Models/InitialToggleBinding.cs" Link="InitialToggleBinding.cs" />
     <Compile Include="../UnityPackageImporter/Models/ImportLifetime.cs" Link="ImportLifetime.cs" />
     <Compile Include="../UnityPackageImporter/Models/TemporaryRigParent.cs" Link="TemporaryRigParent.cs" />
     <Compile Include="../UnityPackageImporter/Models/UnityPropertyPath.cs" Link="UnityPropertyPath.cs" />
@@ -25,6 +27,11 @@
     <Compile Include="../UnityPackageImporter/Models/AvatarStateReconstructor.cs" Link="AvatarStateReconstructor.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarPackageIndex.cs" Link="AvatarPackageIndex.cs" />
     <Compile Include="../UnityPackageImporter/Models/ModularAvatarMergePlanner.cs" Link="ModularAvatarMergePlanner.cs" />
+    <Compile Include="../UnityPackageImporter/Models/BoneAttachmentPlan.cs" Link="BoneAttachmentPlan.cs" />
+    <Compile Include="../UnityPackageImporter/Models/BoneAttachmentHierarchy.cs" Link="BoneAttachmentHierarchy.cs" />
+    <Compile Include="../UnityPackageImporter/Models/BoneAttachmentTarget.cs" Link="BoneAttachmentTarget.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AttachmentInstallationGate.cs" Link="AttachmentInstallationGate.cs" />
+    <Compile Include="../UnityPackageImporter/Models/OwnedAttachmentTransaction.cs" Link="OwnedAttachmentTransaction.cs" />
     <Compile Include="../UnityPackageImporter/Models/OutfitInstallIdentity.cs" Link="OutfitInstallIdentity.cs" />
     <Compile Include="../UnityPackageImporter/Models/MaterialDependencyDiagnostics.cs" Link="MaterialDependencyDiagnostics.cs" />
     <Compile Include="../UnityPackageImporter/Models/UnityPackageAssetIndex.cs" Link="UnityPackageAssetIndex.cs" />
