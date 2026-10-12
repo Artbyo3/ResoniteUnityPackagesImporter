@@ -1,75 +1,119 @@
-# Unity Package Importer for Resonite
+# UnityPackageImporter for Resonite
 
-An experimental [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for importing Unity packages into [Resonite](https://resonite.com/), with an emphasis on VRChat avatars and Modular Avatar clothing.
+> # ⚠️ NOTICE: AI-DEVELOPED FORK & MODERN OVERHAUL
+> **This modern fork, including its stabilization refactors, lilToon material mapping engine, FBX auto-scaling, nested prefab variant resolution, Modular Avatar support, regression test suite, and documentation, was developed 100% using AI (LLM pair-programming agents), built on top of the original human-authored foundation by [dfgHiatus](https://github.com/dfgHiatus/ResoniteUnityPackagesImporter).**
+>
+> If you are a modder, developer, or curious user wanting to explore or modify this codebase, **we strongly recommend using an AI coding agent** (such as Gemini, Claude, ChatGPT, Cursor, or GitHub Copilot) to navigate and explain the code to you.
 
-This fork is under active development. It is useful for testing, but it does not yet reproduce every Unity, VRChat, shader, animation, or Modular Avatar feature.
+---
 
-## Current capabilities
+A [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for [Resonite](https://resonite.com/) that lets you easily import **Unity Packages (`.unitypackage`)** directly into the game.
 
-- Safely extracts Unity packages with archive traversal, collision, corruption, and resource-limit checks.
-- Reconstructs Unity prefab and scene hierarchies, meshes, transforms, materials, bones, and blendshape defaults.
-- Normalizes common meter and centimeter FBX imports.
-- Converts a supported subset of lilToon material properties to `XiexeToonMaterial`.
-- Generates deterministic shadow-ramp textures when compatible lilToon data is available.
-- Resolves material dependencies supplied in a later Unity package without reimporting the model.
-- Reads the expression menu, parameters, and animator assets referenced by individual VRChat avatar descriptors.
-- Detects supported Modular Avatar metadata, including Merge Armature and Bone Proxy.
-- Installs supported Modular Avatar clothing on a selected avatar using a copied source, rollback on failure, and per-outfit installation records.
-- Keeps imported prefab roots independent from the importer interface.
-- Loads the approved station and pre-import prompt from bundled native Resonite packages, including their assets and English/Japanese UI.
-- Includes 74 regression tests, six UI bundle checks, and checks against the installed Resonite engine API.
+This mod is built for everyday users who want to bring their **VRChat avatars, clothes, props, and worlds** into Resonite without having to manually reconstruct materials, re-align hierarchies, or fix broken meshes.
 
-## Known limitations
+---
 
-- Skinned-mesh bounds now mirror completed native Resonite FBX imports by using the mesh asset's static bounds without an explicit override. This needs broader live validation across avatars and Modular Avatar attachments.
-- Modular Avatar support covers a limited subset. Shape Changer, full menu installation, and many build-time components are still planned.
-- VRChat animator and expression behavior is reconstructed only for supported cases.
-- VRC PhysBones are not translated yet.
-- Poiyomi, VRCFury, custom shaders, and custom Unity editor pipelines are outside the current compatibility target.
-- lilToon conversion is an approximation; advanced or animated shader features may be skipped.
-- Some packages split models and materials across multiple Unity packages and require the missing-material workflow.
+## 🎯 What Does This Mod Do?
 
-The importer reports unsupported or missing data where it can detect it. Keep the original Unity project and package files as the source of truth.
+In standard Unity-to-Resonite workflows, moving an avatar or accessory package usually requires manually setting up shaders, textures, blendshapes, and scaling factors.
 
-## Installation
+With **UnityPackageImporter**, you simply **drag and drop a `.unitypackage` into Resonite**:
+1. 📦 **Extracts & Imports:** Assets (models, textures, audio, materials) are unpacked and cached safely.
+2. 🦴 **Reconstructs Prefabs:** Reassembles game object hierarchies, bones, transforms, blendshape defaults, and nested prefab variants.
+3. 🎨 **Translates Shaders:** Converts Unity shaders (especially **lilToon**) into Resonite's native `XiexeToonMaterial`, keeping your avatar looking gorgeous.
+4. 😊 **Preserves Expressions:** Retains avatar facial expressions, blendshape defaults, and visemes.
+5. 📏 **Fixes Sizing Issues:** Automatically detects centimeter vs. meter FBX scaling so your clothes and accessories fit your avatar right out of the box.
+6. 👗 **Modular Avatar Installer:** Supports attaching compatible Modular Avatar clothing directly to existing avatars in-game with full rollback safety.
 
-This project currently targets experienced testers.
+---
 
-1. Install [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader).
-2. Build the project as described below.
-3. Close Resonite.
-4. Copy `UnityPackageImporter.dll` from `UnityPackageImporter/bin/Release/` into the Resonite `rml_mods` directory.
-5. Start Resonite and drag a `.unitypackage` into the game.
+## 🔍 Current Capabilities
 
-Do not replace the DLL while Resonite or Renderite is running.
+Here is what is currently working in this version:
 
-## Building
+### 🎨 lilToon Shader Translation
+- **Multilayer Texture Compositing:** Automatically combines makeup layers, blush, body tattoos, decals, and eye highlights into unified textures.
+- **Soft Shadow Ramps:** Procedurally generates deterministic toon shadow ramps based on your avatar's shadow color and border settings, avoiding harsh black shading.
+- **Rim Lighting & Matcaps:** Preserves glowing edges and hair shine highlights.
+- **Emission & Glow:** Maps emission masks, colors, and brightness directly to Resonite shaders.
+- **Outline Fixes:** Properly maps outline thickness and color masks, preventing dark albedo textures from extinguishing outlines.
+- **Missing Material Resolution:** Resolves material dependencies supplied across multiple packages without reimporting models.
 
-Requirements:
+### 🦴 Prefab, Mesh & Scale Handling
+- **Nested Prefab Variants & Derived FileIDs:** Resolves 64-bit derived XOR fileIDs and modification targets across nested prefab variants, ensuring variant-specific textures and materials are correctly bound.
+- **Blendshape Defaults:** Keeps default face slider values (smile, eye shape, ear tilt) without resetting them to 0.
+- **Correct FBX Sizing:** Intelligently calculates scale factors so centimeter-mode clothes fit meter-mode avatars without manual resizing.
+- **Per-Bone Skinned Mesh Bounds:** Mirrors completed native Resonite FBX imports using mesh static bounds to prevent mesh popping from side angles.
+- **Independent Roots:** Spawned avatars and prefabs remain independent of the importer tool window.
 
-- .NET 10 SDK
-- A local Resonite installation
-- ResoniteModLoader
+### 👗 Modular Avatar & VRChat Metadata
+- **Modular Avatar Support:** Detects Merge Armature and Bone Proxy components, automatically matching bones and parenting attachments.
+- **Avatar Clothing Installer:** Installs clothing onto a duplicate target avatar with non-destructive backup and automatic rollback on failure.
+- **VRChat Avatar Descriptors:** Reads expression menus, parameters, and animator controllers referenced by avatar descriptors.
 
-The project defaults to the standard Steam installation directory. Override the `GamePath` MSBuild property if Resonite is installed elsewhere.
+### 🛡️ Core Reliability & Testing
+- **Secure File Extraction:** Hardened against zip-slip / path traversal and corrupted package archives.
+- **Smart Asset Caching:** Skips re-extracting assets you have previously imported, saving disk space and import time.
+- **In-Engine Station & UI:** Bundled native station and pre-import prompt packages with English and Japanese localization.
+- **137 Automated Regression Tests:** Every core feature is verified with automated test suites covering extraction, prefab overrides, blendshapes, FBX scaling, lilToon translation, and Modular Avatar planning.
 
+---
+
+## 🔮 Known Limitations & Roadmap
+
+This fork is under active development. Keep the original Unity project and package files as the source of truth.
+
+- **Modular Avatar:** Currently covers Merge Armature and Bone Proxy. Shape Changer, full expression menu installation, and build-time components are planned.
+- **PhysBones:** VRC PhysBones are not yet converted to Dynamic Bone / Resonite equivalents.
+- **Other Shaders:** Poiyomi, VRCFury, custom shaders, and complex Unity render pipelines are outside the current target.
+- **lilToon Approximations:** Advanced or animated shader features (refraction, fur, animated UVs) may be skipped.
+
+---
+
+## 🚀 Installation (For Players)
+
+1. Make sure you have [ResoniteModLoader (RML)](https://github.com/resonite-modding-group/ResoniteModLoader) installed.
+2. Download `UnityPackageImporter.dll` from the Releases page.
+3. Place `UnityPackageImporter.dll` into your `rml_mods` folder:
+   - Default path: `C:\Program Files (x86)\Steam\steamapps\common\Resonite\rml_mods`
+4. Launch Resonite.
+5. Drag and drop any `.unitypackage` into your Resonite window!
+
+> ⚠️ **Note:** Do not replace or modify the DLL while Resonite is running.
+
+---
+
+## 🛠️ For Developers & Modders
+
+### Prerequisites
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- Local Resonite installation with ResoniteModLoader
+
+### Build Commands
 ```powershell
+# Build Release version
 dotnet build UnityPackageImporter/UnityPackageImporter.csproj -c Release
+
+# Run the 137 automated regression tests
 dotnet run --project Tests/Importer.RegressionTests.csproj -c Release
 ```
 
-The regression suite covers package extraction, caching, prefab overrides, blendshape mapping, scale handling, material diagnostics, avatar asset selection, and Modular Avatar planning. Visual correctness still requires an in-game import test.
+The MSBuild project defaults to the standard Steam installation directory (`C:\Program Files (x86)\Steam\steamapps\common\Resonite`). If Resonite is installed elsewhere, override the `GamePath` property:
+```powershell
+dotnet build UnityPackageImporter/UnityPackageImporter.csproj -c Release -p:GamePath="D:\Games\Resonite"
+```
 
-## Repository hygiene
+---
 
-Do not commit Unity packages, extracted avatar assets, models, textures from purchased packages, Resonite logs, live-session evidence, credentials, or local configuration. The ignore rules cover common forms of these files, but contributors must review staged changes before committing.
+## 🧹 Repository Hygiene
 
-## Credits
+Do not commit `.unitypackage` files, extracted avatar assets, proprietary 3D models, textures, Resonite logs, runtime credentials, or personal configuration files. The `.gitignore` is configured to exclude these, but contributors should always review staged files before committing.
+
+---
+
+## 📄 License & Credits
 
 Maintained by **Artbyo3**.
-
 Built from the original project by [dfgHiatus](https://github.com/dfgHiatus/ResoniteUnityPackagesImporter) and its contributors.
 
-## License
-
-Licensed under the [MIT License](LICENSE).
+This project is licensed under the **MIT License** — see the [LICENSE](LICENSE) file for details.

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using FrooxEngine;
@@ -99,37 +100,210 @@ public class PrefabInstance : IUnityObject
                 this.PrefabHashes = importask.FILEID_To_Slot_Pairs;
                 this.PrefabHashes.Add(importrootsource, ImportRoot);
                 List<IUnityObject> modifiedObjects = new List<IUnityObject>();
-                if (m_Modification != null && this.PrefabHashes != null)
-                {
-                    foreach (ModsPrefab mod in m_Modification.m_Modifications)
-                    {
-                        IUnityObject targetobj2 = null;
-                        IUnityObject targetobj3 = null;
-                        if (this.PrefabHashes.TryGetValue(mod.target, out IUnityObject targetobj) || importer.existingIUnityObjects.TryGetValue((ulong)(mod.target.fileID + (2 ^ 64)), out targetobj2) || importer.existingIUnityObjects.TryGetValue((ulong)(mod.target.fileID), out targetobj3))
-                        {
-                            targetobj = targetobj ?? targetobj2 ?? targetobj3; //get first available match.
 
-                            if (MModificationsParser.ParseModifcation(targetobj, mod))
+                var lineageGuids = PrefabVariantResolver.GetLineageGuids(
+                    this.m_SourcePrefab?.guid,
+                    resolvedFbxGuid,
+                    importer.unityProjectImporter?.ListOfPrefabs);
+
+                // Dictionary to map ancestor file IDs (and GUIDs) to the instantiated objects in PrefabHashes
+                var ancestorTargetMap = new Dictionary<SourceObj, IUnityObject>(new SourceObjCompare());
+                var ancestorIdToTarget = new Dictionary<long, IUnityObject>();
+                var hashIdToTarget = new Dictionary<long, IUnityObject>();
+                foreach (var kvp in this.PrefabHashes)
+                {
+                    hashIdToTarget[kvp.Key.fileID] = kvp.Value;
+                }
+
+                var ancestorPiIds = new HashSet<long>();
+                if (this.id != 0)
+                    ancestorPiIds.Add((long)this.id);
+
+                // 1. Replay modifications from ancestor prefabs (oldest ancestor first)
+                var ancestors = PrefabVariantResolver.GetAncestorPrefabs(
+                    this.m_SourcePrefab?.guid,
+                    importer.unityProjectImporter?.ListOfPrefabs);
+
+                foreach (var (_, ancestorFile) in ancestors)
+                {
+                    foreach (var piId in PrefabVariantResolver.FindPrefabInstanceIds(ancestorFile))
+                    {
+                        ancestorPiIds.Add(piId);
+                    }
+                }
+
+                foreach (var (ancestorGuid, ancestorFile) in ancestors)
+                {
+                    try
+                    {
+                        var ancestorObjects = YamlToFrooxEngine.parseYaml(ancestorFile);
+                        var goNames = new Dictionary<ulong, string>();
+                        foreach (var kvp in ancestorObjects)
+                        {
+                            if (kvp.Value is GameObject go && !string.IsNullOrEmpty(go.m_Name))
+                                goNames[kvp.Key] = go.m_Name;
+                            if (kvp.Value is PrefabInstance pi && pi.id != 0)
+                                ancestorPiIds.Add((long)pi.id);
+                            if (kvp.Value?.m_PrefabInstance != null && kvp.Value.m_PrefabInstance.TryGetValue("fileID", out ulong piVal) && piVal != 0)
+                                ancestorPiIds.Add((long)piVal);
+                        }
+
+                        // Pre-populate derived IDs for any ancestor PrefabInstances
+                        foreach (long piId in ancestorPiIds)
+                        {
+                            foreach (var kvp in this.PrefabHashes)
                             {
-                                UnityPackageImporter.Msg("The prefab with a file id of \"" + id.ToString() + "\" in the structure scene has parsed a modification with the hash \"" + mod.target.ToString() + "\" successfully.");
-                                if (!modifiedObjects.Contains(targetobj))
+                                long derivedId = PrefabVariantResolver.ComputeDerivedFileId(piId, kvp.Key.fileID);
+                                if (!ancestorIdToTarget.ContainsKey(derivedId))
                                 {
-                                    modifiedObjects.Add(targetobj);
+                                    ancestorIdToTarget[derivedId] = kvp.Value;
+                                    ancestorTargetMap[new SourceObj(derivedId, ancestorGuid, kvp.Key.type)] = kvp.Value;
+                                    ancestorTargetMap[new SourceObj(derivedId, resolvedFbxGuid, kvp.Key.type)] = kvp.Value;
+                                    ancestorTargetMap[new SourceObj(derivedId, "", kvp.Key.type)] = kvp.Value;
                                 }
                             }
-                            else
-                            {
-                                UnityPackageImporter.Warn("The prefab with a file id of \"" + id.ToString() + "\" in the structure scene is malformed!!! The modification with the hash \"" + mod.target.ToString() + "\" could not be parsed!");
-                            }
-
                         }
-                        else
+
+                        var hashSkins = this.PrefabHashes.Values.OfType<SkinnedMeshRenderer>().ToList();
+                        var hashGos = this.PrefabHashes.Values.OfType<GameObject>().ToList();
+
+                        foreach (var kvp in ancestorObjects)
                         {
-                            UnityPackageImporter.Warn("The prefab with a file id of \"" + id.ToString() + "\" in the structure scene is malformed!!! The modification with the hash \"" + mod.target.ToString() + "\" does not match any in the list of hashes on the prefab \"" + id.ToString() + "\"");
+                            if (kvp.Value is PrefabInstance ancestorPi && ancestorPi.m_Modification?.m_Modifications != null)
+                            {
+                                ApplyModifications(ancestorPi.m_Modification.m_Modifications, importer, resolvedFbxGuid, lineageGuids, modifiedObjects, ancestorTargetMap, ancestorIdToTarget, ancestorPiIds, hashIdToTarget);
+                            }
+                            else if (kvp.Value is SkinnedMeshRenderer ancestorSkin)
+                            {
+                                SkinnedMeshRenderer targetSkin = null;
+                                if (ancestorSkin.m_CorrespondingSourceObject != null && ancestorSkin.m_CorrespondingSourceObject.fileID != 0)
+                                {
+                                    if (this.PrefabHashes.TryGetValue(new SourceObj(ancestorSkin.m_CorrespondingSourceObject.fileID, resolvedFbxGuid, 3), out var direct) && direct is SkinnedMeshRenderer dSkin)
+                                        targetSkin = dSkin;
+                                    if (targetSkin == null && hashIdToTarget.TryGetValue(ancestorSkin.m_CorrespondingSourceObject.fileID, out var directObj) && directObj is SkinnedMeshRenderer dSkin2)
+                                        targetSkin = dSkin2;
+                                    if (targetSkin == null && ancestorIdToTarget.TryGetValue(ancestorSkin.m_CorrespondingSourceObject.fileID, out var mappedObj) && mappedObj is SkinnedMeshRenderer dSkin3)
+                                        targetSkin = dSkin3;
+                                }
+
+                                if (targetSkin == null && ancestorSkin.m_Mesh != null && ancestorSkin.m_Mesh.fileID != 0)
+                                {
+                                    targetSkin = hashSkins.FirstOrDefault(h => h.m_Mesh != null && h.m_Mesh.fileID == ancestorSkin.m_Mesh.fileID);
+                                }
+
+                                if (targetSkin == null && ancestorSkin.m_GameObject != null && ancestorSkin.m_GameObject.TryGetValue("fileID", out var goId) && goNames.TryGetValue(goId, out var goName))
+                                {
+                                    targetSkin = hashSkins.FirstOrDefault(h => h.createdMeshRenderer?.Slot?.Name == goName)
+                                        ?? hashSkins.FirstOrDefault(h => h.createdMeshRenderer?.Slot?.Name?.Equals(goName, StringComparison.OrdinalIgnoreCase) == true);
+                                }
+
+                                if (targetSkin == null && hashSkins.Count == 1)
+                                {
+                                    targetSkin = hashSkins[0];
+                                }
+
+                                if (targetSkin != null)
+                                {
+                                    ancestorTargetMap[new SourceObj((long)ancestorSkin.id, ancestorGuid, 3)] = targetSkin;
+                                    ancestorTargetMap[new SourceObj((long)ancestorSkin.id, resolvedFbxGuid, 3)] = targetSkin;
+                                    ancestorTargetMap[new SourceObj((long)ancestorSkin.id, "", 3)] = targetSkin;
+                                    ancestorIdToTarget[(long)ancestorSkin.id] = targetSkin;
+                                    if (ancestorSkin.m_CorrespondingSourceObject != null && ancestorSkin.m_CorrespondingSourceObject.fileID != 0)
+                                        ancestorIdToTarget[ancestorSkin.m_CorrespondingSourceObject.fileID] = targetSkin;
+
+                                    if (ancestorSkin.m_Materials != null && ancestorSkin.m_Materials.Count > 0)
+                                    {
+                                        for (int i = 0; i < ancestorSkin.m_Materials.Count; i++)
+                                        {
+                                            var mat = ancestorSkin.m_Materials[i];
+                                            if (mat != null && !string.IsNullOrEmpty(mat.guid))
+                                            {
+                                                while (targetSkin.m_Materials.Count <= i)
+                                                    targetSkin.m_Materials.Add(new SourceObj());
+                                                if (string.IsNullOrEmpty(targetSkin.m_Materials[i]?.guid))
+                                                {
+                                                    targetSkin.m_Materials[i] = mat;
+                                                    if (!modifiedObjects.Contains(targetSkin))
+                                                        modifiedObjects.Add(targetSkin);
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            else if (kvp.Value is GameObject ancestorGo)
+                            {
+                                GameObject targetGo = null;
+                                if (ancestorGo.m_CorrespondingSourceObject != null && ancestorGo.m_CorrespondingSourceObject.fileID != 0)
+                                {
+                                    if (this.PrefabHashes.TryGetValue(new SourceObj(ancestorGo.m_CorrespondingSourceObject.fileID, resolvedFbxGuid, 1), out var directGo) ||
+                                        this.PrefabHashes.TryGetValue(new SourceObj(ancestorGo.m_CorrespondingSourceObject.fileID, resolvedFbxGuid, 3), out directGo) ||
+                                        this.PrefabHashes.TryGetValue(new SourceObj(ancestorGo.m_CorrespondingSourceObject.fileID, ancestorGo.m_CorrespondingSourceObject.guid, 3), out directGo))
+                                    {
+                                        targetGo = directGo as GameObject;
+                                    }
+                                    if (targetGo == null && hashIdToTarget.TryGetValue(ancestorGo.m_CorrespondingSourceObject.fileID, out var directObj) && directObj is GameObject dGo)
+                                        targetGo = dGo;
+                                    if (targetGo == null && ancestorIdToTarget.TryGetValue(ancestorGo.m_CorrespondingSourceObject.fileID, out var mappedObj) && mappedObj is GameObject mGo)
+                                        targetGo = mGo;
+                                }
+                                if (targetGo == null && !string.IsNullOrEmpty(ancestorGo.m_Name))
+                                {
+                                    targetGo = hashGos.FirstOrDefault(h => h.frooxEngineSlot?.Name == ancestorGo.m_Name)
+                                        ?? hashGos.FirstOrDefault(h => h.frooxEngineSlot?.Name?.Equals(ancestorGo.m_Name, StringComparison.OrdinalIgnoreCase) == true);
+                                }
+                                if (targetGo != null)
+                                {
+                                    ancestorTargetMap[new SourceObj((long)ancestorGo.id, ancestorGuid, 1)] = targetGo;
+                                    ancestorTargetMap[new SourceObj((long)ancestorGo.id, resolvedFbxGuid, 1)] = targetGo;
+                                    ancestorTargetMap[new SourceObj((long)ancestorGo.id, "", 1)] = targetGo;
+                                    ancestorIdToTarget[(long)ancestorGo.id] = targetGo;
+                                    if (ancestorGo.m_CorrespondingSourceObject != null && ancestorGo.m_CorrespondingSourceObject.fileID != 0)
+                                        ancestorIdToTarget[ancestorGo.m_CorrespondingSourceObject.fileID] = targetGo;
+                                }
+                            }
+                            else if (kvp.Value is Transform ancestorTr)
+                            {
+                                IUnityObject targetTr = null;
+                                if (ancestorTr.m_CorrespondingSourceObject != null && ancestorTr.m_CorrespondingSourceObject.fileID != 0)
+                                {
+                                    if (this.PrefabHashes.TryGetValue(new SourceObj(ancestorTr.m_CorrespondingSourceObject.fileID, resolvedFbxGuid, 4), out var directTr) ||
+                                        this.PrefabHashes.TryGetValue(new SourceObj(ancestorTr.m_CorrespondingSourceObject.fileID, resolvedFbxGuid, 3), out directTr))
+                                    {
+                                        targetTr = directTr;
+                                    }
+                                    if (targetTr == null && hashIdToTarget.TryGetValue(ancestorTr.m_CorrespondingSourceObject.fileID, out var directObj))
+                                        targetTr = directObj;
+                                    if (targetTr == null && ancestorIdToTarget.TryGetValue(ancestorTr.m_CorrespondingSourceObject.fileID, out var mappedObj))
+                                        targetTr = mappedObj;
+                                }
+                                if (targetTr == null && ancestorTr.m_GameObjectID != 0)
+                                {
+                                    if (ancestorIdToTarget.TryGetValue((long)ancestorTr.m_GameObjectID, out var parentGo))
+                                        targetTr = parentGo;
+                                }
+                                if (targetTr != null)
+                                {
+                                    ancestorTargetMap[new SourceObj((long)ancestorTr.id, ancestorGuid, 4)] = targetTr;
+                                    ancestorTargetMap[new SourceObj((long)ancestorTr.id, resolvedFbxGuid, 4)] = targetTr;
+                                    ancestorTargetMap[new SourceObj((long)ancestorTr.id, "", 4)] = targetTr;
+                                    ancestorIdToTarget[(long)ancestorTr.id] = targetTr;
+                                    if (ancestorTr.m_CorrespondingSourceObject != null && ancestorTr.m_CorrespondingSourceObject.fileID != 0)
+                                        ancestorIdToTarget[ancestorTr.m_CorrespondingSourceObject.fileID] = targetTr;
+                                }
+                            }
                         }
-
                     }
+                    catch (Exception ex)
+                    {
+                        UnityPackageImporter.Warn("Failed to replay ancestor modifications from " + ancestorFile + ": " + ex.Message);
+                    }
+                }
 
+                // 2. Apply this variant's modifications on top
+                if (m_Modification != null && this.PrefabHashes != null)
+                {
+                    ApplyModifications(m_Modification.m_Modifications, importer, resolvedFbxGuid, lineageGuids, modifiedObjects, ancestorTargetMap, ancestorIdToTarget, ancestorPiIds, hashIdToTarget);
                 }
 
                 instanciated = true;
@@ -140,6 +314,7 @@ public class PrefabInstance : IUnityObject
                 {
                     // This is so that it can find it's source, which is ourselves to prevent errors - @989onan
                     obj.m_PrefabInstance = new Dictionary<string, ulong> { { "fileID", this.id } };
+                    obj.instanciated = false;
                     try
                     {
                         UnityPackageImporter.Msg("reinitializing object that was modified. the object has an id of: \"" + obj.m_CorrespondingSourceObject.fileID + "\"");
@@ -235,51 +410,153 @@ public class PrefabInstance : IUnityObject
         return result.ToString();
     }
 
-    private string ResolveFBXGuid(IUnityStructureImporter importer, string sourceGuid)
+    private IUnityObject FindTargetObject(
+        IUnityStructureImporter importer,
+        ModsPrefab mod,
+        string resolvedFbxGuid,
+        HashSet<string> lineageGuids,
+        Dictionary<SourceObj, IUnityObject> ancestorTargetMap = null,
+        Dictionary<long, IUnityObject> ancestorIdToTarget = null,
+        HashSet<long> ancestorPiIds = null,
+        Dictionary<long, IUnityObject> hashIdToTarget = null)
     {
-        if (string.IsNullOrEmpty(sourceGuid)) return null;
-        if (importer?.unityProjectImporter?.SharedImportedFBXScenes == null) return null;
+        if (mod?.target == null) return null;
 
-        var visited = new HashSet<string>();
-        string currentGuid = sourceGuid;
-        while (!string.IsNullOrEmpty(currentGuid) && visited.Add(currentGuid))
+        // 1. Direct match in PrefabHashes
+        if (this.PrefabHashes != null && this.PrefabHashes.TryGetValue(mod.target, out IUnityObject directTarget))
+            return directTarget;
+
+        // 2. Ancestor target map match (by SourceObj or fileID across ancestor prefabs)
+        if (ancestorTargetMap != null && ancestorTargetMap.TryGetValue(mod.target, out IUnityObject ancestorTarget))
+            return ancestorTarget;
+
+        if (ancestorTargetMap != null && !string.IsNullOrEmpty(resolvedFbxGuid))
         {
-            if (importer.unityProjectImporter.SharedImportedFBXScenes.ContainsKey(currentGuid))
-            {
-                return currentGuid;
-            }
+            SourceObj fbxTarget = new SourceObj(mod.target.fileID, resolvedFbxGuid, mod.target.type);
+            if (ancestorTargetMap.TryGetValue(fbxTarget, out IUnityObject mappedFbxTarget))
+                return mappedFbxTarget;
 
-            if (importer.unityProjectImporter.ListOfPrefabs != null && importer.unityProjectImporter.ListOfPrefabs.TryGetValue(currentGuid, out string prefabFile) && File.Exists(prefabFile))
+            SourceObj emptyTarget = new SourceObj(mod.target.fileID, "", mod.target.type);
+            if (ancestorTargetMap.TryGetValue(emptyTarget, out IUnityObject mappedEmptyTarget))
+                return mappedEmptyTarget;
+        }
+
+        if (ancestorIdToTarget != null && ancestorIdToTarget.TryGetValue(mod.target.fileID, out IUnityObject idTarget))
+            return idTarget;
+
+        // 3. Lineage match: if mod.target.guid belongs to the ancestor lineage or is empty,
+        // map it to the underlying FBX GUID that keys the duplicated slot components in PrefabHashes.
+        if (this.PrefabHashes != null && !string.IsNullOrEmpty(resolvedFbxGuid))
+        {
+            if (PrefabVariantResolver.TryResolveTargetKey(
+                mod.target.fileID,
+                mod.target.guid,
+                resolvedFbxGuid,
+                lineageGuids,
+                out string resolvedTargetGuid))
             {
-                string fbxGuid = FindSourceGuidInPrefabFile(prefabFile);
-                if (!string.IsNullOrEmpty(fbxGuid))
+                SourceObj resolvedTarget = new SourceObj(mod.target.fileID, resolvedTargetGuid, mod.target.type);
+                if (this.PrefabHashes.TryGetValue(resolvedTarget, out IUnityObject lineageTarget))
+                    return lineageTarget;
+            }
+        }
+
+        // 4. Reverse derived file ID match: when a Prefab Variant modifies objects inside a nested
+        // PrefabInstance, Unity derives targetFileId = (parentPrefabInstanceId ^ baseFileId) & 0x7FFFFFFFFFFFFFFF.
+        if (ancestorPiIds != null && ancestorPiIds.Count > 0)
+        {
+            foreach (long piId in ancestorPiIds)
+            {
+                if (piId == 0) continue;
+                var (cand1, cand2) = PrefabVariantResolver.ReverseDerivedFileId(piId, mod.target.fileID);
+
+                if (ancestorIdToTarget != null)
                 {
-                    currentGuid = fbxGuid;
-                    continue;
+                    if (ancestorIdToTarget.TryGetValue(cand1, out IUnityObject target1)) return target1;
+                    if (ancestorIdToTarget.TryGetValue(cand2, out IUnityObject target2)) return target2;
+                }
+
+                if (hashIdToTarget != null)
+                {
+                    if (hashIdToTarget.TryGetValue(cand1, out IUnityObject target3)) return target3;
+                    if (hashIdToTarget.TryGetValue(cand2, out IUnityObject target4)) return target4;
+                }
+
+                if (this.PrefabHashes != null && !string.IsNullOrEmpty(resolvedFbxGuid))
+                {
+                    SourceObj s1 = new SourceObj(cand1, resolvedFbxGuid, mod.target.type);
+                    if (this.PrefabHashes.TryGetValue(s1, out IUnityObject target5)) return target5;
+                    SourceObj s2 = new SourceObj(cand2, resolvedFbxGuid, mod.target.type);
+                    if (this.PrefabHashes.TryGetValue(s2, out IUnityObject target6)) return target6;
+                }
+
+                if (importer?.existingIUnityObjects != null)
+                {
+                    if (importer.existingIUnityObjects.TryGetValue(unchecked((ulong)cand1), out IUnityObject localTarget1)) return localTarget1;
+                    if (importer.existingIUnityObjects.TryGetValue(unchecked((ulong)cand2), out IUnityObject localTarget2)) return localTarget2;
                 }
             }
-            break;
         }
+
+        // 5. Fallback: match by file ID in existing objects deserialized in current task
+        if (importer?.existingIUnityObjects != null)
+        {
+            if (importer.existingIUnityObjects.TryGetValue((ulong)mod.target.fileID, out IUnityObject localTarget))
+                return localTarget;
+            if (importer.existingIUnityObjects.TryGetValue(unchecked((ulong)mod.target.fileID), out localTarget))
+                return localTarget;
+        }
+
         return null;
+    }
+
+    private void ApplyModifications(
+        IEnumerable<ModsPrefab> modifications,
+        IUnityStructureImporter importer,
+        string resolvedFbxGuid,
+        HashSet<string> lineageGuids,
+        List<IUnityObject> modifiedObjects,
+        Dictionary<SourceObj, IUnityObject> ancestorTargetMap = null,
+        Dictionary<long, IUnityObject> ancestorIdToTarget = null,
+        HashSet<long> ancestorPiIds = null,
+        Dictionary<long, IUnityObject> hashIdToTarget = null)
+    {
+        if (modifications == null) return;
+        foreach (ModsPrefab mod in modifications)
+        {
+            IUnityObject targetobj = FindTargetObject(importer, mod, resolvedFbxGuid, lineageGuids, ancestorTargetMap, ancestorIdToTarget, ancestorPiIds, hashIdToTarget);
+            if (targetobj != null)
+            {
+                if (MModificationsParser.ParseModifcation(targetobj, mod))
+                {
+                    UnityPackageImporter.Msg("The prefab with a file id of \"" + id.ToString() + "\" in the structure scene has parsed a modification with the hash \"" + mod.target.ToString() + "\" successfully.");
+                    if (!modifiedObjects.Contains(targetobj))
+                    {
+                        modifiedObjects.Add(targetobj);
+                    }
+                }
+                else
+                {
+                    UnityPackageImporter.Warn("The prefab with a file id of \"" + id.ToString() + "\" in the structure scene is malformed!!! The modification with the hash \"" + mod.target.ToString() + "\" could not be parsed!");
+                }
+            }
+            else
+            {
+                UnityPackageImporter.Warn("The prefab with a file id of \"" + id.ToString() + "\" in the structure scene is malformed!!! The modification with the hash \"" + mod.target.ToString() + "\" does not match any in the list of hashes on the prefab \"" + id.ToString() + "\"");
+            }
+        }
+    }
+
+    private string ResolveFBXGuid(IUnityStructureImporter importer, string sourceGuid)
+    {
+        return PrefabVariantResolver.ResolveFbxGuid(
+            sourceGuid,
+            importer?.unityProjectImporter?.ListOfPrefabs,
+            importer?.unityProjectImporter?.SharedImportedFBXScenes?.Keys);
     }
 
     private static string FindSourceGuidInPrefabFile(string file)
     {
-        try
-        {
-            foreach (var line in File.ReadLines(file))
-            {
-                if (line.Contains("m_SourcePrefab:") && line.Contains("guid:"))
-                {
-                    var parts = line.Split(new[] { "guid:" }, StringSplitOptions.None);
-                    if (parts.Length > 1)
-                    {
-                        return parts[1].Split(new[] { ',', ' ', '}', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)[0].Trim();
-                    }
-                }
-            }
-        }
-        catch { }
-        return null;
+        return PrefabVariantResolver.FindSourceGuidInPrefabFile(file);
     }
 }

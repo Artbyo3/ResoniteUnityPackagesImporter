@@ -123,6 +123,7 @@ public class FileImportTaskScene
             assimpContext.Dispose();
         }
 
+        importer.Session?.Check();
         this.importDialogue?.UpdateProgress(0f, "", "Preprocessing scene for file " + Path.GetFileName(file));
         if (scene?.RootNode == null)
             throw new InvalidDataException("Model has no scene root: " + file);
@@ -136,6 +137,9 @@ public class FileImportTaskScene
         await default(ToWorld);
         importer.Session?.Check();
         await ImportNodeAsync(scene.RootNode, targetSlot, data);
+        importer.Session?.Check();
+
+        await default(ToWorld);
         importer.Session?.Check();
 
         UnityPackageImporter.Msg("retrieving scene root for file: " + Path.GetFileName(file));
@@ -156,7 +160,11 @@ public class FileImportTaskScene
             await default(ToBackground);
         }
 
+        // Match native ImportModel ordering: finish hierarchy transforms, then
+        // bind and finalize every skin before exposing the template to copies.
+        await InitializeSkinsAsync();
         await default(ToWorld);
+        importer.Session?.Check();
         sceneRootSlot.Tag = "PREFABROOTTAG1234";
         await default(ToBackground);
 
@@ -178,12 +186,12 @@ public class FileImportTaskScene
         {
             UnityPackageImporter.Msg("scanning files for ids for mesh renderer "+mesh.Slot.Name);
             FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer skinnedrenderer = new FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer();
-            SourceObj identifier = this.findRealSource(mesh.Slot.Name, "SkinnedMeshRenderer", "//RootNode/root/" + mesh.Slot.Name);
+            SourceObj identifier = this.FindSource(mesh.Slot.Name, UnityModelClassId.SkinnedMeshRenderer, "//RootNode/root/" + mesh.Slot.Name);
             identifier.guid = this.assetID;
             skinnedrenderer.m_CorrespondingSourceObject = identifier;
             skinnedrenderer.createdMeshRenderer = mesh;
             sourceBlendShapeNames.TryGetValue(mesh.Slot.Name, out skinnedrenderer.SourceBlendShapeNames);
-            skinnedrenderer.m_Mesh = this.findRealSource(mesh.Slot.Name, "Mesh", mesh.Slot.Name); //this allows us to identify this object by mesh, which is useful for prefabs.
+            skinnedrenderer.m_Mesh = this.FindSource(mesh.Slot.Name, UnityModelClassId.Mesh, mesh.Slot.Name); //this allows us to identify this object by mesh, which is useful for prefabs.
             skinnedrenderer.m_Mesh.guid = this.assetID;
             UnityPackageImporter.Msg("id for mesh \""+mesh.Slot.Name+"\" is \""+ skinnedrenderer.m_Mesh.ToString() + "\"files for ids for mesh renderer " + mesh.Slot.Name);
             UnityPackageImporter.Msg("id for skinned mesh renderer \"" + mesh.Slot.Name + "\" is \"" + identifier.ToString()+"\"");
@@ -231,33 +239,24 @@ public class FileImportTaskScene
         {
             UnityPackageImporter.Msg("giving a skinned mesh renderer materials for file: " + file);
             FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer skinnedrenderer = new FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer();
-            SourceObj identifier = copy.findRealSource(mesh.Slot.Name, "SkinnedMeshRenderer", "//RootNode/root/" + mesh.Slot.Name);
+            SourceObj identifier = copy.FindSource(mesh.Slot.Name, UnityModelClassId.SkinnedMeshRenderer, "//RootNode/root/" + mesh.Slot.Name);
             skinnedrenderer.m_CorrespondingSourceObject = identifier;
             identifier.guid = copy.assetID;
             UnityPackageImporter.Msg("path for mesh \""+ mesh.Slot.Name + "\"" + identifier.ToString());
 
-            skinnedrenderer.m_Mesh = copy.findRealSource(mesh.Slot.Name, "Mesh", mesh.Slot.Name); //this allows us to identify this object by mesh, which is useful for prefabs.
+            skinnedrenderer.m_Mesh = copy.FindSource(mesh.Slot.Name, UnityModelClassId.Mesh, mesh.Slot.Name); //this allows us to identify this object by mesh, which is useful for prefabs.
 
             skinnedrenderer.createdMeshRenderer = mesh;
             copy.sourceBlendShapeNames.TryGetValue(mesh.Slot.Name, out skinnedrenderer.SourceBlendShapeNames);
 
             await default(ToWorld);
-            while (true)
-            {
-                importer.Session?.Check();
-                if (mesh.IsDestroyed || copy.targetSlot.IsDestroyed)
-                    throw new OperationCanceledException("Imported mesh was removed while loading.");
-                if (mesh.Mesh.IsAssetAvailable) break;
-                await default(NextUpdate);
-            }
+            await ImportMeshReadiness.WaitAsync(new[] { mesh }, importer.Session?.Token ?? default);
             await default(ToWorld);
 
-            Dictionary<string, Slot> bonemappings = new Dictionary<string, Slot>();
-            foreach (var bone in skinnedrenderer.createdMeshRenderer.Mesh.Asset.Data.Bones)
-            {
-                bonemappings.Add(bone.Name, copy.FinishedFileSlot.FindChildInHierarchy(bone.Name));
-            }
-            skinnedrenderer.createdMeshRenderer.SetupBones(bonemappings);
+            // Duplicate already remaps references inside the copied hierarchy.
+            // Searching by name here can replace a bone with an unrelated mesh
+            // or a same-named bone in a different armature.
+            ValidateSkin(mesh, copy.FinishedFileSlot);
               FrooxInternalBridge.SetupBlendShapes(skinnedrenderer.createdMeshRenderer);
               // Each prefab owns a separate list. Sparse Unity overrides must keep
               // the copied mesh's defaults at all untouched indices.
@@ -339,7 +338,7 @@ public class FileImportTaskScene
                     skinnedrenderer.createdMeshRenderer.Materials.Add().Target = material;
                     await default(ToBackground);
                 }
-                catch (Exception e)
+                catch (Exception e) when (e is not OperationCanceledException)
                 {
                     UnityPackageImporter.Warn("Could not attach material  \"" + counter.ToString() + "\" for initial import on mesh \"" + skinnedrenderer.createdMeshRenderer.Slot.Name + "\" from skinned mesh renderer data. It's probably not in the project or in the files you dragged over.");
                     UnityPackageImporter.Warn("stacktrace for material \"" + counter.ToString() + "\" for initial import on mesh \"" + skinnedrenderer.createdMeshRenderer.Slot.Name + "\"");
@@ -354,6 +353,62 @@ public class FileImportTaskScene
         }
 
         return copy;
+    }
+
+    private static bool IsInside(Slot slot, Slot root)
+    {
+        for (var current = slot; current != null; current = current.Parent)
+            if (current == root) return true;
+        return false;
+    }
+
+    private async Task InitializeSkinsAsync()
+    {
+        await default(ToWorld);
+        importer.Session?.Check();
+        var skins = targetSlot.GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>().ToArray();
+        await ImportMeshReadiness.WaitAsync(skins, importer.Session?.Token ?? default);
+        await default(ToWorld);
+        importer.Session?.Check();
+        foreach (var skin in skins)
+        {
+            if (skin.Mesh.Target is not StaticMesh staticMesh)
+                throw new InvalidDataException("Native model import did not produce a static mesh provider.");
+            var mapping = SkinBoneMapping.ResolveNative(skin.Mesh.Asset.Data.Bones.Select(bone => bone.Name),
+                FrooxInternalBridge.TryGetBoneMapping(data, staticMesh), () => BoneCandidates(targetSlot));
+            skin.SetupBones(mapping);
+            ValidateSkin(skin, targetSlot);
+            FrooxInternalBridge.SetupBlendShapes(skin);
+            // ImportNode starts skins in SlowRealtimeAccurate. Native ImportModel
+            // finishes every skin with its final bounds policy after binding.
+            // Do this on the template too: skins without YAML overrides may
+            // never be instantiated individually by the prefab importer.
+            SkinnedBoundsPolicy.ApplyAfterBones(skin, "native FBX template finalization");
+        }
+        UnityPackageImporter.Msg($"Initialized native bone bindings for {skins.Length} imported skin(s).");
+    }
+
+    private static IEnumerable<(string Name, Slot Bone)> BoneCandidates(Slot root)
+    {
+        // Match the native fallback's candidate scope, but reject ambiguous
+        // names rather than selecting whichever same-named joint appears first.
+        if (root.GetComponent<FrooxEngine.MeshRenderer>() != null) yield break;
+        yield return (root.Name, root);
+        foreach (var child in root.Children)
+            foreach (var candidate in BoneCandidates(child)) yield return candidate;
+    }
+
+    private static void ValidateSkin(FrooxEngine.SkinnedMeshRenderer skin, Slot root)
+    {
+        try
+        {
+            SkinBoneMapping.Validate(skin.Mesh.Asset.Data.BoneCount, skin.Bones,
+                bone => !bone.IsDestroyed && IsInside(bone, root));
+        }
+        catch (InvalidDataException error)
+        {
+            throw new InvalidDataException("Invalid bone bindings for '" + skin.Slot.Name + "': " + error.Message, error);
+        }
     }
 
 
@@ -465,7 +520,7 @@ public class FileImportTaskScene
 
         FrooxEngineRepresentation.GameObjectTypes.GameObject calclatedobj = new FrooxEngineRepresentation.GameObjectTypes.GameObject();
         calclatedobj.frooxEngineSlot = curnode;
-        calclatedobj.m_CorrespondingSourceObject = findRealSource(curnode.Name, "GameObject", "//RootNode/root" + FindSlotPath(curnode, Scene));
+        calclatedobj.m_CorrespondingSourceObject = FindSource(curnode.Name, UnityModelClassId.GameObject, "//RootNode/root" + FindSlotPath(curnode, Scene));
         calclatedobj.m_Name = curnode.Name;
         if (!FILEID_into_Slot_Pairs.ContainsKey(calclatedobj.m_CorrespondingSourceObject))
         {
@@ -474,7 +529,7 @@ public class FileImportTaskScene
 
         FrooxEngineRepresentation.GameObjectTypes.Transform calclatedTransformobj = new FrooxEngineRepresentation.GameObjectTypes.Transform();
         calclatedTransformobj.parentHashedGameObj = calclatedobj;
-        calclatedTransformobj.m_CorrespondingSourceObject = findRealSource(curnode.Name, "Transform", "//RootNode/root" + FindSlotPath(curnode, Scene));
+        calclatedTransformobj.m_CorrespondingSourceObject = FindSource(curnode.Name, UnityModelClassId.Transform, "//RootNode/root" + FindSlotPath(curnode, Scene));
 
         // This is so m_modifications work - @989onan
         calclatedTransformobj.m_LocalPosition = new TransformFloat3(calclatedobj.frooxEngineSlot.LocalPosition.x, calclatedobj.frooxEngineSlot.LocalPosition.y, calclatedobj.frooxEngineSlot.LocalPosition.z);
@@ -497,8 +552,9 @@ public class FileImportTaskScene
         return FILEID_into_Slot_Pairs;
     }
 
-    public SourceObj findRealSource(string thisname, string type, string rawpath)
+    private SourceObj FindSource(string thisname, UnityModelClassId classId, string rawpath)
     {
+        string type = classId.ToString();
         SourceObj sourceObj = new SourceObj();
         string endingtype = "";
         if (!type.Equals("GameObject") && !type.Equals("Mesh"))
@@ -513,7 +569,7 @@ public class FileImportTaskScene
 
         foreach (KeyValuePair<long, string> item in this.metafile.fileIDToRecycleName)
         {
-            string numident = UnityObjectMapping.type_name_To_ID[type].ToString();
+            string numident = ((int)classId).ToString();
 
             string nummatch = item.Key.ToString();
 

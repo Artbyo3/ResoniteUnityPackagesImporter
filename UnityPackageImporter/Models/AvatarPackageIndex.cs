@@ -142,10 +142,35 @@ public static class AvatarPackageIndex
             [ObjectToggleScriptGuid] = ModularAvatarComponentKind.ObjectToggle
         };
 
-    public static AvatarPackageManifest ParseFile(string filePath)
+    public static AvatarPackageManifest ParseFile(string filePath, IReadOnlyDictionary<string, string> prefabs = null)
     {
         if (string.IsNullOrWhiteSpace(filePath)) throw new ArgumentException("A prefab or scene path is required.", nameof(filePath));
-        return ParseText(File.ReadAllText(filePath), filePath);
+        var manifest = ParseText(File.ReadAllText(filePath), filePath);
+        if (prefabs != null && manifest.ModularAvatarComponents.Count == 0 && manifest.Avatars.Count == 0 && File.Exists(filePath))
+        {
+            string sourceGuid = PrefabVariantResolver.FindSourceGuidInPrefabFile(filePath);
+            if (!string.IsNullOrEmpty(sourceGuid))
+            {
+                var ancestorFiles = PrefabVariantResolver.GetAncestorPrefabFiles(sourceGuid, prefabs);
+                foreach (var ancestorFile in ancestorFiles)
+                {
+                    if (File.Exists(ancestorFile))
+                    {
+                        var ancestorManifest = ParseFile(ancestorFile, prefabs);
+                        if (ancestorManifest.ModularAvatarComponents.Count > 0 || ancestorManifest.Avatars.Count > 0)
+                        {
+                            return new AvatarPackageManifest
+                            {
+                                SourcePath = filePath,
+                                Avatars = ancestorManifest.Avatars,
+                                ModularAvatarComponents = ancestorManifest.ModularAvatarComponents
+                            };
+                        }
+                    }
+                }
+            }
+        }
+        return manifest;
     }
 
     public static string NormalizeDocumentHeaders(string yaml)

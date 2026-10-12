@@ -17,18 +17,16 @@ public class UnitySceneImportTask: IUnityStructureImporter
     public Slot CurrentStructureRootSlot { get; set; }
 
     public KeyValuePair<string, string> ID { get; set; }
-    public Slot allimportsroot { get; set; }
 
     private float3 GlobalIndicatorPosition;
     public ProgressBarInterface progressIndicator { get; set; }
 
     public UnityProjectImporter unityProjectImporter { get; set; }
 
-    public UnitySceneImportTask(float3 globalPosition, Slot root, KeyValuePair<string, string> ID, UnityProjectImporter unityProjectImporter)
+    public UnitySceneImportTask(float3 globalPosition, KeyValuePair<string, string> ID, UnityProjectImporter unityProjectImporter)
     {
         this.ID = ID;
         this.unityProjectImporter = unityProjectImporter;
-        this.allimportsroot = root;
         this.GlobalIndicatorPosition = globalPosition;
     }
 
@@ -92,6 +90,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
                     UnityPackageImporter.Warn("Scene IUnityObject failed to instanciate!");
                     UnityPackageImporter.Msg("Scene IUnityObject ID: \"" + obj.Value.id.ToString() + "\"");
                     UnityPackageImporter.Warn(e.Message + e.StackTrace);
+                    throw new InvalidDataException("Could not build scene component " + obj.Value.id + " (" + type.Name + ").", e);
                 }
                 try
                 {
@@ -142,14 +141,14 @@ public class UnitySceneImportTask: IUnityStructureImporter
 
             UnityPackageImporter.Msg("re-enabling skinned mesh renderers in scene \""+ID.Value+"\"");
 
-            var renderersToEnable = existingIUnityObjects.Values
-                .OfType<FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer>()
-                .Select(renderer => renderer.createdMeshRenderer)
-                .Where(renderer => renderer != null)
-                .ToList();
+            await default(ToWorld);
+            // Include skins inherited from FBX instances, even when the scene
+            // contains no individual YAML override for those renderers.
+            var renderersToEnable = CurrentStructureRootSlot
+                .GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>();
             await SkinnedBoundsPolicy.StabilizeBeforeEnableAsync(
                 renderersToEnable,
-                "Unity scene activation");
+                "Unity scene activation", unityProjectImporter.Session?.Token ?? default);
 
             await default(ToBackground);
             foreach (var obj in existingIUnityObjects)
@@ -185,7 +184,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
                                     if (unityProjectImporter.SharedImportedFBXScenes.ContainsKey(prefab.m_SourcePrefab.guid))
                                     {
                                         await default(ToWorld);
-                                        await UnityProjectImporter.SettupHumanoid(
+                                        await HumanoidRigSetup.SetupAsync(
                                         prefab.importask,
                                         prefab.ImportRoot.frooxEngineSlot);
                                         await default(ToBackground);

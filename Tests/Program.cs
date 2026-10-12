@@ -340,6 +340,136 @@ Test("Unknown prefab properties are reported without throwing", () =>
           !string.IsNullOrEmpty(error), "Missing property was not reported.");
 });
 
+Test("PrefabVariantResolver resolves target keys across lineage", () =>
+{
+    var fbxGuid = "fbx-guid";
+    var parentGuid = "parent-prefab-guid";
+    var foreignGuid = "unrelated-guid";
+    var lineage = new HashSet<string> { fbxGuid, parentGuid };
+
+    Check(PrefabVariantResolver.TryResolveTargetKey(13700000, parentGuid, fbxGuid, lineage, out var resolvedParent) &&
+          resolvedParent == fbxGuid, "Parent prefab target GUID must resolve to underlying FBX GUID.");
+
+    Check(PrefabVariantResolver.TryResolveTargetKey(13700000, fbxGuid, fbxGuid, lineage, out var resolvedFbx) &&
+          resolvedFbx == fbxGuid, "Direct FBX target GUID must match.");
+
+    Check(PrefabVariantResolver.TryResolveTargetKey(13700000, "", fbxGuid, lineage, out var resolvedEmpty) &&
+          resolvedEmpty == fbxGuid, "Empty target GUID must resolve to FBX GUID.");
+
+    Check(!PrefabVariantResolver.TryResolveTargetKey(13700000, foreignGuid, fbxGuid, lineage, out _),
+        "Foreign target GUID must be rejected.");
+});
+
+Test("Prefab variant overrides preserve parent materials and apply child color variations", () =>
+{
+    var target = new OverrideFixture();
+    var parentMat0 = new TestReference { guid = "parent-jacket-guid" };
+    var parentMat1 = new TestReference { guid = "parent-pants-guid" };
+    var variantMat0 = new TestReference { guid = "child-blue-jacket-guid" };
+
+    Check(UnityPropertyPath.TrySet(target, "m_Materials.Array.data[0]", "", parentMat0, out var err0), err0);
+    Check(UnityPropertyPath.TrySet(target, "m_Materials.Array.data[1]", "", parentMat1, out var err1), err1);
+
+    Check(target.m_Materials.Count == 2, "Parent materials must populate slots.");
+    Check(target.m_Materials[0].guid == "parent-jacket-guid", "Slot 0 should have parent material.");
+    Check(target.m_Materials[1].guid == "parent-pants-guid", "Slot 1 should have parent material.");
+
+    Check(UnityPropertyPath.TrySet(target, "m_Materials.Array.data[0]", "", variantMat0, out var err2), err2);
+
+    Check(target.m_Materials.Count == 2, "Material count should remain 2.");
+    Check(target.m_Materials[0].guid == "child-blue-jacket-guid", "Slot 0 must be overridden with variant material.");
+    Check(target.m_Materials[1].guid == "parent-pants-guid", "Slot 1 must retain inherited parent material.");
+});
+
+Test("PrefabVariantResolver extracts ancestors with GUIDs and orders oldest first", () => InTemp(root =>
+{
+    string rootPrefab = Path.Combine(root, "Base.prefab");
+    string midPrefab = Path.Combine(root, "Mid.prefab");
+    string leafPrefab = Path.Combine(root, "Leaf.prefab");
+
+    File.WriteAllText(rootPrefab, "m_SourcePrefab: {fileID: 0, guid: fbx-guid, type: 3}");
+    File.WriteAllText(midPrefab, "m_SourcePrefab: {fileID: 0, guid: base-guid, type: 3}");
+    File.WriteAllText(leafPrefab, "m_SourcePrefab: {fileID: 0, guid: mid-guid, type: 3}");
+
+    var prefabs = new Dictionary<string, string>
+    {
+        ["base-guid"] = rootPrefab,
+        ["mid-guid"] = midPrefab,
+        ["leaf-guid"] = leafPrefab
+    };
+
+    var ancestors = PrefabVariantResolver.GetAncestorPrefabs("leaf-guid", prefabs);
+    Check(ancestors.Count == 3, "Expected 3 ancestors in chain.");
+    Check(ancestors[0].guid == "base-guid" && ancestors[0].file == rootPrefab, "Oldest ancestor must be base.");
+    Check(ancestors[1].guid == "mid-guid" && ancestors[1].file == midPrefab, "Second ancestor must be mid.");
+    Check(ancestors[2].guid == "leaf-guid" && ancestors[2].file == leafPrefab, "Leaf ancestor must be leaf.");
+
+    var files = PrefabVariantResolver.GetAncestorPrefabFiles("leaf-guid", prefabs);
+    Check(files.Count == 3 && files[0] == rootPrefab && files[2] == leafPrefab, "File paths must match.");
+}));
+
+Test("PrefabVariantResolver computes and reverses derived fileIDs from ancestor PrefabInstances", () =>
+{
+    long piId = 5724301657929574975L;
+    long negativeBaseId = -2689840812872440437L; // TOP_Out.s
+    long expectedDerivedNegative = 1574863555485863860L;
+
+    long derived1 = PrefabVariantResolver.ComputeDerivedFileId(piId, negativeBaseId);
+    Check(derived1 == expectedDerivedNegative, "Derived negative fileID does not match expected XOR result.");
+
+    var (c1, c2) = PrefabVariantResolver.ReverseDerivedFileId(piId, expectedDerivedNegative);
+    Check(c2 == negativeBaseId, "Reversed candidate 2 must match original negative base fileID.");
+
+    long positiveBaseId = 2089319128213806904L; // CHOCKER.s
+    long expectedDerivedPositive = 6020765875543389447L;
+
+    long derived2 = PrefabVariantResolver.ComputeDerivedFileId(piId, positiveBaseId);
+    Check(derived2 == expectedDerivedPositive, "Derived positive fileID does not match expected XOR result.");
+
+    var (c3, c4) = PrefabVariantResolver.ReverseDerivedFileId(piId, expectedDerivedPositive);
+    Check(c3 == positiveBaseId, "Reversed candidate 1 must match original positive base fileID.");
+
+    long rootBaseId = 919132149155446097L; // Root GameObject
+    long expectedDerivedRoot = 4877864411535988590L;
+
+    long derived3 = PrefabVariantResolver.ComputeDerivedFileId(piId, rootBaseId);
+    Check(derived3 == expectedDerivedRoot, "Derived root fileID does not match expected XOR result.");
+
+    var (c5, c6) = PrefabVariantResolver.ReverseDerivedFileId(piId, expectedDerivedRoot);
+    Check(c5 == rootBaseId, "Reversed candidate 1 must match original root base fileID.");
+});
+
+Test("PrefabVariantResolver TryResolveDerivedTarget finds target object from derived fileID", () =>
+{
+    long piId = 5724301657929574975L;
+    var known = new Dictionary<long, string>
+    {
+        [-2689840812872440437L] = "Top_Out",
+        [2089319128213806904L] = "Chocker",
+        [919132149155446097L] = "Root"
+    };
+    var piIds = new[] { piId };
+
+    Check(PrefabVariantResolver.TryResolveDerivedTarget(1574863555485863860L, piIds, known, out var res1) && res1 == "Top_Out",
+        "Should resolve Top_Out via candidate 2.");
+    Check(PrefabVariantResolver.TryResolveDerivedTarget(6020765875543389447L, piIds, known, out var res2) && res2 == "Chocker",
+        "Should resolve Chocker via candidate 1.");
+    Check(PrefabVariantResolver.TryResolveDerivedTarget(4877864411535988590L, piIds, known, out var res3) && res3 == "Root",
+        "Should resolve Root via candidate 1.");
+    Check(!PrefabVariantResolver.TryResolveDerivedTarget(99999999L, piIds, known, out _),
+        "Unrelated fileID should not resolve.");
+});
+
+Test("PrefabVariantResolver FindPrefabInstanceIds extracts IDs from YAML", () => InTemp(root =>
+{
+    string file = Path.Combine(root, "test.prefab");
+    File.WriteAllText(file, "%YAML 1.1\n--- !u!1001 &5724301657929574975\nPrefabInstance:\n  m_ObjectHideFlags: 0\n--- !u!1001 &6373102937916593898 stripped\nPrefabInstance:\n");
+    var ids = PrefabVariantResolver.FindPrefabInstanceIds(file);
+    Check(ids.Count == 2, "Expected 2 PrefabInstance IDs.");
+    Check(ids[0] == 5724301657929574975L, "First ID mismatch.");
+    Check(ids[1] == 6373102937916593898L, "Second ID mismatch.");
+}));
+
 Test("Blendshape defaults convert Unity percentages without clamping", () =>
 {
     var actual = new float[5];
@@ -489,106 +619,6 @@ Test("Model scale factor and unit scaling handles meter avatars and centimeter a
     Check(Math.Abs(cmScale - 1.0f) < 1e-5f, $"Centimeter accessory UnitScaleFactor should be 1.0, got {cmScale}");
     float cmEffective = ModelScaleHelper.CalculateEffectiveScale(1f, true, true, cmScale);
     Check(Math.Abs(cmEffective - 0.01f) < 1e-5f, $"Centimeter accessory effective scale should be 0.01, got {cmEffective}");
-}));
-
-Test("GenerateShadowRampPng produces valid PNG header and chunks", () =>
-{
-    var baseCol = RampColor.White;
-    var sh1 = new RampColor(0.6f, 0.6f, 0.7f, 1f);
-    var sh2 = new RampColor(0.3f, 0.3f, 0.4f, 1f);
-
-    byte[] png = RampGenerator.GenerateShadowRampPng(baseCol, sh1, 0.5f, 0.1f, sh2, 0.25f, 0.1f, 256, 4);
-    Check(png.Length > 50, "PNG output too small.");
-
-    // Check PNG signature
-    byte[] expectedSig = { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A };
-    for (int i = 0; i < 8; i++)
-    {
-        Check(png[i] == expectedSig[i], $"PNG signature mismatch at byte {i}");
-    }
-
-    // Check IHDR, IDAT, IEND chunk presence
-    string ascii = Encoding.ASCII.GetString(png);
-    Check(ascii.Contains("IHDR"), "Missing IHDR chunk");
-    Check(ascii.Contains("IDAT"), "Missing IDAT chunk");
-    Check(ascii.Contains("IEND"), "Missing IEND chunk");
-});
-
-Test("GenerateShadowRampPng gradient endpoints match deep shadow and base colors", () =>
-{
-    var baseCol = new RampColor(1.0f, 0.9f, 0.8f, 1f);
-    var sh1 = new RampColor(0.5f, 0.4f, 0.3f, 1f);
-    var sh2 = new RampColor(0.2f, 0.1f, 0.05f, 1f);
-
-    // Hard borders (blur = 0) to test exact endpoints
-    byte[] png = RampGenerator.GenerateShadowRampPng(baseCol, sh1, 0.6f, 0.0f, sh2, 0.3f, 0.0f, 256, 1);
-    Check(png.Length > 0, "Generated PNG must not be empty");
-
-    // Decompress IDAT to inspect raw pixel scanline
-    // IDAT starts at offset 33 (8 sig + 4 len + 4 IHDR + 13 data + 4 crc)
-    // Find IDAT chunk
-    int idatIdx = -1;
-    for (int i = 0; i < png.Length - 4; i++)
-    {
-        if (png[i] == 'I' && png[i + 1] == 'D' && png[i + 2] == 'A' && png[i + 3] == 'T')
-        {
-            idatIdx = i;
-            break;
-        }
-    }
-    Check(idatIdx >= 0, "Could not find IDAT chunk");
-    int idatLen = (png[idatIdx - 4] << 24) | (png[idatIdx - 3] << 16) | (png[idatIdx - 2] << 8) | png[idatIdx - 1];
-
-    byte[] decompressed;
-    using (var ms = new MemoryStream(png, idatIdx + 4, idatLen))
-    using (var zlib = new ZLibStream(ms, CompressionMode.Decompress))
-    using (var outMs = new MemoryStream())
-    {
-        zlib.CopyTo(outMs);
-        decompressed = outMs.ToArray();
-    }
-
-    // 1 row: 1 filter byte + 256 * 4 RGBA bytes = 1025 bytes
-    Check(decompressed.Length == 1025, $"Expected 1025 decompressed bytes, got {decompressed.Length}");
-    Check(decompressed[0] == 0, "Filter byte must be 0 (None)");
-
-    // Pixel at x=0 (u=0): deep shadow
-    int r0 = decompressed[1];
-    int g0 = decompressed[2];
-    int b0 = decompressed[3];
-    int a0 = decompressed[4];
-    Check(Math.Abs(r0 - (int)(sh2.R * 255f)) <= 1, $"Deep shadow R mismatch: {r0} vs {sh2.R * 255f}");
-    Check(Math.Abs(g0 - (int)(sh2.G * 255f)) <= 1, $"Deep shadow G mismatch: {g0} vs {sh2.G * 255f}");
-    Check(a0 == 255, "Alpha must be 255");
-
-    // Pixel at x=255 (u=1.0): base color
-    int rEnd = decompressed[1 + 255 * 4];
-    int gEnd = decompressed[2 + 255 * 4];
-    int bEnd = decompressed[3 + 255 * 4];
-    Check(Math.Abs(rEnd - (int)(baseCol.R * 255f)) <= 1, $"Base lit R mismatch: {rEnd} vs {baseCol.R * 255f}");
-    Check(Math.Abs(gEnd - (int)(baseCol.G * 255f)) <= 1, $"Base lit G mismatch: {gEnd} vs {baseCol.G * 255f}");
-});
-
-Test("RampGenerator hash determinism and file caching", () => InTemp(root =>
-{
-    var baseCol = RampColor.White;
-    var sh1 = new RampColor(0.7f, 0.7f, 0.7f, 1f);
-    var sh2 = new RampColor(0.4f, 0.4f, 0.4f, 1f);
-
-    string hash1 = RampGenerator.GetRampHash(baseCol, sh1, 0.5f, 0.1f, sh2, 0.25f, 0.1f);
-    string hash2 = RampGenerator.GetRampHash(baseCol, sh1, 0.5f, 0.1f, sh2, 0.25f, 0.1f);
-    Check(hash1 == hash2, "Identical inputs must yield identical hash");
-
-    string hashDiff = RampGenerator.GetRampHash(baseCol, new RampColor(0.8f, 0.7f, 0.7f, 1f), 0.5f, 0.1f, sh2, 0.25f, 0.1f);
-    Check(hash1 != hashDiff, "Different inputs must yield different hash");
-
-    string file1 = RampGenerator.GetOrCreateRampFile(root, baseCol, sh1, 0.5f, 0.1f, sh2, 0.25f, 0.1f);
-    Check(File.Exists(file1), "Ramp file must be written to disk");
-
-    var writeTime1 = File.GetLastWriteTimeUtc(file1);
-    string file2 = RampGenerator.GetOrCreateRampFile(root, baseCol, sh1, 0.5f, 0.1f, sh2, 0.25f, 0.1f);
-    Check(file1 == file2, "GetOrCreateRampFile must return same cached path");
-    Check(File.GetLastWriteTimeUtc(file2) == writeTime1, "Cached file must not be rewritten");
 }));
 
 Test("LilToon multilayer makeup, alpha mask, and shadow mask detection in material data", () => InTemp(root =>
@@ -899,6 +929,138 @@ Test("Reject ambiguous Modular Avatar target bones", () =>
     Check(plan.Mappings.Count == 1, "Ambiguous bones must not be mapped arbitrarily");
 });
 
+Test("Modular Avatar armature merge matches bone names case-insensitively", () =>
+{
+    var avatar = new MergeHierarchyNode
+    {
+        Id = "avatar-root",
+        Name = "armature",
+        Children = new[]
+        {
+            new MergeHierarchyNode
+            {
+                Id = "avatar-hips",
+                Name = "hips",
+                Children = new[]
+                {
+                    new MergeHierarchyNode
+                    {
+                        Id = "avatar-spine",
+                        Name = "spine",
+                        Children = new[]
+                        {
+                            new MergeHierarchyNode { Id = "avatar-chest", Name = "chest" }
+                        }
+                    }
+                }
+            }
+        }
+    };
+    var outfit = new MergeHierarchyNode
+    {
+        Id = "outfit-root",
+        Name = "Armature",
+        Children = new[]
+        {
+            new MergeHierarchyNode
+            {
+                Id = "outfit-hips",
+                Name = "Hips",
+                Children = new[]
+                {
+                    new MergeHierarchyNode
+                    {
+                        Id = "outfit-spine",
+                        Name = "Spine",
+                        Children = new[]
+                        {
+                            new MergeHierarchyNode { Id = "outfit-chest", Name = "Chest" },
+                            new MergeHierarchyNode { Id = "outfit-ribbon", Name = "Ribbon" }
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    var plan = ModularAvatarMergePlanner.CreatePlan(outfit, avatar);
+    Check(plan.CanApply, "Case-insensitive armature matching must succeed without conflicts");
+    Check(plan.Mappings.Count == 4, $"Expected 4 mappings (root + hips + spine + chest), got {plan.Mappings.Count}");
+    Check(plan.Mappings.Any(m => m.SourceId == "outfit-hips" && m.TargetId == "avatar-hips"), "Hips must map to hips");
+    Check(plan.Mappings.Any(m => m.SourceId == "outfit-chest" && m.TargetId == "avatar-chest"), "Chest must map to chest");
+    Check(plan.RetainedRoots.Count == 1 && plan.RetainedRoots[0].SourceId == "outfit-ribbon", "Unique bones must be retained under mapped parent");
+    Check(plan.RetainedRoots[0].TargetParentId == "avatar-spine", "Ribbon must attach below avatar-spine");
+});
+
+Test("Modular Avatar armature merge rejects ambiguous case-insensitive bones", () =>
+{
+    var avatar = new MergeHierarchyNode
+    {
+        Id = "avatar-root",
+        Name = "armature",
+        Children = new[]
+        {
+            new MergeHierarchyNode { Id = "hips-lower", Name = "hips" },
+            new MergeHierarchyNode { Id = "hips-upper", Name = "HIPS" }
+        }
+    };
+    var outfit = new MergeHierarchyNode
+    {
+        Id = "outfit-root",
+        Name = "Armature",
+        Children = new[] { new MergeHierarchyNode { Id = "outfit-hips", Name = "Hips" } }
+    };
+
+    var plan = ModularAvatarMergePlanner.CreatePlan(outfit, avatar);
+    Check(!plan.CanApply && plan.Conflicts.Count == 1, "Ambiguous case-insensitive target bones must produce a conflict");
+});
+
+Test("Prefab variant inherits Modular Avatar components from ancestor prefab", () => InTemp(root =>
+{
+    var basePrefabGuid = "11111111111111111111111111111111";
+    var variantPrefabGuid = "22222222222222222222222222222222";
+    var basePrefabFile = Path.Combine(root, "BaseOutfit.prefab");
+    var variantPrefabFile = Path.Combine(root, "VariantOutfit.prefab");
+
+    File.WriteAllText(basePrefabFile, @"%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &100000
+GameObject:
+  m_Name: Armature
+--- !u!114 &100001
+MonoBehaviour:
+  m_GameObject: {fileID: 100000}
+  m_Script: {fileID: 11500000, guid: 2df373bf91cf30b4bbd495e11cb1a2ec, type: 3}
+  armatureRoot: {fileID: 100000}
+");
+
+    File.WriteAllText(variantPrefabFile, @"%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &200000
+PrefabInstance:
+  m_SourcePrefab: {fileID: 100100000, guid: 11111111111111111111111111111111, type: 3}
+  m_Modification:
+    m_Modifications: []
+");
+
+    var prefabs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        [basePrefabGuid] = basePrefabFile,
+        [variantPrefabGuid] = variantPrefabFile
+    };
+
+    var baseManifest = AvatarPackageIndex.ParseFile(basePrefabFile, prefabs);
+    Check(baseManifest.IsModularAvatarAttachment, "Base prefab must be recognized as Modular Avatar outfit");
+    Check(baseManifest.ModularAvatarComponents.Count == 1, "Base prefab must parse 1 component");
+
+    var variantManifest = AvatarPackageIndex.ParseFile(variantPrefabFile, prefabs);
+    Check(variantManifest.IsModularAvatarAttachment, "Variant prefab must inherit Modular Avatar attachment status");
+    Check(!variantManifest.ShouldSetUpHumanoid, "Variant outfit must not set up dummy humanoid rig");
+    Check(variantManifest.ModularAvatarComponents.Count == 1, "Variant prefab must inherit 1 Modular Avatar component");
+    Check(variantManifest.ModularAvatarComponents[0].Kind == ModularAvatarComponentKind.MergeArmature, "Inherited component must be MergeArmature");
+    Check(variantManifest.ModularAvatarComponents[0].ArmatureRootFileId == 100000, "Inherited ArmatureRootFileId must be preserved");
+}));
+
 Test("Parse VRCExpressionsMenu and submenus YAML", () => InTemp(root =>
 {
     var rootMenuFile = Path.Combine(root, "Root_Menu.asset");
@@ -1085,54 +1247,6 @@ Test("ResolveSlotNamesForControl fuzzy animation clip matching", () =>
     Check(resolved.Count == 1 && resolved[0] == "C_warmers_top", "Arm Warmer must resolve to C_warmers_top via fuzzy clip match");
 });
 
-Test("Straight-line showroom positioning locks clothing prefabs into a horizontal line", () =>
-{
-    int totalPrefabs = 4;
-    float spacing = 1.15f;
-    var positions = new List<(float x, float y, float z)>();
-    for (int i = 0; i < totalPrefabs; i++)
-    {
-        var offset = ((i - (totalPrefabs - 1) * 0.5f) * spacing, 0f, 0f);
-        positions.Add(offset);
-    }
-
-    Check(positions.Count == 4, "Must generate 4 positions");
-    Check(Math.Abs(positions[0].x - (-1.725f)) < 0.001f, "First item must be at x=-1.725");
-    Check(Math.Abs(positions[1].x - (-0.575f)) < 0.001f, "Second item must be at x=-0.575");
-    Check(Math.Abs(positions[2].x - 0.575f) < 0.001f, "Third item must be at x=0.575");
-    Check(Math.Abs(positions[3].x - 1.725f) < 0.001f, "Fourth item must be at x=1.725");
-    foreach (var p in positions)
-    {
-        Check(p.y == 0f && p.z == 0f, "Y and Z must be 0 for straight line lock");
-    }
-});
-
-Test("Cardinal 90-degree yaw snap snaps arbitrary diagonal angles strictly to 0, 90, 180, or 270", () =>
-{
-    float SnapYaw(float fx, float fz)
-    {
-        float lenSq = fx * fx + fz * fz;
-        if (lenSq < 0.0001f) return 0f;
-        if (MathF.Abs(fz) >= MathF.Abs(fx))
-            return fz >= 0f ? 0f : 180f;
-        return fx >= 0f ? 90f : 270f;
-    }
-
-    Check(SnapYaw(0f, 1f) == 0f, "North (+Z) must snap to 0");
-    Check(SnapYaw(1f, 0f) == 90f, "East (+X) must snap to 90");
-    Check(SnapYaw(0f, -1f) == 180f, "South (-Z) must snap to 180");
-    Check(SnapYaw(-1f, 0f) == 270f, "West (-X) must snap to 270");
-
-    Check(SnapYaw(0.3f, 0.9f) == 0f, "Slightly East of North must snap to 0");
-    Check(SnapYaw(0.9f, 0.3f) == 90f, "Slightly North of East must snap to 90");
-    Check(SnapYaw(0.9f, -0.3f) == 90f, "Slightly South of East must snap to 90");
-    Check(SnapYaw(0.3f, -0.9f) == 180f, "Slightly East of South must snap to 180");
-    Check(SnapYaw(-0.3f, -0.9f) == 180f, "Slightly West of South must snap to 180");
-    Check(SnapYaw(-0.9f, -0.3f) == 270f, "Slightly South of West must snap to 270");
-    Check(SnapYaw(-0.9f, 0.3f) == 270f, "Slightly North of West must snap to 270");
-    Check(SnapYaw(-0.3f, 0.9f) == 0f, "Slightly West of North must snap to 0");
-});
-
 Test("Bundled UI rejects corrupted assets and unsafe cache paths", () => InTemp(root =>
 {
     byte[] payload = Encoding.UTF8.GetBytes("approved native package fixture");
@@ -1156,8 +1270,14 @@ Test("UI contracts reject unsupported schemas and ambiguous path escapes", () =>
 });
 
 ImportLifetimeTests.Register(Test);
+MaterialConversionTests.Register(Test);
+NativeSkinBindingTests.Register(Test);
+ClothingFoundationTests.Register(Test);
+MaterialRecoveryTests.Register(Test);
+InitialToggleBindingTests.Register(Test);
 
 AvatarViewpointTests.Register(Test);
+TemporaryRigParentTests.Register(Test);
 
 foreach (var test in tests)
 {

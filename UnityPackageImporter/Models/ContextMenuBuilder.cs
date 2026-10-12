@@ -98,24 +98,36 @@ public static class ContextMenuBuilder
                         {
                             var s = avatarRoot.FindChild(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase) ||
                                                               c.Name.StartsWith(name + " [", StringComparison.OrdinalIgnoreCase), 10);
-                            if (s != null) targetSlots.Add(s);
+                            if (s != null && !targetSlots.Contains(s)) targetSlots.Add(s);
                         }
 
-                        if (targetSlots.Count == 1)
-                        {
-                            var buttonToggle = itemSlot.AttachComponent<ButtonToggle>();
-                            buttonToggle.TargetValue.Target = targetSlots[0].ActiveSelf_Field;
-                        }
-                        else if (targetSlots.Count > 1)
-                        {
-                            var buttonToggle = itemSlot.AttachComponent<ButtonToggle>();
-                            var multiDriver = itemSlot.AttachComponent<ValueMultiDriver<bool>>();
-                            buttonToggle.TargetValue.Target = multiDriver.Value;
-                            foreach (var s in targetSlots)
+                        ButtonToggle buttonToggle = null;
+                        ValueMultiDriver<bool> multiDriver = null;
+                        var result = InitialToggleBinding.Bind(targetSlots,
+                            slot => slot.ActiveSelf,
+                            slot => slot.ActiveSelf_Field.IsLinked,
+                            initial =>
                             {
-                                var drive = multiDriver.Drives.Add();
-                                drive.ForceLink(s.ActiveSelf_Field);
-                            }
+                                buttonToggle = itemSlot.AttachComponent<ButtonToggle>();
+                                if (targetSlots.Count > 1)
+                                {
+                                    multiDriver = itemSlot.AttachComponent<ValueMultiDriver<bool>>();
+                                    // A drive writes as soon as it is linked. Seed it first.
+                                    multiDriver.Value.Value = initial;
+                                    buttonToggle.TargetValue.Target = multiDriver.Value;
+                                }
+                            },
+                            slot =>
+                            {
+                                if (multiDriver == null) buttonToggle.TargetValue.Target = slot.ActiveSelf_Field;
+                                else multiDriver.Drives.Add().ForceLink(slot.ActiveSelf_Field);
+                            });
+                        if (result != InitialToggleBindingResult.Bound)
+                        {
+                            itemSource.ButtonEnabled.Value = false;
+                            UnityPackageImporter.Warn("Expression control '" + control.Name +
+                                "' is unavailable: inferred visibility binding " + result +
+                                ". Current appearance was preserved; Unity Animator behavior was not inferred.");
                         }
                     }
                 }

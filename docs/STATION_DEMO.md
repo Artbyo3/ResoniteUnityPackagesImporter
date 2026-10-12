@@ -63,16 +63,9 @@ For a normal rerun, execute this command once, wait for the process to finish,
 and report its actual result. No preliminary scan, script reread, component
 rebuild, or extra audit is needed. Investigate only if the command fails.
 
-The live setup and smoothing/visibility bindings are documented in
-`scratch/station-prototype/pedestal-lifecycle-notes.md` if repair is needed.
-Save the live station in Resonite to preserve its component changes across
-sessions. This script and note are local files; running the demo does not
-install or publish the mod.
-
 The demo also supports the localized station. It discovers native
 localization drivers by their target fields and updates their English and
 Japanese source values instead of overwriting driven UI text. The wording
 comes from `localization/station/en.json` and `ja.json`; filenames and unknown
 error details keep their original wording. An older unlocalized station still
-uses the original direct text updates. See `STATION_LOCALIZATION.md` for the
-language policy and live verification.
+uses the original direct text updates.

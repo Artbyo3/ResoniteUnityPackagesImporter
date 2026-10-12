@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using UnityPackageImporter.Models;
@@ -145,11 +146,14 @@ public class SourceObjCompare : EqualityComparer<SourceObj>
 {
     public override bool Equals(SourceObj x, SourceObj y)
     {
-        return x.fileID == y.fileID && x.guid == y.guid;
+        if (ReferenceEquals(x, y)) return true;
+        if (x is null || y is null) return false;
+        return x.fileID == y.fileID && string.Equals(x.guid, y.guid, StringComparison.OrdinalIgnoreCase);
     }
 
     public override int GetHashCode(SourceObj obj)
     {
-        return (obj.fileID.ToString() + obj.guid).GetHashCode();
+        if (obj is null) return 0;
+        return (obj.fileID.ToString() + (obj.guid?.ToLowerInvariant() ?? "")).GetHashCode();
     }   
 }

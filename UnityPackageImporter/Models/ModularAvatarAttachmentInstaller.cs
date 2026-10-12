@@ -54,7 +54,7 @@ internal static class ModularAvatarAttachmentInstaller
         public MergeSourceBinding Binding { get; init; }
         public Slot SourceRoot { get; init; }
         public Slot TargetRoot { get; init; }
-        public ModularAvatarMergePlan Plan { get; init; }
+        public BoneAttachmentPlan Plan { get; init; }
         public Dictionary<string, Slot> SourceSlots { get; init; }
         public Dictionary<string, Slot> TargetSlots { get; init; }
     }
@@ -100,27 +100,57 @@ internal static class ModularAvatarAttachmentInstaller
         string prefabGuid,
         string prefabFile,
         bool installOutfitMenu = true,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyDictionary<string, string> assetFiles = null)
+    {
+        var (success, _) = await TryInstallDirectlyDetailedAsync(
+            attachmentRoot, manifest, unityObjects, targetRig, prefabGuid, prefabFile,
+            installOutfitMenu, cancellationToken, assetFiles);
+        return success;
+    }
+
+    internal static async Task<(bool success, string error)> TryInstallDirectlyDetailedAsync(
+        Slot attachmentRoot,
+        AvatarPackageManifest manifest,
+        Dictionary<ulong, IUnityObject> unityObjects,
+        BipedRig targetRig,
+        string prefabGuid,
+        string prefabFile,
+        bool installOutfitMenu = true,
+        CancellationToken cancellationToken = default,
+        IReadOnlyDictionary<string, string> assetFiles = null)
     {
         await default(ToWorld);
         cancellationToken.ThrowIfCancellationRequested();
         if (attachmentRoot == null || manifest == null || unityObjects == null || targetRig == null)
-            return false;
+            return (false, "Attachment parameters are missing or invalid.");
 
         try
         {
-            var identity = OutfitInstallIdentity.FromPrefab(prefabGuid, prefabFile);
+            var assetSnapshot = assetFiles?.ToDictionary(entry => entry.Key, entry => entry.Value,
+                StringComparer.OrdinalIgnoreCase);
+            await default(ToBackground);
+            var identity = OutfitInstallIdentity.FromPrefab(prefabGuid, prefabFile, assetSnapshot, cancellationToken);
+            await default(ToWorld);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (attachmentRoot.IsDestroyed || targetRig.IsDestroyed)
+                return (false, "Target avatar or outfit is no longer available.");
+            using var installationLease = await AttachmentInstallationGate.EnterAsync(targetRig.Slot, cancellationToken);
+            await default(ToWorld);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (attachmentRoot.IsDestroyed || targetRig.IsDestroyed)
+                return (false, "Target avatar or outfit is no longer available.");
             var mergeBindings = ResolveMergeSources(attachmentRoot, manifest, unityObjects);
             var boneProxyBindings = ResolveBoneProxies(attachmentRoot, manifest, unityObjects);
 
             if (mergeBindings.Count == 0 && boneProxyBindings.Count == 0)
-                return false;
+                return (false, "No Merge Armature or Bone Proxy components could be found in the outfit.");
 
             string currentError = GetTargetError(mergeBindings, boneProxyBindings, targetRig);
             if (currentError != null)
             {
                 UnityPackageImporter.Warn("Could not install on " + targetRig.Slot.Name + ": " + currentError);
-                return false;
+                return (false, currentError);
             }
 
             var installed = await InstallCopyAsync(
@@ -132,7 +162,8 @@ internal static class ModularAvatarAttachmentInstaller
                 cancellationToken);
 
             await default(ToWorld);
-            if (installed == null || !installed.IsHealthy) return false;
+            if (installed == null || !installed.IsHealthy)
+                return (false, "Installation copy produced an incomplete or unhealthy result.");
             // The installation is committed. Finish its optional controls even if the
             // station closes now; do not report a completed outfit as cancelled.
             if (installOutfitMenu && !installed.RecordRoot.Children.Any(child => child.Name == "Outfit Controls"))
@@ -154,7 +185,7 @@ internal static class ModularAvatarAttachmentInstaller
                     UnityPackageImporter.Warn("Outfit installed, but its optional menu could not be created: " + ex.Message);
                 }
             }
-            return true;
+            return (true, null);
         }
         catch (OperationCanceledException)
         {
@@ -162,8 +193,9 @@ internal static class ModularAvatarAttachmentInstaller
         }
         catch (Exception ex)
         {
+            await default(ToWorld);
             UnityPackageImporter.Error("Failed to install attachment '" + attachmentRoot.Name + "' directly: " + ex);
-            return false;
+            return (false, ex.Message);
         }
     }
 
@@ -206,30 +238,56 @@ internal static class ModularAvatarAttachmentInstaller
         foreach (var definition in manifest.ModularAvatarComponents
                      .Where(component => component.Kind == ModularAvatarComponentKind.MergeArmature))
         {
-            if (definition.GameObjectFileId <= 0 ||
-                !unityObjects.TryGetValue((ulong)definition.GameObjectFileId, out var unityObject) ||
-                unityObject is not UnityGameObject gameObject ||
-                gameObject.frooxEngineSlot == null)
+            Slot initialSlot = null;
+            if (definition.GameObjectFileId != 0)
             {
-                UnityPackageImporter.Warn(
-                    "Could not resolve Merge Armature GameObject " + definition.GameObjectFileId +
-                    " in '" + attachmentRoot.Name + "'.");
-                continue;
+                if ((unityObjects.TryGetValue((ulong)definition.GameObjectFileId, out var unityObject) ||
+                     unityObjects.TryGetValue(unchecked((ulong)definition.GameObjectFileId), out unityObject)) &&
+                    unityObject is UnityGameObject gameObject &&
+                    gameObject.frooxEngineSlot != null)
+                {
+                    initialSlot = gameObject.frooxEngineSlot;
+                }
             }
 
-            var path = GetIndexPath(attachmentRoot, gameObject.frooxEngineSlot);
+            if (initialSlot == null && !string.IsNullOrEmpty(definition.GameObjectName))
+            {
+                initialSlot = EnumerateSelfAndChildren(attachmentRoot)
+                    .FirstOrDefault(s => s.Name.Equals(definition.GameObjectName, StringComparison.Ordinal))
+                    ?? EnumerateSelfAndChildren(attachmentRoot)
+                    .FirstOrDefault(s => s.Name.Equals(definition.GameObjectName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (initialSlot == null)
+            {
+                initialSlot = attachmentRoot;
+            }
+
+            Slot sourceSlot = initialSlot;
+            // If the MergeArmature is placed on the attachment root or an outfit container,
+            // try to resolve to its child Armature if present!
+            if (sourceSlot == attachmentRoot || !IsLikelyArmature(sourceSlot))
+            {
+                var candidateArmature = sourceSlot.Children.FirstOrDefault(IsLikelyArmature)
+                    ?? EnumerateSelfAndChildren(sourceSlot).FirstOrDefault(s => s != sourceSlot && IsLikelyArmature(s));
+                if (candidateArmature != null)
+                {
+                    sourceSlot = candidateArmature;
+                }
+            }
+
+            var path = GetIndexPath(attachmentRoot, sourceSlot);
             if (path == null)
             {
-                UnityPackageImporter.Warn(
-                    "Merge Armature source '" + gameObject.frooxEngineSlot.Name +
+                throw new InvalidOperationException(
+                    "Merge Armature source '" + sourceSlot.Name +
                     "' is outside attachment root '" + attachmentRoot.Name + "'.");
-                continue;
             }
 
             result.Add(new MergeSourceBinding
             {
                 Definition = definition,
-                SourceSlot = gameObject.frooxEngineSlot,
+                SourceSlot = sourceSlot,
                 IndexPath = path
             });
         }
@@ -246,30 +304,47 @@ internal static class ModularAvatarAttachmentInstaller
         foreach (var definition in manifest.ModularAvatarComponents
                      .Where(component => component.Kind == ModularAvatarComponentKind.BoneProxy))
         {
-            if (definition.GameObjectFileId <= 0 ||
-                !unityObjects.TryGetValue((ulong)definition.GameObjectFileId, out var unityObject) ||
-                unityObject is not UnityGameObject gameObject ||
-                gameObject.frooxEngineSlot == null)
+            Slot proxySlot = null;
+            if (definition.GameObjectFileId != 0)
+            {
+                if ((unityObjects.TryGetValue((ulong)definition.GameObjectFileId, out var unityObject) ||
+                     unityObjects.TryGetValue(unchecked((ulong)definition.GameObjectFileId), out unityObject)) &&
+                    unityObject is UnityGameObject gameObject &&
+                    gameObject.frooxEngineSlot != null)
+                {
+                    proxySlot = gameObject.frooxEngineSlot;
+                }
+            }
+
+            if (proxySlot == null && !string.IsNullOrEmpty(definition.GameObjectName))
+            {
+                proxySlot = EnumerateSelfAndChildren(attachmentRoot)
+                    .FirstOrDefault(s => s.Name.Equals(definition.GameObjectName, StringComparison.Ordinal))
+                    ?? EnumerateSelfAndChildren(attachmentRoot)
+                    .FirstOrDefault(s => s.Name.Equals(definition.GameObjectName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (proxySlot == null)
             {
                 UnityPackageImporter.Warn(
                     "Could not resolve Bone Proxy GameObject " + definition.GameObjectFileId +
-                    " in '" + attachmentRoot.Name + "'.");
+                    " in '" + attachmentRoot.Name + "'. Skipping proxy.");
                 continue;
             }
 
-            var path = GetIndexPath(attachmentRoot, gameObject.frooxEngineSlot);
+            var path = GetIndexPath(attachmentRoot, proxySlot);
             if (path == null)
             {
                 UnityPackageImporter.Warn(
-                    "Bone Proxy source '" + gameObject.frooxEngineSlot.Name +
-                    "' is outside attachment root '" + attachmentRoot.Name + "'.");
+                    "Bone Proxy source '" + proxySlot.Name +
+                    "' is outside attachment root '" + attachmentRoot.Name + "'. Skipping proxy.");
                 continue;
             }
 
             result.Add(new BoneProxyBinding
             {
                 Definition = definition,
-                SourceSlot = gameObject.frooxEngineSlot,
+                SourceSlot = proxySlot,
                 IndexPath = path
             });
         }
@@ -327,16 +402,17 @@ internal static class ModularAvatarAttachmentInstaller
         BipedRig targetRig)
     {
         var nestedRoots = mergeBindings.Select(binding => binding.SourceSlot).ToHashSet();
+        var excludedTargets = GetInstalledOutfitRoots(targetRig.Slot);
         foreach (var binding in mergeBindings)
         {
-            var targetRoot = ResolveTargetRoot(targetRig.Slot, binding);
+            var targetRoot = ResolveTargetRoot(targetRig.Slot, binding, excludedTargets, targetRig);
             if (targetRoot == null)
-                return "Target armature path was not found";
+                return "Target armature path is missing, ambiguous, or belongs to another installed outfit";
 
             var sourceNodes = new Dictionary<string, Slot>();
             var targetNodes = new Dictionary<string, Slot>();
             var source = BuildHierarchy(binding.SourceSlot, nestedRoots, sourceNodes, binding.SourceSlot);
-            var target = BuildHierarchy(targetRoot, new HashSet<Slot>(), targetNodes, null);
+            var target = BuildHierarchy(targetRoot, new HashSet<Slot>(), targetNodes, null, excludedTargets);
             var plan = ModularAvatarMergePlanner.CreatePlan(
                 source,
                 target,
@@ -348,9 +424,16 @@ internal static class ModularAvatarAttachmentInstaller
 
         foreach (var binding in boneProxyBindings)
         {
-            if (ResolveBoneProxyTarget(targetRig, binding.Definition) == null)
+            if (ResolveBoneProxyTarget(targetRig, binding.Definition, excludedTargets) == null)
             {
-                return "Bone Proxy target was not found for " + binding.SourceSlot.Name;
+                if (mergeBindings.Count > 0)
+                {
+                    UnityPackageImporter.Warn("Optional Bone Proxy target was not found for '" + binding.SourceSlot.Name + "'. Outfit will still merge onto armature.");
+                }
+                else
+                {
+                    return "Bone Proxy target was not found for " + binding.SourceSlot.Name;
+                }
             }
         }
 
@@ -385,29 +468,30 @@ internal static class ModularAvatarAttachmentInstaller
                 "A different revision of this outfit is already installed. " +
                 "The existing installation was left untouched.");
 
+        string targetError = GetTargetError(mergeBindings, boneProxyBindings, targetRig);
+        if (targetError != null) throw new InvalidOperationException(targetError);
+
         Slot installedRoot = null;
         Slot recordRoot = null;
-        var movedRetainedRoots = new List<Slot>();
-        var movedBoneProxies = new List<Slot>();
+        var transaction = new OwnedAttachmentTransaction<Slot>();
         var ownedRoots = new List<OwnedRoot>();
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
             installedRoot = attachmentRoot.Duplicate(targetRig.Slot, false);
+            transaction.Track(installedRoot);
             installedRoot.Name = attachmentRoot.Name + " [Installed on " + targetRig.Slot.Name + "]";
             installedRoot.SetIdentityTransform();
             bool installedRootActive = installedRoot.ActiveSelf;
+            var authoredActivity = EnumerateSelfAndChildren(installedRoot).ToDictionary(slot => slot,
+                slot => IsActiveWithinOutfit(slot, installedRoot));
             installedRoot.ActiveSelf = false;
-            var copiedFootTag = installedRoot.Children.FirstOrDefault(child => child.Name == "Foot Level Tag");
-            copiedFootTag?.Destroy();
             ownedRoots.Add(new OwnedRoot
             {
                 Slot = installedRoot,
                 ActiveWhenEnabled = installedRootActive,
                 Role = "Outfit Root"
             });
-
-            RemoveCopiedInstaller(installedRoot);
 
             var clonedBindings = mergeBindings.Select(binding => new MergeSourceBinding
             {
@@ -428,18 +512,26 @@ internal static class ModularAvatarAttachmentInstaller
                 IndexPath = binding.IndexPath
             }).ToList();
 
+            // Resolve index paths before removing any siblings from the duplicate.
+            var copiedFootTag = installedRoot.Children.FirstOrDefault(child => child.Name == "Foot Level Tag");
+            copiedFootTag?.Destroy();
+            RemoveCopiedInstaller(installedRoot);
+
             var nestedRoots = clonedBindings.Select(binding => binding.SourceSlot).ToHashSet();
+            var excludedTargets = GetInstalledOutfitRoots(targetRig.Slot);
+            excludedTargets.Add(installedRoot);
             var prepared = new List<PreparedMerge>();
             foreach (var binding in clonedBindings)
             {
-                var targetRoot = ResolveTargetRoot(targetRig.Slot, binding, installedRoot)
+                var targetRoot = ResolveTargetRoot(targetRig.Slot, binding, excludedTargets, targetRig)
                     ?? throw new InvalidOperationException(
-                        "Target armature path '" + binding.Definition.MergeTargetPath + "' was not found.");
+                        "Target armature path '" + binding.Definition.MergeTargetPath +
+                        "' is missing, ambiguous, or belongs to another installed outfit.");
 
                 var sourceSlots = new Dictionary<string, Slot>();
                 var targetSlots = new Dictionary<string, Slot>();
                 var source = BuildHierarchy(binding.SourceSlot, nestedRoots, sourceSlots, binding.SourceSlot);
-                var target = BuildHierarchy(targetRoot, new HashSet<Slot>(), targetSlots, null);
+                var target = BuildHierarchy(targetRoot, new HashSet<Slot>(), targetSlots, null, excludedTargets);
                 var plan = ModularAvatarMergePlanner.CreatePlan(
                     source,
                     target,
@@ -474,8 +566,7 @@ internal static class ModularAvatarAttachmentInstaller
             }
 
             var renderers = EnumerateSelfAndChildren(installedRoot)
-                .Select(slot => slot.GetComponent<SkinnedMeshRenderer>())
-                .Where(renderer => renderer != null)
+                .SelectMany(slot => slot.Components.OfType<SkinnedMeshRenderer>())
                 .ToList();
             var ownedComponents = EnumerateSelfAndChildren(installedRoot)
                 .SelectMany(slot => slot.Components)
@@ -510,10 +601,10 @@ internal static class ModularAvatarAttachmentInstaller
                     var source = merge.SourceSlots[retained.SourceId];
                     if (boneMap.ContainsKey(source)) continue;
                     var targetParent = merge.TargetSlots[retained.TargetParentId];
-                    bool activeWhenEnabled = source.ActiveSelf;
+                    bool activeWhenEnabled = authoredActivity[source];
+                    transaction.Track(source);
                     source.ActiveSelf = false;
                     source.SetParent(targetParent, false);
-                    movedRetainedRoots.Add(source);
                     ownedRoots.Add(new OwnedRoot
                     {
                         Slot = source,
@@ -526,15 +617,18 @@ internal static class ModularAvatarAttachmentInstaller
             foreach (var proxy in clonedBoneProxies)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var target = ResolveBoneProxyTarget(targetRig, proxy.Definition)
-                    ?? throw new InvalidOperationException(
-                        "Bone Proxy target was not found for '" + proxy.SourceSlot.Name + "'.");
-                bool activeWhenEnabled = proxy.SourceSlot.ActiveSelf;
+                var target = ResolveBoneProxyTarget(targetRig, proxy.Definition, excludedTargets);
+                if (target == null)
+                {
+                    UnityPackageImporter.Warn("Bone Proxy target was not found for '" + proxy.SourceSlot.Name + "'. Leaving in outfit hierarchy.");
+                    continue;
+                }
+                bool activeWhenEnabled = authoredActivity[proxy.SourceSlot];
+                transaction.Track(proxy.SourceSlot);
                 proxy.SourceSlot.ActiveSelf = false;
                 ApplyBoneProxy(proxy.SourceSlot, target, proxy.Definition);
                 if (proxy.SourceSlot != installedRoot)
                 {
-                    movedBoneProxies.Add(proxy.SourceSlot);
                     ownedRoots.Add(new OwnedRoot
                     {
                         Slot = proxy.SourceSlot,
@@ -546,14 +640,13 @@ internal static class ModularAvatarAttachmentInstaller
 
             await SkinnedBoundsPolicy.StabilizeBeforeEnableAsync(
                 renderers,
-                "Modular Avatar activation");
+                "Modular Avatar activation", cancellationToken);
 
             await default(ToWorld);
             cancellationToken.ThrowIfCancellationRequested();
             if (attachmentRoot.IsDestroyed || installedRoot.IsDestroyed ||
                 !IsOwnedAvatar(targetRig, attachmentRoot.World.LocalUser))
                 throw new InvalidOperationException("The attachment or target avatar is no longer available.");
-            ImportSession.PreserveAssetsForOutput(attachmentRoot);
             var record = CreateInstallationRecord(
                 targetRig,
                 attachmentRoot.Name,
@@ -561,20 +654,18 @@ internal static class ModularAvatarAttachmentInstaller
                 identity,
                 ownedRoots,
                 ownedComponents,
+                transaction,
                 out recordRoot);
+            ImportSession.PreserveAssetsForOutput(attachmentRoot);
+            transaction.Commit();
             return record;
         }
         catch
         {
             await default(ToWorld);
-            if (recordRoot != null && !recordRoot.IsDestroyed)
-                recordRoot.Destroy();
-            foreach (var moved in movedRetainedRoots.Where(slot => slot != null && !slot.IsDestroyed))
-                moved.Destroy();
-            foreach (var moved in movedBoneProxies.Where(slot => slot != null && !slot.IsDestroyed))
-                moved.Destroy();
-            if (installedRoot != null && !installedRoot.IsDestroyed)
-                installedRoot.Destroy();
+            foreach (var cleanupError in transaction.RollBack(slot =>
+                         { if (!slot.IsDestroyed) slot.Destroy(); }))
+                UnityPackageImporter.Warn("Could not fully roll back outfit installation: " + cleanupError.Message);
             throw;
         }
     }
@@ -586,12 +677,14 @@ internal static class ModularAvatarAttachmentInstaller
         OutfitInstallIdentity identity,
         IReadOnlyList<OwnedRoot> ownedRoots,
         IReadOnlyList<OwnedComponent> ownedComponents,
+        OwnedAttachmentTransaction<Slot> transaction,
         out Slot recordRoot)
     {
         var recordsRoot = targetRig.Slot.Children.FirstOrDefault(child => child.Name == RecordsSlotName);
         if (recordsRoot == null)
         {
             recordsRoot = targetRig.Slot.AddSlot(RecordsSlotName);
+            transaction.Track(recordsRoot);
             recordsRoot.OrderOffset = 2000;
         }
 
@@ -602,6 +695,7 @@ internal static class ModularAvatarAttachmentInstaller
             ? identity.PrefabGuid[..8]
             : identity.PrefabGuid;
         recordRoot = recordsRoot.AddSlot("[Installing] " + displayName + " " + shortId);
+        transaction.Track(recordRoot);
 
         var metadata = recordRoot.AddSlot("Metadata");
         AddValueField(metadata, RecordTypeFieldName, RecordMarker);
@@ -710,6 +804,8 @@ internal static class ModularAvatarAttachmentInstaller
             var references = candidate.Children.FirstOrDefault(child => child.Name == "References");
             var state = candidate.Children.FirstOrDefault(child => child.Name == StateSlotName);
             var enabledSlot = state?.Children.FirstOrDefault(child => child.Name == EnabledSlotName);
+            var recordedAvatar = references == null ? null : ReadDirectSlotReference(references, TargetAvatarFieldName);
+            if (recordedAvatar != null && recordedAvatar != avatarRoot) continue;
 
             return new InstallationRecordHandle
             {
@@ -797,7 +893,8 @@ internal static class ModularAvatarAttachmentInstaller
 
     private static Slot ResolveBoneProxyTarget(
         BipedRig targetRig,
-        ModularAvatarComponentDefinition definition)
+        ModularAvatarComponentDefinition definition,
+        HashSet<Slot> excludedRoots)
     {
         if (targetRig == null || targetRig.IsDestroyed) return null;
 
@@ -818,16 +915,39 @@ internal static class ModularAvatarAttachmentInstaller
             BodyNode bodyNode = MapUnityHumanoidBone(definition.BoneReference);
             if (bodyNode == BodyNode.NONE) return null;
             target = targetRig.TryGetBone(bodyNode);
+            if (target == null || target.IsDestroyed)
+            {
+                target = ResolveHumanoidBoneFallback(targetRig, bodyNode);
+            }
         }
 
         if (target == null || target.IsDestroyed) return null;
         foreach (string part in SplitPath(subPath))
         {
             target = target.Children.FirstOrDefault(child =>
-                child.Name.Equals(part, StringComparison.Ordinal));
+                child.Name.Equals(part, StringComparison.Ordinal))
+                ?? target.Children.FirstOrDefault(child =>
+                child.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
             if (target == null || target.IsDestroyed) return null;
         }
+        if (excludedRoots.Any(root => target == root || target.IsChildOf(root, true))) return null;
         return target;
+    }
+
+    private static Slot ResolveHumanoidBoneFallback(BipedRig rig, BodyNode node)
+    {
+        if (rig == null || rig.IsDestroyed) return null;
+        return node switch
+        {
+            BodyNode.UpperChest => rig.TryGetBone(BodyNode.Chest) ?? rig.TryGetBone(BodyNode.Spine),
+            BodyNode.Chest => rig.TryGetBone(BodyNode.Spine),
+            BodyNode.LeftToes => rig.TryGetBone(BodyNode.LeftFoot),
+            BodyNode.RightToes => rig.TryGetBone(BodyNode.RightFoot),
+            BodyNode.LeftEye or BodyNode.RightEye or BodyNode.Jaw => rig.TryGetBone(BodyNode.Head),
+            BodyNode.LeftThumb_Distal or BodyNode.LeftThumb_Tip => rig.TryGetBone(BodyNode.LeftThumb_Proximal),
+            BodyNode.RightThumb_Distal or BodyNode.RightThumb_Tip => rig.TryGetBone(BodyNode.RightThumb_Proximal),
+            _ => null
+        };
     }
 
     private static void ApplyBoneProxy(
@@ -937,56 +1057,87 @@ internal static class ModularAvatarAttachmentInstaller
         };
     }
 
-    private static Slot ResolveTargetRoot(Slot avatarRoot, MergeSourceBinding binding, Slot excludedHierarchy = null)
+    private static HashSet<Slot> GetInstalledOutfitRoots(Slot avatarRoot)
     {
-        var parts = SplitPath(binding.Definition.MergeTargetPath);
-        string targetName = parts.Length > 0 ? parts[^1] : null;
-        if (string.IsNullOrEmpty(targetName) &&
-            ModularAvatarMergePlanner.TryRemoveAffixes(
-                binding.SourceSlot.Name,
-                binding.Definition.Prefix,
-                binding.Definition.Suffix,
-                out var mappedName))
+        var roots = new HashSet<Slot>();
+        foreach (var candidate in EnumerateSelfAndChildren(avatarRoot))
         {
-            targetName = mappedName;
+            var metadata = candidate.Children.FirstOrDefault(child => child.Name == "Metadata");
+            if (metadata == null || ReadDirectStringField(metadata, RecordTypeFieldName) != RecordMarker) continue;
+            var references = candidate.Children.FirstOrDefault(child => child.Name == "References");
+            if (references == null) continue;
+            var recordedAvatar = ReadDirectSlotReference(references, TargetAvatarFieldName);
+            if (recordedAvatar != null && recordedAvatar != avatarRoot) continue;
+            var installedRoot = ReadDirectSlotReference(references, InstalledRootFieldName);
+            if (installedRoot != null && !installedRoot.IsDestroyed) roots.Add(installedRoot);
+            var objects = references.Children.FirstOrDefault(child => child.Name == OwnedObjectsSlotName);
+            if (objects == null) continue;
+            foreach (var entry in objects.Children)
+            {
+                var ownedRoot = ReadDirectSlotReference(entry, "Object");
+                if (ownedRoot != null && !ownedRoot.IsDestroyed) roots.Add(ownedRoot);
+            }
+        }
+        return roots;
+    }
+
+    private static bool IsLikelyArmature(Slot s)
+    {
+        if (s == null || s.IsDestroyed) return false;
+        if (s.Name.Equals("Armature", StringComparison.OrdinalIgnoreCase)) return true;
+        return s.Children.Any(c => c.Name.Equals("Hips", StringComparison.OrdinalIgnoreCase) ||
+                                   c.Name.Equals("Pelvis", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static Slot ResolveTargetRoot(Slot avatarRoot, MergeSourceBinding binding, HashSet<Slot> excludedRoots, BipedRig targetRig = null)
+    {
+        var candidates = new Dictionary<string, Slot>();
+        BuildHierarchy(avatarRoot, new HashSet<Slot>(), candidates, null, excludedRoots);
+        var target = ModularAvatarMergePlanner.ResolveTarget(avatarRoot, candidates.Values,
+            binding.Definition.MergeTargetPath, binding.SourceSlot.Name, binding.Definition.Prefix, binding.Definition.Suffix,
+            slot => slot.Name, slot => RelativePath(slot, avatarRoot));
+        if (target != null) return target;
+
+        var hipsBone = targetRig?.TryGetBone(BodyNode.Hips);
+        var rigArmature = hipsBone?.Parent != null && hipsBone.Parent != avatarRoot
+            ? hipsBone.Parent
+            : null;
+
+        if (rigArmature != null && (excludedRoots == null || !excludedRoots.Contains(rigArmature)))
+        {
+            string targetPath = binding.Definition.MergeTargetPath?.Trim() ?? "";
+            string targetLeaf = targetPath.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+
+            if (IsLikelyArmature(binding.SourceSlot) ||
+                string.IsNullOrEmpty(targetPath) ||
+                (targetLeaf != null && rigArmature.Name.Equals(targetLeaf, StringComparison.OrdinalIgnoreCase)) ||
+                rigArmature.Name.Equals("Armature", StringComparison.OrdinalIgnoreCase))
+            {
+                return rigArmature;
+            }
         }
 
-        if (string.IsNullOrEmpty(targetName)) return null;
-
-        var candidates = EnumerateSelfAndChildren(avatarRoot)
-            .Where(slot => excludedHierarchy == null || (slot != excludedHierarchy && !slot.IsChildOf(excludedHierarchy, true)))
-            .Where(slot => slot.Name.Equals(targetName, StringComparison.Ordinal))
-            .ToList();
-        if (parts.Length > 1)
+        string explicitTargetLeaf = binding.Definition.MergeTargetPath?.Trim().Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+        if (!string.IsNullOrEmpty(explicitTargetLeaf))
         {
-            var exact = candidates.Where(candidate => PathEndsWith(candidate, avatarRoot, parts)).ToList();
-            if (exact.Count == 1) return exact[0];
-            if (exact.Count > 1) return null;
+            var matchingCandidate = candidates.Values.FirstOrDefault(c =>
+                c.Name.Equals(explicitTargetLeaf, StringComparison.OrdinalIgnoreCase) &&
+                (excludedRoots == null || !excludedRoots.Contains(c)));
+            if (matchingCandidate != null) return matchingCandidate;
         }
 
-        return candidates.Count == 1 ? candidates[0] : null;
+        return null;
     }
 
     private static MergeHierarchyNode BuildHierarchy(
         Slot slot,
         HashSet<Slot> nestedMergeRoots,
         Dictionary<string, Slot> nodes,
-        Slot currentMergeRoot)
-    {
-        string id = slot.ReferenceID.ToString();
-        nodes[id] = slot;
-        bool startsNested = currentMergeRoot != null && slot != currentMergeRoot && nestedMergeRoots.Contains(slot);
-        return new MergeHierarchyNode
-        {
-            Id = id,
-            Name = slot.Name,
-            StartsNestedMerge = startsNested,
-            Children = startsNested
-                ? Array.Empty<MergeHierarchyNode>()
-                : slot.Children.Select(child =>
-                    BuildHierarchy(child, nestedMergeRoots, nodes, currentMergeRoot)).ToArray()
-        };
-    }
+        Slot currentMergeRoot,
+        HashSet<Slot> excludedRoots = null) =>
+        BoneAttachmentHierarchy.Snapshot(slot, node => node.Children,
+            node => (node.ReferenceID.ToString(), node.Name), nodes,
+            excludedRoots, currentMergeRoot == null ? null : nestedMergeRoots);
 
     private static IEnumerable<Slot> EnumerateSelfAndChildren(Slot root)
     {
@@ -1025,7 +1176,17 @@ internal static class ModularAvatarAttachmentInstaller
         .Replace('\\', '/')
         .Split(new[] { '/' }, StringSplitOptions.RemoveEmptyEntries);
 
-    private static bool PathEndsWith(Slot candidate, Slot root, IReadOnlyList<string> suffix)
+    private static bool IsActiveWithinOutfit(Slot slot, Slot outfitRoot)
+    {
+        for (var current = slot; current != null; current = current.Parent)
+        {
+            if (!current.ActiveSelf) return false;
+            if (current == outfitRoot) return true;
+        }
+        return false;
+    }
+
+    private static string RelativePath(Slot candidate, Slot root)
     {
         var names = new List<string>();
         var current = candidate;
@@ -1035,12 +1196,6 @@ internal static class ModularAvatarAttachmentInstaller
             current = current.Parent;
         }
         names.Reverse();
-        if (suffix.Count > names.Count) return false;
-        int offset = names.Count - suffix.Count;
-        for (int i = 0; i < suffix.Count; i++)
-        {
-            if (!names[offset + i].Equals(suffix[i], StringComparison.Ordinal)) return false;
-        }
-        return true;
+        return string.Join("/", names);
     }
 }

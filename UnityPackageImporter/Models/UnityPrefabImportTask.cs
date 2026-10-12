@@ -16,7 +16,6 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
 {
     public Dictionary<ulong, IUnityObject> existingIUnityObjects { get; set; }
     public Slot CurrentStructureRootSlot { get; set; }
-    public Slot allimportsroot { get; set; }
     public KeyValuePair<string, string> ID { get; set; }
     private float3 GlobalIndicatorPosition;
     private floatQ GlobalIndicatorRotation;
@@ -24,13 +23,13 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
     internal Func<float, Task> ReportProgress { get; set; }
     internal AvatarPackageManifest Manifest { get; private set; }
     private bool expressionsBuilt;
+    private readonly List<ImportedHumanoidRig> preparedHumanoids = new();
     public UnityProjectImporter unityProjectImporter { get; set; }
 
-    public UnityPrefabImportTask(float3 globalPosition, Slot root, KeyValuePair<string, string> ID, UnityProjectImporter unityProjectImporter, floatQ? globalRotation = null)
+    public UnityPrefabImportTask(float3 globalPosition, KeyValuePair<string, string> ID, UnityProjectImporter unityProjectImporter, floatQ? globalRotation = null)
     {
         this.ID = ID;
         this.unityProjectImporter = unityProjectImporter;
-        this.allimportsroot = root;
         this.GlobalIndicatorPosition = globalPosition;
         this.GlobalIndicatorRotation = globalRotation ?? floatQ.Identity;
     }
@@ -64,7 +63,9 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
 
 
             progressIndicator?.UpdateProgress(0f, "", "now loading unity YAML objects for Prefab.");
-            AvatarPackageManifest avatarManifest = Manifest = AvatarPackageIndex.ParseFile(this.ID.Value);
+            AvatarPackageManifest avatarManifest = Manifest = AvatarPackageIndex.ParseFile(
+                this.ID.Value,
+                this.unityProjectImporter?.ListOfPrefabs);
             this.existingIUnityObjects  = YamlToFrooxEngine.parseYaml(this.ID.Value);
 
             int totalProgress = 0;
@@ -107,6 +108,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                     UnityPackageImporter.Warn("Prefab IUnityObject failed to instanciate!");
                     UnityPackageImporter.Msg("Prefab IUnityObject ID: \"" + obj.Value.id.ToString() + "\"");
                     UnityPackageImporter.Warn(e.Message + e.StackTrace);
+                    throw new InvalidDataException("Could not build prefab component " + obj.Value.id + " (" + type.Name + ").", e);
                 }
                 try
                 {
@@ -179,7 +181,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
 
                         if (prefab != null && prefab.importask != null && prefab.ImportRoot != null && prefab.ImportRoot.frooxEngineSlot != null)
                         {
-                            await UnityProjectImporter.SettupHumanoid(
+                            await PrepareHumanoidAsync(
                                 prefab.importask,
                                 prefab.ImportRoot.frooxEngineSlot);
                         }
@@ -193,14 +195,14 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 UnityPackageImporter.Msg("Skipping standalone humanoid rig setup for Modular Avatar attachment");
             }
 
-            var renderersToEnable = existingIUnityObjects.Values
-                .OfType<FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer>()
-                .Select(renderer => renderer.createdMeshRenderer)
-                .Where(renderer => renderer != null)
-                .ToList();
+            await default(ToWorld);
+            // The YAML index omits inherited FBX skins without overrides.
+            // Finalize the complete imported hierarchy, including inactive skins.
+            var renderersToEnable = CurrentStructureRootSlot
+                .GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>();
             await SkinnedBoundsPolicy.StabilizeBeforeEnableAsync(
                 renderersToEnable,
-                "Unity prefab activation");
+                "Unity prefab activation", unityProjectImporter.Session?.Token ?? default);
 
             foreach (var obj in existingIUnityObjects)
             {
@@ -237,7 +239,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                     if (this.unityProjectImporter.SharedImportedFBXScenes.TryGetValue(newobj.m_Mesh.guid, out FileImportTaskScene importedfbx))
                     {
                         await default(ToWorld);
-                        await UnityProjectImporter.SettupHumanoid(importedfbx, this.CurrentStructureRootSlot);
+                        await PrepareHumanoidAsync(importedfbx, this.CurrentStructureRootSlot);
                         await default(ToBackground);
                         break;
                         // All skinned mesh renderers should go to the current prefab if they're under the root.
@@ -278,6 +280,19 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
         UnityPackageImporter.Msg("Yaml generation done");
         UnityPackageImporter.Msg("Prefab finished!");
     }
+    private async Task PrepareHumanoidAsync(FileImportTaskScene task, Slot rigRoot)
+    {
+        var prepared = await HumanoidRigSetup.SetupAsync(task, rigRoot);
+        await default(ToWorld);
+        if (prepared != null) preparedHumanoids.Add(prepared);
+    }
+
+    internal void CompleteHumanoidHierarchy(Slot avatarRoot)
+    {
+        foreach (var prepared in preparedHumanoids)
+            prepared.CompleteAvatar(avatarRoot);
+    }
+
     internal async Task BuildExpressionsAsync()
     {
         if (expressionsBuilt || Manifest == null) return;
@@ -316,7 +331,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 }
 
             }
-            catch (Exception ex)
+            catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 UnityPackageImporter.Warn("Failed to reconstruct expressions menu: " + ex);
             }

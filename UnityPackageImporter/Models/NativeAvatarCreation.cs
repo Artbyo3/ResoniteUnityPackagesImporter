@@ -41,12 +41,8 @@ internal static class NativeAvatarCreation
         // Match native readiness before its non-cancellable finalization begins.
         // This keeps cancellation responsive during unfinished asset downloads.
         var meshes = envelope.GetComponentsInChildren<SkinnedMeshRenderer>();
-        while (meshes.Any(mesh => !mesh.IsDestroyed && mesh.Mesh.Target != null && !mesh.Mesh.IsAssetAvailable))
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (envelope.IsDestroyed) throw new OperationCanceledException("The import was removed.");
-            await default(NextUpdate);
-        }
+        await ImportMeshReadiness.WaitAsync(meshes, cancellationToken);
+        await default(ToWorld);
         cancellationToken.ThrowIfCancellationRequested();
 
         // Capture the authored viewpoint before changing object-root boundaries.
@@ -92,6 +88,11 @@ internal static class NativeAvatarCreation
             if (envelope.IsDestroyed || envelope.GetComponent<AvatarRoot>() == null ||
                 envelope.GetComponent<VRIKAvatar>() == null || envelope.GetComponent<AvatarGroup>() == null)
                 throw new InvalidOperationException("Native avatar creation did not finish. The import has not been released.");
+
+            // The native creator now owns the IK reference spaces. Retire only
+            // movement parents recorded by this prefab's import preparation,
+            // preserving authored slots, world transforms and renderer references.
+            item.CompleteHumanoidHierarchy(envelope);
 
             // Native protection is attached to the root and renderers. Assign the
             // importing user consistently before this object can leave staging.
