@@ -16,7 +16,16 @@ internal static class BoneAttachmentTarget
             ? string.Equals(NormalizePath(relativePath(candidate)), path, StringComparison.Ordinal)
             : !string.IsNullOrEmpty(inferredName) && string.Equals(name(candidate), inferredName, StringComparison.Ordinal))
             .Take(2).ToArray();
-        return matches.Length == 1 ? matches[0] : null;
+        if (matches.Length == 1) return matches[0];
+        if (matches.Length == 0)
+        {
+            var caseInsensitive = candidates.Where(candidate => path.Length > 0
+                ? string.Equals(NormalizePath(relativePath(candidate)), path, StringComparison.OrdinalIgnoreCase)
+                : !string.IsNullOrEmpty(inferredName) && string.Equals(name(candidate), inferredName, StringComparison.OrdinalIgnoreCase))
+                .Take(2).ToArray();
+            if (caseInsensitive.Length == 1) return caseInsensitive[0];
+        }
+        return null;
     }
 
     private static string NormalizePath(string? path) =>

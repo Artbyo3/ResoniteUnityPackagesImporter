@@ -180,7 +180,7 @@ internal sealed class UnityStationHandle
             return;
         }
         await SelectAsync(0);
-        if (project.GetMissingMaterialSummary().HasMissingAssets)
+        if (project.GetMissingMaterialSummary(Current?.CurrentStructureRootSlot).HasMissingAssets)
         {
             dependencies = new MaterialDependencySession(project, this);
             SetCompanionState(true, false);
@@ -238,6 +238,11 @@ internal sealed class UnityStationHandle
         ui.SetLocalized("outfitContext", $"OUTFIT PREFAB ({selected + 1} of {items.Count})", $"衣装プレハブ（{selected + 1} / {items.Count}）");
         ui.SetLocalized(IsOutfit ? "outfitMetricsBody" : "avatarMetricsBody", Escape(BuildReceipt(Current)), Escape(BuildReceipt(Current, true)));
         RebuildPreview();
+        if (dependencies != null && !dependencies.IsWaiting)
+        {
+            bool hasMissing = importer.GetMissingMaterialSummary(Current?.CurrentStructureRootSlot).HasMissingAssets;
+            SetCompanionState(hasMissing, false);
+        }
         SetActions(true);
     }
     private void RebuildPreview()
@@ -337,11 +342,18 @@ internal sealed class UnityStationHandle
         SetActions(false);
         try
         {
-            bool success = await ModularAvatarAttachmentInstaller.TryInstallDirectlyAsync(item.CurrentStructureRootSlot,
+            var (success, error) = await ModularAvatarAttachmentInstaller.TryInstallDirectlyDetailedAsync(
+                item.CurrentStructureRootSlot,
                 item.Manifest, item.existingIUnityObjects, target, item.ID.Key, item.ID.Value,
                 menu, session.Token, assetFiles: importer.AssetIDDict);
             await default(ToWorld);
-            if (!success) throw new InvalidOperationException("The outfit could not be installed safely on the selected avatar.");
+            if (!success)
+            {
+                string message = string.IsNullOrEmpty(error)
+                    ? "The outfit could not be installed safely on the selected avatar."
+                    : "The outfit could not be installed safely on the selected avatar: " + error;
+                throw new InvalidOperationException(message);
+            }
             if (receipt && IsAlive && !target.IsDestroyed) SaveReceipt(target.Slot, item);
         }
         finally { await default(ToWorld); busy = false; if (IsAlive) SetActions(true); }
@@ -391,7 +403,7 @@ internal sealed class UnityStationHandle
         (japanese ? "プレハブ: " : "Prefab: ") + Path.GetFileName(item.ID.Value) +
         (japanese ? "\nインポートしたオブジェクト: " : "\nImported objects: ") + (item.existingIUnityObjects?.Count ?? 0) +
         (japanese ? "\nメッシュレンダラー: " : "\nMesh renderers: ") + item.CurrentStructureRootSlot.GetComponentsInChildren<SkinnedMeshRenderer>().Count +
-        (japanese ? "\n不足しているマテリアル: " : "\nMissing materials: ") + importer.GetMissingMaterialSummary().MissingAssetCount +
+        (japanese ? "\n不足しているマテリアル: " : "\nMissing materials: ") + importer.GetMissingMaterialSummary(item?.CurrentStructureRootSlot).MissingAssetCount +
         (japanese ? "\n検出した Modular Avatar コンポーネント: " : "\nModular Avatar components detected: ") + (item.Manifest?.ModularAvatarComponents.Count ?? 0) +
         (japanese ? "\nUI テンプレート: " : "\nUI template: ") + ui.Version +
         (japanese ? "\nShape Changer と Blendshape Sync の変換: 未対応" : "\nShape Changer and Blendshape Sync translation: not supported");

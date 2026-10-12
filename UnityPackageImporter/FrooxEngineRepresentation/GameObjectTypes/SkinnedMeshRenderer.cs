@@ -233,14 +233,19 @@ public class SkinnedMeshRenderer : IUnityObject
             warning => UnityPackageImporter.Warn($"{FoundMesh.Slot.Name}: {warning}"));
         await default(ToBackground);
 
+        int submeshCount = FoundMesh.Mesh.Asset?.Data?.SubmeshCount ?? int.MaxValue;
         for (int i = 0; i < m_Materials.Count; i++)
         {
-
+            if (i >= submeshCount)
+            {
+                UnityPackageImporter.Msg("Skipping material at slot index \"" + i + "\" beyond submesh count (" + submeshCount + ") on skinnedmeshrenderer \"" + FoundMesh.Slot.Name + "\"");
+                break;
+            }
             SourceObj material = m_Materials[i];
             try
             {
 
-                if (material.guid != string.Empty)
+                if (!string.IsNullOrEmpty(material?.guid))
                 {
                     if (importer.unityProjectImporter.AssetIDDict.ContainsKey(material.guid))
                     {
@@ -258,6 +263,21 @@ public class SkinnedMeshRenderer : IUnityObject
                             UnityPackageImporter.Msg("Imported a material at index \"" + i + "\" on skinnedmeshrenderer named \"" + FoundMesh.Slot.Name + "\" by tacking onto the end.");
                         }
 
+                        await default(ToBackground);
+                    }
+                    else if (MaterialDependencyDiagnostics.IsBuiltinResource(material.guid, material.type))
+                    {
+                        await default(ToWorld);
+                        UnityPackageImporter.Msg("Importing a material at index \"" + i + "\" on skinnedmeshrenderer named \"" + FoundMesh.Slot.Name + "\" is a built-in Unity resource (type " + material.type + ", guid " + material.guid + "). Using fallback material without reporting missing package dependency.");
+                        try
+                        {
+                            materials.RemoveAt(i);
+                            materials.Insert(i, new FileImportHelperTaskMaterial(importer.unityProjectImporter));
+                        }
+                        catch
+                        {
+                            materials.Add(new FileImportHelperTaskMaterial(importer.unityProjectImporter));
+                        }
                         await default(ToBackground);
                     }
                     else

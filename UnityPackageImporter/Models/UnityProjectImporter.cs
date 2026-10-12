@@ -63,7 +63,7 @@ public class UnityProjectImporter
         int materialIndex,
         string materialGuid)
     {
-        if (renderer == null || materialIndex < 0 || string.IsNullOrWhiteSpace(materialGuid)) return;
+        if (renderer == null || renderer.IsDestroyed || materialIndex < 0 || MaterialDependencyDiagnostics.IsBuiltinOrEmptyGuid(materialGuid)) return;
         lock (dependencyLock)
         {
             if (missingMaterialBindings.Any(binding =>
@@ -81,11 +81,17 @@ public class UnityProjectImporter
         }
     }
 
-    internal MaterialDependencySummary GetMissingMaterialSummary()
+    internal MaterialDependencySummary GetMissingMaterialSummary(Slot itemRoot = null)
     {
         List<MissingMaterialBinding> pending;
         lock (dependencyLock)
-            pending = missingMaterialBindings.Where(binding => !binding.Resolved).ToList();
+            pending = missingMaterialBindings.Where(binding =>
+                !binding.Resolved &&
+                binding.Renderer != null &&
+                !binding.Renderer.IsDestroyed &&
+                binding.Renderer.Slot != null &&
+                !binding.Renderer.Slot.IsDestroyed &&
+                (itemRoot == null || binding.Renderer.Slot.IsChildOf(itemRoot, true))).ToList();
 
         return MaterialDependencyDiagnostics.Analyze(
             pending.GroupBy(binding => binding.Renderer)
@@ -93,12 +99,18 @@ public class UnityProjectImporter
             Array.Empty<string>(), MissingTextureAssignments.MissingAssetGuids);
     }
 
-    internal bool CanResolveAnyMaterial(IEnumerable<string> assetGuids)
+    internal bool CanResolveAnyMaterial(IEnumerable<string> assetGuids, Slot itemRoot = null)
     {
         var candidates = new HashSet<string>(assetGuids ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
         lock (dependencyLock)
             if (missingMaterialBindings.Any(binding =>
-                !binding.Resolved && candidates.Contains(binding.MaterialGuid))) return true;
+                !binding.Resolved &&
+                binding.Renderer != null &&
+                !binding.Renderer.IsDestroyed &&
+                binding.Renderer.Slot != null &&
+                !binding.Renderer.Slot.IsDestroyed &&
+                (itemRoot == null || binding.Renderer.Slot.IsChildOf(itemRoot, true)) &&
+                candidates.Contains(binding.MaterialGuid))) return true;
         return MissingTextureAssignments.CanResolveAny(candidates);
     }
 

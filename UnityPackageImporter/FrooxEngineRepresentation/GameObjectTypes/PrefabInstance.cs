@@ -99,37 +99,61 @@ public class PrefabInstance : IUnityObject
                 this.PrefabHashes = importask.FILEID_To_Slot_Pairs;
                 this.PrefabHashes.Add(importrootsource, ImportRoot);
                 List<IUnityObject> modifiedObjects = new List<IUnityObject>();
-                if (m_Modification != null && this.PrefabHashes != null)
-                {
-                    foreach (ModsPrefab mod in m_Modification.m_Modifications)
-                    {
-                        IUnityObject targetobj2 = null;
-                        IUnityObject targetobj3 = null;
-                        if (this.PrefabHashes.TryGetValue(mod.target, out IUnityObject targetobj) || importer.existingIUnityObjects.TryGetValue((ulong)(mod.target.fileID + (2 ^ 64)), out targetobj2) || importer.existingIUnityObjects.TryGetValue((ulong)(mod.target.fileID), out targetobj3))
-                        {
-                            targetobj = targetobj ?? targetobj2 ?? targetobj3; //get first available match.
 
-                            if (MModificationsParser.ParseModifcation(targetobj, mod))
+                var lineageGuids = PrefabVariantResolver.GetLineageGuids(
+                    this.m_SourcePrefab?.guid,
+                    resolvedFbxGuid,
+                    importer.unityProjectImporter?.ListOfPrefabs);
+
+                // 1. Replay modifications from ancestor prefabs (oldest ancestor first)
+                var ancestorFiles = PrefabVariantResolver.GetAncestorPrefabFiles(
+                    this.m_SourcePrefab?.guid,
+                    importer.unityProjectImporter?.ListOfPrefabs);
+
+                foreach (var ancestorFile in ancestorFiles)
+                {
+                    try
+                    {
+                        var ancestorObjects = YamlToFrooxEngine.parseYaml(ancestorFile);
+                        foreach (var kvp in ancestorObjects)
+                        {
+                            if (kvp.Value is PrefabInstance ancestorPi && ancestorPi.m_Modification?.m_Modifications != null)
                             {
-                                UnityPackageImporter.Msg("The prefab with a file id of \"" + id.ToString() + "\" in the structure scene has parsed a modification with the hash \"" + mod.target.ToString() + "\" successfully.");
-                                if (!modifiedObjects.Contains(targetobj))
+                                ApplyModifications(ancestorPi.m_Modification.m_Modifications, importer, resolvedFbxGuid, lineageGuids, modifiedObjects);
+                            }
+                            else if (kvp.Value is SkinnedMeshRenderer ancestorSkin && ancestorSkin.m_Materials != null && ancestorSkin.m_Materials.Count > 0)
+                            {
+                                if (FindTargetObject(importer, new ModsPrefab { target = new SourceObj(ancestorSkin.m_CorrespondingSourceObject?.fileID ?? (long)ancestorSkin.id, resolvedFbxGuid, 3) }, resolvedFbxGuid, lineageGuids) is SkinnedMeshRenderer targetSkin)
                                 {
-                                    modifiedObjects.Add(targetobj);
+                                    for (int i = 0; i < ancestorSkin.m_Materials.Count; i++)
+                                    {
+                                        var mat = ancestorSkin.m_Materials[i];
+                                        if (mat != null && !string.IsNullOrEmpty(mat.guid))
+                                        {
+                                            while (targetSkin.m_Materials.Count <= i)
+                                                targetSkin.m_Materials.Add(new SourceObj());
+                                            if (string.IsNullOrEmpty(targetSkin.m_Materials[i]?.guid))
+                                            {
+                                                targetSkin.m_Materials[i] = mat;
+                                                if (!modifiedObjects.Contains(targetSkin))
+                                                    modifiedObjects.Add(targetSkin);
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                            else
-                            {
-                                UnityPackageImporter.Warn("The prefab with a file id of \"" + id.ToString() + "\" in the structure scene is malformed!!! The modification with the hash \"" + mod.target.ToString() + "\" could not be parsed!");
-                            }
-
                         }
-                        else
-                        {
-                            UnityPackageImporter.Warn("The prefab with a file id of \"" + id.ToString() + "\" in the structure scene is malformed!!! The modification with the hash \"" + mod.target.ToString() + "\" does not match any in the list of hashes on the prefab \"" + id.ToString() + "\"");
-                        }
-
                     }
+                    catch (Exception ex)
+                    {
+                        UnityPackageImporter.Warn("Failed to replay ancestor modifications from " + ancestorFile + ": " + ex.Message);
+                    }
+                }
 
+                // 2. Apply this variant's modifications on top
+                if (m_Modification != null && this.PrefabHashes != null)
+                {
+                    ApplyModifications(m_Modification.m_Modifications, importer, resolvedFbxGuid, lineageGuids, modifiedObjects);
                 }
 
                 instanciated = true;
@@ -140,6 +164,7 @@ public class PrefabInstance : IUnityObject
                 {
                     // This is so that it can find it's source, which is ourselves to prevent errors - @989onan
                     obj.m_PrefabInstance = new Dictionary<string, ulong> { { "fileID", this.id } };
+                    obj.instanciated = false;
                     try
                     {
                         UnityPackageImporter.Msg("reinitializing object that was modified. the object has an id of: \"" + obj.m_CorrespondingSourceObject.fileID + "\"");
@@ -235,51 +260,90 @@ public class PrefabInstance : IUnityObject
         return result.ToString();
     }
 
-    private string ResolveFBXGuid(IUnityStructureImporter importer, string sourceGuid)
+    private IUnityObject FindTargetObject(
+        IUnityStructureImporter importer,
+        ModsPrefab mod,
+        string resolvedFbxGuid,
+        HashSet<string> lineageGuids)
     {
-        if (string.IsNullOrEmpty(sourceGuid)) return null;
-        if (importer?.unityProjectImporter?.SharedImportedFBXScenes == null) return null;
+        if (mod?.target == null) return null;
 
-        var visited = new HashSet<string>();
-        string currentGuid = sourceGuid;
-        while (!string.IsNullOrEmpty(currentGuid) && visited.Add(currentGuid))
+        // 1. Direct match in PrefabHashes
+        if (this.PrefabHashes != null && this.PrefabHashes.TryGetValue(mod.target, out IUnityObject directTarget))
+            return directTarget;
+
+        // 2. Lineage match: if mod.target.guid belongs to the ancestor lineage or is empty,
+        // map it to the underlying FBX GUID that keys the duplicated slot components in PrefabHashes.
+        if (this.PrefabHashes != null && !string.IsNullOrEmpty(resolvedFbxGuid))
         {
-            if (importer.unityProjectImporter.SharedImportedFBXScenes.ContainsKey(currentGuid))
+            if (PrefabVariantResolver.TryResolveTargetKey(
+                mod.target.fileID,
+                mod.target.guid,
+                resolvedFbxGuid,
+                lineageGuids,
+                out string resolvedTargetGuid))
             {
-                return currentGuid;
+                SourceObj resolvedTarget = new SourceObj(mod.target.fileID, resolvedTargetGuid, mod.target.type);
+                if (this.PrefabHashes.TryGetValue(resolvedTarget, out IUnityObject lineageTarget))
+                    return lineageTarget;
             }
+        }
 
-            if (importer.unityProjectImporter.ListOfPrefabs != null && importer.unityProjectImporter.ListOfPrefabs.TryGetValue(currentGuid, out string prefabFile) && File.Exists(prefabFile))
+        // 3. Fallback: match by file ID in existing objects deserialized in current task
+        if (importer?.existingIUnityObjects != null)
+        {
+            if (importer.existingIUnityObjects.TryGetValue((ulong)mod.target.fileID, out IUnityObject localTarget))
+                return localTarget;
+            if (importer.existingIUnityObjects.TryGetValue(unchecked((ulong)mod.target.fileID), out localTarget))
+                return localTarget;
+        }
+
+        return null;
+    }
+
+    private void ApplyModifications(
+        IEnumerable<ModsPrefab> modifications,
+        IUnityStructureImporter importer,
+        string resolvedFbxGuid,
+        HashSet<string> lineageGuids,
+        List<IUnityObject> modifiedObjects)
+    {
+        if (modifications == null) return;
+        foreach (ModsPrefab mod in modifications)
+        {
+            IUnityObject targetobj = FindTargetObject(importer, mod, resolvedFbxGuid, lineageGuids);
+            if (targetobj != null)
             {
-                string fbxGuid = FindSourceGuidInPrefabFile(prefabFile);
-                if (!string.IsNullOrEmpty(fbxGuid))
+                if (MModificationsParser.ParseModifcation(targetobj, mod))
                 {
-                    currentGuid = fbxGuid;
-                    continue;
+                    UnityPackageImporter.Msg("The prefab with a file id of \"" + id.ToString() + "\" in the structure scene has parsed a modification with the hash \"" + mod.target.ToString() + "\" successfully.");
+                    if (!modifiedObjects.Contains(targetobj))
+                    {
+                        modifiedObjects.Add(targetobj);
+                    }
+                }
+                else
+                {
+                    UnityPackageImporter.Warn("The prefab with a file id of \"" + id.ToString() + "\" in the structure scene is malformed!!! The modification with the hash \"" + mod.target.ToString() + "\" could not be parsed!");
                 }
             }
-            break;
+            else
+            {
+                UnityPackageImporter.Warn("The prefab with a file id of \"" + id.ToString() + "\" in the structure scene is malformed!!! The modification with the hash \"" + mod.target.ToString() + "\" does not match any in the list of hashes on the prefab \"" + id.ToString() + "\"");
+            }
         }
-        return null;
+    }
+
+    private string ResolveFBXGuid(IUnityStructureImporter importer, string sourceGuid)
+    {
+        return PrefabVariantResolver.ResolveFbxGuid(
+            sourceGuid,
+            importer?.unityProjectImporter?.ListOfPrefabs,
+            importer?.unityProjectImporter?.SharedImportedFBXScenes?.Keys);
     }
 
     private static string FindSourceGuidInPrefabFile(string file)
     {
-        try
-        {
-            foreach (var line in File.ReadLines(file))
-            {
-                if (line.Contains("m_SourcePrefab:") && line.Contains("guid:"))
-                {
-                    var parts = line.Split(new[] { "guid:" }, StringSplitOptions.None);
-                    if (parts.Length > 1)
-                    {
-                        return parts[1].Split(new[] { ',', ' ', '}', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)[0].Trim();
-                    }
-                }
-            }
-        }
-        catch { }
-        return null;
+        return PrefabVariantResolver.FindSourceGuidInPrefabFile(file);
     }
 }

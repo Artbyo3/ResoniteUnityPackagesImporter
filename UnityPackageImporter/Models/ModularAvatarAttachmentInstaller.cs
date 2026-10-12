@@ -103,10 +103,27 @@ internal static class ModularAvatarAttachmentInstaller
         CancellationToken cancellationToken = default,
         IReadOnlyDictionary<string, string> assetFiles = null)
     {
+        var (success, _) = await TryInstallDirectlyDetailedAsync(
+            attachmentRoot, manifest, unityObjects, targetRig, prefabGuid, prefabFile,
+            installOutfitMenu, cancellationToken, assetFiles);
+        return success;
+    }
+
+    internal static async Task<(bool success, string error)> TryInstallDirectlyDetailedAsync(
+        Slot attachmentRoot,
+        AvatarPackageManifest manifest,
+        Dictionary<ulong, IUnityObject> unityObjects,
+        BipedRig targetRig,
+        string prefabGuid,
+        string prefabFile,
+        bool installOutfitMenu = true,
+        CancellationToken cancellationToken = default,
+        IReadOnlyDictionary<string, string> assetFiles = null)
+    {
         await default(ToWorld);
         cancellationToken.ThrowIfCancellationRequested();
         if (attachmentRoot == null || manifest == null || unityObjects == null || targetRig == null)
-            return false;
+            return (false, "Attachment parameters are missing or invalid.");
 
         try
         {
@@ -116,16 +133,25 @@ internal static class ModularAvatarAttachmentInstaller
             var identity = OutfitInstallIdentity.FromPrefab(prefabGuid, prefabFile, assetSnapshot, cancellationToken);
             await default(ToWorld);
             cancellationToken.ThrowIfCancellationRequested();
-            if (attachmentRoot.IsDestroyed || targetRig.IsDestroyed) return false;
+            if (attachmentRoot.IsDestroyed || targetRig.IsDestroyed)
+                return (false, "Target avatar or outfit is no longer available.");
             using var installationLease = await AttachmentInstallationGate.EnterAsync(targetRig.Slot, cancellationToken);
             await default(ToWorld);
             cancellationToken.ThrowIfCancellationRequested();
-            if (attachmentRoot.IsDestroyed || targetRig.IsDestroyed) return false;
+            if (attachmentRoot.IsDestroyed || targetRig.IsDestroyed)
+                return (false, "Target avatar or outfit is no longer available.");
             var mergeBindings = ResolveMergeSources(attachmentRoot, manifest, unityObjects);
             var boneProxyBindings = ResolveBoneProxies(attachmentRoot, manifest, unityObjects);
 
             if (mergeBindings.Count == 0 && boneProxyBindings.Count == 0)
-                return false;
+                return (false, "No Merge Armature or Bone Proxy components could be found in the outfit.");
+
+            string currentError = GetTargetError(mergeBindings, boneProxyBindings, targetRig);
+            if (currentError != null)
+            {
+                UnityPackageImporter.Warn("Could not install on " + targetRig.Slot.Name + ": " + currentError);
+                return (false, currentError);
+            }
 
             var installed = await InstallCopyAsync(
                 attachmentRoot,
@@ -136,7 +162,8 @@ internal static class ModularAvatarAttachmentInstaller
                 cancellationToken);
 
             await default(ToWorld);
-            if (installed == null || !installed.IsHealthy) return false;
+            if (installed == null || !installed.IsHealthy)
+                return (false, "Installation copy produced an incomplete or unhealthy result.");
             // The installation is committed. Finish its optional controls even if the
             // station closes now; do not report a completed outfit as cancelled.
             if (installOutfitMenu && !installed.RecordRoot.Children.Any(child => child.Name == "Outfit Controls"))
@@ -158,7 +185,7 @@ internal static class ModularAvatarAttachmentInstaller
                     UnityPackageImporter.Warn("Outfit installed, but its optional menu could not be created: " + ex.Message);
                 }
             }
-            return true;
+            return (true, null);
         }
         catch (OperationCanceledException)
         {
@@ -168,7 +195,7 @@ internal static class ModularAvatarAttachmentInstaller
         {
             await default(ToWorld);
             UnityPackageImporter.Error("Failed to install attachment '" + attachmentRoot.Name + "' directly: " + ex);
-            return false;
+            return (false, ex.Message);
         }
     }
 
@@ -211,28 +238,56 @@ internal static class ModularAvatarAttachmentInstaller
         foreach (var definition in manifest.ModularAvatarComponents
                      .Where(component => component.Kind == ModularAvatarComponentKind.MergeArmature))
         {
-            if (definition.GameObjectFileId <= 0 ||
-                !unityObjects.TryGetValue((ulong)definition.GameObjectFileId, out var unityObject) ||
-                unityObject is not UnityGameObject gameObject ||
-                gameObject.frooxEngineSlot == null)
+            Slot initialSlot = null;
+            if (definition.GameObjectFileId != 0)
             {
-                throw new InvalidOperationException(
-                    "Could not resolve Merge Armature GameObject " + definition.GameObjectFileId +
-                    " in '" + attachmentRoot.Name + "'.");
+                if ((unityObjects.TryGetValue((ulong)definition.GameObjectFileId, out var unityObject) ||
+                     unityObjects.TryGetValue(unchecked((ulong)definition.GameObjectFileId), out unityObject)) &&
+                    unityObject is UnityGameObject gameObject &&
+                    gameObject.frooxEngineSlot != null)
+                {
+                    initialSlot = gameObject.frooxEngineSlot;
+                }
             }
 
-            var path = GetIndexPath(attachmentRoot, gameObject.frooxEngineSlot);
+            if (initialSlot == null && !string.IsNullOrEmpty(definition.GameObjectName))
+            {
+                initialSlot = EnumerateSelfAndChildren(attachmentRoot)
+                    .FirstOrDefault(s => s.Name.Equals(definition.GameObjectName, StringComparison.Ordinal))
+                    ?? EnumerateSelfAndChildren(attachmentRoot)
+                    .FirstOrDefault(s => s.Name.Equals(definition.GameObjectName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (initialSlot == null)
+            {
+                initialSlot = attachmentRoot;
+            }
+
+            Slot sourceSlot = initialSlot;
+            // If the MergeArmature is placed on the attachment root or an outfit container,
+            // try to resolve to its child Armature if present!
+            if (sourceSlot == attachmentRoot || !IsLikelyArmature(sourceSlot))
+            {
+                var candidateArmature = sourceSlot.Children.FirstOrDefault(IsLikelyArmature)
+                    ?? EnumerateSelfAndChildren(sourceSlot).FirstOrDefault(s => s != sourceSlot && IsLikelyArmature(s));
+                if (candidateArmature != null)
+                {
+                    sourceSlot = candidateArmature;
+                }
+            }
+
+            var path = GetIndexPath(attachmentRoot, sourceSlot);
             if (path == null)
             {
                 throw new InvalidOperationException(
-                    "Merge Armature source '" + gameObject.frooxEngineSlot.Name +
+                    "Merge Armature source '" + sourceSlot.Name +
                     "' is outside attachment root '" + attachmentRoot.Name + "'.");
             }
 
             result.Add(new MergeSourceBinding
             {
                 Definition = definition,
-                SourceSlot = gameObject.frooxEngineSlot,
+                SourceSlot = sourceSlot,
                 IndexPath = path
             });
         }
@@ -249,28 +304,45 @@ internal static class ModularAvatarAttachmentInstaller
         foreach (var definition in manifest.ModularAvatarComponents
                      .Where(component => component.Kind == ModularAvatarComponentKind.BoneProxy))
         {
-            if (definition.GameObjectFileId <= 0 ||
-                !unityObjects.TryGetValue((ulong)definition.GameObjectFileId, out var unityObject) ||
-                unityObject is not UnityGameObject gameObject ||
-                gameObject.frooxEngineSlot == null)
+            Slot proxySlot = null;
+            if (definition.GameObjectFileId != 0)
+            {
+                if ((unityObjects.TryGetValue((ulong)definition.GameObjectFileId, out var unityObject) ||
+                     unityObjects.TryGetValue(unchecked((ulong)definition.GameObjectFileId), out unityObject)) &&
+                    unityObject is UnityGameObject gameObject &&
+                    gameObject.frooxEngineSlot != null)
+                {
+                    proxySlot = gameObject.frooxEngineSlot;
+                }
+            }
+
+            if (proxySlot == null && !string.IsNullOrEmpty(definition.GameObjectName))
+            {
+                proxySlot = EnumerateSelfAndChildren(attachmentRoot)
+                    .FirstOrDefault(s => s.Name.Equals(definition.GameObjectName, StringComparison.Ordinal))
+                    ?? EnumerateSelfAndChildren(attachmentRoot)
+                    .FirstOrDefault(s => s.Name.Equals(definition.GameObjectName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (proxySlot == null)
             {
                 throw new InvalidOperationException(
                     "Could not resolve Bone Proxy GameObject " + definition.GameObjectFileId +
                     " in '" + attachmentRoot.Name + "'.");
             }
 
-            var path = GetIndexPath(attachmentRoot, gameObject.frooxEngineSlot);
+            var path = GetIndexPath(attachmentRoot, proxySlot);
             if (path == null)
             {
                 throw new InvalidOperationException(
-                    "Bone Proxy source '" + gameObject.frooxEngineSlot.Name +
+                    "Bone Proxy source '" + proxySlot.Name +
                     "' is outside attachment root '" + attachmentRoot.Name + "'.");
             }
 
             result.Add(new BoneProxyBinding
             {
                 Definition = definition,
-                SourceSlot = gameObject.frooxEngineSlot,
+                SourceSlot = proxySlot,
                 IndexPath = path
             });
         }
@@ -331,7 +403,7 @@ internal static class ModularAvatarAttachmentInstaller
         var excludedTargets = GetInstalledOutfitRoots(targetRig.Slot);
         foreach (var binding in mergeBindings)
         {
-            var targetRoot = ResolveTargetRoot(targetRig.Slot, binding, excludedTargets);
+            var targetRoot = ResolveTargetRoot(targetRig.Slot, binding, excludedTargets, targetRig);
             if (targetRoot == null)
                 return "Target armature path is missing, ambiguous, or belongs to another installed outfit";
 
@@ -442,7 +514,7 @@ internal static class ModularAvatarAttachmentInstaller
             var prepared = new List<PreparedMerge>();
             foreach (var binding in clonedBindings)
             {
-                var targetRoot = ResolveTargetRoot(targetRig.Slot, binding, excludedTargets)
+                var targetRoot = ResolveTargetRoot(targetRig.Slot, binding, excludedTargets, targetRig)
                     ?? throw new InvalidOperationException(
                         "Target armature path '" + binding.Definition.MergeTargetPath +
                         "' is missing, ambiguous, or belongs to another installed outfit.");
@@ -975,13 +1047,35 @@ internal static class ModularAvatarAttachmentInstaller
         return roots;
     }
 
-    private static Slot ResolveTargetRoot(Slot avatarRoot, MergeSourceBinding binding, HashSet<Slot> excludedRoots)
+    private static bool IsLikelyArmature(Slot s)
+    {
+        if (s == null || s.IsDestroyed) return false;
+        if (s.Name.Equals("Armature", StringComparison.OrdinalIgnoreCase)) return true;
+        return s.Children.Any(c => c.Name.Equals("Hips", StringComparison.OrdinalIgnoreCase) ||
+                                   c.Name.Equals("Pelvis", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static Slot ResolveTargetRoot(Slot avatarRoot, MergeSourceBinding binding, HashSet<Slot> excludedRoots, BipedRig targetRig = null)
     {
         var candidates = new Dictionary<string, Slot>();
         BuildHierarchy(avatarRoot, new HashSet<Slot>(), candidates, null, excludedRoots);
-        return ModularAvatarMergePlanner.ResolveTarget(avatarRoot, candidates.Values,
+        var target = ModularAvatarMergePlanner.ResolveTarget(avatarRoot, candidates.Values,
             binding.Definition.MergeTargetPath, binding.SourceSlot.Name, binding.Definition.Prefix, binding.Definition.Suffix,
             slot => slot.Name, slot => RelativePath(slot, avatarRoot));
+        if (target != null) return target;
+
+        var hipsBone = targetRig?.TryGetBone(BodyNode.Hips);
+        var rigArmature = hipsBone?.Parent != null && hipsBone.Parent != avatarRoot
+            ? hipsBone.Parent
+            : null;
+
+        if (rigArmature != null && string.IsNullOrEmpty(binding.Definition.MergeTargetPath) && IsLikelyArmature(binding.SourceSlot))
+        {
+            if (excludedRoots == null || !excludedRoots.Contains(rigArmature))
+                return rigArmature;
+        }
+
+        return null;
     }
 
     private static MergeHierarchyNode BuildHierarchy(

@@ -78,6 +78,13 @@ public static class ModularAvatarMergePlanner
 
                 if (candidates.Count == 0)
                 {
+                    candidates = target.Children
+                        .Where(candidate => candidate.Name.Equals(targetName, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                }
+
+                if (candidates.Count == 0)
+                {
                     Retain(child, childSourcePath, target, targetPath, "No direct target bone with the mapped name");
                     continue;
                 }

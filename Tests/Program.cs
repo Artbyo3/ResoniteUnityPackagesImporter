@@ -340,6 +340,47 @@ Test("Unknown prefab properties are reported without throwing", () =>
           !string.IsNullOrEmpty(error), "Missing property was not reported.");
 });
 
+Test("PrefabVariantResolver resolves target keys across lineage", () =>
+{
+    var fbxGuid = "fbx-guid";
+    var parentGuid = "parent-prefab-guid";
+    var foreignGuid = "unrelated-guid";
+    var lineage = new HashSet<string> { fbxGuid, parentGuid };
+
+    Check(PrefabVariantResolver.TryResolveTargetKey(13700000, parentGuid, fbxGuid, lineage, out var resolvedParent) &&
+          resolvedParent == fbxGuid, "Parent prefab target GUID must resolve to underlying FBX GUID.");
+
+    Check(PrefabVariantResolver.TryResolveTargetKey(13700000, fbxGuid, fbxGuid, lineage, out var resolvedFbx) &&
+          resolvedFbx == fbxGuid, "Direct FBX target GUID must match.");
+
+    Check(PrefabVariantResolver.TryResolveTargetKey(13700000, "", fbxGuid, lineage, out var resolvedEmpty) &&
+          resolvedEmpty == fbxGuid, "Empty target GUID must resolve to FBX GUID.");
+
+    Check(!PrefabVariantResolver.TryResolveTargetKey(13700000, foreignGuid, fbxGuid, lineage, out _),
+        "Foreign target GUID must be rejected.");
+});
+
+Test("Prefab variant overrides preserve parent materials and apply child color variations", () =>
+{
+    var target = new OverrideFixture();
+    var parentMat0 = new TestReference { guid = "parent-jacket-guid" };
+    var parentMat1 = new TestReference { guid = "parent-pants-guid" };
+    var variantMat0 = new TestReference { guid = "child-blue-jacket-guid" };
+
+    Check(UnityPropertyPath.TrySet(target, "m_Materials.Array.data[0]", "", parentMat0, out var err0), err0);
+    Check(UnityPropertyPath.TrySet(target, "m_Materials.Array.data[1]", "", parentMat1, out var err1), err1);
+
+    Check(target.m_Materials.Count == 2, "Parent materials must populate slots.");
+    Check(target.m_Materials[0].guid == "parent-jacket-guid", "Slot 0 should have parent material.");
+    Check(target.m_Materials[1].guid == "parent-pants-guid", "Slot 1 should have parent material.");
+
+    Check(UnityPropertyPath.TrySet(target, "m_Materials.Array.data[0]", "", variantMat0, out var err2), err2);
+
+    Check(target.m_Materials.Count == 2, "Material count should remain 2.");
+    Check(target.m_Materials[0].guid == "child-blue-jacket-guid", "Slot 0 must be overridden with variant material.");
+    Check(target.m_Materials[1].guid == "parent-pants-guid", "Slot 1 must retain inherited parent material.");
+});
+
 Test("Blendshape defaults convert Unity percentages without clamping", () =>
 {
     var actual = new float[5];
@@ -798,6 +839,138 @@ Test("Reject ambiguous Modular Avatar target bones", () =>
     Check(!plan.CanApply && plan.Conflicts.Count == 1, "Ambiguous direct target bones must block automatic installation");
     Check(plan.Mappings.Count == 1, "Ambiguous bones must not be mapped arbitrarily");
 });
+
+Test("Modular Avatar armature merge matches bone names case-insensitively", () =>
+{
+    var avatar = new MergeHierarchyNode
+    {
+        Id = "avatar-root",
+        Name = "armature",
+        Children = new[]
+        {
+            new MergeHierarchyNode
+            {
+                Id = "avatar-hips",
+                Name = "hips",
+                Children = new[]
+                {
+                    new MergeHierarchyNode
+                    {
+                        Id = "avatar-spine",
+                        Name = "spine",
+                        Children = new[]
+                        {
+                            new MergeHierarchyNode { Id = "avatar-chest", Name = "chest" }
+                        }
+                    }
+                }
+            }
+        }
+    };
+    var outfit = new MergeHierarchyNode
+    {
+        Id = "outfit-root",
+        Name = "Armature",
+        Children = new[]
+        {
+            new MergeHierarchyNode
+            {
+                Id = "outfit-hips",
+                Name = "Hips",
+                Children = new[]
+                {
+                    new MergeHierarchyNode
+                    {
+                        Id = "outfit-spine",
+                        Name = "Spine",
+                        Children = new[]
+                        {
+                            new MergeHierarchyNode { Id = "outfit-chest", Name = "Chest" },
+                            new MergeHierarchyNode { Id = "outfit-ribbon", Name = "Ribbon" }
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    var plan = ModularAvatarMergePlanner.CreatePlan(outfit, avatar);
+    Check(plan.CanApply, "Case-insensitive armature matching must succeed without conflicts");
+    Check(plan.Mappings.Count == 4, $"Expected 4 mappings (root + hips + spine + chest), got {plan.Mappings.Count}");
+    Check(plan.Mappings.Any(m => m.SourceId == "outfit-hips" && m.TargetId == "avatar-hips"), "Hips must map to hips");
+    Check(plan.Mappings.Any(m => m.SourceId == "outfit-chest" && m.TargetId == "avatar-chest"), "Chest must map to chest");
+    Check(plan.RetainedRoots.Count == 1 && plan.RetainedRoots[0].SourceId == "outfit-ribbon", "Unique bones must be retained under mapped parent");
+    Check(plan.RetainedRoots[0].TargetParentId == "avatar-spine", "Ribbon must attach below avatar-spine");
+});
+
+Test("Modular Avatar armature merge rejects ambiguous case-insensitive bones", () =>
+{
+    var avatar = new MergeHierarchyNode
+    {
+        Id = "avatar-root",
+        Name = "armature",
+        Children = new[]
+        {
+            new MergeHierarchyNode { Id = "hips-lower", Name = "hips" },
+            new MergeHierarchyNode { Id = "hips-upper", Name = "HIPS" }
+        }
+    };
+    var outfit = new MergeHierarchyNode
+    {
+        Id = "outfit-root",
+        Name = "Armature",
+        Children = new[] { new MergeHierarchyNode { Id = "outfit-hips", Name = "Hips" } }
+    };
+
+    var plan = ModularAvatarMergePlanner.CreatePlan(outfit, avatar);
+    Check(!plan.CanApply && plan.Conflicts.Count == 1, "Ambiguous case-insensitive target bones must produce a conflict");
+});
+
+Test("Prefab variant inherits Modular Avatar components from ancestor prefab", () => InTemp(root =>
+{
+    var basePrefabGuid = "11111111111111111111111111111111";
+    var variantPrefabGuid = "22222222222222222222222222222222";
+    var basePrefabFile = Path.Combine(root, "BaseOutfit.prefab");
+    var variantPrefabFile = Path.Combine(root, "VariantOutfit.prefab");
+
+    File.WriteAllText(basePrefabFile, @"%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &100000
+GameObject:
+  m_Name: Armature
+--- !u!114 &100001
+MonoBehaviour:
+  m_GameObject: {fileID: 100000}
+  m_Script: {fileID: 11500000, guid: 2df373bf91cf30b4bbd495e11cb1a2ec, type: 3}
+  armatureRoot: {fileID: 100000}
+");
+
+    File.WriteAllText(variantPrefabFile, @"%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1001 &200000
+PrefabInstance:
+  m_SourcePrefab: {fileID: 100100000, guid: 11111111111111111111111111111111, type: 3}
+  m_Modification:
+    m_Modifications: []
+");
+
+    var prefabs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        [basePrefabGuid] = basePrefabFile,
+        [variantPrefabGuid] = variantPrefabFile
+    };
+
+    var baseManifest = AvatarPackageIndex.ParseFile(basePrefabFile, prefabs);
+    Check(baseManifest.IsModularAvatarAttachment, "Base prefab must be recognized as Modular Avatar outfit");
+    Check(baseManifest.ModularAvatarComponents.Count == 1, "Base prefab must parse 1 component");
+
+    var variantManifest = AvatarPackageIndex.ParseFile(variantPrefabFile, prefabs);
+    Check(variantManifest.IsModularAvatarAttachment, "Variant prefab must inherit Modular Avatar attachment status");
+    Check(!variantManifest.ShouldSetUpHumanoid, "Variant outfit must not set up dummy humanoid rig");
+    Check(variantManifest.ModularAvatarComponents.Count == 1, "Variant prefab must inherit 1 Modular Avatar component");
+    Check(variantManifest.ModularAvatarComponents[0].Kind == ModularAvatarComponentKind.MergeArmature, "Inherited component must be MergeArmature");
+    Check(variantManifest.ModularAvatarComponents[0].ArmatureRootFileId == 100000, "Inherited ArmatureRootFileId must be preserved");
+}));
 
 Test("Parse VRCExpressionsMenu and submenus YAML", () => InTemp(root =>
 {

@@ -17,6 +17,28 @@ internal sealed class MaterialDependencySummary
 
 internal static class MaterialDependencyDiagnostics
 {
+    public static readonly HashSet<string> BuiltinUnityGuids = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "00000000000000000000000000000000",
+        "0000000000000000f000000000000000", // Default-Material / unity default resources
+        "0000000000000000e000000000000000", // Sprites / UI default
+    };
+
+    public static bool IsBuiltinOrEmptyGuid(string? guid)
+    {
+        if (string.IsNullOrWhiteSpace(guid)) return true;
+        if (BuiltinUnityGuids.Contains(guid)) return true;
+        if (guid.Length == 32 && guid.Trim('0').Length <= 1 && (guid.Contains('f', StringComparison.OrdinalIgnoreCase) || guid.Contains('e', StringComparison.OrdinalIgnoreCase) || guid.Trim('0').Length == 0))
+            return true;
+        return false;
+    }
+
+    public static bool IsBuiltinResource(string? guid, int type)
+    {
+        if (type == 0 || type == 1) return true;
+        return IsBuiltinOrEmptyGuid(guid);
+    }
+
     public static MaterialDependencySummary Analyze(
         IEnumerable<IEnumerable<string>>? rendererMaterialGuids,
         IEnumerable<string>? availableAssetGuids,
@@ -38,7 +60,7 @@ internal static class MaterialDependencyDiagnostics
                 {
                     foreach (string guid in rendererGuids)
                     {
-                        if (string.IsNullOrWhiteSpace(guid) || available.Contains(guid))
+                        if (string.IsNullOrWhiteSpace(guid) || IsBuiltinOrEmptyGuid(guid) || available.Contains(guid))
                             continue;
 
                         missing.Add(guid);

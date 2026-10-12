@@ -63,7 +63,9 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
 
 
             progressIndicator?.UpdateProgress(0f, "", "now loading unity YAML objects for Prefab.");
-            AvatarPackageManifest avatarManifest = Manifest = AvatarPackageIndex.ParseFile(this.ID.Value);
+            AvatarPackageManifest avatarManifest = Manifest = AvatarPackageIndex.ParseFile(
+                this.ID.Value,
+                this.unityProjectImporter?.ListOfPrefabs);
             this.existingIUnityObjects  = YamlToFrooxEngine.parseYaml(this.ID.Value);
 
             int totalProgress = 0;
