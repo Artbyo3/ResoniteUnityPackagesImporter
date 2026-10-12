@@ -33,7 +33,7 @@ The optional engine metadata check reads the installed DLL without executing gam
 5. Test a skinned humanoid: inspect bone mapping, blend shapes, scale, and IK. Test a non-humanoid prop separately.
 6. Test a missing dependency or unsupported component and inspect the failure/warning output. No import should remain waiting forever for a mesh.
 
-The initial stabilization pass had no real-package verification. A subsequent ResoLoop session tested real packages and exposed additional failures; see [live test results](LIVE_TEST_2026-09-20.md). Successful extraction does not establish correct prefab appearance.
+The initial stabilization pass had no real-package verification. Real packages were subsequently tested in-engine. Successful extraction does not establish correct prefab appearance.
 
 ## Remaining work
 
