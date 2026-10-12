@@ -20,20 +20,6 @@ namespace UnityPackageImporter.Models;
 internal static class ModularAvatarAttachmentInstaller
 {
     private const string InstallerSlotName = "Modular Avatar Installer";
-    private const string RecordsSlotName = "Unity Package Importer";
-    private const string RecordMarker = "UnityPackageImporter.ModularAvatarOutfit";
-    private const string RecordTypeFieldName = "Record Type";
-    private const string SchemaFieldName = "Schema Version";
-    private const string PrefabGuidFieldName = "Prefab GUID";
-    private const string ContentHashFieldName = "Content Hash";
-    private const string SourceNameFieldName = "Source Name";
-    private const string AvatarSignatureFieldName = "Avatar Signature";
-    private const string TargetAvatarFieldName = "Target Avatar";
-    private const string InstalledRootFieldName = "Installed Root";
-    private const string StateSlotName = "State";
-    private const string EnabledSlotName = "Enabled";
-    private const string OwnedObjectsSlotName = "Owned Objects";
-    private const string OwnedComponentsSlotName = "Owned Components";
 
     private sealed class MergeSourceBinding
     {
@@ -47,6 +33,9 @@ internal static class ModularAvatarAttachmentInstaller
         public ModularAvatarComponentDefinition Definition { get; init; }
         public Slot SourceSlot { get; init; }
         public int[] IndexPath { get; init; }
+        public float3 AuthoredGlobalPosition { get; init; }
+        public floatQ AuthoredGlobalRotation { get; init; }
+        public float3 AuthoredGlobalScale { get; init; }
     }
 
     private sealed class PreparedMerge
@@ -57,37 +46,6 @@ internal static class ModularAvatarAttachmentInstaller
         public BoneAttachmentPlan Plan { get; init; }
         public Dictionary<string, Slot> SourceSlots { get; init; }
         public Dictionary<string, Slot> TargetSlots { get; init; }
-    }
-
-    private sealed class OwnedRoot
-    {
-        public Slot Slot { get; init; }
-        public bool ActiveWhenEnabled { get; init; }
-        public string Role { get; init; }
-    }
-
-    private sealed class OwnedComponent
-    {
-        public Component Component { get; init; }
-        public bool EnabledWhenOutfitEnabled { get; init; }
-        public string Role { get; init; }
-    }
-
-    private sealed class InstallationRecordHandle
-    {
-        public Slot RecordRoot { get; init; }
-        public Slot TargetAvatar { get; init; }
-        public Slot InstalledRoot { get; init; }
-        public ValueMultiDriver<bool> Enabled { get; init; }
-        public int SchemaVersion { get; init; }
-        public string PrefabGuid { get; init; }
-        public string ContentHash { get; init; }
-        public OutfitInstallMatch Match { get; init; }
-        public bool IsHealthy => RecordRoot != null && !RecordRoot.IsDestroyed &&
-                                 TargetAvatar != null && !TargetAvatar.IsDestroyed &&
-                                 InstalledRoot != null && !InstalledRoot.IsDestroyed &&
-                                 Enabled != null && !Enabled.IsDestroyed &&
-                                 SchemaVersion == OutfitInstallIdentity.CurrentSchemaVersion;
     }
 
     internal static List<BipedRig> GetAvailableAvatarRigs(Slot contextSlot) => FindAvatarRigs(contextSlot);
@@ -174,7 +132,7 @@ internal static class ModularAvatarAttachmentInstaller
                 {
                     controls = installed.RecordRoot.AddSlot("Outfit Controls");
                     var source = controls.AttachComponent<ContextMenuItemSource>();
-                    BindOutfitToggle(source, installed, installed.RecordRoot.Name);
+                    OutfitInstallationRecordStore.BindOutfitToggle(source, installed, installed.RecordRoot.Name);
                     contextItem = targetRig.Slot.AttachComponent<RootContextMenuItem>();
                     contextItem.Item.Target = source;
                 }
@@ -197,36 +155,6 @@ internal static class ModularAvatarAttachmentInstaller
             UnityPackageImporter.Error("Failed to install attachment '" + attachmentRoot.Name + "' directly: " + ex);
             return (false, ex.Message);
         }
-    }
-
-    private static void BindOutfitToggle(
-        ContextMenuItemSource item,
-        InstallationRecordHandle record,
-        string avatarName)
-    {
-        if (item == null || item.IsDestroyed || record == null || !record.IsHealthy) return;
-
-        item.ButtonEnabled.Value = true;
-        item.CloseMenuOnPress.Value = true;
-        item.Color.Value = new colorX(0.45f, 0.82f, 0.62f, 1f);
-        item.Slot.AttachComponent<ButtonToggle>().TargetValue.Target = record.Enabled.Value;
-        var labelDriver = item.Slot.AttachComponent<BooleanValueDriver<string>>();
-        labelDriver.FalseValue.Value = "Enable outfit on " + avatarName;
-        labelDriver.TrueValue.Value = "Disable outfit on " + avatarName;
-        labelDriver.State.Value = record.Enabled.Value.Value;
-        labelDriver.TargetField.Target = item.Label;
-        CopyEnabledState(record, labelDriver.State, item.Slot);
-    }
-
-    private static void CopyEnabledState(
-        InstallationRecordHandle record,
-        IField<bool> target,
-        Slot host)
-    {
-        var copy = host.AttachComponent<ValueCopy<bool>>();
-        copy.Source.Target = record.Enabled.Value;
-        copy.Target.Target = target;
-        copy.WriteBack.Value = false;
     }
 
     private static List<MergeSourceBinding> ResolveMergeSources(
@@ -345,7 +273,10 @@ internal static class ModularAvatarAttachmentInstaller
             {
                 Definition = definition,
                 SourceSlot = proxySlot,
-                IndexPath = path
+                IndexPath = path,
+                AuthoredGlobalPosition = proxySlot.GlobalPosition,
+                AuthoredGlobalRotation = proxySlot.GlobalRotation,
+                AuthoredGlobalScale = proxySlot.GlobalScale
             });
         }
 
@@ -402,7 +333,7 @@ internal static class ModularAvatarAttachmentInstaller
         BipedRig targetRig)
     {
         var nestedRoots = mergeBindings.Select(binding => binding.SourceSlot).ToHashSet();
-        var excludedTargets = GetInstalledOutfitRoots(targetRig.Slot);
+        var excludedTargets = OutfitInstallationRecordStore.GetInstalledOutfitRoots(targetRig.Slot);
         foreach (var binding in mergeBindings)
         {
             var targetRoot = ResolveTargetRoot(targetRig.Slot, binding, excludedTargets, targetRig);
@@ -453,7 +384,7 @@ internal static class ModularAvatarAttachmentInstaller
         if (attachmentRoot.IsDestroyed || !IsOwnedAvatar(targetRig, attachmentRoot.World.LocalUser))
             throw new InvalidOperationException("The attachment or target avatar no longer exists.");
 
-        var existingRecord = FindInstallationRecord(targetRig.Slot, identity);
+        var existingRecord = OutfitInstallationRecordStore.FindInstallationRecord(targetRig.Slot, identity);
         if (existingRecord?.Match == OutfitInstallMatch.Current)
         {
             if (!existingRecord.IsHealthy)
@@ -509,7 +440,10 @@ internal static class ModularAvatarAttachmentInstaller
                     ?? throw new InvalidOperationException(
                         "The duplicated Bone Proxy source could not be resolved for '" +
                         binding.SourceSlot.Name + "'."),
-                IndexPath = binding.IndexPath
+                IndexPath = binding.IndexPath,
+                AuthoredGlobalPosition = binding.AuthoredGlobalPosition,
+                AuthoredGlobalRotation = binding.AuthoredGlobalRotation,
+                AuthoredGlobalScale = binding.AuthoredGlobalScale
             }).ToList();
 
             // Resolve index paths before removing any siblings from the duplicate.
@@ -518,7 +452,7 @@ internal static class ModularAvatarAttachmentInstaller
             RemoveCopiedInstaller(installedRoot);
 
             var nestedRoots = clonedBindings.Select(binding => binding.SourceSlot).ToHashSet();
-            var excludedTargets = GetInstalledOutfitRoots(targetRig.Slot);
+            var excludedTargets = OutfitInstallationRecordStore.GetInstalledOutfitRoots(targetRig.Slot);
             excludedTargets.Add(installedRoot);
             var prepared = new List<PreparedMerge>();
             foreach (var binding in clonedBindings)
@@ -625,8 +559,9 @@ internal static class ModularAvatarAttachmentInstaller
                 }
                 bool activeWhenEnabled = authoredActivity[proxy.SourceSlot];
                 transaction.Track(proxy.SourceSlot);
+                ApplyBoneProxy(proxy.SourceSlot, target, proxy.Definition,
+                    proxy.AuthoredGlobalPosition, proxy.AuthoredGlobalRotation, proxy.AuthoredGlobalScale);
                 proxy.SourceSlot.ActiveSelf = false;
-                ApplyBoneProxy(proxy.SourceSlot, target, proxy.Definition);
                 if (proxy.SourceSlot != installedRoot)
                 {
                     ownedRoots.Add(new OwnedRoot
@@ -647,7 +582,7 @@ internal static class ModularAvatarAttachmentInstaller
             if (attachmentRoot.IsDestroyed || installedRoot.IsDestroyed ||
                 !IsOwnedAvatar(targetRig, attachmentRoot.World.LocalUser))
                 throw new InvalidOperationException("The attachment or target avatar is no longer available.");
-            var record = CreateInstallationRecord(
+            var record = OutfitInstallationRecordStore.CreateInstallationRecord(
                 targetRig,
                 attachmentRoot.Name,
                 installedRoot,
@@ -668,212 +603,6 @@ internal static class ModularAvatarAttachmentInstaller
                 UnityPackageImporter.Warn("Could not fully roll back outfit installation: " + cleanupError.Message);
             throw;
         }
-    }
-
-    private static InstallationRecordHandle CreateInstallationRecord(
-        BipedRig targetRig,
-        string sourceName,
-        Slot installedRoot,
-        OutfitInstallIdentity identity,
-        IReadOnlyList<OwnedRoot> ownedRoots,
-        IReadOnlyList<OwnedComponent> ownedComponents,
-        OwnedAttachmentTransaction<Slot> transaction,
-        out Slot recordRoot)
-    {
-        var recordsRoot = targetRig.Slot.Children.FirstOrDefault(child => child.Name == RecordsSlotName);
-        if (recordsRoot == null)
-        {
-            recordsRoot = targetRig.Slot.AddSlot(RecordsSlotName);
-            transaction.Track(recordsRoot);
-            recordsRoot.OrderOffset = 2000;
-        }
-
-        string displayName = sourceName.EndsWith(".prefab", StringComparison.OrdinalIgnoreCase)
-            ? sourceName[..^7]
-            : sourceName;
-        string shortId = identity.PrefabGuid.Length > 8
-            ? identity.PrefabGuid[..8]
-            : identity.PrefabGuid;
-        recordRoot = recordsRoot.AddSlot("[Installing] " + displayName + " " + shortId);
-        transaction.Track(recordRoot);
-
-        var metadata = recordRoot.AddSlot("Metadata");
-        AddValueField(metadata, RecordTypeFieldName, RecordMarker);
-        AddValueField(metadata, SchemaFieldName, OutfitInstallIdentity.CurrentSchemaVersion);
-        AddValueField(metadata, PrefabGuidFieldName, identity.PrefabGuid);
-        AddValueField(metadata, ContentHashFieldName, identity.ContentHash);
-        AddValueField(metadata, SourceNameFieldName, displayName);
-        AddValueField(metadata, AvatarSignatureFieldName, BuildAvatarSignature(targetRig));
-
-        var references = recordRoot.AddSlot("References");
-        AddReferenceField(references, TargetAvatarFieldName, targetRig.Slot);
-        AddReferenceField(references, InstalledRootFieldName, installedRoot);
-
-        var ownedObjects = references.AddSlot(OwnedObjectsSlotName);
-        var ownedComponentReferences = references.AddSlot(OwnedComponentsSlotName);
-        var effectiveOwnedRoots = ownedRoots
-            .Where(owned => owned?.Slot != null && !owned.Slot.IsDestroyed)
-            .GroupBy(owned => owned.Slot)
-            .Select(group => group.First())
-            .Where(owned => !ownedRoots.Any(other =>
-                other?.Slot != null &&
-                other.Slot != owned.Slot &&
-                !other.Slot.IsDestroyed &&
-                owned.Slot.IsChildOf(other.Slot, true)))
-            .ToList();
-
-        var state = recordRoot.AddSlot(StateSlotName);
-        var enabledSlot = state.AddSlot(EnabledSlotName);
-        var enabled = enabledSlot.AttachComponent<ValueMultiDriver<bool>>();
-        enabled.Value.Value = false;
-
-        for (int i = 0; i < effectiveOwnedRoots.Count; i++)
-        {
-            var owned = effectiveOwnedRoots[i];
-            var referenceSlot = ownedObjects.AddSlot((i + 1).ToString("D2") + " " + owned.Role);
-            AddReferenceField(referenceSlot, "Object", owned.Slot);
-            AddValueField(referenceSlot, "Active When Enabled", owned.ActiveWhenEnabled);
-
-            var activeDriver = enabledSlot.AttachComponent<BooleanValueDriver<bool>>();
-            activeDriver.FalseValue.Value = false;
-            activeDriver.TrueValue.Value = owned.ActiveWhenEnabled;
-            activeDriver.State.Value = false;
-            activeDriver.TargetField.ForceLink(owned.Slot.ActiveSelf_Field);
-            enabled.Drives.Add().ForceLink(activeDriver.State);
-        }
-
-        var effectiveOwnedComponents = ownedComponents
-            .Where(owned => owned?.Component != null && !owned.Component.IsDestroyed)
-            .GroupBy(owned => owned.Component)
-            .Select(group => group.First())
-            .ToList();
-        for (int i = 0; i < effectiveOwnedComponents.Count; i++)
-        {
-            var owned = effectiveOwnedComponents[i];
-            var referenceSlot = ownedComponentReferences.AddSlot(
-                (i + 1).ToString("D2") + " " + owned.Role);
-            AddComponentReferenceField(referenceSlot, "Component", owned.Component);
-            AddValueField(referenceSlot, "Enabled With Outfit", owned.EnabledWhenOutfitEnabled);
-
-            var componentDriver = enabledSlot.AttachComponent<BooleanValueDriver<bool>>();
-            componentDriver.FalseValue.Value = false;
-            componentDriver.TrueValue.Value = owned.EnabledWhenOutfitEnabled;
-            componentDriver.State.Value = false;
-            componentDriver.TargetField.ForceLink(owned.Component.EnabledField);
-            enabled.Drives.Add().ForceLink(componentDriver.State);
-        }
-
-        if (effectiveOwnedRoots.Count == 0)
-            throw new InvalidOperationException("The installation produced no owned outfit objects.");
-
-        enabled.Value.Value = true;
-        recordRoot.Name = displayName + " • " + shortId;
-        return new InstallationRecordHandle
-        {
-            RecordRoot = recordRoot,
-            TargetAvatar = targetRig.Slot,
-            InstalledRoot = installedRoot,
-            Enabled = enabled,
-            SchemaVersion = OutfitInstallIdentity.CurrentSchemaVersion,
-            PrefabGuid = identity.PrefabGuid,
-            ContentHash = identity.ContentHash,
-            Match = OutfitInstallMatch.Current
-        };
-    }
-
-    private static InstallationRecordHandle FindInstallationRecord(
-        Slot avatarRoot,
-        OutfitInstallIdentity identity)
-    {
-        if (avatarRoot == null || avatarRoot.IsDestroyed || identity == null) return null;
-
-        foreach (var candidate in EnumerateSelfAndChildren(avatarRoot))
-        {
-            var metadata = candidate.Children.FirstOrDefault(child => child.Name == "Metadata");
-            if (metadata == null ||
-                !string.Equals(ReadDirectStringField(metadata, RecordTypeFieldName), RecordMarker,
-                    StringComparison.Ordinal))
-                continue;
-
-            string prefabGuid = ReadDirectStringField(metadata, PrefabGuidFieldName);
-            string contentHash = ReadDirectStringField(metadata, ContentHashFieldName);
-            int schemaVersion = ReadDirectValueField(metadata, SchemaFieldName, 0);
-            var match = identity.Compare(prefabGuid, contentHash);
-            if (match == OutfitInstallMatch.None) continue;
-
-            var references = candidate.Children.FirstOrDefault(child => child.Name == "References");
-            var state = candidate.Children.FirstOrDefault(child => child.Name == StateSlotName);
-            var enabledSlot = state?.Children.FirstOrDefault(child => child.Name == EnabledSlotName);
-            var recordedAvatar = references == null ? null : ReadDirectSlotReference(references, TargetAvatarFieldName);
-            if (recordedAvatar != null && recordedAvatar != avatarRoot) continue;
-
-            return new InstallationRecordHandle
-            {
-                RecordRoot = candidate,
-                TargetAvatar = references == null
-                    ? null
-                    : ReadDirectSlotReference(references, TargetAvatarFieldName),
-                InstalledRoot = references == null
-                    ? null
-                    : ReadDirectSlotReference(references, InstalledRootFieldName),
-                Enabled = enabledSlot?.GetComponent<ValueMultiDriver<bool>>(),
-                SchemaVersion = schemaVersion,
-                PrefabGuid = prefabGuid,
-                ContentHash = contentHash,
-                Match = match
-            };
-        }
-
-        return null;
-    }
-
-    private static void AddValueField<T>(Slot parent, string name, T value)
-    {
-        var fieldSlot = parent.AddSlot(name);
-        fieldSlot.AttachComponent<ValueField<T>>().Value.Value = value;
-    }
-
-    private static void AddReferenceField(Slot parent, string name, Slot target)
-    {
-        var fieldSlot = parent.AddSlot(name);
-        fieldSlot.AttachComponent<ReferenceField<Slot>>().Reference.Target = target;
-    }
-
-    private static void AddComponentReferenceField(Slot parent, string name, Component target)
-    {
-        var fieldSlot = parent.AddSlot(name);
-        fieldSlot.AttachComponent<ReferenceField<Component>>().Reference.Target = target;
-    }
-
-    private static string ReadDirectStringField(Slot root, string name)
-    {
-        return ReadDirectValueField(root, name, "");
-    }
-
-    private static T ReadDirectValueField<T>(Slot root, string name, T fallback)
-    {
-        var field = root.Children.FirstOrDefault(child => child.Name == name)
-            ?.GetComponent<ValueField<T>>();
-        return field == null ? fallback : field.Value.Value;
-    }
-
-    private static Slot ReadDirectSlotReference(Slot root, string name)
-    {
-        return root.Children.FirstOrDefault(child => child.Name == name)
-            ?.GetComponent<ReferenceField<Slot>>()?.Reference.Target;
-    }
-
-    private static string BuildAvatarSignature(BipedRig rig)
-    {
-        var names = new List<string> { rig.Slot.Name, rig.Bones.Count.ToString() };
-        foreach (BodyNode bodyNode in Enum.GetValues(typeof(BodyNode)))
-        {
-            if (bodyNode == BodyNode.NONE) continue;
-            var bone = rig.TryGetBone(bodyNode);
-            names.Add(bodyNode + ":" + (bone == null || bone.IsDestroyed ? "" : bone.Name));
-        }
-        string signatureSource = string.Join("\n", names);
-        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(signatureSource)));
     }
 
     private static void RemoveCopiedInstaller(Slot installedRoot)
@@ -953,29 +682,30 @@ internal static class ModularAvatarAttachmentInstaller
     private static void ApplyBoneProxy(
         Slot source,
         Slot target,
-        ModularAvatarComponentDefinition definition)
+        ModularAvatarComponentDefinition definition,
+        float3 originalPosition,
+        floatQ originalRotation,
+        float3 originalScale)
     {
         if (source == null || source.IsDestroyed || target == null || target.IsDestroyed)
             throw new InvalidOperationException("The Bone Proxy source or target no longer exists.");
         if (target == source || target.IsChildOf(source, true))
             throw new InvalidOperationException("A Bone Proxy cannot be parented underneath itself.");
 
-        var originalPosition = source.GlobalPosition;
-        var originalRotation = source.GlobalRotation;
-        var originalScale = source.GlobalScale;
-
         switch (definition.BoneProxyAttachmentMode)
         {
             case 2: // AsChildKeepWorldPose
-                source.SetParent(target, true);
+                source.SetParent(target, false);
+                source.GlobalPosition = originalPosition;
+                source.GlobalRotation = originalRotation;
                 break;
             case 3: // AsChildKeepRotation
-                source.SetParent(target, true);
+                source.SetParent(target, false);
                 source.GlobalPosition = target.GlobalPosition;
                 source.GlobalRotation = originalRotation;
                 break;
             case 4: // AsChildKeepPosition
-                source.SetParent(target, true);
+                source.SetParent(target, false);
                 source.GlobalPosition = originalPosition;
                 source.GlobalRotation = target.GlobalRotation;
                 break;
@@ -988,7 +718,7 @@ internal static class ModularAvatarAttachmentInstaller
 
         if (definition.BoneProxyMatchScale)
             source.LocalScale = new float3(1f, 1f, 1f);
-        else
+        else if (definition.BoneProxyAttachmentMode != 0 && definition.BoneProxyAttachmentMode != 1)
             source.GlobalScale = originalScale;
     }
 
@@ -1055,30 +785,6 @@ internal static class ModularAvatarAttachmentInstaller
             54 => BodyNode.UpperChest,
             _ => BodyNode.NONE
         };
-    }
-
-    private static HashSet<Slot> GetInstalledOutfitRoots(Slot avatarRoot)
-    {
-        var roots = new HashSet<Slot>();
-        foreach (var candidate in EnumerateSelfAndChildren(avatarRoot))
-        {
-            var metadata = candidate.Children.FirstOrDefault(child => child.Name == "Metadata");
-            if (metadata == null || ReadDirectStringField(metadata, RecordTypeFieldName) != RecordMarker) continue;
-            var references = candidate.Children.FirstOrDefault(child => child.Name == "References");
-            if (references == null) continue;
-            var recordedAvatar = ReadDirectSlotReference(references, TargetAvatarFieldName);
-            if (recordedAvatar != null && recordedAvatar != avatarRoot) continue;
-            var installedRoot = ReadDirectSlotReference(references, InstalledRootFieldName);
-            if (installedRoot != null && !installedRoot.IsDestroyed) roots.Add(installedRoot);
-            var objects = references.Children.FirstOrDefault(child => child.Name == OwnedObjectsSlotName);
-            if (objects == null) continue;
-            foreach (var entry in objects.Children)
-            {
-                var ownedRoot = ReadDirectSlotReference(entry, "Object");
-                if (ownedRoot != null && !ownedRoot.IsDestroyed) roots.Add(ownedRoot);
-            }
-        }
-        return roots;
     }
 
     private static bool IsLikelyArmature(Slot s)

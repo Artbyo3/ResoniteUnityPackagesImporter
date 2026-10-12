@@ -184,17 +184,57 @@ public class PrefabInstance : IUnityObject
                                         targetSkin = dSkin2;
                                     if (targetSkin == null && ancestorIdToTarget.TryGetValue(ancestorSkin.m_CorrespondingSourceObject.fileID, out var mappedObj) && mappedObj is SkinnedMeshRenderer dSkin3)
                                         targetSkin = dSkin3;
+
+                                    if (targetSkin == null && ancestorPiIds.Count > 0)
+                                    {
+                                        foreach (long piId in ancestorPiIds)
+                                        {
+                                            if (piId == 0) continue;
+                                            var (cand1, cand2) = PrefabVariantResolver.ReverseDerivedFileId(piId, ancestorSkin.m_CorrespondingSourceObject.fileID);
+                                            if (hashIdToTarget.TryGetValue(cand1, out var cObj1) && cObj1 is SkinnedMeshRenderer cSkin1) { targetSkin = cSkin1; break; }
+                                            if (hashIdToTarget.TryGetValue(cand2, out var cObj2) && cObj2 is SkinnedMeshRenderer cSkin2) { targetSkin = cSkin2; break; }
+                                            if (ancestorIdToTarget.TryGetValue(cand1, out var mObj1) && mObj1 is SkinnedMeshRenderer mSkin1) { targetSkin = mSkin1; break; }
+                                            if (ancestorIdToTarget.TryGetValue(cand2, out var mObj2) && mObj2 is SkinnedMeshRenderer mSkin2) { targetSkin = mSkin2; break; }
+                                        }
+                                    }
                                 }
 
                                 if (targetSkin == null && ancestorSkin.m_Mesh != null && ancestorSkin.m_Mesh.fileID != 0)
                                 {
-                                    targetSkin = hashSkins.FirstOrDefault(h => h.m_Mesh != null && h.m_Mesh.fileID == ancestorSkin.m_Mesh.fileID);
+                                    var matchingMeshSkins = hashSkins.Where(h => h.m_Mesh != null && h.m_Mesh.fileID == ancestorSkin.m_Mesh.fileID).ToList();
+                                    if (matchingMeshSkins.Count == 1)
+                                    {
+                                        targetSkin = matchingMeshSkins[0];
+                                    }
+                                    else if (matchingMeshSkins.Count > 1)
+                                    {
+                                        UnityPackageImporter.Warn($"Ambiguous ancestor SkinnedMeshRenderer match by mesh fileID {ancestorSkin.m_Mesh.fileID} ({matchingMeshSkins.Count} candidates); skipping heuristic match to prevent incorrect binding.");
+                                    }
                                 }
 
                                 if (targetSkin == null && ancestorSkin.m_GameObject != null && ancestorSkin.m_GameObject.TryGetValue("fileID", out var goId) && goNames.TryGetValue(goId, out var goName))
                                 {
-                                    targetSkin = hashSkins.FirstOrDefault(h => h.createdMeshRenderer?.Slot?.Name == goName)
-                                        ?? hashSkins.FirstOrDefault(h => h.createdMeshRenderer?.Slot?.Name?.Equals(goName, StringComparison.OrdinalIgnoreCase) == true);
+                                    var matchingByName = hashSkins.Where(h => h.createdMeshRenderer?.Slot?.Name == goName).ToList();
+                                    if (matchingByName.Count == 1)
+                                    {
+                                        targetSkin = matchingByName[0];
+                                    }
+                                    else if (matchingByName.Count == 0)
+                                    {
+                                        var matchingByCiName = hashSkins.Where(h => h.createdMeshRenderer?.Slot?.Name?.Equals(goName, StringComparison.OrdinalIgnoreCase) == true).ToList();
+                                        if (matchingByCiName.Count == 1)
+                                        {
+                                            targetSkin = matchingByCiName[0];
+                                        }
+                                        else if (matchingByCiName.Count > 1)
+                                        {
+                                            UnityPackageImporter.Warn($"Ambiguous ancestor SkinnedMeshRenderer match by case-insensitive name '{goName}' ({matchingByCiName.Count} candidates); skipping heuristic match.");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        UnityPackageImporter.Warn($"Ambiguous ancestor SkinnedMeshRenderer match by name '{goName}' ({matchingByName.Count} candidates); skipping heuristic match.");
+                                    }
                                 }
 
                                 if (targetSkin == null && hashSkins.Count == 1)
@@ -246,11 +286,43 @@ public class PrefabInstance : IUnityObject
                                         targetGo = dGo;
                                     if (targetGo == null && ancestorIdToTarget.TryGetValue(ancestorGo.m_CorrespondingSourceObject.fileID, out var mappedObj) && mappedObj is GameObject mGo)
                                         targetGo = mGo;
+
+                                    if (targetGo == null && ancestorPiIds.Count > 0)
+                                    {
+                                        foreach (long piId in ancestorPiIds)
+                                        {
+                                            if (piId == 0) continue;
+                                            var (cand1, cand2) = PrefabVariantResolver.ReverseDerivedFileId(piId, ancestorGo.m_CorrespondingSourceObject.fileID);
+                                            if (hashIdToTarget.TryGetValue(cand1, out var cObj1) && cObj1 is GameObject cGo1) { targetGo = cGo1; break; }
+                                            if (hashIdToTarget.TryGetValue(cand2, out var cObj2) && cObj2 is GameObject cGo2) { targetGo = cGo2; break; }
+                                            if (ancestorIdToTarget.TryGetValue(cand1, out var mObj1) && mObj1 is GameObject mGo1) { targetGo = mGo1; break; }
+                                            if (ancestorIdToTarget.TryGetValue(cand2, out var mObj2) && mObj2 is GameObject mGo2) { targetGo = mGo2; break; }
+                                        }
+                                    }
                                 }
                                 if (targetGo == null && !string.IsNullOrEmpty(ancestorGo.m_Name))
                                 {
-                                    targetGo = hashGos.FirstOrDefault(h => h.frooxEngineSlot?.Name == ancestorGo.m_Name)
-                                        ?? hashGos.FirstOrDefault(h => h.frooxEngineSlot?.Name?.Equals(ancestorGo.m_Name, StringComparison.OrdinalIgnoreCase) == true);
+                                    var matchingByName = hashGos.Where(h => h.frooxEngineSlot?.Name == ancestorGo.m_Name).ToList();
+                                    if (matchingByName.Count == 1)
+                                    {
+                                        targetGo = matchingByName[0];
+                                    }
+                                    else if (matchingByName.Count == 0)
+                                    {
+                                        var matchingByCiName = hashGos.Where(h => h.frooxEngineSlot?.Name?.Equals(ancestorGo.m_Name, StringComparison.OrdinalIgnoreCase) == true).ToList();
+                                        if (matchingByCiName.Count == 1)
+                                        {
+                                            targetGo = matchingByCiName[0];
+                                        }
+                                        else if (matchingByCiName.Count > 1)
+                                        {
+                                            UnityPackageImporter.Warn($"Ambiguous ancestor GameObject match by case-insensitive name '{ancestorGo.m_Name}' ({matchingByCiName.Count} candidates); skipping heuristic match.");
+                                        }
+                                    }
+                                    else
+                                    {
+                                        UnityPackageImporter.Warn($"Ambiguous ancestor GameObject match by name '{ancestorGo.m_Name}' ({matchingByName.Count} candidates); skipping heuristic match.");
+                                    }
                                 }
                                 if (targetGo != null)
                                 {
@@ -276,6 +348,19 @@ public class PrefabInstance : IUnityObject
                                         targetTr = directObj;
                                     if (targetTr == null && ancestorIdToTarget.TryGetValue(ancestorTr.m_CorrespondingSourceObject.fileID, out var mappedObj))
                                         targetTr = mappedObj;
+
+                                    if (targetTr == null && ancestorPiIds.Count > 0)
+                                    {
+                                        foreach (long piId in ancestorPiIds)
+                                        {
+                                            if (piId == 0) continue;
+                                            var (cand1, cand2) = PrefabVariantResolver.ReverseDerivedFileId(piId, ancestorTr.m_CorrespondingSourceObject.fileID);
+                                            if (hashIdToTarget.TryGetValue(cand1, out var cObj1)) { targetTr = cObj1; break; }
+                                            if (hashIdToTarget.TryGetValue(cand2, out var cObj2)) { targetTr = cObj2; break; }
+                                            if (ancestorIdToTarget.TryGetValue(cand1, out var mObj1)) { targetTr = mObj1; break; }
+                                            if (ancestorIdToTarget.TryGetValue(cand2, out var mObj2)) { targetTr = mObj2; break; }
+                                        }
+                                    }
                                 }
                                 if (targetTr == null && ancestorTr.m_GameObjectID != 0)
                                 {
@@ -461,40 +546,76 @@ public class PrefabInstance : IUnityObject
             }
         }
 
+        if (hashIdToTarget != null &&
+            (string.IsNullOrEmpty(mod.target.guid) || (lineageGuids != null && lineageGuids.Contains(mod.target.guid))))
+        {
+            if (hashIdToTarget.TryGetValue(mod.target.fileID, out IUnityObject directHashTarget))
+                return directHashTarget;
+        }
+
         // 4. Reverse derived file ID match: when a Prefab Variant modifies objects inside a nested
         // PrefabInstance, Unity derives targetFileId = (parentPrefabInstanceId ^ baseFileId) & 0x7FFFFFFFFFFFFFFF.
         if (ancestorPiIds != null && ancestorPiIds.Count > 0)
         {
+            IUnityObject matchedTarget = null;
+            int matchCount = 0;
             foreach (long piId in ancestorPiIds)
             {
                 if (piId == 0) continue;
                 var (cand1, cand2) = PrefabVariantResolver.ReverseDerivedFileId(piId, mod.target.fileID);
 
+                IUnityObject candTarget = null;
                 if (ancestorIdToTarget != null)
                 {
-                    if (ancestorIdToTarget.TryGetValue(cand1, out IUnityObject target1)) return target1;
-                    if (ancestorIdToTarget.TryGetValue(cand2, out IUnityObject target2)) return target2;
+                    if (ancestorIdToTarget.TryGetValue(cand1, out IUnityObject target1)) candTarget = target1;
+                    else if (ancestorIdToTarget.TryGetValue(cand2, out IUnityObject target2)) candTarget = target2;
                 }
 
-                if (hashIdToTarget != null)
+                if (candTarget == null && hashIdToTarget != null)
                 {
-                    if (hashIdToTarget.TryGetValue(cand1, out IUnityObject target3)) return target3;
-                    if (hashIdToTarget.TryGetValue(cand2, out IUnityObject target4)) return target4;
+                    if (hashIdToTarget.TryGetValue(cand1, out IUnityObject target3)) candTarget = target3;
+                    else if (hashIdToTarget.TryGetValue(cand2, out IUnityObject target4)) candTarget = target4;
                 }
 
-                if (this.PrefabHashes != null && !string.IsNullOrEmpty(resolvedFbxGuid))
+                if (candTarget == null && this.PrefabHashes != null && !string.IsNullOrEmpty(resolvedFbxGuid))
                 {
                     SourceObj s1 = new SourceObj(cand1, resolvedFbxGuid, mod.target.type);
-                    if (this.PrefabHashes.TryGetValue(s1, out IUnityObject target5)) return target5;
-                    SourceObj s2 = new SourceObj(cand2, resolvedFbxGuid, mod.target.type);
-                    if (this.PrefabHashes.TryGetValue(s2, out IUnityObject target6)) return target6;
+                    if (this.PrefabHashes.TryGetValue(s1, out IUnityObject target5)) candTarget = target5;
+                    else
+                    {
+                        SourceObj s2 = new SourceObj(cand2, resolvedFbxGuid, mod.target.type);
+                        if (this.PrefabHashes.TryGetValue(s2, out IUnityObject target6)) candTarget = target6;
+                    }
                 }
 
-                if (importer?.existingIUnityObjects != null)
+                if (candTarget == null && importer?.existingIUnityObjects != null)
                 {
-                    if (importer.existingIUnityObjects.TryGetValue(unchecked((ulong)cand1), out IUnityObject localTarget1)) return localTarget1;
-                    if (importer.existingIUnityObjects.TryGetValue(unchecked((ulong)cand2), out IUnityObject localTarget2)) return localTarget2;
+                    if (importer.existingIUnityObjects.TryGetValue(unchecked((ulong)cand1), out IUnityObject localTarget1)) candTarget = localTarget1;
+                    else if (importer.existingIUnityObjects.TryGetValue(unchecked((ulong)cand2), out IUnityObject localTarget2)) candTarget = localTarget2;
                 }
+
+                if (candTarget != null)
+                {
+                    if (matchedTarget == null)
+                    {
+                        matchedTarget = candTarget;
+                        matchCount = 1;
+                    }
+                    else if (!ReferenceEquals(matchedTarget, candTarget))
+                    {
+                        matchCount++;
+                    }
+                }
+            }
+
+            if (matchCount == 1)
+            {
+                return matchedTarget;
+            }
+            else if (matchCount > 1)
+            {
+                UnityPackageImporter.Warn($"Ambiguous reverse derived file ID match for target fileID {mod.target.fileID} ({matchCount} distinct objects matched); skipping ambiguous binding.");
+                return null;
             }
         }
 

@@ -33,39 +33,46 @@ public class YamlToFrooxEngine
         DocumentStart variable;
         while (parser.Accept(out variable) == true)
         {
+            ulong anchorId = noderesolver.anchor;
             try
             {
-                try
-                {
-
-                    UnityEngineObjectWrapper docWrapped = deserializer.Deserialize<UnityEngineObjectWrapper>(parser);
-                    IUnityObject doc = docWrapped.Result();
-                    doc.id = noderesolver.anchor; // This works because they're separate documents and we're deserializing them one by one. Not nessarily in order, we're just gathering them.
-                    //Since deserializing happens before adding to the list and those are done syncronously with each other, it is fine.
-                    existingIUnityObjects.Add(doc.id, doc);
-                }
-                catch (Exception)
-                {
-                    try
-                    {
-                        IUnityObject doc = new FrooxEngineRepresentation.GameObjectTypes.NullType();
-                        doc.id = noderesolver.anchor;
-                        existingIUnityObjects.Add(doc.id, doc);
-                    }
-                    catch (ArgumentException e2)
-                    {
-                        UnityPackageImporter.Msg("Duplicate key probably for Yaml\"" + FilePath + "\"just ignore this.");
-                        UnityPackageImporter.Warn(e2.Message + e2.StackTrace);
-                    }
-                    throw;
-
-                }
+                UnityEngineObjectWrapper docWrapped = deserializer.Deserialize<UnityEngineObjectWrapper>(parser);
+                IUnityObject doc = docWrapped.Result();
+                doc.id = anchorId;
+                existingIUnityObjects.TryAdd(doc.id, doc);
             }
             catch (Exception e)
             {
-                UnityPackageImporter.Msg("Couldn't evaluate node type for Yaml\"" + FilePath + "\". stacktrace below");
-                UnityPackageImporter.Warn(e.Message + e.StackTrace);
-                throw; //TODO: REMOVE
+                UnityPackageImporter.Warn("Couldn't evaluate node type for Yaml \"" + FilePath + "\" at anchor " + anchorId + ": " + e.Message + ". Substituting NullType and continuing.");
+                try
+                {
+                    IUnityObject doc = new FrooxEngineRepresentation.GameObjectTypes.NullType();
+                    doc.id = anchorId;
+                    existingIUnityObjects.TryAdd(doc.id, doc);
+                }
+                catch (ArgumentException e2)
+                {
+                    UnityPackageImporter.Msg("Duplicate key probably for Yaml \"" + FilePath + "\" just ignore this.");
+                    UnityPackageImporter.Warn(e2.Message + e2.StackTrace);
+                }
+
+                // Advance parser past any unconsumed tokens in the failed document
+                try
+                {
+                    while (!parser.Accept<DocumentEnd>(out _) && !parser.Accept<StreamEnd>(out _))
+                    {
+                        if (!parser.MoveNext()) break;
+                    }
+                    if (parser.Accept<DocumentEnd>(out _))
+                    {
+                        parser.Consume<DocumentEnd>();
+                    }
+                }
+                catch (Exception drainEx)
+                {
+                    UnityPackageImporter.Warn("Could not advance parser after error in \"" + FilePath + "\": " + drainEx.Message);
+                    break;
+                }
             }
         }
 

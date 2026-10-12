@@ -225,12 +225,41 @@ public static class PrefabVariantResolver
     {
         resolvedObject = default;
         if (ancestorPiIds == null || knownObjects == null) return false;
+        T candidate = default;
+        bool found = false;
         foreach (long piId in ancestorPiIds)
         {
             if (piId == 0) continue;
             var (cand1, cand2) = ReverseDerivedFileId(piId, targetFileId);
-            if (knownObjects.TryGetValue(cand1, out resolvedObject)) return true;
-            if (knownObjects.TryGetValue(cand2, out resolvedObject)) return true;
+            if (knownObjects.TryGetValue(cand1, out var match1))
+            {
+                if (!found)
+                {
+                    candidate = match1;
+                    found = true;
+                }
+                else if (!EqualityComparer<T>.Default.Equals(candidate, match1))
+                {
+                    return false; // Ambiguous match across ancestor PrefabInstances
+                }
+            }
+            if (knownObjects.TryGetValue(cand2, out var match2))
+            {
+                if (!found)
+                {
+                    candidate = match2;
+                    found = true;
+                }
+                else if (!EqualityComparer<T>.Default.Equals(candidate, match2))
+                {
+                    return false; // Ambiguous match across ancestor PrefabInstances
+                }
+            }
+        }
+        if (found)
+        {
+            resolvedObject = candidate;
+            return true;
         }
         return false;
     }

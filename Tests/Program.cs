@@ -460,6 +460,31 @@ Test("PrefabVariantResolver TryResolveDerivedTarget finds target object from der
         "Unrelated fileID should not resolve.");
 });
 
+Test("PrefabVariantResolver TryResolveDerivedTarget rejects ambiguous matches across ancestor PrefabInstances", () =>
+{
+    long piId1 = 1000L;
+    long piId2 = 2000L;
+    long baseId1 = 500L;
+    long derived = PrefabVariantResolver.ComputeDerivedFileId(piId1, baseId1);
+    long baseId2 = (piId2 ^ derived) & 0x7FFFFFFFFFFFFFFFL;
+
+    var knownAmbiguous = new Dictionary<long, string>
+    {
+        [baseId1] = "Object_A",
+        [baseId2] = "Object_B"
+    };
+
+    Check(!PrefabVariantResolver.TryResolveDerivedTarget(derived, new[] { piId1, piId2 }, knownAmbiguous, out _),
+        "Ambiguous match across ancestor PrefabInstances must be rejected.");
+
+    var knownUnique = new Dictionary<long, string>
+    {
+        [baseId1] = "Object_A"
+    };
+    Check(PrefabVariantResolver.TryResolveDerivedTarget(derived, new[] { piId1, piId2 }, knownUnique, out var res) && res == "Object_A",
+        "Unique match across ancestor PrefabInstances must succeed.");
+});
+
 Test("PrefabVariantResolver FindPrefabInstanceIds extracts IDs from YAML", () => InTemp(root =>
 {
     string file = Path.Combine(root, "test.prefab");
