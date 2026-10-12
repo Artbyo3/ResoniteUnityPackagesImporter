@@ -178,4 +178,60 @@ public static class PrefabVariantResolver
 
         return false;
     }
+
+    public static long ComputeDerivedFileId(long piId, long targetId)
+    {
+        return (piId ^ targetId) & 0x7FFFFFFFFFFFFFFFL;
+    }
+
+    public static (long cand1, long cand2) ReverseDerivedFileId(long piId, long derivedId)
+    {
+        long cand1 = piId ^ derivedId;
+        long cand2 = cand1 ^ unchecked((long)0x8000000000000000UL);
+        return (cand1, cand2);
+    }
+
+    public static List<long> FindPrefabInstanceIds(string file)
+    {
+        var list = new List<long>();
+        if (string.IsNullOrEmpty(file) || !File.Exists(file)) return list;
+        try
+        {
+            foreach (var line in File.ReadLines(file))
+            {
+                if (line.StartsWith("--- !u!1001 &", StringComparison.Ordinal))
+                {
+                    var rest = line.Substring("--- !u!1001 &".Length).Trim();
+                    var tokens = rest.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                    if (tokens.Length > 0 && long.TryParse(tokens[0], out long id) && id != 0)
+                    {
+                        if (!list.Contains(id))
+                            list.Add(id);
+                    }
+                }
+            }
+        }
+        catch
+        {
+        }
+        return list;
+    }
+
+    public static bool TryResolveDerivedTarget<T>(
+        long targetFileId,
+        IEnumerable<long> ancestorPiIds,
+        IReadOnlyDictionary<long, T> knownObjects,
+        out T resolvedObject)
+    {
+        resolvedObject = default;
+        if (ancestorPiIds == null || knownObjects == null) return false;
+        foreach (long piId in ancestorPiIds)
+        {
+            if (piId == 0) continue;
+            var (cand1, cand2) = ReverseDerivedFileId(piId, targetFileId);
+            if (knownObjects.TryGetValue(cand1, out resolvedObject)) return true;
+            if (knownObjects.TryGetValue(cand2, out resolvedObject)) return true;
+        }
+        return false;
+    }
 }

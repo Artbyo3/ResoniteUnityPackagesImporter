@@ -408,6 +408,68 @@ Test("PrefabVariantResolver extracts ancestors with GUIDs and orders oldest firs
     Check(files.Count == 3 && files[0] == rootPrefab && files[2] == leafPrefab, "File paths must match.");
 }));
 
+Test("PrefabVariantResolver computes and reverses derived fileIDs from ancestor PrefabInstances", () =>
+{
+    long piId = 5724301657929574975L;
+    long negativeBaseId = -2689840812872440437L; // TOP_Out.s
+    long expectedDerivedNegative = 1574863555485863860L;
+
+    long derived1 = PrefabVariantResolver.ComputeDerivedFileId(piId, negativeBaseId);
+    Check(derived1 == expectedDerivedNegative, "Derived negative fileID does not match expected XOR result.");
+
+    var (c1, c2) = PrefabVariantResolver.ReverseDerivedFileId(piId, expectedDerivedNegative);
+    Check(c2 == negativeBaseId, "Reversed candidate 2 must match original negative base fileID.");
+
+    long positiveBaseId = 2089319128213806904L; // CHOCKER.s
+    long expectedDerivedPositive = 6020765875543389447L;
+
+    long derived2 = PrefabVariantResolver.ComputeDerivedFileId(piId, positiveBaseId);
+    Check(derived2 == expectedDerivedPositive, "Derived positive fileID does not match expected XOR result.");
+
+    var (c3, c4) = PrefabVariantResolver.ReverseDerivedFileId(piId, expectedDerivedPositive);
+    Check(c3 == positiveBaseId, "Reversed candidate 1 must match original positive base fileID.");
+
+    long rootBaseId = 919132149155446097L; // Root GameObject
+    long expectedDerivedRoot = 4877864411535988590L;
+
+    long derived3 = PrefabVariantResolver.ComputeDerivedFileId(piId, rootBaseId);
+    Check(derived3 == expectedDerivedRoot, "Derived root fileID does not match expected XOR result.");
+
+    var (c5, c6) = PrefabVariantResolver.ReverseDerivedFileId(piId, expectedDerivedRoot);
+    Check(c5 == rootBaseId, "Reversed candidate 1 must match original root base fileID.");
+});
+
+Test("PrefabVariantResolver TryResolveDerivedTarget finds target object from derived fileID", () =>
+{
+    long piId = 5724301657929574975L;
+    var known = new Dictionary<long, string>
+    {
+        [-2689840812872440437L] = "Top_Out",
+        [2089319128213806904L] = "Chocker",
+        [919132149155446097L] = "Root"
+    };
+    var piIds = new[] { piId };
+
+    Check(PrefabVariantResolver.TryResolveDerivedTarget(1574863555485863860L, piIds, known, out var res1) && res1 == "Top_Out",
+        "Should resolve Top_Out via candidate 2.");
+    Check(PrefabVariantResolver.TryResolveDerivedTarget(6020765875543389447L, piIds, known, out var res2) && res2 == "Chocker",
+        "Should resolve Chocker via candidate 1.");
+    Check(PrefabVariantResolver.TryResolveDerivedTarget(4877864411535988590L, piIds, known, out var res3) && res3 == "Root",
+        "Should resolve Root via candidate 1.");
+    Check(!PrefabVariantResolver.TryResolveDerivedTarget(99999999L, piIds, known, out _),
+        "Unrelated fileID should not resolve.");
+});
+
+Test("PrefabVariantResolver FindPrefabInstanceIds extracts IDs from YAML", () => InTemp(root =>
+{
+    string file = Path.Combine(root, "test.prefab");
+    File.WriteAllText(file, "%YAML 1.1\n--- !u!1001 &5724301657929574975\nPrefabInstance:\n  m_ObjectHideFlags: 0\n--- !u!1001 &6373102937916593898 stripped\nPrefabInstance:\n");
+    var ids = PrefabVariantResolver.FindPrefabInstanceIds(file);
+    Check(ids.Count == 2, "Expected 2 PrefabInstance IDs.");
+    Check(ids[0] == 5724301657929574975L, "First ID mismatch.");
+    Check(ids[1] == 6373102937916593898L, "Second ID mismatch.");
+}));
+
 Test("Blendshape defaults convert Unity percentages without clamping", () =>
 {
     var actual = new float[5];
