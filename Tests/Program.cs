@@ -381,6 +381,33 @@ Test("Prefab variant overrides preserve parent materials and apply child color v
     Check(target.m_Materials[1].guid == "parent-pants-guid", "Slot 1 must retain inherited parent material.");
 });
 
+Test("PrefabVariantResolver extracts ancestors with GUIDs and orders oldest first", () => InTemp(root =>
+{
+    string rootPrefab = Path.Combine(root, "Base.prefab");
+    string midPrefab = Path.Combine(root, "Mid.prefab");
+    string leafPrefab = Path.Combine(root, "Leaf.prefab");
+
+    File.WriteAllText(rootPrefab, "m_SourcePrefab: {fileID: 0, guid: fbx-guid, type: 3}");
+    File.WriteAllText(midPrefab, "m_SourcePrefab: {fileID: 0, guid: base-guid, type: 3}");
+    File.WriteAllText(leafPrefab, "m_SourcePrefab: {fileID: 0, guid: mid-guid, type: 3}");
+
+    var prefabs = new Dictionary<string, string>
+    {
+        ["base-guid"] = rootPrefab,
+        ["mid-guid"] = midPrefab,
+        ["leaf-guid"] = leafPrefab
+    };
+
+    var ancestors = PrefabVariantResolver.GetAncestorPrefabs("leaf-guid", prefabs);
+    Check(ancestors.Count == 3, "Expected 3 ancestors in chain.");
+    Check(ancestors[0].guid == "base-guid" && ancestors[0].file == rootPrefab, "Oldest ancestor must be base.");
+    Check(ancestors[1].guid == "mid-guid" && ancestors[1].file == midPrefab, "Second ancestor must be mid.");
+    Check(ancestors[2].guid == "leaf-guid" && ancestors[2].file == leafPrefab, "Leaf ancestor must be leaf.");
+
+    var files = PrefabVariantResolver.GetAncestorPrefabFiles("leaf-guid", prefabs);
+    Check(files.Count == 3 && files[0] == rootPrefab && files[2] == leafPrefab, "File paths must match.");
+}));
+
 Test("Blendshape defaults convert Unity percentages without clamping", () =>
 {
     var actual = new float[5];

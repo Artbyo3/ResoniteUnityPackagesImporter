@@ -11,9 +11,9 @@ namespace UnityPackageImporter;
 public class UnityPackageImporter : ResoniteMod
 {
     public override string Name => "UnityPackageImporter";
-    public override string Author => "dfgHiatus, eia485, delta, Frozenreflex, benaclejames, 989onan";
-    public override string Version => "0.0.0";
-    public override string Link => "https://github.com/dfgHiatus/ResoniteUnityPackagesImporter";
+    public override string Author => "dfgHiatus, eia485, delta, Frozenreflex, benaclejames, 989onan, Artbyo3";
+    public override string Version => "0.0.2";
+    public override string Link => "https://github.com/Artbyo3/ResoniteUnityPackagesImporter";
 
     internal const string UNITY_PACKAGE_EXTENSION = ".unitypackage";
     internal const string UNITY_META_EXTENSION = ".meta";

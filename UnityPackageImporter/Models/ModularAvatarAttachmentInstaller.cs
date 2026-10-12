@@ -326,17 +326,19 @@ internal static class ModularAvatarAttachmentInstaller
 
             if (proxySlot == null)
             {
-                throw new InvalidOperationException(
+                UnityPackageImporter.Warn(
                     "Could not resolve Bone Proxy GameObject " + definition.GameObjectFileId +
-                    " in '" + attachmentRoot.Name + "'.");
+                    " in '" + attachmentRoot.Name + "'. Skipping proxy.");
+                continue;
             }
 
             var path = GetIndexPath(attachmentRoot, proxySlot);
             if (path == null)
             {
-                throw new InvalidOperationException(
+                UnityPackageImporter.Warn(
                     "Bone Proxy source '" + proxySlot.Name +
-                    "' is outside attachment root '" + attachmentRoot.Name + "'.");
+                    "' is outside attachment root '" + attachmentRoot.Name + "'. Skipping proxy.");
+                continue;
             }
 
             result.Add(new BoneProxyBinding
@@ -424,7 +426,14 @@ internal static class ModularAvatarAttachmentInstaller
         {
             if (ResolveBoneProxyTarget(targetRig, binding.Definition, excludedTargets) == null)
             {
-                return "Bone Proxy target was not found for " + binding.SourceSlot.Name;
+                if (mergeBindings.Count > 0)
+                {
+                    UnityPackageImporter.Warn("Optional Bone Proxy target was not found for '" + binding.SourceSlot.Name + "'. Outfit will still merge onto armature.");
+                }
+                else
+                {
+                    return "Bone Proxy target was not found for " + binding.SourceSlot.Name;
+                }
             }
         }
 
@@ -608,9 +617,12 @@ internal static class ModularAvatarAttachmentInstaller
             foreach (var proxy in clonedBoneProxies)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                var target = ResolveBoneProxyTarget(targetRig, proxy.Definition, excludedTargets)
-                    ?? throw new InvalidOperationException(
-                        "Bone Proxy target was not found for '" + proxy.SourceSlot.Name + "'.");
+                var target = ResolveBoneProxyTarget(targetRig, proxy.Definition, excludedTargets);
+                if (target == null)
+                {
+                    UnityPackageImporter.Warn("Bone Proxy target was not found for '" + proxy.SourceSlot.Name + "'. Leaving in outfit hierarchy.");
+                    continue;
+                }
                 bool activeWhenEnabled = authoredActivity[proxy.SourceSlot];
                 transaction.Track(proxy.SourceSlot);
                 proxy.SourceSlot.ActiveSelf = false;
@@ -903,17 +915,39 @@ internal static class ModularAvatarAttachmentInstaller
             BodyNode bodyNode = MapUnityHumanoidBone(definition.BoneReference);
             if (bodyNode == BodyNode.NONE) return null;
             target = targetRig.TryGetBone(bodyNode);
+            if (target == null || target.IsDestroyed)
+            {
+                target = ResolveHumanoidBoneFallback(targetRig, bodyNode);
+            }
         }
 
         if (target == null || target.IsDestroyed) return null;
         foreach (string part in SplitPath(subPath))
         {
             target = target.Children.FirstOrDefault(child =>
-                child.Name.Equals(part, StringComparison.Ordinal));
+                child.Name.Equals(part, StringComparison.Ordinal))
+                ?? target.Children.FirstOrDefault(child =>
+                child.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
             if (target == null || target.IsDestroyed) return null;
         }
         if (excludedRoots.Any(root => target == root || target.IsChildOf(root, true))) return null;
         return target;
+    }
+
+    private static Slot ResolveHumanoidBoneFallback(BipedRig rig, BodyNode node)
+    {
+        if (rig == null || rig.IsDestroyed) return null;
+        return node switch
+        {
+            BodyNode.UpperChest => rig.TryGetBone(BodyNode.Chest) ?? rig.TryGetBone(BodyNode.Spine),
+            BodyNode.Chest => rig.TryGetBone(BodyNode.Spine),
+            BodyNode.LeftToes => rig.TryGetBone(BodyNode.LeftFoot),
+            BodyNode.RightToes => rig.TryGetBone(BodyNode.RightFoot),
+            BodyNode.LeftEye or BodyNode.RightEye or BodyNode.Jaw => rig.TryGetBone(BodyNode.Head),
+            BodyNode.LeftThumb_Distal or BodyNode.LeftThumb_Tip => rig.TryGetBone(BodyNode.LeftThumb_Proximal),
+            BodyNode.RightThumb_Distal or BodyNode.RightThumb_Tip => rig.TryGetBone(BodyNode.RightThumb_Proximal),
+            _ => null
+        };
     }
 
     private static void ApplyBoneProxy(
@@ -1069,10 +1103,27 @@ internal static class ModularAvatarAttachmentInstaller
             ? hipsBone.Parent
             : null;
 
-        if (rigArmature != null && string.IsNullOrEmpty(binding.Definition.MergeTargetPath) && IsLikelyArmature(binding.SourceSlot))
+        if (rigArmature != null && (excludedRoots == null || !excludedRoots.Contains(rigArmature)))
         {
-            if (excludedRoots == null || !excludedRoots.Contains(rigArmature))
+            string targetPath = binding.Definition.MergeTargetPath?.Trim() ?? "";
+            string targetLeaf = targetPath.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+
+            if (IsLikelyArmature(binding.SourceSlot) ||
+                string.IsNullOrEmpty(targetPath) ||
+                (targetLeaf != null && rigArmature.Name.Equals(targetLeaf, StringComparison.OrdinalIgnoreCase)) ||
+                rigArmature.Name.Equals("Armature", StringComparison.OrdinalIgnoreCase))
+            {
                 return rigArmature;
+            }
+        }
+
+        string explicitTargetLeaf = binding.Definition.MergeTargetPath?.Trim().Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
+        if (!string.IsNullOrEmpty(explicitTargetLeaf))
+        {
+            var matchingCandidate = candidates.Values.FirstOrDefault(c =>
+                c.Name.Equals(explicitTargetLeaf, StringComparison.OrdinalIgnoreCase) &&
+                (excludedRoots == null || !excludedRoots.Contains(c)));
+            if (matchingCandidate != null) return matchingCandidate;
         }
 
         return null;

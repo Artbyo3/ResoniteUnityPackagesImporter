@@ -103,12 +103,12 @@ public static class PrefabVariantResolver
         return lineage;
     }
 
-    public static List<string> GetAncestorPrefabFiles(
+    public static List<(string guid, string file)> GetAncestorPrefabs(
         string sourceGuid,
         IReadOnlyDictionary<string, string> prefabs)
     {
-        var files = new List<string>();
-        if (string.IsNullOrEmpty(sourceGuid) || prefabs == null) return files;
+        var result = new List<(string guid, string file)>();
+        if (string.IsNullOrEmpty(sourceGuid) || prefabs == null) return result;
 
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         string currentGuid = sourceGuid;
@@ -116,7 +116,7 @@ public static class PrefabVariantResolver
         {
             if (prefabs.TryGetValue(currentGuid, out string prefabFile) && File.Exists(prefabFile))
             {
-                files.Add(prefabFile);
+                result.Add((currentGuid, prefabFile));
                 string nextGuid = FindSourceGuidInPrefabFile(prefabFile);
                 if (!string.IsNullOrEmpty(nextGuid))
                 {
@@ -128,7 +128,17 @@ public static class PrefabVariantResolver
         }
 
         // Return oldest ancestor first (root -> leaf)
-        files.Reverse();
+        result.Reverse();
+        return result;
+    }
+
+    public static List<string> GetAncestorPrefabFiles(
+        string sourceGuid,
+        IReadOnlyDictionary<string, string> prefabs)
+    {
+        var files = new List<string>();
+        foreach (var (_, file) in GetAncestorPrefabs(sourceGuid, prefabs))
+            files.Add(file);
         return files;
     }
 
