@@ -112,7 +112,7 @@ public class PrefabInstance : IUnityObject
                 var hashIdToTarget = new Dictionary<long, IUnityObject>();
                 foreach (var kvp in this.PrefabHashes)
                 {
-                    hashIdToTarget[kvp.Key.fileID] = kvp.Value;
+                    PrefabVariantResolver.RegisterUniqueTarget(hashIdToTarget, kvp.Key.fileID, kvp.Value);
                 }
 
                 var ancestorPiIds = new HashSet<long>();
@@ -154,13 +154,10 @@ public class PrefabInstance : IUnityObject
                             foreach (var kvp in this.PrefabHashes)
                             {
                                 long derivedId = PrefabVariantResolver.ComputeDerivedFileId(piId, kvp.Key.fileID);
-                                if (!ancestorIdToTarget.ContainsKey(derivedId))
-                                {
-                                    ancestorIdToTarget[derivedId] = kvp.Value;
-                                    ancestorTargetMap[new SourceObj(derivedId, ancestorGuid, kvp.Key.type)] = kvp.Value;
-                                    ancestorTargetMap[new SourceObj(derivedId, resolvedFbxGuid, kvp.Key.type)] = kvp.Value;
-                                    ancestorTargetMap[new SourceObj(derivedId, "", kvp.Key.type)] = kvp.Value;
-                                }
+                                PrefabVariantResolver.RegisterUniqueTarget(ancestorIdToTarget, derivedId, kvp.Value);
+                                PrefabVariantResolver.RegisterUniqueTarget(ancestorTargetMap, new SourceObj(derivedId, ancestorGuid, kvp.Key.type), kvp.Value);
+                                PrefabVariantResolver.RegisterUniqueTarget(ancestorTargetMap, new SourceObj(derivedId, resolvedFbxGuid, kvp.Key.type), kvp.Value);
+                                PrefabVariantResolver.RegisterUniqueTarget(ancestorTargetMap, new SourceObj(derivedId, "", kvp.Key.type), kvp.Value);
                             }
                         }
 
@@ -184,18 +181,16 @@ public class PrefabInstance : IUnityObject
                                         targetSkin = dSkin2;
                                     if (targetSkin == null && ancestorIdToTarget.TryGetValue(ancestorSkin.m_CorrespondingSourceObject.fileID, out var mappedObj) && mappedObj is SkinnedMeshRenderer dSkin3)
                                         targetSkin = dSkin3;
+                                    if (targetSkin == null && ancestorIdToTarget.TryGetValue(ancestorSkin.m_CorrespondingSourceObject.fileID, out var conflictedSkin) && conflictedSkin == null)
+                                        continue;
 
                                     if (targetSkin == null && ancestorPiIds.Count > 0)
                                     {
-                                        foreach (long piId in ancestorPiIds)
-                                        {
-                                            if (piId == 0) continue;
-                                            var (cand1, cand2) = PrefabVariantResolver.ReverseDerivedFileId(piId, ancestorSkin.m_CorrespondingSourceObject.fileID);
-                                            if (hashIdToTarget.TryGetValue(cand1, out var cObj1) && cObj1 is SkinnedMeshRenderer cSkin1) { targetSkin = cSkin1; break; }
-                                            if (hashIdToTarget.TryGetValue(cand2, out var cObj2) && cObj2 is SkinnedMeshRenderer cSkin2) { targetSkin = cSkin2; break; }
-                                            if (ancestorIdToTarget.TryGetValue(cand1, out var mObj1) && mObj1 is SkinnedMeshRenderer mSkin1) { targetSkin = mSkin1; break; }
-                                            if (ancestorIdToTarget.TryGetValue(cand2, out var mObj2) && mObj2 is SkinnedMeshRenderer mSkin2) { targetSkin = mSkin2; break; }
-                                        }
+                                        PrefabVariantResolver.TryResolveDerivedTarget(ancestorSkin.m_CorrespondingSourceObject.fileID,
+                                            ancestorPiIds, candidateId => FindDerivedCandidates(candidateId, null, resolvedFbxGuid,
+                                                ancestorIdToTarget, hashIdToTarget), out IUnityObject derivedTarget, out bool ambiguous);
+                                        if (ambiguous) continue;
+                                        targetSkin = derivedTarget as SkinnedMeshRenderer;
                                     }
                                 }
 
@@ -244,12 +239,12 @@ public class PrefabInstance : IUnityObject
 
                                 if (targetSkin != null)
                                 {
-                                    ancestorTargetMap[new SourceObj((long)ancestorSkin.id, ancestorGuid, 3)] = targetSkin;
-                                    ancestorTargetMap[new SourceObj((long)ancestorSkin.id, resolvedFbxGuid, 3)] = targetSkin;
-                                    ancestorTargetMap[new SourceObj((long)ancestorSkin.id, "", 3)] = targetSkin;
-                                    ancestorIdToTarget[(long)ancestorSkin.id] = targetSkin;
+                                    PrefabVariantResolver.RegisterUniqueTarget(ancestorTargetMap, new SourceObj((long)ancestorSkin.id, ancestorGuid, 3), targetSkin);
+                                    PrefabVariantResolver.RegisterUniqueTarget(ancestorTargetMap, new SourceObj((long)ancestorSkin.id, resolvedFbxGuid, 3), targetSkin);
+                                    PrefabVariantResolver.RegisterUniqueTarget(ancestorTargetMap, new SourceObj((long)ancestorSkin.id, "", 3), targetSkin);
+                                    PrefabVariantResolver.RegisterUniqueTarget(ancestorIdToTarget, (long)ancestorSkin.id, targetSkin);
                                     if (ancestorSkin.m_CorrespondingSourceObject != null && ancestorSkin.m_CorrespondingSourceObject.fileID != 0)
-                                        ancestorIdToTarget[ancestorSkin.m_CorrespondingSourceObject.fileID] = targetSkin;
+                                        PrefabVariantResolver.RegisterUniqueTarget(ancestorIdToTarget, ancestorSkin.m_CorrespondingSourceObject.fileID, targetSkin);
 
                                     if (ancestorSkin.m_Materials != null && ancestorSkin.m_Materials.Count > 0)
                                     {
@@ -286,18 +281,16 @@ public class PrefabInstance : IUnityObject
                                         targetGo = dGo;
                                     if (targetGo == null && ancestorIdToTarget.TryGetValue(ancestorGo.m_CorrespondingSourceObject.fileID, out var mappedObj) && mappedObj is GameObject mGo)
                                         targetGo = mGo;
+                                    if (targetGo == null && ancestorIdToTarget.TryGetValue(ancestorGo.m_CorrespondingSourceObject.fileID, out var conflictedGo) && conflictedGo == null)
+                                        continue;
 
                                     if (targetGo == null && ancestorPiIds.Count > 0)
                                     {
-                                        foreach (long piId in ancestorPiIds)
-                                        {
-                                            if (piId == 0) continue;
-                                            var (cand1, cand2) = PrefabVariantResolver.ReverseDerivedFileId(piId, ancestorGo.m_CorrespondingSourceObject.fileID);
-                                            if (hashIdToTarget.TryGetValue(cand1, out var cObj1) && cObj1 is GameObject cGo1) { targetGo = cGo1; break; }
-                                            if (hashIdToTarget.TryGetValue(cand2, out var cObj2) && cObj2 is GameObject cGo2) { targetGo = cGo2; break; }
-                                            if (ancestorIdToTarget.TryGetValue(cand1, out var mObj1) && mObj1 is GameObject mGo1) { targetGo = mGo1; break; }
-                                            if (ancestorIdToTarget.TryGetValue(cand2, out var mObj2) && mObj2 is GameObject mGo2) { targetGo = mGo2; break; }
-                                        }
+                                        PrefabVariantResolver.TryResolveDerivedTarget(ancestorGo.m_CorrespondingSourceObject.fileID,
+                                            ancestorPiIds, candidateId => FindDerivedCandidates(candidateId, null, resolvedFbxGuid,
+                                                ancestorIdToTarget, hashIdToTarget), out IUnityObject derivedTarget, out bool ambiguous);
+                                        if (ambiguous) continue;
+                                        targetGo = derivedTarget as GameObject;
                                     }
                                 }
                                 if (targetGo == null && !string.IsNullOrEmpty(ancestorGo.m_Name))
@@ -326,12 +319,12 @@ public class PrefabInstance : IUnityObject
                                 }
                                 if (targetGo != null)
                                 {
-                                    ancestorTargetMap[new SourceObj((long)ancestorGo.id, ancestorGuid, 1)] = targetGo;
-                                    ancestorTargetMap[new SourceObj((long)ancestorGo.id, resolvedFbxGuid, 1)] = targetGo;
-                                    ancestorTargetMap[new SourceObj((long)ancestorGo.id, "", 1)] = targetGo;
-                                    ancestorIdToTarget[(long)ancestorGo.id] = targetGo;
+                                    PrefabVariantResolver.RegisterUniqueTarget(ancestorTargetMap, new SourceObj((long)ancestorGo.id, ancestorGuid, 1), targetGo);
+                                    PrefabVariantResolver.RegisterUniqueTarget(ancestorTargetMap, new SourceObj((long)ancestorGo.id, resolvedFbxGuid, 1), targetGo);
+                                    PrefabVariantResolver.RegisterUniqueTarget(ancestorTargetMap, new SourceObj((long)ancestorGo.id, "", 1), targetGo);
+                                    PrefabVariantResolver.RegisterUniqueTarget(ancestorIdToTarget, (long)ancestorGo.id, targetGo);
                                     if (ancestorGo.m_CorrespondingSourceObject != null && ancestorGo.m_CorrespondingSourceObject.fileID != 0)
-                                        ancestorIdToTarget[ancestorGo.m_CorrespondingSourceObject.fileID] = targetGo;
+                                        PrefabVariantResolver.RegisterUniqueTarget(ancestorIdToTarget, ancestorGo.m_CorrespondingSourceObject.fileID, targetGo);
                                 }
                             }
                             else if (kvp.Value is Transform ancestorTr)
@@ -348,18 +341,15 @@ public class PrefabInstance : IUnityObject
                                         targetTr = directObj;
                                     if (targetTr == null && ancestorIdToTarget.TryGetValue(ancestorTr.m_CorrespondingSourceObject.fileID, out var mappedObj))
                                         targetTr = mappedObj;
+                                    if (targetTr == null && ancestorIdToTarget.TryGetValue(ancestorTr.m_CorrespondingSourceObject.fileID, out var conflictedTr) && conflictedTr == null)
+                                        continue;
 
                                     if (targetTr == null && ancestorPiIds.Count > 0)
                                     {
-                                        foreach (long piId in ancestorPiIds)
-                                        {
-                                            if (piId == 0) continue;
-                                            var (cand1, cand2) = PrefabVariantResolver.ReverseDerivedFileId(piId, ancestorTr.m_CorrespondingSourceObject.fileID);
-                                            if (hashIdToTarget.TryGetValue(cand1, out var cObj1)) { targetTr = cObj1; break; }
-                                            if (hashIdToTarget.TryGetValue(cand2, out var cObj2)) { targetTr = cObj2; break; }
-                                            if (ancestorIdToTarget.TryGetValue(cand1, out var mObj1)) { targetTr = mObj1; break; }
-                                            if (ancestorIdToTarget.TryGetValue(cand2, out var mObj2)) { targetTr = mObj2; break; }
-                                        }
+                                        PrefabVariantResolver.TryResolveDerivedTarget(ancestorTr.m_CorrespondingSourceObject.fileID,
+                                            ancestorPiIds, candidateId => FindDerivedCandidates(candidateId, null, resolvedFbxGuid,
+                                                ancestorIdToTarget, hashIdToTarget), out targetTr, out bool ambiguous);
+                                        if (ambiguous) continue;
                                     }
                                 }
                                 if (targetTr == null && ancestorTr.m_GameObjectID != 0)
@@ -369,12 +359,12 @@ public class PrefabInstance : IUnityObject
                                 }
                                 if (targetTr != null)
                                 {
-                                    ancestorTargetMap[new SourceObj((long)ancestorTr.id, ancestorGuid, 4)] = targetTr;
-                                    ancestorTargetMap[new SourceObj((long)ancestorTr.id, resolvedFbxGuid, 4)] = targetTr;
-                                    ancestorTargetMap[new SourceObj((long)ancestorTr.id, "", 4)] = targetTr;
-                                    ancestorIdToTarget[(long)ancestorTr.id] = targetTr;
+                                    PrefabVariantResolver.RegisterUniqueTarget(ancestorTargetMap, new SourceObj((long)ancestorTr.id, ancestorGuid, 4), targetTr);
+                                    PrefabVariantResolver.RegisterUniqueTarget(ancestorTargetMap, new SourceObj((long)ancestorTr.id, resolvedFbxGuid, 4), targetTr);
+                                    PrefabVariantResolver.RegisterUniqueTarget(ancestorTargetMap, new SourceObj((long)ancestorTr.id, "", 4), targetTr);
+                                    PrefabVariantResolver.RegisterUniqueTarget(ancestorIdToTarget, (long)ancestorTr.id, targetTr);
                                     if (ancestorTr.m_CorrespondingSourceObject != null && ancestorTr.m_CorrespondingSourceObject.fileID != 0)
-                                        ancestorIdToTarget[ancestorTr.m_CorrespondingSourceObject.fileID] = targetTr;
+                                        PrefabVariantResolver.RegisterUniqueTarget(ancestorIdToTarget, ancestorTr.m_CorrespondingSourceObject.fileID, targetTr);
                                 }
                             }
                         }
@@ -557,64 +547,13 @@ public class PrefabInstance : IUnityObject
         // PrefabInstance, Unity derives targetFileId = (parentPrefabInstanceId ^ baseFileId) & 0x7FFFFFFFFFFFFFFF.
         if (ancestorPiIds != null && ancestorPiIds.Count > 0)
         {
-            IUnityObject matchedTarget = null;
-            int matchCount = 0;
-            foreach (long piId in ancestorPiIds)
-            {
-                if (piId == 0) continue;
-                var (cand1, cand2) = PrefabVariantResolver.ReverseDerivedFileId(piId, mod.target.fileID);
-
-                IUnityObject candTarget = null;
-                if (ancestorIdToTarget != null)
-                {
-                    if (ancestorIdToTarget.TryGetValue(cand1, out IUnityObject target1)) candTarget = target1;
-                    else if (ancestorIdToTarget.TryGetValue(cand2, out IUnityObject target2)) candTarget = target2;
-                }
-
-                if (candTarget == null && hashIdToTarget != null)
-                {
-                    if (hashIdToTarget.TryGetValue(cand1, out IUnityObject target3)) candTarget = target3;
-                    else if (hashIdToTarget.TryGetValue(cand2, out IUnityObject target4)) candTarget = target4;
-                }
-
-                if (candTarget == null && this.PrefabHashes != null && !string.IsNullOrEmpty(resolvedFbxGuid))
-                {
-                    SourceObj s1 = new SourceObj(cand1, resolvedFbxGuid, mod.target.type);
-                    if (this.PrefabHashes.TryGetValue(s1, out IUnityObject target5)) candTarget = target5;
-                    else
-                    {
-                        SourceObj s2 = new SourceObj(cand2, resolvedFbxGuid, mod.target.type);
-                        if (this.PrefabHashes.TryGetValue(s2, out IUnityObject target6)) candTarget = target6;
-                    }
-                }
-
-                if (candTarget == null && importer?.existingIUnityObjects != null)
-                {
-                    if (importer.existingIUnityObjects.TryGetValue(unchecked((ulong)cand1), out IUnityObject localTarget1)) candTarget = localTarget1;
-                    else if (importer.existingIUnityObjects.TryGetValue(unchecked((ulong)cand2), out IUnityObject localTarget2)) candTarget = localTarget2;
-                }
-
-                if (candTarget != null)
-                {
-                    if (matchedTarget == null)
-                    {
-                        matchedTarget = candTarget;
-                        matchCount = 1;
-                    }
-                    else if (!ReferenceEquals(matchedTarget, candTarget))
-                    {
-                        matchCount++;
-                    }
-                }
-            }
-
-            if (matchCount == 1)
-            {
+            if (PrefabVariantResolver.TryResolveDerivedTarget(mod.target.fileID, ancestorPiIds,
+                candidateId => FindDerivedCandidates(candidateId, importer, resolvedFbxGuid,
+                    ancestorIdToTarget, hashIdToTarget), out IUnityObject matchedTarget, out bool ambiguous))
                 return matchedTarget;
-            }
-            else if (matchCount > 1)
+            if (ambiguous)
             {
-                UnityPackageImporter.Warn($"Ambiguous reverse derived file ID match for target fileID {mod.target.fileID} ({matchCount} distinct objects matched); skipping ambiguous binding.");
+                UnityPackageImporter.Warn($"Ambiguous reverse derived file ID match for target fileID {mod.target.fileID}; skipping ambiguous binding.");
                 return null;
             }
         }
@@ -629,6 +568,25 @@ public class PrefabInstance : IUnityObject
         }
 
         return null;
+    }
+
+    private IEnumerable<IUnityObject> FindDerivedCandidates(
+        long candidateId,
+        IUnityStructureImporter importer,
+        string resolvedFbxGuid,
+        Dictionary<long, IUnityObject> ancestorIdToTarget,
+        Dictionary<long, IUnityObject> hashIdToTarget)
+    {
+        if (ancestorIdToTarget != null && ancestorIdToTarget.TryGetValue(candidateId, out var ancestorTarget))
+            yield return ancestorTarget;
+        if (hashIdToTarget != null && hashIdToTarget.TryGetValue(candidateId, out var hashedTarget))
+            yield return hashedTarget;
+        if (this.PrefabHashes != null && !string.IsNullOrEmpty(resolvedFbxGuid) &&
+            this.PrefabHashes.TryGetValue(new SourceObj(candidateId, resolvedFbxGuid, 3), out var sourceTarget))
+            yield return sourceTarget;
+        if (importer?.existingIUnityObjects != null &&
+            importer.existingIUnityObjects.TryGetValue(unchecked((ulong)candidateId), out var localTarget))
+            yield return localTarget;
     }
 
     private void ApplyModifications(

@@ -222,37 +222,67 @@ public static class PrefabVariantResolver
         IEnumerable<long> ancestorPiIds,
         IReadOnlyDictionary<long, T> knownObjects,
         out T resolvedObject)
+        where T : class
+    {
+        if (knownObjects == null)
+        {
+            resolvedObject = default;
+            return false;
+        }
+        return TryResolveDerivedTarget(targetFileId, ancestorPiIds,
+            candidateId => FindKnownTarget(knownObjects, candidateId), out resolvedObject);
+    }
+
+    public static bool TryResolveDerivedTarget<T>(
+        long targetFileId,
+        IEnumerable<long> ancestorPiIds,
+        Func<long, IEnumerable<T>> findCandidates,
+        out T resolvedObject)
+        where T : class
+    {
+        return TryResolveDerivedTarget(targetFileId, ancestorPiIds, findCandidates, out resolvedObject, out _);
+    }
+
+    public static bool TryResolveDerivedTarget<T>(
+        long targetFileId,
+        IEnumerable<long> ancestorPiIds,
+        Func<long, IEnumerable<T>> findCandidates,
+        out T resolvedObject,
+        out bool ambiguous)
+        where T : class
     {
         resolvedObject = default;
-        if (ancestorPiIds == null || knownObjects == null) return false;
+        ambiguous = false;
+        if (ancestorPiIds == null || findCandidates == null) return false;
         T candidate = default;
         bool found = false;
         foreach (long piId in ancestorPiIds)
         {
             if (piId == 0) continue;
             var (cand1, cand2) = ReverseDerivedFileId(piId, targetFileId);
-            if (knownObjects.TryGetValue(cand1, out var match1))
+            foreach (long candidateId in new[] { cand1, cand2 })
             {
-                if (!found)
+                var matches = findCandidates(candidateId);
+                if (matches == null) continue;
+                foreach (var match in matches)
                 {
-                    candidate = match1;
-                    found = true;
-                }
-                else if (!EqualityComparer<T>.Default.Equals(candidate, match1))
-                {
-                    return false; // Ambiguous match across ancestor PrefabInstances
-                }
-            }
-            if (knownObjects.TryGetValue(cand2, out var match2))
-            {
-                if (!found)
-                {
-                    candidate = match2;
-                    found = true;
-                }
-                else if (!EqualityComparer<T>.Default.Equals(candidate, match2))
-                {
-                    return false; // Ambiguous match across ancestor PrefabInstances
+                    // A null entry records an ID that already collided while the
+                    // ancestor maps were built. It must not look like a missing ID.
+                    if (match is null)
+                    {
+                        ambiguous = true;
+                        return false;
+                    }
+                    if (!found)
+                    {
+                        candidate = match;
+                        found = true;
+                    }
+                    else if (!ReferenceEquals(candidate, match))
+                    {
+                        ambiguous = true;
+                        return false;
+                    }
                 }
             }
         }
@@ -262,5 +292,20 @@ public static class PrefabVariantResolver
             return true;
         }
         return false;
+    }
+
+    private static IEnumerable<T> FindKnownTarget<T>(IReadOnlyDictionary<long, T> knownObjects, long candidateId)
+    {
+        if (knownObjects.TryGetValue(candidateId, out var target))
+            yield return target;
+    }
+
+    public static void RegisterUniqueTarget<TKey, T>(IDictionary<TKey, T> targets, TKey key, T target)
+        where T : class
+    {
+        if (!targets.TryGetValue(key, out var existing))
+            targets.Add(key, target);
+        else if (!ReferenceEquals(existing, target))
+            targets[key] = null;
     }
 }

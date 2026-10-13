@@ -495,6 +495,70 @@ Test("PrefabVariantResolver FindPrefabInstanceIds extracts IDs from YAML", () =>
     Check(ids[1] == 6373102937916593898L, "Second ID mismatch.");
 }));
 
+Test("Prefab derived resolution rejects both signed inverse candidates", () =>
+{
+    long instanceId = 1000;
+    long positiveId = 500;
+    long negativeId = positiveId ^ long.MinValue;
+    var known = new Dictionary<long, object>
+    {
+        [positiveId] = new object(),
+        [negativeId] = new object()
+    };
+    long derivedId = PrefabVariantResolver.ComputeDerivedFileId(instanceId, positiveId);
+    Check(!PrefabVariantResolver.TryResolveDerivedTarget(derivedId, new[] { instanceId }, known, out _),
+        "Two different objects with the same derived ID must not select the positive candidate.");
+    var equalValues = new Dictionary<long, string>
+    {
+        [positiveId] = new string('a', 1),
+        [negativeId] = new string('a', 1)
+    };
+    Check(!PrefabVariantResolver.TryResolveDerivedTarget(derivedId, new[] { instanceId }, equalValues, out _),
+        "Value equality must not make different object identities an unambiguous target.");
+});
+
+Test("Prefab derived resolution examines every map without losing source identity", () =>
+{
+    const long instanceId = 1000;
+    const long sourceId = 500;
+    var expected = new object();
+    var ancestor = new Dictionary<long, object> { [sourceId] = expected };
+    var hashed = new Dictionary<long, object> { [sourceId] = new object() };
+    IEnumerable<object> Candidates(long candidateId)
+    {
+        if (ancestor.TryGetValue(candidateId, out var first)) yield return first;
+        if (hashed.TryGetValue(candidateId, out var second)) yield return second;
+    }
+    long derivedId = PrefabVariantResolver.ComputeDerivedFileId(instanceId, sourceId);
+    Check(!PrefabVariantResolver.TryResolveDerivedTarget(derivedId, new[] { instanceId }, Candidates,
+        out object unresolved, out bool ambiguous) && ambiguous && unresolved == null,
+        "A conflict between lookup maps must not select whichever map was consulted first.");
+    hashed[sourceId] = expected;
+    Check(PrefabVariantResolver.TryResolveDerivedTarget(derivedId, new[] { instanceId, instanceId }, Candidates,
+        out object resolved, out ambiguous) && ReferenceEquals(expected, resolved) && !ambiguous,
+        "Repeated aliases of the same object must retain its identity.");
+});
+
+Test("Prefab ancestor alias collisions stay ambiguous after later registration", () =>
+{
+    const long firstInstanceId = 1000;
+    const long secondInstanceId = 2000;
+    const long firstSourceId = 500;
+    long derivedId = PrefabVariantResolver.ComputeDerivedFileId(firstInstanceId, firstSourceId);
+    long secondSourceId = secondInstanceId ^ derivedId;
+    var first = new object();
+    var aliases = new Dictionary<long, object>();
+    PrefabVariantResolver.RegisterUniqueTarget(aliases, derivedId, first);
+    PrefabVariantResolver.RegisterUniqueTarget(aliases,
+        PrefabVariantResolver.ComputeDerivedFileId(secondInstanceId, secondSourceId), new object());
+    PrefabVariantResolver.RegisterUniqueTarget(aliases, derivedId, first);
+    Check(aliases.ContainsKey(derivedId) && aliases[derivedId] == null,
+        "A colliding alias must retain an explicit conflict instead of an arbitrary object.");
+    long outerDerivedId = PrefabVariantResolver.ComputeDerivedFileId(firstInstanceId, derivedId);
+    Check(!PrefabVariantResolver.TryResolveDerivedTarget(outerDerivedId, new[] { firstInstanceId }, aliases, out _),
+        "An already conflicted alias must not become a unique reverse match.");
+});
+
 Test("Blendshape defaults convert Unity percentages without clamping", () =>
 {
     var actual = new float[5];
@@ -1303,6 +1367,7 @@ InitialToggleBindingTests.Register(Test);
 
 AvatarViewpointTests.Register(Test);
 TemporaryRigParentTests.Register(Test);
+UnityYamlDocumentParserTests.Register(Test, Check);
 
 foreach (var test in tests)
 {

@@ -36,5 +36,6 @@
     <Compile Include="../UnityPackageImporter/Models/MaterialDependencyDiagnostics.cs" Link="MaterialDependencyDiagnostics.cs" />
     <Compile Include="../UnityPackageImporter/Models/PrefabVariantResolver.cs" Link="PrefabVariantResolver.cs" />
     <Compile Include="../UnityPackageImporter/Models/UnityPackageAssetIndex.cs" Link="UnityPackageAssetIndex.cs" />
+    <Compile Include="../UnityPackageImporter/Models/UnityYamlDocumentParser.cs" Link="UnityYamlDocumentParser.cs" />
   </ItemGroup>
 </Project>

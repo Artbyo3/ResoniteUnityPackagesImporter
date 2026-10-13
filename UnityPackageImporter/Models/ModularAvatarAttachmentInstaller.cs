@@ -273,10 +273,7 @@ internal static class ModularAvatarAttachmentInstaller
             {
                 Definition = definition,
                 SourceSlot = proxySlot,
-                IndexPath = path,
-                AuthoredGlobalPosition = proxySlot.GlobalPosition,
-                AuthoredGlobalRotation = proxySlot.GlobalRotation,
-                AuthoredGlobalScale = proxySlot.GlobalScale
+                IndexPath = path
             });
         }
 
@@ -433,17 +430,23 @@ internal static class ModularAvatarAttachmentInstaller
                         binding.SourceSlot.Name + "'."),
                 IndexPath = binding.IndexPath
             }).ToList();
-            var clonedBoneProxies = boneProxyBindings.Select(binding => new BoneProxyBinding
+            var clonedBoneProxies = boneProxyBindings.Select(binding =>
             {
-                Definition = binding.Definition,
-                SourceSlot = ResolveIndexPath(installedRoot, binding.IndexPath)
+                var source = ResolveIndexPath(installedRoot, binding.IndexPath)
                     ?? throw new InvalidOperationException(
                         "The duplicated Bone Proxy source could not be resolved for '" +
-                        binding.SourceSlot.Name + "'."),
-                IndexPath = binding.IndexPath,
-                AuthoredGlobalPosition = binding.AuthoredGlobalPosition,
-                AuthoredGlobalRotation = binding.AuthoredGlobalRotation,
-                AuthoredGlobalScale = binding.AuthoredGlobalScale
+                        binding.SourceSlot.Name + "'.");
+                // Preserve the authored pose in the target avatar's placement before
+                // merges or an earlier proxy can change this source's hierarchy.
+                return new BoneProxyBinding
+                {
+                    Definition = binding.Definition,
+                    SourceSlot = source,
+                    IndexPath = binding.IndexPath,
+                    AuthoredGlobalPosition = source.GlobalPosition,
+                    AuthoredGlobalRotation = source.GlobalRotation,
+                    AuthoredGlobalScale = source.GlobalScale
+                };
             }).ToList();
 
             // Resolve index paths before removing any siblings from the duplicate.
@@ -718,7 +721,7 @@ internal static class ModularAvatarAttachmentInstaller
 
         if (definition.BoneProxyMatchScale)
             source.LocalScale = new float3(1f, 1f, 1f);
-        else if (definition.BoneProxyAttachmentMode != 0 && definition.BoneProxyAttachmentMode != 1)
+        else
             source.GlobalScale = originalScale;
     }
 
