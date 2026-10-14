@@ -1,6 +1,12 @@
 name: Documentation site
 
 on:
+  push:
+    branches:
+      - master
+    paths:
+      - "docs-site/**"
+      - ".github/workflows/docs-site.yml"
   pull_request:
     paths:
       - "docs-site/**"
@@ -11,7 +17,7 @@ on:
         description: "Publish the reviewed site to GitHub Pages"
         required: true
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
@@ -37,7 +43,7 @@ jobs:
 
   publish:
     name: Publish to GitHub Pages
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.publish }}
+    if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && inputs.publish) }}
     needs: build
     runs-on: ubuntu-latest
     environment:
