@@ -1,10 +1,23 @@
 # Compatibility
 
-Import results vary by package. Choose a category below to see which features can transfer to Resonite and what may be missing.
+Compatibility depends on the assets, components, and materials included in each Unity package. The notes below summarize the importer’s current documented scope; they do not guarantee a particular package will import as expected.
 
-Pages use the same status labels: **Supported** means the documented workflow is available; **Partial** means only some cases are handled; **Not supported** means the feature is not converted; **Planned** means it is a future goal, not available now.
+## Status key
 
-- [Unity package content](unity-packages/)
-- [Modular Avatar](modular-avatar/)
-- [VRCFury](vrcfury/)
-- [Shaders and materials](shaders/)
+<div class="status-grid">
+  <div class="status-card status-supported"><strong>Supported</strong><span>The documented workflow or conversion is available.</span></div>
+  <div class="status-card status-partial"><strong>Partial</strong><span>Some cases or features are handled; coverage has limits.</span></div>
+  <div class="status-card status-unsupported"><strong>Not supported</strong><span>The feature is not converted into equivalent Resonite behavior.</span></div>
+  <div class="status-card status-planned"><strong>Planned</strong><span>A future goal, not functionality available today.</span></div>
+</div>
+
+## Browse by category
+
+| Area | Current notes |
+| --- | --- |
+| [Unity packages](unity-packages/) | Package extraction, reconstructed content, and companion materials |
+| [Modular Avatar](modular-avatar/) | Selected outfit components and known gaps |
+| [VRCFury](vrcfury/) | Current behavior support status |
+| [Shaders and materials](shaders/) | Shader-specific material conversion notes |
+
+Keep the original Unity project and package files as the source of truth. Imported results may differ from their appearance or behavior in Unity or VRChat.

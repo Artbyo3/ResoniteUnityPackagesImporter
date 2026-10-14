@@ -1,6 +1,6 @@
 # Modular Avatar
 
-**Overall status: Partial.** The importer handles selected Modular Avatar behavior.
+**Overall status: Partial.** The importer handles selected Modular Avatar behavior. Other build-time components may import their underlying assets without recreating their behavior in Resonite.
 
 ## Supported components
 
@@ -20,4 +20,4 @@ Attaches a clothing object to a selected humanoid bone or avatar path on the tar
 
 ## Planned
 
-Additional Modular Avatar behavior support is planned for future updates. Other components may import without their behavior being recreated in Resonite.
+Additional Modular Avatar behavior support is planned for future updates.
