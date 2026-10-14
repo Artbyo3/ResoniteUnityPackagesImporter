@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Elements.Core;
@@ -13,8 +14,10 @@ namespace UnityPackageImporter;
 public class UnityProjectImporter
 {
     private readonly object dependencyLock = new();
+    private readonly object materialCatalogLock = new();
     private readonly Dictionary<string, string> mutableAssetIndex;
     private readonly List<MissingMaterialBinding> missingMaterialBindings = new();
+    private Task<PackageMaterialCatalog> materialCatalogTask;
 
     public readonly Slot importTaskAssetRoot;
     public List<FileImportHelperTaskMaterial> TasksMaterials = new List<FileImportHelperTaskMaterial>();
@@ -114,6 +117,28 @@ public class UnityProjectImporter
         return MissingTextureAssignments.CanResolveAny(candidates);
     }
 
+    internal Task<PackageMaterialCatalog> GetPackageMaterialCatalogAsync()
+    {
+        lock (materialCatalogLock)
+            return materialCatalogTask ??= Task.Run(() => PackageMaterialCatalog.Build(AssetIDDict));
+    }
+
+    internal async Task<IAssetProvider<Material>> ImportPackageMaterialAsync(string materialGuid)
+    {
+        await default(ToWorld);
+        Session?.Check();
+        if (!AssetIDDict.TryGetValue(materialGuid, out string materialPath) ||
+            !Path.GetExtension(materialPath).Equals(".mat", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("The selected material is not available in the imported package.");
+
+        var task = new FileImportHelperTaskMaterial(materialGuid, materialPath, this);
+        await default(ToBackground);
+        var material = await task.runImportFileMaterialsAsync();
+        await default(ToWorld);
+        Session?.Check();
+        return material ?? throw new InvalidDataException("The selected material could not be converted.");
+    }
+
     internal async Task ApplyMaterialPresetAsync(Slot root, string preset)
     {
         await default(ToWorld);
@@ -162,6 +187,7 @@ public class UnityProjectImporter
             AssetIDDict = new ReadOnlyDictionary<string, string>(
                 new Dictionary<string, string>(mutableAssetIndex, StringComparer.OrdinalIgnoreCase));
         }
+        lock (materialCatalogLock) materialCatalogTask = null;
         MaterialImports.RetryUnsuccessful();
         TextureImports.RetryUnsuccessful();
 

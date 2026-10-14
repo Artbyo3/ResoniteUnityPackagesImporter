@@ -79,6 +79,15 @@ internal static class EngineApiCheck
                     var decoded = baseSpec.DecodeSignature(new TypeNames(), (object?)null);
                     Console.WriteLine($"Base: {decoded}");
                 }
+                else if (type.BaseType.Kind == HandleKind.TypeDefinition)
+                {
+                    var baseDef = metadata.GetTypeDefinition((TypeDefinitionHandle)type.BaseType);
+                    Console.WriteLine($"Base: {metadata.GetString(baseDef.Namespace)}.{metadata.GetString(baseDef.Name)}");
+                }
+                else
+                {
+                    Console.WriteLine($"Base Kind: {type.BaseType.Kind}");
+                }
             }
             Console.WriteLine("Properties:");
             foreach (var propHandle in type.GetProperties())

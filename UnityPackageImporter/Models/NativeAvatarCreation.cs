@@ -58,10 +58,12 @@ internal static class NativeAvatarCreation
             Slot head = calibration.AddSlot("Headset", false);
             head.GlobalPosition = viewpoint.Position;
             head.GlobalRotation = viewpoint.Rotation;
-            Slot left = CreateHandReference(calibration, rig[BodyNode.LeftHand],
-                ik.Solver.leftArm.WristToPalmAxis.Value, ik.Solver.leftArm.PalmToThumbAxis.Value, "Left controller");
-            Slot right = CreateHandReference(calibration, rig[BodyNode.RightHand],
-                ik.Solver.rightArm.WristToPalmAxis.Value, ik.Solver.rightArm.PalmToThumbAxis.Value, "Right controller");
+            Slot left = CreateHandReference(calibration, ik.Solver.BoneReferences.leftHand.Target,
+                ik.Solver.leftArm.WristToPalmAxis.Value, ik.Solver.leftArm.PalmToThumbAxis.Value,
+                Chirality.Left, "Left hand reference");
+            Slot right = CreateHandReference(calibration, ik.Solver.BoneReferences.rightHand.Target,
+                ik.Solver.rightArm.WristToPalmAxis.Value, ik.Solver.rightArm.PalmToThumbAxis.Value,
+                Chirality.Right, "Right hand reference");
 
             // The FBX's nested ObjectRoot would exclude sibling clothing/meshes.
             // Let native creation own the complete imported prefab and its wrapper.
@@ -145,20 +147,22 @@ internal static class NativeAvatarCreation
         value is UnityGameObject gameObject && gameObject.frooxEngineSlot is { IsDestroyed: false } slot
             ? slot : null;
 
-    private static Slot CreateHandReference(Slot parent, Slot hand, float3 palmAxis, float3 thumbAxis, string name)
+    private static Slot CreateHandReference(Slot parent, Slot hand, float3 palmAxis, float3 thumbAxis,
+        Chirality side, string name)
     {
-        if (hand == null || !IsFinite(palmAxis) || !IsFinite(thumbAxis) ||
-            palmAxis.SqrMagnitude < 0.000001f || thumbAxis.SqrMagnitude < 0.000001f ||
-            MathX.Cross(palmAxis, thumbAxis).SqrMagnitude < 0.000001f)
-            throw new InvalidOperationException("The hand calibration axes are incomplete. Use the native Avatar Creator to align the hands.");
+        if (hand == null || hand.IsDestroyed)
+            throw new InvalidOperationException("The IK hand reference is missing. Use the native Avatar Creator to align the hands.");
 
-        // Matches AvatarCreator.AlignHands in the installed engine: convert its
-        // detected palm/thumb basis to controller forward/up, then rotate 180°.
-        floatQ correction = floatQ.FromToRotation(floatQ.LookRotation(palmAxis, thumbAxis),
-            floatQ.LookRotation(float3.Forward, float3.Up));
+        // The axes are local to the solver hand, which can be an Aligned Hand
+        // slot rather than BipedRig's original wrist. Keep both in that space.
+        floatQ handRotation = hand.GlobalRotation;
+        var rotation = HandCalibration.GetReferenceRotation(
+            new System.Numerics.Quaternion(handRotation.x, handRotation.y, handRotation.z, handRotation.w),
+            new System.Numerics.Vector3(palmAxis.x, palmAxis.y, palmAxis.z),
+            new System.Numerics.Vector3(thumbAxis.x, thumbAxis.y, thumbAxis.z), side == Chirality.Left);
         Slot reference = parent.AddSlot(name, false);
         reference.GlobalPosition = hand.GlobalPosition;
-        reference.GlobalRotation = hand.GlobalRotation * correction * floatQ.AxisAngle(float3.Forward, 180f);
+        reference.GlobalRotation = new floatQ(rotation.X, rotation.Y, rotation.Z, rotation.W);
         // These are the engine AvatarCreator's default tool anchor positions.
         // Plain calibration slots let native SetupAnchors create the real anchors
         // without spawning the creator's editor widgets and display geometry.

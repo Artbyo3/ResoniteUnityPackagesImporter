@@ -1363,9 +1363,14 @@ MaterialConversionTests.Register(Test);
 NativeSkinBindingTests.Register(Test);
 ClothingFoundationTests.Register(Test);
 MaterialRecoveryTests.Register(Test);
+MaterialCustomizationTests.Register(Test);
+ImportFailureReportTests.Register(Test);
+ReusableDecisionPromptTests.Register(Test);
 InitialToggleBindingTests.Register(Test);
 
 AvatarViewpointTests.Register(Test);
+HandCalibrationTests.Register(Test);
+SelectableImportItemsTests.Register(Test);
 TemporaryRigParentTests.Register(Test);
 UnityYamlDocumentParserTests.Register(Test, Check);
 

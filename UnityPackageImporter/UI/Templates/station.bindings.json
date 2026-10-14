@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "templateVersion": "1.0.1",
+  "templateVersion": "1.0.2",
   "rootName": "[UnityPackage Station Prototype]",
   "bindings": {
     "mode": {
@@ -19,6 +19,13 @@
         "Rainbow Stencil Writer Slot"
       ],
       "type": "FrooxEngine.SmoothValue<float>",
+      "index": 0
+    },
+    "progressPedestal": {
+      "path": [
+        "Circular UIX Pedestal"
+      ],
+      "type": "Slot",
       "index": 0
     },
     "cardScale": {

@@ -20,16 +20,19 @@ internal sealed class UnityStationHandle
     private readonly HashSet<UnityPrefabImportTask> failedCreation = new();
     private readonly Dictionary<UnityPrefabImportTask, string> names = new();
     private readonly Dictionary<UnityPrefabImportTask, string> presets = new();
-    private List<UnityPrefabImportTask> items = new();
+    private readonly SelectableImportItems<UnityPrefabImportTask> items = new();
     private Slot preview, rowTemplate;
     private BipedRig selectedAvatar;
     private UnityProjectImporter importer;
     private MaterialDependencySession dependencies;
-    private int selected = -1, lifecycle;
+    private readonly ReusableDecisionPrompt decisionPrompt;
+    private MaterialCustomizerController materialCustomizer;
+    private int lifecycle;
     private bool busy, ready;
+    private string operationStage = "Package import";
     public Slot RootSlot => ui.Root;
     public bool IsAlive => !ui.Host.IsDestroyed && !ui.Root.IsDestroyed && !session.Token.IsCancellationRequested;
-    private UnityPrefabImportTask Current => items.Count == 0 || selected < 0 ? null : items[selected];
+    private UnityPrefabImportTask Current => items.Current;
     private bool IsOutfit => Current?.Manifest?.IsModularAvatarAttachment == true;
     private bool IsAvatar => !IsOutfit && Current != null && (Current.Manifest?.IsAvatarPrefab == true ||
         Current.CurrentStructureRootSlot.GetComponentInChildren<BipedRig>() != null);
@@ -40,16 +43,23 @@ internal sealed class UnityStationHandle
         session = importSession;
         session.BindUi(ui.Host, ui.Root);
         ui.Host.SetParent(session.Root, true);
+        decisionPrompt = new ReusableDecisionPrompt(
+            ui.SetLocalized,
+            (visible, waiting) =>
+            {
+                Get<BooleanValueDriver<bool>>("companionVisible").State.Value = visible;
+                Get<ValueField<bool>>("companionWaiting").Value.Value = waiting;
+            });
         Bind("close", CloseAsync, allowWhileBusy: true);
-        Bind("previous", () => SelectAsync(selected - 1));
-        Bind("next", () => SelectAsync(selected + 1));
+        Bind("previous", () => SelectAsync(items.SelectedIndex - 1));
+        Bind("next", () => SelectAsync(items.SelectedIndex + 1));
         Bind("create", CreateAvatarAsync);
         Bind("install", InstallOutfitAsync);
         Bind("targetChange", ChooseAvatarAsync, false);
         Bind("targetField", ChooseAvatarAsync, false);
-        Bind("companionImport", () => { dependencies?.BeginWaiting(); return Task.CompletedTask; });
-        Bind("companionBack", () => { dependencies?.Back(); return Task.CompletedTask; });
-        Bind("companionPlaceholder", () => { dependencies?.Continue(); return Task.CompletedTask; });
+        Bind("companionImport", () => decisionPrompt.InvokePrimaryAsync());
+        Bind("companionBack", () => decisionPrompt.InvokeDismissAsync());
+        Bind("companionPlaceholder", () => decisionPrompt.InvokeSecondaryAsync());
         Bind("shaderAutomatic", () => ChangeShaderAsync("Automatic"));
         Bind("shaderToon", () => ChangeShaderAsync("XiexeToon"));
         foreach (var copy in ui.Root.GetComponentsInChildren<ValueCopy<bool>>())
@@ -73,6 +83,17 @@ internal sealed class UnityStationHandle
         rowTemplate = Get<Button>("avatarRow").Slot;
         foreach (var row in rowTemplate.Parent.Children.ToArray()) if (row != rowTemplate) row.Destroy();
         rowTemplate.ActiveSelf = false;
+        materialCustomizer = new MaterialCustomizerController(
+            ui,
+            () => Current,
+            () => importer,
+            () => IsAlive,
+            () => busy,
+            value => operationStage = value,
+            SetMaterialBusy,
+            ScheduleMaterialAction,
+            RebuildPreview);
+        materialCustomizer.SetEntryPointsEnabled(false);
         ResetOutcome();
         _ = ui.Root.World.RootSlot.StartGlobalTask(MonitorLifetimeAsync);
     }
@@ -96,7 +117,7 @@ internal sealed class UnityStationHandle
                 {
                     await default(ToWorld);
                     UnityPackageImporter.Warn("Station action failed: " + ex);
-                    CompleteFailure(ex.Message);
+                    CompleteFailure(ex);
                 }
             });
         });
@@ -115,6 +136,8 @@ internal sealed class UnityStationHandle
     public void UpdateProgress(float value, string english, string japanese, string file, int current = 0, int total = 0)
     {
         if (!IsAlive) return;
+        operationStage = english;
+        Get<Slot>("progressPedestal").ActiveSelf = true;
         Get<BooleanValueDriver<float3>>("cardScale").State.Value = true;
         Get<BooleanValueDriver<float3>>("cardPosition").State.Value = true;
         Get<SmoothValue<float>>("arc").TargetValue.Value = MathX.Clamp01(value) * 360f;
@@ -134,15 +157,36 @@ internal sealed class UnityStationHandle
         UpdateProgress(0.3f + 0.7f * progress.Values.Sum() / progress.Count, "Building prefabs", "プレハブを構築中",
             Path.GetFileName(task.ID.Value), progress.Values.Count(p => p >= 1f), progress.Count);
     }
-    public void CompleteFailure(string reason)
+    public void CompleteFailure(Exception error)
     {
         if (!IsAlive) return;
         lifecycle++;
+        materialCustomizer?.CloseAll();
         ResetOutcome();
+        string reason = ImportFailureReport.Sanitize(error.Message);
         ui.SetLocalized("failure", "Import failed: " + Escape(reason), "インポート失敗: " + Escape(reason));
         Get<ValueField<bool>>("failure").Value.Value = true;
         Get<BooleanValueDriver<float3>>("cardScale").State.Value = true;
         Get<BooleanValueDriver<float3>>("cardPosition").State.Value = true;
+        Get<SmoothValue<float>>("arc").TargetValue.Value = 0f;
+        Get<Slot>("progressPedestal").ActiveSelf = false;
+        SaveFailureReport(error);
+    }
+    private void SaveFailureReport(Exception error)
+    {
+        try
+        {
+            Slot reports = RootSlot.World.RootSlot.FindChildOrAdd("Unity Import Failure Reports");
+            reports.PersistentSelf = true;
+            string suffix = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
+            Slot report = reports.AddSlot("Failure " + suffix);
+            report.PersistentSelf = true;
+            report.AttachComponent<ValueField<string>>().Value.Value = ImportFailureReport.Build(operationStage, error);
+        }
+        catch (Exception reportError)
+        {
+            UnityPackageImporter.Warn("Could not save the sanitized import failure report: " + reportError.GetType().Name);
+        }
     }
     public async Task CompleteSuccessAsync()
     {
@@ -167,8 +211,8 @@ internal sealed class UnityStationHandle
         await default(ToWorld);
         if (!IsAlive) return;
         importer = project;
-        items = tasks.Where(task => task.CurrentStructureRootSlot != null && !task.CurrentStructureRootSlot.IsDestroyed).ToList();
-        foreach (var item in items)
+        items.Reset(tasks.Where(task => task.CurrentStructureRootSlot != null && !task.CurrentStructureRootSlot.IsDestroyed));
+        foreach (var item in items.Entries)
         {
             names[item] = Path.GetFileNameWithoutExtension(item.ID.Value);
             presets[item] = "Automatic";
@@ -214,28 +258,63 @@ internal sealed class UnityStationHandle
         Get<Button>("create").Enabled = enabled && Current != null && !created.Contains(Current) && !failedCreation.Contains(Current);
         Get<Button>("install").Enabled = enabled && Current != null && selectedAvatar != null &&
             ModularAvatarAttachmentInstaller.IsOwnedAvatar(selectedAvatar, RootSlot.World.LocalUser);
-        Get<Button>("previous").Enabled = enabled && items.Count > 1;
-        Get<Button>("next").Enabled = enabled && items.Count > 1;
+        bool canNavigate = items.CanNavigate;
+        foreach (string key in new[] { "previous", "next" })
+        {
+            Button arrow = Get<Button>(key);
+            arrow.Enabled = enabled && canNavigate;
+            if (arrow.Slot.Parent != null) arrow.Slot.Parent.ActiveSelf = canNavigate;
+        }
+        materialCustomizer?.SetEntryPointsEnabled(enabled && Current != null && !created.Contains(Current) && !failedCreation.Contains(Current));
     }
-    private async Task SelectAsync(int index)
+    private void SetMaterialBusy(bool value)
+    {
+        busy = value;
+        if (IsAlive) SetActions(!value);
+    }
+    private void ScheduleMaterialAction(Func<Task> action)
+    {
+        if (!IsAlive || busy || action == null) return;
+        RootSlot.World.RootSlot.StartGlobalTask(async () =>
+        {
+            try
+            {
+                using (session.Enter()) await action();
+            }
+            catch (OperationCanceledException) when (session.Token.IsCancellationRequested) { }
+            catch (Exception ex)
+            {
+                await default(ToWorld);
+                UnityPackageImporter.Warn("Material customization failed: " + ex);
+                CompleteFailure(ex);
+            }
+        });
+    }
+    private async Task SelectAsync(int index, bool saveCurrentName = true)
     {
         await default(ToWorld);
-        if (!IsAlive || !ready || busy || items.Count == 0) return;
-        if (Current != null) names[Current] = Get<Text>("name").Content.Value;
-        selected = (index % items.Count + items.Count) % items.Count;
+        if (!IsAlive || !ready || busy) return;
+        if (items.Count == 0)
+        {
+            ShowAllItemsCompleted();
+            return;
+        }
+        if (saveCurrentName && Current != null) names[Current] = Get<Text>("name").Content.Value;
+        materialCustomizer?.CloseAll();
+        items.Select(index);
         Get<BooleanValueDriver<bool>>("mode").State.Value = IsOutfit;
         Get<Slot>("nameCard").ActiveSelf = true;
         Get<ValueField<bool>>("shaderVisible").Value.Value = false;
         Get<ValueField<string>>("shaderValue").Value.Value = presets[Current];
         Get<Text>("name").Content.Value = names[Current];
         foreach (string key in new[] { "avatarTitle", "outfitTitle" }) Get<Text>(key).Content.Value = "<b>" + Escape(names[Current]) + "</b>";
-        ui.SetLocalized("avatarContext", $"AVATAR PREFAB ({selected + 1} of {items.Count})", $"アバタープレハブ（{selected + 1} / {items.Count}）");
+        ui.SetLocalized("avatarContext", $"AVATAR PREFAB ({items.SelectedIndex + 1} of {items.Count})", $"アバタープレハブ（{items.SelectedIndex + 1} / {items.Count}）");
         if (!IsAvatar && !IsOutfit)
-            ui.SetLocalized("avatarContext", $"PREFAB ({selected + 1} of {items.Count})", $"プレハブ（{selected + 1} / {items.Count}）");
+            ui.SetLocalized("avatarContext", $"PREFAB ({items.SelectedIndex + 1} of {items.Count})", $"プレハブ（{items.SelectedIndex + 1} / {items.Count}）");
         ui.SetLocalized("createAvatar", IsAvatar ? "<b>Create Avatar</b>" : "<b>Keep in World</b>", IsAvatar ? "<b>アバターを作成</b>" : "<b>ワールドに配置</b>");
         ui.SetLocalized("avatarName", IsAvatar ? "<b>Avatar Name</b>" : "<b>Object Name</b>", IsAvatar ? "<b>アバター名</b>" : "<b>オブジェクト名</b>");
         Get<Checkbox>("protect").Slot.Parent.ActiveSelf = IsAvatar;
-        ui.SetLocalized("outfitContext", $"OUTFIT PREFAB ({selected + 1} of {items.Count})", $"衣装プレハブ（{selected + 1} / {items.Count}）");
+        ui.SetLocalized("outfitContext", $"OUTFIT PREFAB ({items.SelectedIndex + 1} of {items.Count})", $"衣装プレハブ（{items.SelectedIndex + 1} / {items.Count}）");
         ui.SetLocalized(IsOutfit ? "outfitMetricsBody" : "avatarMetricsBody", Escape(BuildReceipt(Current)), Escape(BuildReceipt(Current, true)));
         RebuildPreview();
         if (dependencies != null && !dependencies.IsWaiting)
@@ -244,6 +323,22 @@ internal sealed class UnityStationHandle
             SetCompanionState(hasMissing, false);
         }
         SetActions(true);
+    }
+    private void ShowAllItemsCompleted()
+    {
+        if (preview != null && !preview.IsDestroyed) preview.Destroy();
+        preview = null;
+        Get<Slot>("nameCard").ActiveSelf = false;
+        Get<Checkbox>("protect").Slot.Parent.ActiveSelf = false;
+        Get<ValueField<bool>>("shaderVisible").Value.Value = false;
+        Get<Text>("name").Content.Value = string.Empty;
+        const string completeTitle = "<b>All Items Processed</b>";
+        Get<Text>("avatarTitle").Content.Value = completeTitle;
+        Get<Text>("outfitTitle").Content.Value = completeTitle;
+        ui.SetLocalized("avatarContext", "ALL ITEMS PROCESSED", "すべての項目を処理しました");
+        ui.SetLocalized("outfitContext", "ALL ITEMS PROCESSED", "すべての項目を処理しました");
+        SetCompanionState(false, false);
+        SetActions(false);
     }
     private void RebuildPreview()
     {
@@ -297,6 +392,8 @@ internal sealed class UnityStationHandle
     {
         if (Current == null || IsOutfit || created.Contains(Current) || failedCreation.Contains(Current)) return;
         var item = Current;
+        bool sourceConsumed = false;
+        operationStage = IsAvatar ? "Create avatar" : "Keep prefab in world";
         busy = true;
         SetActions(false);
         try
@@ -318,6 +415,10 @@ internal sealed class UnityStationHandle
             if (Get<Checkbox>("avatarReceipt").State.Value) SaveReceipt(envelope, item);
             session.Commit(source);
             created.Add(item);
+            names[item] = Get<Text>("name").Content.Value;
+            sourceConsumed = true;
+            if (!items.Consume(item))
+                UnityPackageImporter.Warn("A committed import item was not present in the station's selectable list.");
             if (preview != null && !preview.IsDestroyed) preview.Destroy();
         }
         catch
@@ -329,7 +430,16 @@ internal sealed class UnityStationHandle
             if (preview != null && !preview.IsDestroyed) preview.Destroy();
             throw;
         }
-        finally { await default(ToWorld); busy = false; if (IsAlive) SetActions(true); }
+        finally
+        {
+            await default(ToWorld);
+            busy = false;
+            if (IsAlive)
+            {
+                if (sourceConsumed) await SelectAsync(items.SelectedIndex, saveCurrentName: false);
+                else SetActions(true);
+            }
+        }
     }
     private async Task InstallOutfitAsync()
     {
@@ -338,6 +448,7 @@ internal sealed class UnityStationHandle
         var target = selectedAvatar;
         bool receipt = Get<Checkbox>("outfitReceipt").State.Value;
         bool menu = Get<Checkbox>("outfitMenu").State.Value;
+        operationStage = "Install clothing";
         busy = true;
         SetActions(false);
         try
@@ -361,6 +472,7 @@ internal sealed class UnityStationHandle
     private async Task ChangeShaderAsync(string preset)
     {
         if (Current == null || created.Contains(Current)) return;
+        operationStage = "Change material preset";
         busy = true;
         SetActions(false);
         Get<ValueField<bool>>("shaderVisible").Value.Value = false;
@@ -378,14 +490,31 @@ internal sealed class UnityStationHandle
     internal void SetCompanionState(bool visible, bool waiting, string english = null, string japanese = null)
     {
         if (!IsAlive) return;
-        Get<BooleanValueDriver<bool>>("companionVisible").State.Value = visible;
-        Get<ValueField<bool>>("companionWaiting").Value.Value = waiting;
-        if (english != null) ui.SetLocalized("waiting", "<b>" + Escape(english) + "</b>", "<b>" + Escape(japanese ?? english) + "</b>");
+        if (visible && english != null)
+        {
+            string title = "<b>" + Escape(english) + "</b>";
+            string localizedTitle = "<b>" + Escape(japanese ?? english) + "</b>";
+            decisionPrompt.Show(
+                new DecisionPromptDefinition(
+                    new(title, localizedTitle),
+                    new("This item is ready, but its materials and textures were not included. The creator may have provided them in a companion Unity package.",
+                        "アイテムの準備はできましたが、マテリアルとテクスチャが含まれていません。作者が別の Unity パッケージで提供している場合があります。"),
+                    new("Companion package not found", "追加パッケージが見つかりません"),
+                    new("Import Companion Package", "追加パッケージをインポート"),
+                    new("Continue with Placeholder Materials", "仮のマテリアルで続行"),
+                    new("Back", "戻る")),
+                () => { dependencies?.BeginWaiting(); return Task.CompletedTask; },
+                () => { dependencies?.Continue(); return Task.CompletedTask; },
+                () => { dependencies?.Back(); return Task.CompletedTask; });
+            decisionPrompt.SetState(true, waiting);
+        }
+        else decisionPrompt.SetState(visible, waiting);
     }
     internal void RefreshMaterials() { if (IsAlive) RebuildPreview(); }
     private async Task CloseAsync()
     {
         lifecycle++;
+        materialCustomizer?.CloseAll();
         dependencies?.Continue();
         using (session.Enter())
         {

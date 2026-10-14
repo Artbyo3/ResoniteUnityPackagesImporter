@@ -9,9 +9,15 @@
   <ItemGroup>
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
     <Compile Include="../UnityPackageImporter/Models/UnityMaterialData.cs" Link="UnityMaterialData.cs" />
+    <Compile Include="../UnityPackageImporter/Models/PackageMaterialCatalog.cs" Link="PackageMaterialCatalog.cs" />
+    <Compile Include="../UnityPackageImporter/Models/MaterialThumbnailGenerator.cs" Link="MaterialThumbnailGenerator.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ImportFailureReport.cs" Link="ImportFailureReport.cs" />
+    <Compile Include="../UnityPackageImporter/UI/ReusableDecisionPrompt.cs" Link="ReusableDecisionPrompt.cs" />
     <Compile Include="../UnityPackageImporter/Models/LilToonSettings.cs" Link="LilToonSettings.cs" />
     <Compile Include="../UnityPackageImporter/Models/LilToonRamp.cs" Link="LilToonRamp.cs" />
     <Compile Include="../UnityPackageImporter/Models/SkinBoneMapping.cs" Link="SkinBoneMapping.cs" />
+    <Compile Include="../UnityPackageImporter/Models/HandCalibration.cs" Link="HandCalibration.cs" />
+    <Compile Include="../UnityPackageImporter/Models/SelectableImportItems.cs" Link="SelectableImportItems.cs" />
     <Compile Include="../UnityPackageImporter/UI/TemplateContract.cs" Link="TemplateContract.cs" />
     <Compile Include="../UnityPackageImporter/UnityPackageExtractor.cs" Link="UnityPackageExtractor.cs" />
     <Compile Include="../UnityPackageImporter/Models/AsyncImportCache.cs" Link="AsyncImportCache.cs" />

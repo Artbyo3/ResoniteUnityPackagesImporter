@@ -182,7 +182,7 @@ internal static class PackageImportCoordinator
         catch (System.Exception ex)
         {
             await default(ToWorld);
-            station?.CompleteFailure(ex.Message);
+            station?.CompleteFailure(ex);
             throw;
         }
         finally

@@ -10,6 +10,7 @@ namespace UnityPackageImporter.Models;
 /// <summary>Serialized material values, independent of shader conversion and engine objects.</summary>
 internal sealed class UnityMaterialData
 {
+    public string? Name { get; private set; }
     public string? ShaderGuid { get; private set; }
     public string? RenderType { get; private set; }
     public int RenderQueue { get; private set; } = -1;
@@ -32,6 +33,7 @@ internal sealed class UnityMaterialData
             throw new InvalidDataException("Expected one Unity Material document.");
         var data = new UnityMaterialData
         {
+            Name = Text(Child(material, "m_Name")),
             ShaderGuid = Text(Child(Child(material, "m_Shader"), "guid")),
             RenderType = Text(Child(Child(material, "stringTagMap"), "RenderType")),
             RenderQueue = (int)Number(Child(material, "m_CustomRenderQueue"), -1)

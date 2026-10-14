@@ -348,6 +348,8 @@ scripts/*
 *.zip
 
 # Private local development and live-test data
+/.agents/
+/.config/
 /.resoloop/
 /scratch/
 /private/
