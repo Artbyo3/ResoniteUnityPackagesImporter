@@ -1,0 +1,4 @@
+/* Keep the site name as the header brand; the theme's default book mark is generic. */
+.md-header__button.md-logo {
+  display: none;
+}

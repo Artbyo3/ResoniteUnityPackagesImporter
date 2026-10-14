@@ -47,6 +47,8 @@ UnityPackageImporter/UI/Templates/*.ResonitePackage binary
 #*.jpg   binary
 #*.png   binary
 #*.gif   binary
+*.mp4 binary
+*.webm binary
 
 ###############################################################################
 # diff behavior for common document formats

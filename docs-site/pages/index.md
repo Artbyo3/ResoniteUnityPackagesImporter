@@ -1,43 +1,29 @@
-# Unity Package Importer
+---
+hide:
+  - toc
+---
 
-<div class="landing-intro">
-  <p class="landing-eyebrow">Resonite · project documentation</p>
-  <h2>Bring Unity avatar content closer to home in Resonite.</h2>
-  <p>A clear guide to the importer’s current scope, package compatibility, and project status—so you can see what is taking shape and what is still ahead.</p>
-  <div class="landing-status" role="note">
-    <span class="status-indicator" aria-hidden="true"></span>
-    <div>
-      <strong>IN DEVELOPMENT</strong>
-      <p>There is no public release to download or install. These pages describe work in progress and are for review and feedback.</p>
-    </div>
-  </div>
+<div class="simple-landing">
+<video class="simple-landing__background" data-landing-background-video muted loop playsinline preload="none" poster="images/landing-poster.jpg" aria-hidden="true" tabindex="-1">
+<source src="assets/landing-background.webm" type="video/webm">
+<source src="assets/landing-background.mp4" type="video/mp4">
+</video>
+<div class="simple-landing__content">
+<h1>Unity Package Importer</h1>
+<nav class="simple-landing__options" aria-label="Choose where to go">
+<a href="documentation/">Documentation</a>
+<a href="reference/compatibility/">Compatibility</a>
+<a href="getting-started/">Project status</a>
+</nav>
+
 </div>
-
-## Find your way
-
-<div class="landing-cards">
-  <a class="landing-card" href="getting-started/">
-    <span class="landing-card-kicker">01 · Project status</span>
-    <strong>Start with the status</strong>
-    <span>Understand what the project is, what it can do today, and why there is no install guide yet.</span>
-    <span class="landing-card-link">Read project status <span aria-hidden="true">→</span></span>
-  </a>
-  <a class="landing-card" href="reference/compatibility/">
-    <span class="landing-card-kicker">02 · Reference</span>
-    <strong>Explore compatibility</strong>
-    <span>Review support notes for Unity packages, avatar frameworks, and material shaders.</span>
-    <span class="landing-card-link">Browse compatibility <span aria-hidden="true">→</span></span>
-  </a>
-  <a class="landing-card" href="legal/">
-    <span class="landing-card-kicker">03 · Project details</span>
-    <strong>Licenses and notices</strong>
-    <span>Find the project license, third-party notices, and guidance for imported content.</span>
-    <span class="landing-card-link">View project details <span aria-hidden="true">→</span></span>
-  </a>
+<section class="github-contributors" data-github-contributors data-repository="Artbyo3/ResoniteUnityPackagesImporter" role="region" aria-label="Repository contributors" aria-roledescription="carousel">
+<div class="github-contributors__viewport" data-contributors-viewport tabindex="0" aria-label="GitHub contributors">
+<div class="github-contributors__track" data-contributors-track>
+<ul class="github-contributors__group" data-contributors-list aria-label="Repository contributors"></ul>
+<ul class="github-contributors__group" data-contributors-clone aria-hidden="true"></ul>
 </div>
-
-## What this project is building
-
-The Unity Package Importer is an experimental Resonite mod exploring how avatar and clothing assets from Unity `.unitypackage` files can be reconstructed in Resonite. The result depends on each package’s assets, materials, and Unity-specific behavior.
-
-Compatibility pages describe current observations, not guarantees. Start with the [compatibility overview](reference/compatibility/) for the status key and feature notes.
+</div>
+<p class="github-contributors__status" data-contributors-status role="status" aria-live="polite">Loading contributors…</p>
+</section>
+</div>
