@@ -87,6 +87,10 @@ public class FileImportHelperTaskMaterial
         importer.Session?.Check();
         if (ismissing) return finalMaterial;
         finalMaterial = await importer.MaterialImports.GetOrAdd(myID + (forceToon ? ":toon" : ":automatic"), ImportFileMaterial);
+        if (finalMaterial != null && !string.IsNullOrEmpty(myID))
+        {
+            importer.RegisterMaterialGuid(finalMaterial, myID);
+        }
         return finalMaterial;
     }
 

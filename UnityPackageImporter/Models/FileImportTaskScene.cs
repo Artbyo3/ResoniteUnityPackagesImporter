@@ -297,7 +297,7 @@ public class FileImportTaskScene
                         }
                         else
                         {
-                            if (!UnityProjectImporter.IsUnityBuiltInGuid(material.guid))
+                            if (!MaterialDependencyDiagnostics.IsBuiltinOrEmptyGuid(material.guid))
                             {
                                 copy.importer.RegisterMissingMaterial(mesh, i, material.guid);
                             }

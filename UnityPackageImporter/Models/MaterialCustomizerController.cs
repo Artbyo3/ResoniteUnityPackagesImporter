@@ -83,6 +83,54 @@ internal sealed class MaterialCustomizerController
     private readonly ConcurrentDictionary<string, Uri> thumbnailUriCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, Task<Uri?>> thumbnailTaskCache = new(StringComparer.OrdinalIgnoreCase);
 
+    private sealed class FittedTextBinding
+    {
+        private readonly Slot? root;
+        private readonly Text? directText;
+        private readonly Text[] childTexts;
+
+        public FittedTextBinding(Slot? root)
+        {
+            this.root = root;
+            if (root == null || root.IsDestroyed)
+            {
+                childTexts = Array.Empty<Text>();
+                return;
+            }
+            directText = root.GetComponent<Text>();
+            childTexts = root.GetComponentsInChildren<Text>().Where(t => t != directText).ToArray();
+        }
+
+        public void SetText(string value)
+        {
+            if (root == null || root.IsDestroyed) return;
+            if (childTexts.Length > 0)
+            {
+                if (directText != null && !directText.IsDestroyed)
+                {
+                    directText.Content.Value = value;
+                    directText.Enabled = false;
+                    directText.InteractionTarget.Value = false;
+                }
+                foreach (var childText in childTexts)
+                {
+                    if (childText == null || childText.IsDestroyed) continue;
+                    childText.ParseRichText.Value = true;
+                    childText.Content.Value = value;
+                    childText.Enabled = true;
+                    childText.InteractionTarget.Value = false;
+                }
+            }
+            else if (directText != null && !directText.IsDestroyed)
+            {
+                directText.ParseRichText.Value = false;
+                directText.Content.Value = value;
+                directText.Enabled = true;
+                directText.InteractionTarget.Value = false;
+            }
+        }
+    }
+
     private sealed class NativeMeshCardHolder
     {
         public MaterialRendererBinding Renderer;
@@ -97,13 +145,13 @@ internal sealed class MaterialCustomizerController
         public Slot SlotTemplate;
         public float TargetHeight;
         public bool IsPopulated;
-        public readonly Dictionary<MaterialSlotBinding, (Slot NameSlot, Slot? SphereSlot, Button RestoreBtn)> SlotRows = new();
+        public readonly Dictionary<MaterialSlotBinding, (FittedTextBinding NameLabel, Slot? SphereSlot, Button RestoreBtn)> SlotRows = new();
     }
 
     private sealed class PooledMaterialCard
     {
         public required Slot Card;
-        public Slot? NameSlot;
+        public FittedTextBinding? NameLabel;
         public Slot? OutlineSlot;
         public Slot? SphereSlot;
         public Image? SphereImage;
@@ -113,13 +161,14 @@ internal sealed class MaterialCustomizerController
     private sealed class PooledFolderRow
     {
         public required Slot Row;
-        public Slot? LabelSlot;
+        public FittedTextBinding? Label;
         public Func<Task>? CurrentAction;
     }
 
     private readonly List<NativeMeshCardHolder> nativeCards = new();
     private readonly List<PooledMaterialCard> pooledMaterialCards = new();
     private readonly List<PooledFolderRow> pooledFolderRows = new();
+    private FittedTextBinding? folderChoiceRootLabel;
     private UnityPrefabImportTask cachedMeshCardsItem;
 
     internal MaterialCustomizerController(
@@ -718,10 +767,15 @@ internal sealed class MaterialCustomizerController
     private string MaterialName(IAssetProvider<Material> material, UnityProjectImporter importer, PackageMaterialCatalog catalog)
     {
         if (material == null) return L("Missing material", "マテリアルなし");
-        var imported = importer.TasksMaterials.FirstOrDefault(task => !task.ismissing && (task.finalMaterial == material || ReferenceEquals(task.finalMaterial, material)));
+        if (importer != null && importer.TryGetMaterialGuid(material, out string registeredGuid))
+        {
+            var registeredChoice = catalog?.Choices.FirstOrDefault(candidate => candidate.Guid.Equals(registeredGuid, StringComparison.OrdinalIgnoreCase));
+            if (registeredChoice != null) return registeredChoice.Name;
+        }
+        var imported = importer?.TasksMaterials.FirstOrDefault(task => !task.ismissing && (task.finalMaterial == material || ReferenceEquals(task.finalMaterial, material)));
         if (!string.IsNullOrEmpty(imported?.MaterialGuid))
         {
-            var choice = catalog.Choices.FirstOrDefault(candidate => candidate.Guid.Equals(imported.MaterialGuid, StringComparison.OrdinalIgnoreCase));
+            var choice = catalog?.Choices.FirstOrDefault(candidate => candidate.Guid.Equals(imported.MaterialGuid, StringComparison.OrdinalIgnoreCase));
             if (choice != null) return choice.Name;
         }
 
@@ -1042,7 +1096,8 @@ internal sealed class MaterialCustomizerController
 
             string currentName = MaterialName(slot.ReadCurrent(), getImporter(), materialCatalog);
             Slot nameSlot = FindDescendant(slotRow, "slot-0-0-name");
-            SetFittedText(nameSlot, currentName);
+            var nameLabel = new FittedTextBinding(nameSlot);
+            nameLabel.SetText(currentName);
 
             Slot? sphereSlot = FindDescendant(slotRow, "slot-0-0-sphere");
             UpdateSlotSphere(slotRow, sphereSlot, slot, sphereToken);
@@ -1066,7 +1121,7 @@ internal sealed class MaterialCustomizerController
                 NativeButtonEvents.Pressed(restoreBtn, (_, _) => schedule(() => RestoreOriginalAsync(slot)));
             }
 
-            holder.SlotRows[slot] = (nameSlot, sphereSlot, restoreBtn);
+            holder.SlotRows[slot] = (nameLabel, sphereSlot, restoreBtn);
         }
     }
 
@@ -1085,7 +1140,7 @@ internal sealed class MaterialCustomizerController
             if (holder.SlotRows.TryGetValue(slot, out var rowInfo))
             {
                 string updatedName = MaterialName(slot.ReadCurrent(), getImporter(), materialCatalog);
-                SetFittedText(rowInfo.NameSlot, updatedName);
+                rowInfo.NameLabel.SetText(updatedName);
                 UpdateSlotSphere(holder.CardSlot, rowInfo.SphereSlot, slot, sphereToken);
 
                 bool isModified = !ReferenceEquals(slot.ReadCurrent(), slot.Original);
@@ -1333,7 +1388,7 @@ internal sealed class MaterialCustomizerController
             var pooled = new PooledMaterialCard
             {
                 Card = card,
-                NameSlot = nameSlot,
+                NameLabel = new FittedTextBinding(nameSlot),
                 OutlineSlot = outlineSlot,
                 SphereSlot = sphereImage?.Slot ?? sphereSlot,
                 SphereImage = sphereImage
@@ -1370,8 +1425,7 @@ internal sealed class MaterialCustomizerController
             ? choice.Name
             : $"{choice.Name}  ·  {choice.Folder}";
 
-        if (pooled.NameSlot != null)
-            SetFittedText(pooled.NameSlot, label);
+        pooled.NameLabel?.SetText(label);
 
         bool isCurrent = !string.IsNullOrEmpty(currentGuid) && choice.Guid.Equals(currentGuid, StringComparison.OrdinalIgnoreCase);
         if (pooled.OutlineSlot != null)
@@ -1466,7 +1520,7 @@ internal sealed class MaterialCustomizerController
             var pooled = new PooledFolderRow
             {
                 Row = row,
-                LabelSlot = labelSlot
+                Label = new FittedTextBinding(labelSlot)
             };
 
             var btn = row.GetComponent<Button>();
@@ -1510,8 +1564,8 @@ internal sealed class MaterialCustomizerController
         if (folderChoiceRootTemplate != null)
         {
             folderChoiceRootTemplate.ActiveSelf = true;
-            Slot labelSlot = FindDescendant(folderChoiceRootTemplate, "folder-choice-0-label");
-            SetFittedText(labelSlot, L("Use folder", "フォルダーを使用"));
+            folderChoiceRootLabel ??= new FittedTextBinding(FindDescendant(folderChoiceRootTemplate, "folder-choice-0-label"));
+            folderChoiceRootLabel.SetText(L("Use folder", "フォルダーを使用"));
         }
 
         var subfolders = materialCatalog?.ChildFolders(browsedFolder) ?? Array.Empty<string>();
@@ -1521,8 +1575,7 @@ internal sealed class MaterialCustomizerController
             PooledFolderRow pooled = GetOrCreatePooledFolderRow(i);
             pooled.Row.Name = $"Folder Choice · {folderName}";
             pooled.Row.ActiveSelf = true;
-            if (pooled.LabelSlot != null)
-                SetFittedText(pooled.LabelSlot, folderName);
+            pooled.Label?.SetText(folderName);
 
             string destination = string.IsNullOrEmpty(browsedFolder) ? folderName : browsedFolder + "/" + folderName;
             pooled.CurrentAction = () =>
@@ -1951,6 +2004,9 @@ internal sealed class MaterialCustomizerController
         {
             var current = ReadCurrent();
             if (current == null) return "";
+
+            if (importer != null && importer.TryGetMaterialGuid(current, out string registeredGuid))
+                return registeredGuid;
 
             if (importer?.TasksMaterials != null)
             {

@@ -73,6 +73,7 @@ public class Transform: IUnityObject
                                 {
                                     UnityPackageImporter.Msg("transform import stage 1.5");
                                     this.parentHashedGameObj = actual;
+                                    break;
                                 }
                             }
                         }

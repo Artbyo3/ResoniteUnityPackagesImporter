@@ -1362,7 +1362,13 @@ Test("NormalizeUnityHumanoidBoneName maps Unity finger and body humanNames to Re
 {
     Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Hips") == "Hips", "Hips mapping failed");
     Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("UpperChest") == "UpperChest", "UpperChest mapping failed");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Upper Chest") == "UpperChest", "Upper Chest mapping failed");
     Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Left UpperArm") == "LeftUpperArm", "Left UpperArm mapping failed");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("LeftLowerArm") == "LeftLowerArm", "LeftLowerArm mapping failed");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("LeftShoulder") == "LeftShoulder", "LeftShoulder mapping failed");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("LeftEye") == "LeftEye", "LeftEye mapping failed");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Jaw") == "Jaw", "Jaw mapping failed");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("LeftToes") == "LeftToes", "LeftToes mapping failed");
     Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Left Little Proximal") == "LeftPinky_Proximal", "Left Little Proximal must map to LeftPinky_Proximal");
     Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Left Little Intermediate") == "LeftPinky_Intermediate", "Left Little Intermediate must map to LeftPinky_Intermediate");
     Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Right Little Distal") == "RightPinky_Distal", "Right Little Distal must map to RightPinky_Distal");
@@ -1375,6 +1381,58 @@ Test("NormalizeUnityHumanoidBoneName maps Unity finger and body humanNames to Re
     Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Left Thumb Intermediate") == "LeftThumb_Intermediate", "Left Thumb Intermediate must map to LeftThumb_Intermediate");
     Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Left Thumb Distal") == "LeftThumb_Distal", "Left Thumb Distal must map to LeftThumb_Distal");
     Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("   ") == string.Empty, "Whitespace must return empty string");
+});
+
+Test("ModelMetaParser parses ModelImporter recycle names, externalObjects, scale settings, and humanoid bones via YamlStream", () =>
+{
+    string metaYaml = @"fileFormatVersion: 2
+guid: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4
+ModelImporter:
+  serializedVersion: 21300
+  internalIDToNameTable: []
+  externalObjects:
+  - first:
+      type: UnityEngine:Material
+      assembly: UnityEngine.CoreModule
+      name: Body_Mat
+    second: {fileID: 2100000, guid: 11112222333344445555666677778888, type: 2}
+  fileIDToRecycleName:
+    100000: Armature
+    100002: Body
+    400000: Armature
+    400002: Hips
+    13700000: Body
+  materials:
+    materialImportMode: 2
+    materialName: 0
+    materialSearch: 1
+    materialLocation: 1
+  animations:
+    legacyGenerateAnimations: 4
+  meshes:
+    globalScale: 1.5
+    useFileUnits: 0
+    useFileScale: 1
+  humanDescription:
+    serializedVersion: 3
+    human:
+    - boneName: Hips
+      humanName: Hips
+      limit:
+        min: {x: 0, y: 0, z: 0}
+    - boneName: Pinky_1_L
+      humanName: Left Little Proximal
+";
+    var parsed = ModelMetaParser.Parse(metaYaml);
+    Check(Math.Abs(parsed.GlobalScale - 1.5f) < 1e-5f, $"Expected GlobalScale 1.5, got {parsed.GlobalScale}");
+    Check(!parsed.UseFileUnits, "Expected UseFileUnits == false");
+    Check(parsed.UseFileScale, "Expected UseFileScale == true");
+    Check(parsed.FileIdToRecycleName.Count == 5, $"Expected 5 recycle entries (not polluted by materials/animations), got {parsed.FileIdToRecycleName.Count}");
+    Check(parsed.FileIdToRecycleName[13700000] == "Body", "13700000 must map to Body");
+    Check(parsed.ExternalObjects.TryGetValue("Body_Mat", out var matRef) && matRef.Guid == "11112222333344445555666677778888", "External material Body_Mat not parsed");
+    Check(parsed.HumanBones.Count == 2, $"Expected 2 human bones, got {parsed.HumanBones.Count}");
+    Check(parsed.HumanBones[0].BoneName == "Hips" && parsed.HumanBones[0].HumanName == "Hips", "First bone mismatch");
+    Check(parsed.HumanBones[1].BoneName == "Pinky_1_L" && parsed.HumanBones[1].HumanName == "Left Little Proximal", "Second bone mismatch");
 });
 
 ImportLifetimeTests.Register(Test);

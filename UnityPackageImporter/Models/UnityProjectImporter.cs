@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
@@ -17,6 +18,7 @@ public class UnityProjectImporter
     private readonly object materialCatalogLock = new();
     private readonly Dictionary<string, string> mutableAssetIndex;
     private readonly List<MissingMaterialBinding> missingMaterialBindings = new();
+    private readonly ConcurrentDictionary<IAssetProvider<Material>, string> materialGuids = new();
     private Task<PackageMaterialCatalog> materialCatalogTask;
 
     public readonly Slot importTaskAssetRoot;
@@ -59,6 +61,21 @@ public class UnityProjectImporter
             new Dictionary<string, string>(this.mutableAssetIndex, StringComparer.OrdinalIgnoreCase));
         this.ListOfUnityScenes = new ReadOnlyDictionary<string, string>(ListOfUnityScenes);
         this.world = world;
+    }
+
+    internal void RegisterMaterialGuid(IAssetProvider<Material> material, string materialGuid)
+    {
+        if (material == null || string.IsNullOrWhiteSpace(materialGuid)) return;
+        materialGuids[material] = materialGuid;
+    }
+
+    internal bool TryGetMaterialGuid(IAssetProvider<Material> material, out string materialGuid)
+    {
+        if (material != null && materialGuids.TryGetValue(material, out materialGuid) && !string.IsNullOrEmpty(materialGuid))
+            return true;
+
+        materialGuid = string.Empty;
+        return false;
     }
 
     internal void RegisterMissingMaterial(
@@ -158,9 +175,13 @@ public class UnityProjectImporter
         var replacements = new Dictionary<IAssetProvider<Material>, IAssetProvider<Material>>();
         foreach (var material in automaticMaterials.Where(pair => renderers.Contains(pair.Key)).SelectMany(pair => pair.Value).Where(value => value != null).Distinct())
         {
-            var source = TasksMaterials.FirstOrDefault(task => !task.ismissing && !string.IsNullOrEmpty(task.MaterialGuid) && task.finalMaterial == material);
-            if (source == null) continue;
-            var task = new FileImportHelperTaskMaterial(source.MaterialGuid, source.SourceFile, this, true);
+            if (!TryGetMaterialGuid(material, out string matGuid))
+            {
+                var fallbackSource = TasksMaterials.FirstOrDefault(task => !task.ismissing && !string.IsNullOrEmpty(task.MaterialGuid) && task.finalMaterial == material);
+                matGuid = fallbackSource?.MaterialGuid;
+            }
+            if (string.IsNullOrEmpty(matGuid) || !AssetIDDict.TryGetValue(matGuid, out string sourceFile)) continue;
+            var task = new FileImportHelperTaskMaterial(matGuid, sourceFile, this, true);
             var converted = await task.runImportFileMaterialsAsync();
             await default(ToWorld);
             Session?.Check();
