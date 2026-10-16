@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using FrooxEngine;
@@ -28,7 +28,9 @@ public class RotationConstraint: IUnityObject
     {
         if (instanciated) return;
 
-        if (!importer.existingIUnityObjects.TryGetValue(m_GameObject["fileID"], out IUnityObject slotunity))
+        if (m_GameObject == null ||
+            !m_GameObject.TryGetValue("fileID", out ulong goId) ||
+            !importer.existingIUnityObjects.TryGetValue(goId, out IUnityObject slotunity))
         {
             instanciated = true;
             return;
@@ -38,29 +40,34 @@ public class RotationConstraint: IUnityObject
         await slotunity.InstanciateAsync(importer);
         await default(ToBackground);
 
-        foreach (TransformSource source in m_Sources)
+        if (m_Sources != null)
         {
-            if (importer.existingIUnityObjects.TryGetValue(source.sourceTransform["fileID"], out IUnityObject targettransform))
+            foreach (TransformSource source in m_Sources)
             {
-                await default(ToWorld);
-                await targettransform.InstanciateAsync(importer);
-                await default(ToBackground);
-                try
+                if (source?.sourceTransform != null &&
+                    source.sourceTransform.TryGetValue("fileID", out ulong srcTransformId) &&
+                    importer.existingIUnityObjects.TryGetValue(srcTransformId, out IUnityObject targettransform))
                 {
-                    ulong gameobjid = (targettransform as Transform).m_GameObjectID;
-                    if (importer.existingIUnityObjects.TryGetValue(gameobjid, out IUnityObject targetgameobj))
+                    await default(ToWorld);
+                    await targettransform.InstanciateAsync(importer);
+                    await default(ToBackground);
+                    try
                     {
-                        await default(ToWorld);
-                        await targetgameobj.InstanciateAsync(importer);
-                        await default(ToBackground);
+                        if (targettransform is Transform targetTrans &&
+                            importer.existingIUnityObjects.TryGetValue(targetTrans.m_GameObjectID, out IUnityObject targetgameobj))
+                        {
+                            await default(ToWorld);
+                            await targetgameobj.InstanciateAsync(importer);
+                            await default(ToBackground);
 
-                        // Rotation and source weights are not translated yet.
+                            // Rotation and source weights are not translated yet.
+                        }
                     }
-                }
-                catch (Exception e)
-                {
-                    UnityPackageImporter.Msg("Rotation constraint failed to create itself! error:");
-                    UnityPackageImporter.Msg(e.Message + e.StackTrace);
+                    catch (Exception e)
+                    {
+                        UnityPackageImporter.Msg("Rotation constraint failed to create itself! error:");
+                        UnityPackageImporter.Msg(e.Message + e.StackTrace);
+                    }
                 }
             }
         }

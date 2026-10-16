@@ -22,6 +22,9 @@ public class MetaDataFile
     public Dictionary<long, string> fileIDToRecycleName = new Dictionary<long, string>();
     public MetaDataFile() { }
             
+    private static readonly IDeserializer SharedDeserializer =
+        new DeserializerBuilder().IgnoreUnmatchedProperties().Build();
+
     // The second I tried to make this a yaml parser the parser broke. if anyone else can get it to work that's fine by me. - @989onan
     // This creates our biped rig under the slot we specify. in this case, it is the root.
     // This MetaDataFile object class gives us access to the biped rig component directly if desired
@@ -34,11 +37,11 @@ public class MetaDataFile
         // If we use """AssignBones(Rig.BoneNode root, bool ignoreDuplicates)""" that will cause errors.
         foreach (var BoneNode in storagebones)
         {
-            if (BoneNode.Value != null)
+            if (BoneNode.Key != BodyNode.NONE && BoneNode.Value != null)
             {
                 UnityPackageImporter.Msg("Assigning bone: " + BoneNode.Value.Name);
                 await default(ToWorld);
-                rig.Bones.Add(BoneNode.Key, BoneNode.Value);
+                rig.Bones[BoneNode.Key] = BoneNode.Value;
                 await default(ToBackground);
             }
             else
@@ -96,84 +99,92 @@ public class MetaDataFile
                 continue;
             }
 
-            if(line.StartsWith("  fileIDToRecycleName:"))
+            if (line.StartsWith("  fileIDToRecycleName:"))
             {
                 sectiontype = 1;
                 continue;
             }
-            if(line.StartsWith("  internalIDToNameTable:"))
+            if (line.StartsWith("  internalIDToNameTable:"))
             {
                 sectiontype = -1;
                 continue;
             }
-            if(line.StartsWith("  externalObjects:"))
+            if (line.StartsWith("  externalObjects:"))
             {
                 sectiontype = 2;
                 continue;
             }
-
             if (line.StartsWith("  humanDescription:"))
             {
                 sectiontype = 0;
                 continue;
             }
+            // Any other top-level ModelImporter key (2-space indent, not a list item) ends the current section.
+            if (line.StartsWith("  ") && !line.StartsWith("    ") && !line.StartsWith("  -"))
+            {
+                sectiontype = -1;
+                continue;
+            }
+
             // Per-bone scales are separate from the model-wide import scale.
             if (line.StartsWith("      scale:")) continue;
             switch (sectiontype)
             {
                 case 0:
-                    if(line.StartsWith("    - boneName:"))
+                    if (line.StartsWith("    - boneName:"))
                     {
-                        boneName = line.Split(':')[1].Trim();
+                        boneName = line.Split(':', 2)[1].Trim();
                     }
-                    else if(line.StartsWith("      humanName:"))
+                    else if (line.StartsWith("      humanName:"))
                     {
-                        boneNameHuman = line.Split(':')[1].Trim();
+                        boneNameHuman = line.Split(':', 2)[1].Trim();
                     }
 
                     if (boneName.Length != 0 && boneNameHuman.Length != 0)
                     {
                         await default(ToWorld);
-                        UnityPackageImporter.Msg("finding bone: "+ boneName);
+                        UnityPackageImporter.Msg("finding bone: " + boneName);
                         Slot boneSlot = ModelRootSlot.FindChild(boneName, false, false, -1);
                         BodyNode bodyNodeType = HumanoidNameToEnum(boneNameHuman);
-                        
-                        //so that we add the bone without parsing it's children
-                        //if we use """AssignBones(Rig.BoneNode root, bool ignoreDuplicates)""" that will cause errors.
-                        if (!storagebones.ContainsKey(bodyNodeType))
+
+                        // Only record valid humanoid bones that resolved to a non-NONE BodyNode and an existing Slot.
+                        if (bodyNodeType != BodyNode.NONE && boneSlot != null && !storagebones.ContainsKey(bodyNodeType))
                         {
                             storagebones.Add(bodyNodeType, boneSlot);
                         }
                         await default(ToBackground);
                         boneName = string.Empty;
-                        boneNameHuman = string.Empty;            
+                        boneNameHuman = string.Empty;
                     }
                     break;
                 case 1:
-                    long.TryParse(line.Split(':')[0].Trim(), out long num);
-                    string name = line.Split(':')[1].Trim();
-                    fileIDToRecycleName.Add(num, name);
+                    if (line.StartsWith("    ") && line.Contains(':'))
+                    {
+                        string[] parts = line.Split(':', 2);
+                        if (long.TryParse(parts[0].Trim(), out long num) && num != 0)
+                        {
+                            fileIDToRecycleName[num] = parts[1].Trim();
+                        }
+                    }
                     break;
                 case 2:
-                    if(line.StartsWith("  - first:"))
+                    if (line.StartsWith("  - first:"))
                     {
                         externalObjects_name = string.Empty;
                     }
-                    if(line.StartsWith("      name:"))
+                    if (line.StartsWith("      name:"))
                     {
-                        externalObjects_name = line.Split(':')[1].Trim();
+                        externalObjects_name = line.Split(':', 2)[1].Trim();
                     }
-                    if (line.StartsWith("    second:"))
+                    if (line.StartsWith("    second:") && line.Contains('{'))
                     {
-                        string unparsed = '{'+line.Split('{')[1].Trim();
-                        var deserializer = new DeserializerBuilder().IgnoreUnmatchedProperties().Build();
+                        string unparsed = '{' + line.Split('{', 2)[1].Trim();
+                        SourceObj second = SharedDeserializer.Deserialize<SourceObj>(unparsed);
 
-                        SourceObj second = deserializer.Deserialize<SourceObj>(unparsed); //this makes it easier to get our source object
-
-                        if(externalObjects_name != string.Empty)
+                        if (externalObjects_name != string.Empty)
                         {
-                            externalObjects.Add(externalObjects_name, second);
-                        }   
+                            externalObjects[externalObjects_name] = second;
+                        }
                     }
                     break;
             }
@@ -187,26 +198,18 @@ public class MetaDataFile
         UnityPackageImporter.Msg($"Parsed model scale for '{Path.GetFileName(task.file)}': globalScale={GlobalScale}, useFileUnits={UseFileUnits}, useFileScale={UseFileScale}, unitScaleFactor={UnitScaleFactor} -> CalculatedScaleFactor={CalculatedScaleFactor}");
     }
 
-    // Since Unity names and FrooxEngine names are the same, just parse them as enums and return.
+    // Maps Unity HumanDescription humanName values to Resonite BodyNode enum values.
     public static BodyNode HumanoidNameToEnum(string boneNameHuman)
     {
-        // Edge cases
-        boneNameHuman = boneNameHuman.Replace(" Metacarpal", "_Metacarpal");
-        boneNameHuman = boneNameHuman.Replace(" Proximal", "_Proximal");
-        boneNameHuman = boneNameHuman.Replace(" Distal", "_Distal");
-        boneNameHuman = boneNameHuman.Replace(" Little Metacarpal", "Pinky_Metacarpal");
-        boneNameHuman = boneNameHuman.Replace(" Little Proximal", "Pinky_Proximal");
-        boneNameHuman = boneNameHuman.Replace(" Little Distal", "Pinky_Distal");
-        boneNameHuman = boneNameHuman.Replace(" ", "");
+        string normalized = SkinBoneMapping.NormalizeUnityHumanoidBoneName(boneNameHuman);
+        if (string.IsNullOrEmpty(normalized))
+            return BodyNode.NONE;
 
-        // Now parse
-        if (Enum.TryParse(boneNameHuman, out BodyNode bodyNode))
+        if (Enum.TryParse(normalized, ignoreCase: true, out BodyNode bodyNode))
         {
             return bodyNode;
         }
-        else
-        {
-            return BodyNode.NONE;
-        }
+
+        return BodyNode.NONE;
     }
 }

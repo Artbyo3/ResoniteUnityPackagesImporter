@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using FrooxEngine;
 using UnityPackageImporter.Models;
@@ -16,8 +16,11 @@ public class MonoBehaviour : IUnityObject
     public async Task InstanciateAsync(IUnityStructureImporter importer)
     {
         if (instanciated) return;
+        instanciated = true;
 
-        if (importer.existingIUnityObjects.TryGetValue(m_GameObject["fileID"], out IUnityObject slotOnity))
+        if (m_GameObject != null &&
+            m_GameObject.TryGetValue("fileID", out ulong goId) &&
+            importer.existingIUnityObjects.TryGetValue(goId, out IUnityObject slotOnity))
         {
             await default(ToWorld);
             await slotOnity.InstanciateAsync(importer);

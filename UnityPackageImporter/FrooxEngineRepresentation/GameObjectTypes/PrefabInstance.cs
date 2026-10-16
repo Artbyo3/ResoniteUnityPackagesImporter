@@ -35,7 +35,7 @@ public class PrefabInstance : IUnityObject
         UnityPackageImporter.Msg("is m_ObjectHideFlags instanciated?: " + m_ObjectHideFlags.ToString());
         UnityPackageImporter.Msg("is serializedVersion instanciated?: " + serializedVersion.ToString());
 
-        if (m_SourcePrefab == null)
+        if (m_SourcePrefab?.guid == null)
         {
             instanciated = true;
             return;
@@ -49,11 +49,12 @@ public class PrefabInstance : IUnityObject
             // Next we associate each shared FBX to prefabs that use them. then we duplicate the shared FBX's to each scene including this one, and then those duplicated FBXs become the prefabs themselves
             // Instanciate our objects to generate our prefab entirely, using the ids we assigned ealier to identify our prefab elements in our list.
             Slot targetParent;
-            if (m_Modification == null)
+            if (m_Modification?.m_TransformParent == null ||
+                !m_Modification.m_TransformParent.TryGetValue("fileID", out ulong parentTransformId))
             {
                 targetParent = importer.CurrentStructureRootSlot;
             }
-            else if (importer.existingIUnityObjects.TryGetValue(m_Modification.m_TransformParent["fileID"], out IUnityObject foundtransformparent))
+            else if (importer.existingIUnityObjects.TryGetValue(parentTransformId, out IUnityObject foundtransformparent))
             {
                 await default(ToWorld);
                 await foundtransformparent.InstanciateAsync(importer);

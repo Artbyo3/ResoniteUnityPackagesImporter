@@ -124,9 +124,18 @@ internal sealed class UnityStationHandle
     }
     internal static void ReleaseFixtureActions(Button button)
     {
+        if (button?.Slot == null || button.Slot.IsDestroyed) return;
         foreach (var component in button.Slot.Components.ToArray())
+        {
+            string typeName = component.GetType().Name;
             if (component is ButtonDestroy || component is ButtonToggle ||
-                component.GetType().Name.StartsWith("ButtonValueSet`", StringComparison.Ordinal)) component.Enabled = false;
+                typeName.StartsWith("ButtonValueSet`", StringComparison.Ordinal) ||
+                typeName.StartsWith("ButtonReferenceSet`", StringComparison.Ordinal) ||
+                typeName.StartsWith("ButtonValueCycle`", StringComparison.Ordinal))
+            {
+                component.Enabled = false;
+            }
+        }
     }
     private void ResetOutcome()
     {

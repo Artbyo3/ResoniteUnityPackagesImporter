@@ -1358,6 +1358,25 @@ Test("UI contracts reject unsupported schemas and ambiguous path escapes", () =>
     Throws<InvalidDataException>(() => Parse(valid.Replace("\"index\":0", "\"index\":-1")));
 });
 
+Test("NormalizeUnityHumanoidBoneName maps Unity finger and body humanNames to Resonite BodyNode names", () =>
+{
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Hips") == "Hips", "Hips mapping failed");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("UpperChest") == "UpperChest", "UpperChest mapping failed");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Left UpperArm") == "LeftUpperArm", "Left UpperArm mapping failed");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Left Little Proximal") == "LeftPinky_Proximal", "Left Little Proximal must map to LeftPinky_Proximal");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Left Little Intermediate") == "LeftPinky_Intermediate", "Left Little Intermediate must map to LeftPinky_Intermediate");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Right Little Distal") == "RightPinky_Distal", "Right Little Distal must map to RightPinky_Distal");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Right Little Metacarpal") == "RightPinky_Metacarpal", "Right Little Metacarpal must map to RightPinky_Metacarpal");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Left Index Proximal") == "LeftIndexFinger_Proximal", "Left Index Proximal must map to LeftIndexFinger_Proximal");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Left Index Intermediate") == "LeftIndexFinger_Intermediate", "Left Index Intermediate must map to LeftIndexFinger_Intermediate");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Right Middle Distal") == "RightMiddleFinger_Distal", "Right Middle Distal must map to RightMiddleFinger_Distal");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Right Ring Intermediate") == "RightRingFinger_Intermediate", "Right Ring Intermediate must map to RightRingFinger_Intermediate");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Left Thumb Proximal") == "LeftThumb_Proximal", "Left Thumb Proximal must map to LeftThumb_Proximal");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Left Thumb Intermediate") == "LeftThumb_Intermediate", "Left Thumb Intermediate must map to LeftThumb_Intermediate");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("Left Thumb Distal") == "LeftThumb_Distal", "Left Thumb Distal must map to LeftThumb_Distal");
+    Check(SkinBoneMapping.NormalizeUnityHumanoidBoneName("   ") == string.Empty, "Whitespace must return empty string");
+});
+
 ImportLifetimeTests.Register(Test);
 MaterialConversionTests.Register(Test);
 NativeSkinBindingTests.Register(Test);

@@ -64,4 +64,29 @@ internal static class SkinBoneMapping
             return matches[0];
         }).ToArray();
     }
+
+    /// <summary>
+    /// Normalizes a Unity HumanDescription <c>humanName</c> string into the corresponding
+    /// Resonite <c>BodyNode</c> enum identifier string.
+    /// </summary>
+    internal static string NormalizeUnityHumanoidBoneName(string? boneNameHuman)
+    {
+        if (string.IsNullOrWhiteSpace(boneNameHuman))
+            return string.Empty;
+
+        string normalized = boneNameHuman.Trim();
+        // Replace specific finger names before generic segment suffixes so "Little" / "Index" / "Middle" / "Ring" match first.
+        normalized = normalized.Replace(" Little ", " Pinky_", StringComparison.OrdinalIgnoreCase);
+        normalized = normalized.Replace(" Index ", " IndexFinger_", StringComparison.OrdinalIgnoreCase);
+        normalized = normalized.Replace(" Middle ", " MiddleFinger_", StringComparison.OrdinalIgnoreCase);
+        normalized = normalized.Replace(" Ring ", " RingFinger_", StringComparison.OrdinalIgnoreCase);
+        normalized = normalized.Replace(" Thumb ", " Thumb_", StringComparison.OrdinalIgnoreCase);
+        normalized = normalized.Replace(" Metacarpal", "_Metacarpal", StringComparison.OrdinalIgnoreCase);
+        normalized = normalized.Replace(" Proximal", "_Proximal", StringComparison.OrdinalIgnoreCase);
+        normalized = normalized.Replace(" Intermediate", "_Intermediate", StringComparison.OrdinalIgnoreCase);
+        normalized = normalized.Replace(" Distal", "_Distal", StringComparison.OrdinalIgnoreCase);
+        normalized = normalized.Replace("__", "_", StringComparison.Ordinal);
+        normalized = normalized.Replace(" ", "");
+        return normalized;
+    }
 }

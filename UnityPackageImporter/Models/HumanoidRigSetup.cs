@@ -102,6 +102,10 @@ internal static class HumanoidRigSetup
                             float magnitude = v.Magnitude;
 
                             v = slot.GlobalPointToLocal(in globalPoint);
+                            if (v.Magnitude <= 1e-5f)
+                            {
+                                continue;
+                            }
                             float3 localPosition = v * 0.5f;
                             Slot slotcollider = slot.AddSlot(slot.Name + " Collider");
                             slotcollider.LocalPosition = localPosition;

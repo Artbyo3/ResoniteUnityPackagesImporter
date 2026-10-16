@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
@@ -37,13 +37,15 @@ public class Transform: IUnityObject
 
         instanciated = true;
 
-        if (m_CorrespondingSourceObject.guid == null)
+        if (m_CorrespondingSourceObject?.guid == null)
         {
             await CreateSelf(importer);
         }
         else
         {
-            if (importer.existingIUnityObjects.TryGetValue(m_PrefabInstance["fileID"], out IUnityObject PrefabInstanceObject))
+            if (m_PrefabInstance != null &&
+                m_PrefabInstance.TryGetValue("fileID", out ulong prefabInstanceId) &&
+                importer.existingIUnityObjects.TryGetValue(prefabInstanceId, out IUnityObject PrefabInstanceObject))
             {
                 PrefabInstance prefab = PrefabInstanceObject as PrefabInstance;
                 await default(ToWorld);
@@ -61,20 +63,16 @@ public class Transform: IUnityObject
                         UnityPackageImporter.Msg("transform import stage 1");
                         foreach (IUnityObject variab in importer.existingIUnityObjects.Values)
                         {
-                            if (variab.GetType() == typeof(GameObject))
+                            if (variab is GameObject actual &&
+                                actual.m_CorrespondingSourceObject?.guid != null &&
+                                actual.m_CorrespondingSourceObject.fileID != 0 &&
+                                alreadydefined.parentHashedGameObj?.m_CorrespondingSourceObject != null)
                             {
-                                GameObject actual = variab as GameObject;
-                                if (actual.m_CorrespondingSourceObject != null)
+                                if (actual.m_CorrespondingSourceObject.fileID == alreadydefined.parentHashedGameObj.m_CorrespondingSourceObject.fileID
+                                    && actual.m_CorrespondingSourceObject.guid.Equals(alreadydefined.parentHashedGameObj.m_CorrespondingSourceObject.guid))
                                 {
-                                    if (actual.m_CorrespondingSourceObject.fileID != 0)
-                                    {
-                                        if (actual.m_CorrespondingSourceObject.fileID == alreadydefined.parentHashedGameObj.m_CorrespondingSourceObject.fileID
-                                            && actual.m_CorrespondingSourceObject.guid.Equals(alreadydefined.parentHashedGameObj.m_CorrespondingSourceObject.guid))
-                                        {
-                                            UnityPackageImporter.Msg("transform import stage 1.5");
-                                            this.parentHashedGameObj = actual;
-                                        }
-                                    }
+                                    UnityPackageImporter.Msg("transform import stage 1.5");
+                                    this.parentHashedGameObj = actual;
                                 }
                             }
                         }

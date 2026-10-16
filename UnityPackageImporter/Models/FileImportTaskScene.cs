@@ -279,38 +279,48 @@ public class FileImportTaskScene
             for (int i = 0; i < skinnedrenderer.createdMeshRenderer.Mesh.Asset.Data.SubmeshCount; i++)
             {
                 FileImportHelperTaskMaterial materialtask;
+                SourceObj recordedSource = new SourceObj(0, string.Empty, 0);
+                string matName = i < materialnames.Count ? materialnames[i] : $"Submesh_{i}";
                 try
                 {
-                    if (copy.metafile.externalObjects != null)
+                    if (copy.metafile.externalObjects != null &&
+                        i < materialnames.Count &&
+                        copy.metafile.externalObjects.TryGetValue(matName, out SourceObj material) &&
+                        !string.IsNullOrEmpty(material.guid))
                     {
-                        if (copy.metafile.externalObjects.TryGetValue(materialnames[i], out SourceObj material))
+                        recordedSource = material;
+                        if (copy.importer.AssetIDDict.TryGetValue(material.guid, out string matPath))
                         {
                             await default(ToWorld);
-                            materialtask = new FileImportHelperTaskMaterial(material.guid, copy.importer.AssetIDDict[material.guid], copy.importer);
+                            materialtask = new FileImportHelperTaskMaterial(material.guid, matPath, copy.importer);
                             await default(ToBackground);
                         }
                         else
                         {
+                            if (!UnityProjectImporter.IsUnityBuiltInGuid(material.guid))
+                            {
+                                copy.importer.RegisterMissingMaterial(mesh, i, material.guid);
+                            }
                             await default(ToWorld);
-                            materialtask = new FileImportHelperTaskMaterial(copy.importer); // Missing material for now. M_Modifications may modify later.
+                            materialtask = new FileImportHelperTaskMaterial(copy.importer);
                             await default(ToBackground);
                         }
                     }
                     else
                     {
                         await default(ToWorld);
-                        materialtask = new FileImportHelperTaskMaterial(copy.importer);
+                        materialtask = new FileImportHelperTaskMaterial(copy.importer); // Missing material for now. M_Modifications may modify later.
                         await default(ToBackground);
                     }
                     await default(ToWorld);
                     skinnedrenderer.materials.Add(materialtask);
-                    skinnedrenderer.m_Materials.Add(new SourceObj(0, string.Empty,0)); // This is to signify
+                    skinnedrenderer.m_Materials.Add(recordedSource);
                     await default(ToBackground);
                 }
                 catch (Exception)
                 {
-                    UnityPackageImporter.Msg("The material " + materialnames[i] + " importing encountered an error!");
-                    skinnedrenderer.m_Materials.Add(new SourceObj(0, string.Empty, 0));
+                    UnityPackageImporter.Msg("The material " + matName + " importing encountered an error!");
+                    skinnedrenderer.m_Materials.Add(recordedSource);
                     throw;
                 }
                 await default(ToWorld);
@@ -567,14 +577,13 @@ public class FileImportTaskScene
         sourceObj.guid = this.assetID;
         sourceObj.type = 0;
 
+        string numident = ((int)classId).ToString();
         foreach (KeyValuePair<long, string> item in this.metafile.fileIDToRecycleName)
         {
-            string numident = ((int)classId).ToString();
-
             string nummatch = item.Key.ToString();
 
-            // The format is: "{numident}+00002" or  "{numident}+00012" and so on. So removing 5 chars gives us our identifier.
-            if (thisname == item.Value && nummatch.Remove(nummatch.Length-5).Equals(numident))
+            // The format is: "{numident}+00002" or "{numident}+00012" and so on. So removing 5 chars gives us our identifier.
+            if (thisname == item.Value && nummatch.Length > 5 && nummatch.Remove(nummatch.Length - 5).Equals(numident))
             {
                 sourceObj.fileID = item.Key; //In case it's already defined in the metafile, because unity is weird - @989onan
             }

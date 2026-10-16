@@ -60,11 +60,13 @@ public class UnitySceneImportTask: IUnityStructureImporter
             foreach (KeyValuePair<ulong, IUnityObject> obj in existingIUnityObjects)
             {
                 Type type = obj.Value.GetType();
-                int progressitem = 4;
-
-                UnityEngineObjectWrapper.addedProgress.TryGetValue(type, out progressitem);
+                if (!UnityEngineObjectWrapper.addedProgress.TryGetValue(type, out int progressitem))
+                {
+                    progressitem = 4;
+                }
                 totalProgress += progressitem;
             }
+            totalProgress = Math.Max(totalProgress, 1);
 
             // Instanciate everything else.
             int counter = 0;
@@ -75,9 +77,10 @@ public class UnitySceneImportTask: IUnityStructureImporter
                 unityProjectImporter.Session?.Check();
                 counter++;
                 Type type = obj.Value.GetType();
-                int progressitem = 4;
-
-                UnityEngineObjectWrapper.addedProgress.TryGetValue(type, out progressitem);
+                if (!UnityEngineObjectWrapper.addedProgress.TryGetValue(type, out int progressitem))
+                {
+                    progressitem = 4;
+                }
                 progress += progressitem;
                 progressIndicator?.UpdateProgress(MathX.Clamp01((float)progress / (float)totalProgress), "", "now loading " + counter + "/" + existingIUnityObjects.Count + " objects for scene");
                 UnityPackageImporter.Msg("loading object for scene \"" + ID.Value + "\" with an id of \"" + obj.Value.id.ToString() + "\"");

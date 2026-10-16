@@ -72,9 +72,10 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
             foreach (KeyValuePair<ulong, IUnityObject> obj in existingIUnityObjects)
             {
                 Type type = obj.Value.GetType();
-                int progressitem = 4;
-
-                UnityEngineObjectWrapper.addedProgress.TryGetValue(type, out progressitem);
+                if (!UnityEngineObjectWrapper.addedProgress.TryGetValue(type, out int progressitem))
+                {
+                    progressitem = 4;
+                }
                 totalProgress += progressitem;
             }
             totalProgress = Math.Max(totalProgress, 1);
@@ -92,9 +93,10 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 unityProjectImporter.Session?.Check();
                 counter++;
                 Type type = obj.Value.GetType();
-                int progressitem = 4;
-
-                UnityEngineObjectWrapper.addedProgress.TryGetValue(type, out progressitem);
+                if (!UnityEngineObjectWrapper.addedProgress.TryGetValue(type, out int progressitem))
+                {
+                    progressitem = 4;
+                }
                 progress += progressitem;
                 if (ReportProgress != null) await ReportProgress(MathX.Clamp01((float)progress / (float)totalProgress) * 0.85f);
                 progressIndicator?.UpdateProgress(MathX.Clamp01((float)progress / (float)totalProgress), "", "now loading " + this.existingIUnityObjects.Count.ToString() + "/" + counter.ToString() + " objects for Prefab");
