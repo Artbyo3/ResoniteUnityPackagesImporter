@@ -141,7 +141,7 @@ public class FileImportHelperTaskMaterial
             string normalGuid = GetTexGuid(textures, "_BumpMap");
             if (normalGuid != null)
             {
-                await AssignTextureAsync(normalGuid, pbs.NormalMap, normalMap: true);
+                await AssignTextureAsync(normalGuid, pbs.NormalMap, normalMap: true, requiredForCompletion: false);
                 await default(ToBackground);
                 importer.Session?.Check();
             }
@@ -149,7 +149,7 @@ public class FileImportHelperTaskMaterial
             string metallicGuid = GetTexGuid(textures, "_MetallicGlossMap");
             if (metallicGuid != null)
             {
-                await AssignTextureAsync(metallicGuid, pbs.MetallicMap);
+                await AssignTextureAsync(metallicGuid, pbs.MetallicMap, requiredForCompletion: false);
                 await default(ToBackground);
                 importer.Session?.Check();
             }
@@ -157,7 +157,7 @@ public class FileImportHelperTaskMaterial
             string emissionGuid = GetTexGuid(textures, "_EmissionMap");
             if (emissionGuid != null)
             {
-                await AssignTextureAsync(emissionGuid, pbs.EmissiveMap);
+                await AssignTextureAsync(emissionGuid, pbs.EmissiveMap, requiredForCompletion: false);
                 await default(ToBackground);
                 importer.Session?.Check();
             }
@@ -165,7 +165,7 @@ public class FileImportHelperTaskMaterial
             string occlusionGuid = GetTexGuid(textures, "_OcclusionMap");
             if (occlusionGuid != null)
             {
-                await AssignTextureAsync(occlusionGuid, pbs.OcclusionMap);
+                await AssignTextureAsync(occlusionGuid, pbs.OcclusionMap, requiredForCompletion: false);
                 await default(ToBackground);
                 importer.Session?.Check();
             }
@@ -233,8 +233,9 @@ public class FileImportHelperTaskMaterial
     }
 
     internal async Task AssignTextureAsync(string guid, AssetRef<ITexture2D> target,
-        bool multiplyRgbByAlpha = false, bool normalMap = false)
+        bool multiplyRgbByAlpha = false, bool normalMap = false, bool requiredForCompletion = true)
     {
+        if (MaterialDependencyDiagnostics.IsBuiltinOrEmptyGuid(guid)) return;
         var texture = await ImportTexture(guid, multiplyRgbByAlpha, normalMap);
         await default(ToWorld);
         importer.Session?.Check();
@@ -261,7 +262,7 @@ public class FileImportHelperTaskMaterial
             if (target.Target != null) return true;
             target.Target = restored;
             return true;
-        });
+        }, required: requiredForCompletion);
     }
 
     public async Task<StaticTexture2D> ImportTexture(string idtarget, bool multiplyRgbByAlpha = false, bool normalMap = false)

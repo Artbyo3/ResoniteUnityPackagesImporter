@@ -256,12 +256,9 @@ public class PrefabInstance : IUnityObject
                                             {
                                                 while (targetSkin.m_Materials.Count <= i)
                                                     targetSkin.m_Materials.Add(new SourceObj());
-                                                if (string.IsNullOrEmpty(targetSkin.m_Materials[i]?.guid))
-                                                {
-                                                    targetSkin.m_Materials[i] = mat;
-                                                    if (!modifiedObjects.Contains(targetSkin))
-                                                        modifiedObjects.Add(targetSkin);
-                                                }
+                                                targetSkin.m_Materials[i] = mat;
+                                                if (!modifiedObjects.Contains(targetSkin))
+                                                    modifiedObjects.Add(targetSkin);
                                             }
                                         }
                                     }

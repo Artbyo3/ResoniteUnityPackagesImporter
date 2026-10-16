@@ -62,7 +62,8 @@ internal sealed class UnityMaterialData
             var node = property.Value;
             var texture = Child(node, "m_Texture");
             var guid = Text(Child(texture, "guid"));
-            if (Number(Child(texture, "fileID"), 0) == 0 || string.IsNullOrEmpty(guid) || guid.Trim('0').Length == 0)
+            int texType = (int)Number(Child(texture, "type"), 3);
+            if (Number(Child(texture, "fileID"), 0) == 0 || MaterialDependencyDiagnostics.IsBuiltinResource(guid, texType))
                 guid = null;
             data.Textures[property.Key] = (guid,
                 Number(Child(Child(node, "m_Scale"), "x"), 1),

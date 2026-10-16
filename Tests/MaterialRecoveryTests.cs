@@ -126,6 +126,43 @@ internal static class MaterialRecoveryTests
             Check(pending.ResolveAsync(new[] { "new" }, default, Fail).Result == 1 && newAssignments == 1,
                 "The new field binding was lost with the obsolete result.");
         });
+
+        test("Optional secondary textures and built-in texture GUIDs do not falsely report missing companion packages", () =>
+        {
+            var pending = new PendingAssetAssignments<object>();
+            var activeTarget = new object();
+            var unusedTarget = new object();
+            var secondaryTarget = new object();
+            bool secondaryRestored = false;
+
+            pending.Register(secondaryTarget, "optional-matcap-guid", () => Task.FromResult(new object()),
+                (_, _) => { secondaryRestored = true; return Task.FromResult(true); }, required: false);
+            pending.Register(unusedTarget, "unused-fbx-tex-guid", () => Task.FromResult(new object()),
+                (_, _) => Task.FromResult(true), required: true);
+
+            Check(pending.GetMissingAssetGuids(target => ReferenceEquals(target, activeTarget)).Length == 0,
+                "Unused FBX material or optional secondary texture falsely triggered missing companion prompt.");
+            Check(pending.CanResolveAny(new[] { "optional-matcap-guid" }),
+                "Optional secondary texture must still be eligible for opportunistic companion resolution.");
+            Check(pending.ResolveAsync(new[] { "optional-matcap-guid" }, default, Fail).Result == 1 && secondaryRestored,
+                "Optional secondary texture was not restored when provided.");
+
+            string matWithBuiltinTex = @"%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  m_Name: TestMat
+  m_Shader: {fileID: 4800000, guid: efa77a80ca0344749b4f19fdd5891cbe, type: 3}
+  m_SavedProperties:
+    m_TexEnvs:
+    - _MainTex:
+        m_Texture: {fileID: 10300, guid: 0000000000000000f000000000000000, type: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
+";
+            var parsedMat = UnityMaterialData.Parse(matWithBuiltinTex);
+            Check(parsedMat.Texture("_MainTex") == null, "Unity built-in resource texture GUID must not be treated as a package asset dependency.");
+        });
     }
 
     private static void Check(bool condition, string message)

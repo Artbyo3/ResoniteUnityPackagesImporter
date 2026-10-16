@@ -86,11 +86,9 @@ public class UnityProjectImporter
         if (renderer == null || renderer.IsDestroyed || materialIndex < 0 || MaterialDependencyDiagnostics.IsBuiltinOrEmptyGuid(materialGuid)) return;
         lock (dependencyLock)
         {
-            if (missingMaterialBindings.Any(binding =>
-                    ReferenceEquals(binding.Renderer, renderer) &&
-                    binding.MaterialIndex == materialIndex &&
-                    binding.MaterialGuid.Equals(materialGuid, StringComparison.OrdinalIgnoreCase)))
-                return;
+            missingMaterialBindings.RemoveAll(binding =>
+                ReferenceEquals(binding.Renderer, renderer) &&
+                binding.MaterialIndex == materialIndex);
 
             missingMaterialBindings.Add(new MissingMaterialBinding
             {
@@ -101,22 +99,68 @@ public class UnityProjectImporter
         }
     }
 
+    internal void ClearMissingMaterial(
+        FrooxEngine.SkinnedMeshRenderer renderer,
+        int materialIndex)
+    {
+        if (renderer == null || materialIndex < 0) return;
+        lock (dependencyLock)
+        {
+            missingMaterialBindings.RemoveAll(binding =>
+                ReferenceEquals(binding.Renderer, renderer) &&
+                binding.MaterialIndex == materialIndex);
+        }
+    }
+
+    private bool IsPendingMissingBinding(MissingMaterialBinding binding, Slot itemRoot)
+    {
+        if (binding == null ||
+            binding.Resolved ||
+            binding.Renderer == null ||
+            binding.Renderer.IsDestroyed ||
+            binding.Renderer.Slot == null ||
+            binding.Renderer.Slot.IsDestroyed ||
+            (itemRoot != null && !binding.Renderer.Slot.IsChildOf(itemRoot, true)))
+            return false;
+
+        if (binding.MaterialIndex >= 0 && binding.MaterialIndex < binding.Renderer.Materials.Count)
+        {
+            var assigned = binding.Renderer.Materials[binding.MaterialIndex];
+            if (assigned != null && TryGetMaterialGuid(assigned, out _))
+                return false;
+        }
+        return true;
+    }
+
     internal MaterialDependencySummary GetMissingMaterialSummary(Slot itemRoot = null)
     {
         List<MissingMaterialBinding> pending;
         lock (dependencyLock)
-            pending = missingMaterialBindings.Where(binding =>
-                !binding.Resolved &&
-                binding.Renderer != null &&
-                !binding.Renderer.IsDestroyed &&
-                binding.Renderer.Slot != null &&
-                !binding.Renderer.Slot.IsDestroyed &&
-                (itemRoot == null || binding.Renderer.Slot.IsChildOf(itemRoot, true))).ToList();
+            pending = missingMaterialBindings.Where(binding => IsPendingMissingBinding(binding, itemRoot)).ToList();
+
+        Func<object, bool> textureTargetFilter = null;
+        if (itemRoot != null && !itemRoot.IsDestroyed)
+        {
+            var usedMaterialSlots = new HashSet<Slot>();
+            foreach (var renderer in itemRoot.GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>())
+            {
+                if (renderer == null || renderer.IsDestroyed) continue;
+                foreach (var mat in renderer.Materials)
+                {
+                    if (mat is Component comp && comp.Slot != null && !comp.Slot.IsDestroyed)
+                        usedMaterialSlots.Add(comp.Slot);
+                }
+            }
+            textureTargetFilter = target =>
+                target is IWorldElement element &&
+                element.FindNearestParent<Slot>() is Slot matSlot &&
+                usedMaterialSlots.Contains(matSlot);
+        }
 
         return MaterialDependencyDiagnostics.Analyze(
             pending.GroupBy(binding => binding.Renderer)
                 .Select(group => group.Select(binding => binding.MaterialGuid)),
-            Array.Empty<string>(), MissingTextureAssignments.MissingAssetGuids);
+            Array.Empty<string>(), MissingTextureAssignments.GetMissingAssetGuids(textureTargetFilter));
     }
 
     internal bool CanResolveAnyMaterial(IEnumerable<string> assetGuids, Slot itemRoot = null)
@@ -124,12 +168,7 @@ public class UnityProjectImporter
         var candidates = new HashSet<string>(assetGuids ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
         lock (dependencyLock)
             if (missingMaterialBindings.Any(binding =>
-                !binding.Resolved &&
-                binding.Renderer != null &&
-                !binding.Renderer.IsDestroyed &&
-                binding.Renderer.Slot != null &&
-                !binding.Renderer.Slot.IsDestroyed &&
-                (itemRoot == null || binding.Renderer.Slot.IsChildOf(itemRoot, true)) &&
+                IsPendingMissingBinding(binding, itemRoot) &&
                 candidates.Contains(binding.MaterialGuid))) return true;
         return MissingTextureAssignments.CanResolveAny(candidates);
     }

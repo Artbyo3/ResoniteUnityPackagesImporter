@@ -134,7 +134,8 @@ internal static class LilToonMaterialConverter
             if (guid == null) return;
             await owner.AssignTextureAsync(guid, target, multiplyRgbByAlpha:
                 !generic && (property == "_EmissionMap" || property == "_MatCapTex"),
-                normalMap: property == "_BumpMap" || property == "_Bump2ndMap");
+                normalMap: property == "_BumpMap" || property == "_Bump2ndMap",
+                requiredForCompletion: property == main);
             await default(ToWorld);
             owner.importer.Session?.Check();
             var uv = data.Textures[property];

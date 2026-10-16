@@ -326,10 +326,15 @@ internal sealed class UnityStationHandle
         ui.SetLocalized("outfitContext", $"OUTFIT PREFAB ({items.SelectedIndex + 1} of {items.Count})", $"衣装プレハブ（{items.SelectedIndex + 1} / {items.Count}）");
         ui.SetLocalized(IsOutfit ? "outfitMetricsBody" : "avatarMetricsBody", Escape(BuildReceipt(Current)), Escape(BuildReceipt(Current, true)));
         RebuildPreview();
-        if (dependencies != null && !dependencies.IsWaiting)
+        if (dependencies != null && !dependencies.IsWaiting && !dependencies.IsDismissed)
         {
             bool hasMissing = importer.GetMissingMaterialSummary(Current?.CurrentStructureRootSlot).HasMissingAssets;
             SetCompanionState(hasMissing, false);
+        }
+        else if (dependencies == null && importer != null && importer.GetMissingMaterialSummary(Current?.CurrentStructureRootSlot).HasMissingAssets)
+        {
+            dependencies = new MaterialDependencySession(importer, this);
+            SetCompanionState(true, false);
         }
         SetActions(true);
     }
@@ -499,10 +504,12 @@ internal sealed class UnityStationHandle
     internal void SetCompanionState(bool visible, bool waiting, string english = null, string japanese = null)
     {
         if (!IsAlive) return;
-        if (visible && english != null)
+        if (visible)
         {
-            string title = "<b>" + Escape(english) + "</b>";
-            string localizedTitle = "<b>" + Escape(japanese ?? english) + "</b>";
+            if (dependencies == null && importer != null)
+                dependencies = new MaterialDependencySession(importer, this);
+            string title = "<b>" + Escape(english ?? "Waiting for package") + "</b>";
+            string localizedTitle = "<b>" + Escape(japanese ?? english ?? "パッケージを待機中") + "</b>";
             decisionPrompt.Show(
                 new DecisionPromptDefinition(
                     new(title, localizedTitle),
@@ -517,7 +524,7 @@ internal sealed class UnityStationHandle
                 () => { dependencies?.Back(); return Task.CompletedTask; });
             decisionPrompt.SetState(true, waiting);
         }
-        else decisionPrompt.SetState(visible, waiting);
+        else decisionPrompt.SetState(false, waiting);
     }
     internal void RefreshMaterials() { if (IsAlive) RebuildPreview(); }
     private async Task CloseAsync()

@@ -78,7 +78,7 @@ internal static class MaterialDependencyDiagnostics
         var missingTextures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var guid in unresolvedTextureGuids ?? Array.Empty<string>())
         {
-            if (string.IsNullOrWhiteSpace(guid)) continue;
+            if (string.IsNullOrWhiteSpace(guid) || IsBuiltinOrEmptyGuid(guid) || available.Contains(guid)) continue;
             missing.Add(guid);
             missingTextures.Add(guid);
             missingReferences++;

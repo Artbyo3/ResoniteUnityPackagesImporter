@@ -110,6 +110,7 @@ internal sealed class MaterialDependencySession
     private int generation;
     public World World => importer.world;
     public bool IsWaiting { get; private set; }
+    public bool IsDismissed { get; private set; }
     public CancellationToken Token => importer.Session?.Token ?? default;
     public bool IsUsable => !Token.IsCancellationRequested && station.IsAlive && World != null && !World.RootSlot.IsDestroyed;
     public MaterialDependencySession(UnityProjectImporter project, UnityStationHandle handle) { importer = project; station = handle; }
@@ -121,6 +122,7 @@ internal sealed class MaterialDependencySession
     {
         if (applying || !IsUsable) return;
         generation++;
+        IsDismissed = false;
         IsWaiting = true;
         MaterialDependencyCoordinator.BeginWaiting(this);
         station.SetCompanionState(true, true, "Waiting for package", "パッケージを待機中");
@@ -136,6 +138,7 @@ internal sealed class MaterialDependencySession
     {
         generation++;
         IsWaiting = false;
+        IsDismissed = true;
         MaterialDependencyCoordinator.StopWaiting(this);
         station.SetCompanionState(false, false);
     }

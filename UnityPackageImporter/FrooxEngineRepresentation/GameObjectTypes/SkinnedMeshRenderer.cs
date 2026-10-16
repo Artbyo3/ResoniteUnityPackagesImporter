@@ -64,7 +64,18 @@ public class SkinnedMeshRenderer : IUnityObject
                                     this.createdMeshRenderer = newskin.createdMeshRenderer;
                                     this.SourceBlendShapeNames = newskin.SourceBlendShapeNames;
                                     this.materials = new List<FileImportHelperTaskMaterial>(newskin.materials);
-                                    this.m_Materials = new List<SourceObj>(newskin.m_Materials);
+                                    var mergedMaterials = new List<SourceObj>(newskin.m_Materials);
+                                    if (this.m_Materials != null)
+                                    {
+                                        for (int matIdx = 0; matIdx < this.m_Materials.Count; matIdx++)
+                                        {
+                                            while (mergedMaterials.Count <= matIdx)
+                                                mergedMaterials.Add(new SourceObj());
+                                            if (!string.IsNullOrEmpty(this.m_Materials[matIdx]?.guid))
+                                                mergedMaterials[matIdx] = this.m_Materials[matIdx];
+                                        }
+                                    }
+                                    this.m_Materials = mergedMaterials;
                                     UnityPackageImporter.Warn("assigned skinned mesh renderer \"" + newskin.createdMeshRenderer.Slot.Name + "\" some properties from one already created by a prefab.");
                                 }
                                 catch (Exception)
@@ -250,6 +261,7 @@ public class SkinnedMeshRenderer : IUnityObject
                     if (importer.unityProjectImporter.AssetIDDict.ContainsKey(material.guid))
                     {
                         await default(ToWorld);
+                        importer.unityProjectImporter.ClearMissingMaterial(FoundMesh, i);
                         string filemat = importer.unityProjectImporter.AssetIDDict[material.guid];
                         try
                         {
@@ -268,6 +280,7 @@ public class SkinnedMeshRenderer : IUnityObject
                     else if (MaterialDependencyDiagnostics.IsBuiltinResource(material.guid, material.type))
                     {
                         await default(ToWorld);
+                        importer.unityProjectImporter.ClearMissingMaterial(FoundMesh, i);
                         UnityPackageImporter.Msg("Importing a material at index \"" + i + "\" on skinnedmeshrenderer named \"" + FoundMesh.Slot.Name + "\" is a built-in Unity resource (type " + material.type + ", guid " + material.guid + "). Using fallback material without reporting missing package dependency.");
                         try
                         {

@@ -11,23 +11,31 @@ namespace UnityPackageImporter.Models;
 internal sealed class PendingAssetAssignments<TAsset> where TAsset : class
 {
     private sealed record Assignment(string AssetGuid, Func<Task<TAsset>> Load,
-        Func<TAsset, CancellationToken, Task<bool>> Apply);
+        Func<TAsset, CancellationToken, Task<bool>> Apply, bool Required);
     private readonly object sync = new();
     private readonly Dictionary<object, Assignment> assignments = new(ReferenceEqualityComparer.Instance);
 
-    public string[] MissingAssetGuids
+    public string[] MissingAssetGuids => GetMissingAssetGuids();
+
+    public string[] GetMissingAssetGuids(Func<object, bool> targetFilter = null)
     {
-        get { lock (sync) return assignments.Values.Select(value => value.AssetGuid).ToArray(); }
+        lock (sync)
+        {
+            return assignments
+                .Where(pair => pair.Value.Required && (targetFilter == null || targetFilter(pair.Key)))
+                .Select(pair => pair.Value.AssetGuid)
+                .ToArray();
+        }
     }
 
     public void Register(object target, string assetGuid, Func<Task<TAsset>> load,
-        Func<TAsset, CancellationToken, Task<bool>> apply)
+        Func<TAsset, CancellationToken, Task<bool>> apply, bool required = true)
     {
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(load);
         ArgumentNullException.ThrowIfNull(apply);
         if (string.IsNullOrWhiteSpace(assetGuid)) throw new ArgumentException("Missing asset GUID.", nameof(assetGuid));
-        lock (sync) assignments[target] = new Assignment(assetGuid, load, apply);
+        lock (sync) assignments[target] = new Assignment(assetGuid, load, apply, required);
     }
 
     public bool CanResolveAny(IEnumerable<string> availableGuids)
