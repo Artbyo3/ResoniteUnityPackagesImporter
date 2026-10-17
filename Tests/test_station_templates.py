@@ -4,6 +4,7 @@ import importlib.util
 import json
 import tempfile
 import unittest
+from unittest import mock
 import zipfile
 from pathlib import Path
 
@@ -15,6 +16,11 @@ spec.loader.exec_module(bundle)
 
 class StationBundleTests(unittest.TestCase):
     def setUp(self):
+        # These tests isolate ZIP sealing; typed native reference fixtures are
+        # exercised by UITemplateTool --test-validation using the engine schema.
+        patch = mock.patch.object(bundle, 'validate_native_packages')
+        self.native_validator = patch.start()
+        self.addCleanup(patch.stop)
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.directory = Path(self.temp.name)
@@ -66,6 +72,14 @@ class StationBundleTests(unittest.TestCase):
         self.assertFalse((self.directory / 'manifest.json').exists())
         self.assertFalse(self.backups.exists())
 
+    def test_dangling_native_references_leave_exports_and_manifest_untouched(self):
+        self.native_validator.side_effect = ValueError('Image.Sprite references missing object')
+        before = {p.name: p.read_bytes() for p in self.directory.iterdir()}
+        with self.assertRaisesRegex(ValueError, 'references missing object'):
+            bundle.prepare(self.directory, self.backups)
+        self.assertEqual(before, {p.name: p.read_bytes() for p in self.directory.iterdir()})
+        self.assertFalse(self.backups.exists())
+
     def test_missing_dependencies_are_rejected(self):
         record = self.record()
         record['assetManifest'].append({'hash': '0' * 64, 'bytes': 1})
@@ -100,6 +114,56 @@ class StationBundleTests(unittest.TestCase):
         self.assertEqual(path.read_bytes(), expected)
         self.assertEqual(manifest['templates']['station']['contractSha256'], hashlib.sha256(expected).hexdigest())
         self.assertNotIn(b'\r\n', (self.directory / 'manifest.json').read_bytes())
+
+    def test_shared_secondary_assets_are_deduplicated_and_rehydrated_on_single_package_reexport(self):
+        shared_font = b'shared cjk font payload' * 50
+        shared_hash = hashlib.sha256(shared_font).hexdigest()
+        station_main = b'station root bson v1'
+        station_hash = hashlib.sha256(station_main).hexdigest()
+        pre_main = b'pre-import root bson v1'
+        pre_hash = hashlib.sha256(pre_main).hexdigest()
+
+        def make_pkg(name, main_bytes, main_hash):
+            rec = {
+                'id': 'R-Main', 'ownerId': 'private-id', 'ownerName': 'private-name',
+                'assetUri': 'packdb:///' + main_hash, 'path': '/private',
+                'migrationMetadata': None,
+                'assetManifest': [
+                    {'hash': main_hash, 'bytes': len(main_bytes)},
+                    {'hash': shared_hash, 'bytes': len(shared_font)},
+                ],
+            }
+            with zipfile.ZipFile(self.directory / (name + '.resonitepackage'), 'w') as zf:
+                zf.writestr('Assets/' + main_hash, main_bytes)
+                zf.writestr('Assets/' + shared_hash, shared_font)
+                zf.writestr('R-Main.record', json.dumps(rec))
+
+        make_pkg('station', station_main, station_hash)
+        make_pkg('pre-import', pre_main, pre_hash)
+        bundle.prepare(self.directory, self.backups)
+
+        with zipfile.ZipFile(self.directory / 'pre-import.ResonitePackage') as pre_zip:
+            self.assertIn('Assets/' + pre_hash, pre_zip.namelist())
+            self.assertNotIn('Assets/' + shared_hash, pre_zip.namelist())
+
+        # Simulate re-exporting ONLY station.resonitepackage in-world while pre-import is already deduplicated.
+        station_main_v2 = b'station root bson v2 after in-world UI edit'
+        station_hash_v2 = hashlib.sha256(station_main_v2).hexdigest()
+        (self.directory / 'station.ResonitePackage').unlink()
+        make_pkg('station', station_main_v2, station_hash_v2)
+
+        def assert_both_standalone_during_native_validation(packages, _game_dir=None):
+            for pkg_path in packages:
+                with zipfile.ZipFile(pkg_path) as zf:
+                    self.assertIn('Assets/' + shared_hash, zf.namelist())
+
+        self.native_validator.side_effect = assert_both_standalone_during_native_validation
+        manifest = bundle.prepare(self.directory, self.backups)
+        self.assertIn('station', manifest['templates'])
+        self.assertIn('pre-import', manifest['templates'])
+        with zipfile.ZipFile(self.directory / 'pre-import.ResonitePackage') as pre_zip:
+            self.assertIn('Assets/' + pre_hash, pre_zip.namelist())
+            self.assertNotIn('Assets/' + shared_hash, pre_zip.namelist())
 
 
 if __name__ == '__main__':

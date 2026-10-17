@@ -1347,6 +1347,43 @@ Test("Bundled UI rejects corrupted assets and unsafe cache paths", () => InTemp(
     Check(Path.GetDirectoryName(TemplateIntegrity.SafeCacheFile(root, hash)) == Path.GetFullPath(root), "Cache write must stay inside the cache directory");
 }));
 
+Test("Bundled UI reconstructs shared secondary assets and verifies hashes", () =>
+{
+    byte[] mainBytes = Encoding.UTF8.GetBytes("pre-import main bson");
+    string mainHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(mainBytes)).ToLowerInvariant();
+    byte[] sharedBytes = Encoding.UTF8.GetBytes("shared font payload");
+    string sharedHash = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(sharedBytes)).ToLowerInvariant();
+
+    byte[] MakeZip(params (string Name, byte[] Data)[] entries)
+    {
+        using var ms = new MemoryStream();
+        using (var zip = new System.IO.Compression.ZipArchive(ms, System.IO.Compression.ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var (name, data) in entries)
+            {
+                var entry = zip.CreateEntry(name);
+                using var s = entry.Open();
+                s.Write(data, 0, data.Length);
+            }
+        }
+        return ms.ToArray();
+    }
+
+    string recordJson = $$"""{"id":"R-Main","assetUri":"packdb:///{{mainHash}}","assetManifest":[{"hash":"{{mainHash}}","bytes":{{mainBytes.Length}}},{"hash":"{{sharedHash}}","bytes":{{sharedBytes.Length}}}]}""";
+    byte[] deduplicatedPreImport = MakeZip(
+        ("R-Main.record", Encoding.UTF8.GetBytes(recordJson)),
+        ("Assets/" + mainHash, mainBytes));
+    byte[] stationDonor = MakeZip(
+        ("Assets/" + sharedHash, sharedBytes));
+
+    byte[] standalone = TemplateIntegrity.EnsureStandalonePackage(deduplicatedPreImport, () => stationDonor);
+    Check(ReferenceEquals(standalone, TemplateIntegrity.EnsureStandalonePackage(standalone, null!)),
+        "Already standalone package should be returned without invoking shared source");
+    byte[] tamperedDonor = MakeZip(
+        ("Assets/" + sharedHash, Encoding.UTF8.GetBytes("tampered payload!!")));
+    Throws<InvalidDataException>(() => TemplateIntegrity.EnsureStandalonePackage(deduplicatedPreImport, () => tamperedDonor));
+});
+
 Test("UI contracts reject unsupported schemas and ambiguous path escapes", () =>
 {
     TemplateContract Parse(string json) { using var data = new MemoryStream(Encoding.UTF8.GetBytes(json)); return TemplateContract.Read(data); }
@@ -1443,6 +1480,7 @@ MaterialRecoveryTests.Register(Test);
 MaterialCustomizationTests.Register(Test);
 ImportFailureReportTests.Register(Test);
 ReusableDecisionPromptTests.Register(Test);
+LocalizationManagerTests.Register(Test);
 InitialToggleBindingTests.Register(Test);
 
 AvatarViewpointTests.Register(Test);

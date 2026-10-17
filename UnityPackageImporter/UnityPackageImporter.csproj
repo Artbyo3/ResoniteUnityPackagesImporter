@@ -15,6 +15,7 @@
   <ItemGroup>
     <None Include="../THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="UI/Templates/*.json;UI/Templates/*.ResonitePackage" LogicalName="UnityPackageImporter.UI.Templates.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="../localization/station/*.json" LogicalName="UnityPackageImporter.Localization.%(Filename)%(Extension)" />
     <PackageReference Include="Krafs.Publicizer" Version="2.2.1" PrivateAssets="all" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
   </ItemGroup>

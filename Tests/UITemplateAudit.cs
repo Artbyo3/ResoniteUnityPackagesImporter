@@ -28,6 +28,15 @@ internal static class UITemplateAudit
                 var reader = section.GetReader(checked((int)resource.Offset), section.Length - checked((int)resource.Offset));
                 resources.Add(metadata.GetString(resource.Name), reader.ReadBytes(reader.ReadInt32()));
             }
+            foreach (string loc in new[] { "en", "ja" })
+            {
+                string locKey = "UnityPackageImporter.Localization." + loc + ".json";
+                if (!resources.TryGetValue(locKey, out var locBytes))
+                    throw new InvalidDataException("Missing embedded localization resource: " + loc);
+                using var locDoc = JsonDocument.Parse(locBytes);
+                if (!locDoc.RootElement.TryGetProperty("localeCode", out var code) || code.GetString() != loc)
+                    throw new InvalidDataException("Embedded localization resource has invalid localeCode: " + loc);
+            }
             byte[] Get(string name) => resources["UnityPackageImporter.UI.Templates." + name];
             var manifestBytes = Get("manifest.json");
             if (!manifestBytes.SequenceEqual(File.ReadAllBytes(Path.Combine(templateDirectory, "manifest.json"))))
@@ -44,7 +53,8 @@ internal static class UITemplateAudit
                 var contract = TemplateContract.Read(contractStream);
                 if (contract.TemplateVersion != manifest.Version)
                     throw new InvalidDataException("Embedded UI contract version mismatch.");
-                using var packageStream = new MemoryStream(package);
+                byte[] standalone = TemplateIntegrity.EnsureStandalonePackage(package, () => Get("station.ResonitePackage"));
+                using var packageStream = new MemoryStream(standalone);
                 using var zip = new ZipArchive(packageStream, ZipArchiveMode.Read);
                 using var recordStream = zip.GetEntry("R-Main.record")!.Open();
                 using var record = JsonDocument.Parse(recordStream);

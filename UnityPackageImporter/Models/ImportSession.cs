@@ -120,6 +120,10 @@ internal sealed class ImportSession
             Root.DestroyPreservingAssets();
         if (retainedAssets && !Assets.IsDestroyed && !world.RootSlot.IsDestroyed)
             Assets.DestroyPreservingAssets();
+        if (uiRoot != null && !uiRoot.IsDestroyed && !world.RootSlot.IsDestroyed)
+            uiRoot.Destroy();
+        if (uiHost != null && !uiHost.IsDestroyed && !world.RootSlot.IsDestroyed)
+            uiHost.Destroy();
     }
 
     private void Unsubscribe()

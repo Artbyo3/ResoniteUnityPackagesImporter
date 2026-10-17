@@ -81,8 +81,9 @@ internal static class PackageImportCoordinator
         session?.Check();
         if (imports.Count == 0 && station != null)
         {
-            station.ShowEmptyPackage(Path.GetFileName(packages[0]));
             await station.CompleteSuccessAsync();
+            session?.Check();
+            station.ShowEmptyPackage(Path.GetFileName(packages[0]));
         }
         if (Config.GetValue(dumpPackageContents))
         {
@@ -169,7 +170,7 @@ internal static class PackageImportCoordinator
             }
             session = new ImportSession(assets);
             station = await UnityStationBuilder.BuildStationAsync(world, position, rotation, session);
-            station.UpdateProgress(0f, "Extracting Unity package", "Unity パッケージを展開中", Path.GetFileName(files[0]), 0, files.Count);
+            station.UpdateProgress(0f, LocalizationManager.GetEnglish("extractingPackage"), LocalizationManager.GetJapanese("extractingPackage"), Path.GetFileName(files[0]), 0, files.Count);
             prompt.Close();
             using (session.Enter())
                 await ExtractAndImportAsync(files, session.Staging, world, station, session);

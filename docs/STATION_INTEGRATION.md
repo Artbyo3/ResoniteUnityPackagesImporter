@@ -6,25 +6,32 @@ The approved native station and pre-import prompt are the visual source of truth
 
 The C# loader and controllers have been implemented. The baseline source is recoverable at local commit `0387424`. Compile checks and regression checks are separate from native runtime validation.
 
-The native exports were supplied and bundled on 2026-09-30 as template version `1.0.1`. The first installed candidate failed before extraction while loading the pre-import prompt. The engine imports the saved root into the supplied slot; the loader incorrectly searched only that slot's descendants. The corrected loader keeps an inactive wrapper, imports into a dedicated child, and validates that child itself before resolving the controls. It also captures native import failures through `IProgressIndicator`, because the engine can report a failure without throwing. Both UI packages remain unchanged. The corrected Release build passes; a new in-game run is still required to validate the mod-generated station and its controls.
+The current bundle is template version `1.0.5`, built from fresh native **Resonite Package (+variants)** exports of both prototypes. All native object, asset, and variant payloads are byte-identical to the supplied exports; preparation changed only record account metadata. Original exports are hash-verified and backed up under the ignored `private/ui-export-originals/` directory. All station and prompt bindings resolve, and the Release build and embedded bundle audit pass.
 
-All 99 bindings were checked against the serialized exports. Their object references are internal, all local asset URLs resolve to packaged assets, and both root License components remain present. The retired advanced layout, its 20 obsolete drivers, and 14 obsolete localization targets have been removed from the station package. The old clothing-install context-menu factory is deleted; station installation and optional outfit controls remain. Shared localization drivers retain their live targets. The pre-import filename binding updates the full source used by the approved native fitter, rather than writing to its driven display label.
+The loader imports into an inactive wrapper and validates the imported child itself. Native import failures are captured through `IProgressIndicator`. Runtime controllers drive smooth panel and folder transitions, orient avatar previews and created avatars facing the user, reset failure cards across item navigation while preserving the floor pedestal, and drain active operations before destroying the station root and host on close.
 
-The 74 C# regression tests and six native-bundle preparation checks pass. The `--ui-bundle` audit verifies the actual Release DLL's embedded hashes, contract versions, assets, and stripped account metadata without executing game code. Compilation and structural checks do not replace the runtime checklist below.
+The native package validator checks typed references using the installed engine's field definitions, including top-level asset providers, parent references, duplicate IDs, and packaged asset URLs. It rejects missing providers before preparation can rewrite packages or the manifest; ordinary GUID-shaped text is not mistaken for an object reference. Both root License components remain present. Shared localization drivers retain their live targets. The pre-import filename binding updates the full source used by the approved native fitter, rather than writing to its driven display label.
+
+The 172 C# regression tests and eight native-bundle preparation checks pass. Native validator regressions cover missing/internal/null references, fallback-font lists, literal GUID text, and unbundled/local asset URLs. The `--ui-bundle` audit verifies the actual Release DLL's embedded hashes, contract versions, reconstructed shared assets, and stripped account metadata without executing game code. Compilation and structural checks do not replace the runtime checklist below.
 
 ## Finish the bundle
 
 1. Save the approved station and the approved new pre-import prompt in Resonite.
 2. Use Resonite Files to export each as **Resonite Package (+variants)**, collecting assets. Export only the UI items, without avatar or clothing content.
 3. Put the exports in `UnityPackageImporter/UI/Templates/`, named `station.ResonitePackage` and `pre-import.ResonitePackage`.
-4. Run `python scripts/Prepare-StationTemplates.py`. This validates native ZIP entries and asset hashes, removes account metadata from record files, normalizes extension casing, and atomically writes `manifest.json`. Original exports are copied and hash-verified under the ignored `private/ui-export-originals/` directory before any metadata change. UI object and asset payloads are preserved byte for byte.
-5. Build normally, with no validation bypass. The DLL embeds both packages, both contracts, and the manifest.
+4. Run `python scripts/Prepare-StationTemplates.py`. This single automated script handles the entire preparation and size-optimization pipeline:
+   - Automatically rehydrates any previously deduplicated shared `Assets/<sha256>` entries into a temporary archive before validation, so re-exporting **only** `station.ResonitePackage` or **only** `pre-import.ResonitePackage` works with zero extra steps.
+   - Validates native reference closure against the installed engine and verifies all ZIP entries and SHA-256 asset hashes.
+   - Backs up original exports under the ignored `private/ui-export-originals/` directory, strips account metadata from `.record` files, compresses entries with `ZIP_DEFLATED`, deduplicates secondary `Assets/<sha256>` entries from `pre-import.ResonitePackage` that are already bundled in `station.ResonitePackage`, and atomically writes `manifest.json`.
+5. Build normally, with no validation bypass. The DLL embeds both packages, both contracts, and the manifest, and `StationTemplateLoader` automatically reconstructs the standalone `pre-import.ResonitePackage` in the disk cache at load time.
 6. Test a fresh world without either prototype present. Verify import/raw/cancel, multiple prefabs, created-avatar persistence, clothing installation ownership checks, companion-package matching, both languages, scroll/drag behavior, shader reset, and the approved lifecycle.
 
 Run the offline bundle checks with:
 
 ```text
 python -B -m unittest discover -s Tests -p test_station_templates.py -v
+dotnet run --project Tools/UITemplateTool -- --test-validation "<Resonite installation directory>"
+dotnet run --project Tests/Importer.RegressionTests.csproj
 dotnet run --project Tests/Importer.RegressionTests.csproj -- --ui-bundle UnityPackageImporter/bin/Release/UnityPackageImporter.dll UnityPackageImporter/UI/Templates
 ```
 
@@ -47,7 +54,7 @@ When promoting a UI revision, give both binding contracts the same new `template
 - Extraction begins only after choosing Import Unity Package. Raw-file import bypasses the Unity-package interception; Cancel performs no extraction.
 - Import replaces the prompt only after the station loads successfully. Errors propagate through the actual import task.
 - Prefab progress is aggregated rather than sharing a progress interface that each concurrent prefab can complete independently. `SmoothValue<float>.TargetValue` drives the ring; the visual arc is never written directly.
-- Success holds for 3.5 seconds, then the native card transition and the ring dissolve together. Failure retains its progress until dismissal.
+- Success holds for 3.5 seconds, then the native card transition and ring dissolve together; after the two-second closing interval the entire disclosure hierarchy is hidden. Failure retains its progress and Close access until dismissal.
 - Imported sources are world objects with independent transforms and lifetimes. The pedestal shows a disposable preview copy with grabbing blocked. Creating an avatar activates the independent source. Closing/deleting the station restores remaining sources.
 - Navigation uses the actual imported prefab list. The avatar chooser duplicates the approved row style and text fitting for owned, active rigs; ownership is checked again at installation time.
 - Companion waiting is explicitly armed by its button and tied to that import. Another dropped package becomes a candidate. GUID matching restores materials, mismatches stay in the waiting flow, and Back disarms waiting without losing the import.

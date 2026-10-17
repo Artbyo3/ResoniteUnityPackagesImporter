@@ -22,6 +22,8 @@ internal sealed class UnityStationHandle
     private readonly Dictionary<UnityPrefabImportTask, string> presets = new();
     private readonly SelectableImportItems<UnityPrefabImportTask> items = new();
     private Slot preview, rowTemplate;
+    private BooleanValueDriver<float3> previewScaleDriver;
+    private Slider<float> previewTurntableSlider;
     private BipedRig selectedAvatar;
     private UnityProjectImporter importer;
     private MaterialDependencySession dependencies;
@@ -62,23 +64,33 @@ internal sealed class UnityStationHandle
         Bind("companionPlaceholder", () => decisionPrompt.InvokeSecondaryAsync());
         Bind("shaderAutomatic", () => ChangeShaderAsync("Automatic"));
         Bind("shaderToon", () => ChangeShaderAsync("XiexeToon"));
-        foreach (var copy in ui.Root.GetComponentsInChildren<ValueCopy<bool>>())
-            if (copy.Target.Target == Get<BooleanValueDriver<float3>>("cardScale").State)
-            {
-                copy.Enabled = false;
-                copy.Target.Target = null; // Disabled drivers still hold their field drive.
-            }
         Get<SmoothValue<float>>("arc").Speed.Value = 10f;
         Get<SmoothValue<float>>("arc").WriteBack.Value = false;
         Get<BooleanValueDriver<float2>>("advanced").State.Value = false;
         Get<BooleanValueDriver<bool>>("mode").State.Value = false;
         Get<BooleanValueDriver<bool>>("avatarPicker").State.Value = false;
+        Slot previewSlot = Get<Slot>("preview");
+        previewScaleDriver = previewSlot.GetComponent<BooleanValueDriver<float3>>();
+        Slot dragSurface = RootSlot.FindChild("Avatar Preview Drag Surface");
+        if (dragSurface != null)
+        {
+            previewTurntableSlider = dragSurface.GetComponent<Slider<float>>();
+            var angleMapper = dragSurface.GetComponent<LinearAngleMapper>();
+            if (angleMapper != null)
+            {
+                angleMapper.TargetMin.Value = new float3(0f, 360f, 0f);
+                angleMapper.TargetMax.Value = new float3(0f, 0f, 0f);
+            }
+        }
+        ResetPreviewTurntable();
         Get<ValueField<bool>>("shaderVisible").Value.Value = false;
+        if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletDriver))
+            tabletDriver.State.Value = false;
         SetCompanionState(false, false);
         // The source importer has no Shape Changer handler yet. Expose its actual availability.
         Get<Checkbox>("bodyShape").State.Value = false;
         Get<Checkbox>("bodyShape").Slot.GetComponent<Button>().Enabled = false;
-        ui.SetLocalized("bodyShapeDescription", "Not supported by this importer yet", "このインポーターではまだ未対応です");
+        ui.SetLocalizedKey("bodyShapeDescription", "bodyShapeDescriptionUnsupported");
         SetActions(false);
         rowTemplate = Get<Button>("avatarRow").Slot;
         foreach (var row in rowTemplate.Parent.Children.ToArray()) if (row != rowTemplate) row.Destroy();
@@ -98,6 +110,14 @@ internal sealed class UnityStationHandle
         _ = ui.Root.World.RootSlot.StartGlobalTask(MonitorLifetimeAsync);
     }
     private T Get<T>(string key) where T : class, IWorldElement => ui.Get<T>(key);
+    private void ResetPreviewTurntable()
+    {
+        if (previewTurntableSlider != null && !previewTurntableSlider.IsDestroyed)
+            previewTurntableSlider.Value.Value = 0.5f;
+        Slot previewSlot = Get<Slot>("preview");
+        if (previewSlot != null && !previewSlot.IsDestroyed && !previewSlot.Rotation_Field.IsDriven)
+            previewSlot.LocalRotation = floatQ.Euler(0f, 180f, 0f);
+    }
     private void Bind(string key, Func<Task> action, bool replace = true, bool allowWhileBusy = false)
     {
         Button button = Get<Button>(key);
@@ -147,11 +167,12 @@ internal sealed class UnityStationHandle
         if (!IsAlive) return;
         operationStage = english;
         Get<Slot>("progressPedestal").ActiveSelf = true;
+        Get<Slot>("progressCard").ActiveSelf = true;
         Get<BooleanValueDriver<float3>>("cardScale").State.Value = true;
         Get<BooleanValueDriver<float3>>("cardPosition").State.Value = true;
         Get<SmoothValue<float>>("arc").TargetValue.Value = MathX.Clamp01(value) * 360f;
-        ui.SetLocalized("ready", english, japanese);
-        ui.SetLocalized("loaded", $"Loaded {current} of {total}", $"読み込み済み {current} / {total}");
+        ui.SetLocalized("phase", english, japanese);
+        ui.SetLocalized("loaded", current, total);
         Get<ValueField<int>>("processed").Value.Value = current;
         Get<ValueField<int>>("total").Value.Value = total;
         Get<Text>("progressFile").ParseRichText.Value = false;
@@ -163,7 +184,9 @@ internal sealed class UnityStationHandle
     {
         if (!IsAlive) return;
         progress[task] = Math.Max(progress.GetValueOrDefault(task), MathX.Clamp01(value));
-        UpdateProgress(0.3f + 0.7f * progress.Values.Sum() / progress.Count, "Building prefabs", "プレハブを構築中",
+        UpdateProgress(0.3f + 0.7f * progress.Values.Sum() / progress.Count,
+            LocalizationManager.GetEnglish("buildingPrefabs"),
+            LocalizationManager.GetJapanese("buildingPrefabs"),
             Path.GetFileName(task.ID.Value), progress.Values.Count(p => p >= 1f), progress.Count);
     }
     public void CompleteFailure(Exception error)
@@ -173,12 +196,24 @@ internal sealed class UnityStationHandle
         materialCustomizer?.CloseAll();
         ResetOutcome();
         string reason = ImportFailureReport.Sanitize(error.Message);
-        ui.SetLocalized("failure", "Import failed: " + Escape(reason), "インポート失敗: " + Escape(reason));
+        ui.SetLocalized("phase", operationStage, operationStage);
+        if (Current != null)
+        {
+            Get<Text>("progressFile").ParseRichText.Value = false;
+            Get<Text>("progressFile").Content.Value = names.TryGetValue(Current, out var curName)
+                ? curName
+                : Path.GetFileName(Current.ID.Value);
+        }
+        ui.SetLocalizedKey("failure", "failureReason", Escape(reason));
         Get<ValueField<bool>>("failure").Value.Value = true;
+        Get<Slot>("progressCard").ActiveSelf = true;
         Get<BooleanValueDriver<float3>>("cardScale").State.Value = true;
         Get<BooleanValueDriver<float3>>("cardPosition").State.Value = true;
         Get<SmoothValue<float>>("arc").TargetValue.Value = 0f;
-        Get<Slot>("progressPedestal").ActiveSelf = false;
+        Get<Slot>("progressPedestal").ActiveSelf = true;
+        // Keep the tablet's Close action accessible when import cannot stage.
+        if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletScale))
+            tabletScale.State.Value = true;
         SaveFailureReport(error);
     }
     private void SaveFailureReport(Exception error)
@@ -202,6 +237,7 @@ internal sealed class UnityStationHandle
         if (!IsAlive) return;
         int generation = ++lifecycle;
         ResetOutcome();
+        Get<Slot>("progressCard").ActiveSelf = true;
         Get<ValueField<bool>>("success").Value.Value = true;
         Get<SmoothValue<float>>("arc").TargetValue.Value = 360f;
         await Task.Delay(3500, session.Token);
@@ -213,12 +249,19 @@ internal sealed class UnityStationHandle
         Get<SmoothValue<float>>("arc").TargetValue.Value = 0f;
         await Task.Delay(2000, session.Token);
         await default(ToWorld);
-        if (IsAlive && generation == lifecycle) Get<SmoothValue<float>>("arc").Speed.Value = 10f;
+        if (IsAlive && generation == lifecycle)
+        {
+            // The canvas animation does not include the 3D logo. Retire the
+            // entire disclosure hierarchy after its closing transition.
+            Get<Slot>("progressCard").ActiveSelf = false;
+            Get<SmoothValue<float>>("arc").Speed.Value = 10f;
+        }
     }
     internal async Task StageAsync(UnityProjectImporter project, List<UnityPrefabImportTask> tasks)
     {
         await default(ToWorld);
         if (!IsAlive) return;
+        Get<Slot>("progressCard").ActiveSelf = false;
         importer = project;
         items.Reset(tasks.Where(task => task.CurrentStructureRootSlot != null && !task.CurrentStructureRootSlot.IsDestroyed));
         foreach (var item in items.Entries)
@@ -232,7 +275,11 @@ internal sealed class UnityStationHandle
             ShowEmptyPackage(project.PackageNames.FirstOrDefault() ?? "Package", project.ListOfUnityScenes.Count > 0);
             return;
         }
-        await SelectAsync(0);
+        if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletScale))
+            tabletScale.State.Value = true;
+        // Reset already selects the first entry; its saved name must not be
+        // replaced by the template's example input on this initial display.
+        await SelectAsync(0, saveCurrentName: false);
         if (project.GetMissingMaterialSummary(Current?.CurrentStructureRootSlot).HasMissingAssets)
         {
             dependencies = new MaterialDependencySession(project, this);
@@ -242,11 +289,14 @@ internal sealed class UnityStationHandle
     internal void ShowEmptyPackage(string name, bool scenes = false)
     {
         ready = true;
+        Get<Slot>("progressCard").ActiveSelf = false;
+        if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletScale))
+            tabletScale.State.Value = true;
         Get<Slot>("nameCard").ActiveSelf = false;
         Get<Checkbox>("protect").Slot.Parent.ActiveSelf = false;
         Get<Text>("avatarTitle").Content.Value = "<b>" + Escape(name) + "</b>";
-        ui.SetLocalized("avatarContext", scenes ? "SCENE PACKAGE" : "ASSETS PACKAGE", scenes ? "シーンパッケージ" : "アセットパッケージ");
-        ui.SetLocalized("createAvatar", scenes ? "<b>Scenes Imported</b>" : "<b>No Prefabs Found</b>", scenes ? "<b>シーンをインポートしました</b>" : "<b>プレハブが見つかりません</b>");
+        ui.SetLocalizedKey("avatarContext", scenes ? "scenePackage" : "assetsPackage");
+        ui.SetLocalizedKey("createAvatar", scenes ? "scenesImported" : "noPrefabsFound");
         SetActions(false);
     }
     private async Task MonitorLifetimeAsync()
@@ -309,22 +359,31 @@ internal sealed class UnityStationHandle
             return;
         }
         if (saveCurrentName && Current != null) names[Current] = Get<Text>("name").Content.Value;
+        lifecycle++;
+        ResetOutcome();
+        Get<Slot>("progressPedestal").ActiveSelf = true;
+        Get<BooleanValueDriver<float3>>("cardScale").State.Value = false;
+        Get<BooleanValueDriver<float3>>("cardPosition").State.Value = false;
+        Get<Slot>("progressCard").ActiveSelf = false;
         materialCustomizer?.CloseAll();
         items.Select(index);
+        ResetPreviewTurntable();
+        if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletScale))
+            tabletScale.State.Value = true;
+        if (previewScaleDriver != null && !previewScaleDriver.IsDestroyed)
+            previewScaleDriver.State.Value = true;
         Get<BooleanValueDriver<bool>>("mode").State.Value = IsOutfit;
         Get<Slot>("nameCard").ActiveSelf = true;
         Get<ValueField<bool>>("shaderVisible").Value.Value = false;
         Get<ValueField<string>>("shaderValue").Value.Value = presets[Current];
         Get<Text>("name").Content.Value = names[Current];
         foreach (string key in new[] { "avatarTitle", "outfitTitle" }) Get<Text>(key).Content.Value = "<b>" + Escape(names[Current]) + "</b>";
-        ui.SetLocalized("avatarContext", $"AVATAR PREFAB ({items.SelectedIndex + 1} of {items.Count})", $"アバタープレハブ（{items.SelectedIndex + 1} / {items.Count}）");
-        if (!IsAvatar && !IsOutfit)
-            ui.SetLocalized("avatarContext", $"PREFAB ({items.SelectedIndex + 1} of {items.Count})", $"プレハブ（{items.SelectedIndex + 1} / {items.Count}）");
-        ui.SetLocalized("createAvatar", IsAvatar ? "<b>Create Avatar</b>" : "<b>Keep in World</b>", IsAvatar ? "<b>アバターを作成</b>" : "<b>ワールドに配置</b>");
-        ui.SetLocalized("avatarName", IsAvatar ? "<b>Avatar Name</b>" : "<b>Object Name</b>", IsAvatar ? "<b>アバター名</b>" : "<b>オブジェクト名</b>");
+        ui.SetLocalizedKey("avatarContext", (!IsAvatar && !IsOutfit) ? "prefabContext" : "avatarContext", items.SelectedIndex + 1, items.Count);
+        ui.SetLocalizedKey("outfitContext", "outfitContext", items.SelectedIndex + 1, items.Count);
+        ui.SetLocalizedKey("createAvatar", IsAvatar ? "createAvatar" : "keepInWorld");
+        ui.SetLocalizedKey("avatarName", IsAvatar ? "avatarName" : "objectName");
         Get<Checkbox>("protect").Slot.Parent.ActiveSelf = IsAvatar;
-        ui.SetLocalized("outfitContext", $"OUTFIT PREFAB ({items.SelectedIndex + 1} of {items.Count})", $"衣装プレハブ（{items.SelectedIndex + 1} / {items.Count}）");
-        ui.SetLocalized(IsOutfit ? "outfitMetricsBody" : "avatarMetricsBody", Escape(BuildReceipt(Current)), Escape(BuildReceipt(Current, true)));
+        ui.SetLocalized(IsOutfit ? "outfitMetricsBody" : "avatarMetricsBody", Escape(BuildReceipt(Current)));
         RebuildPreview();
         if (dependencies != null && !dependencies.IsWaiting && !dependencies.IsDismissed)
         {
@@ -346,11 +405,11 @@ internal sealed class UnityStationHandle
         Get<Checkbox>("protect").Slot.Parent.ActiveSelf = false;
         Get<ValueField<bool>>("shaderVisible").Value.Value = false;
         Get<Text>("name").Content.Value = string.Empty;
-        const string completeTitle = "<b>All Items Processed</b>";
+        string completeTitle = "<b>" + Escape(LocalizationManager.GetStringForLocale(CurrentLocale, "allProcessed")) + "</b>";
         Get<Text>("avatarTitle").Content.Value = completeTitle;
         Get<Text>("outfitTitle").Content.Value = completeTitle;
-        ui.SetLocalized("avatarContext", "ALL ITEMS PROCESSED", "すべての項目を処理しました");
-        ui.SetLocalized("outfitContext", "ALL ITEMS PROCESSED", "すべての項目を処理しました");
+        ui.SetLocalizedKey("avatarContext", "allProcessed");
+        ui.SetLocalizedKey("outfitContext", "allProcessed");
         SetCompanionState(false, false);
         SetActions(false);
     }
@@ -398,8 +457,7 @@ internal sealed class UnityStationHandle
             });
         }
         Get<BooleanValueDriver<bool>>("avatarPicker").State.Value = true;
-        ui.SetLocalized("chooseAvatar", candidates.Length == 0 ? "<b>No owned avatars available</b>" : "<b>Choose an Avatar</b>",
-            candidates.Length == 0 ? "<b>自分のアバターが見つかりません</b>" : "<b>アバターを選択</b>");
+        ui.SetLocalizedKey("chooseAvatar", candidates.Length == 0 ? "noOwnedAvatars" : "chooseAvatar");
         return Task.CompletedTask;
     }
     private async Task CreateAvatarAsync()
@@ -422,7 +480,7 @@ internal sealed class UnityStationHandle
             string name = Get<Text>("name").Content.Value;
             envelope.Name = string.IsNullOrWhiteSpace(name) ? names[item] : name.Replace('\r', ' ').Replace('\n', ' ').Replace('\t', ' ').Trim();
             envelope.GlobalPosition = Get<Slot>("preview").GlobalPosition;
-            envelope.GlobalRotation = Get<Slot>("preview").GlobalRotation;
+            envelope.GlobalRotation = RootSlot.GlobalRotation * floatQ.Euler(0f, 180f, 0f);
             if (avatar) await NativeAvatarCreation.CreateAsync(item, envelope, protect, session.Token);
             await default(ToWorld);
             session.Check();
@@ -433,7 +491,20 @@ internal sealed class UnityStationHandle
             sourceConsumed = true;
             if (!items.Consume(item))
                 UnityPackageImporter.Warn("A committed import item was not present in the station's selectable list.");
+
             if (preview != null && !preview.IsDestroyed) preview.Destroy();
+            preview = null;
+            materialCustomizer?.CloseAll();
+            if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletDriver))
+                tabletDriver.State.Value = false;
+            if (previewScaleDriver != null && !previewScaleDriver.IsDestroyed)
+                previewScaleDriver.State.Value = false;
+
+            if (items.Count > 0)
+            {
+                await Task.Delay(260, session.Token);
+                await default(ToWorld);
+            }
         }
         catch
         {
@@ -450,7 +521,17 @@ internal sealed class UnityStationHandle
             busy = false;
             if (IsAlive)
             {
-                if (sourceConsumed) await SelectAsync(items.SelectedIndex, saveCurrentName: false);
+                if (sourceConsumed)
+                {
+                    if (items.Count > 0)
+                    {
+                        await SelectAsync(items.SelectedIndex, saveCurrentName: false);
+                    }
+                    else
+                    {
+                        _ = RootSlot.World.RootSlot.StartGlobalTask(CloseAsync);
+                    }
+                }
                 else SetActions(true);
             }
         }
@@ -508,17 +589,21 @@ internal sealed class UnityStationHandle
         {
             if (dependencies == null && importer != null)
                 dependencies = new MaterialDependencySession(importer, this);
-            string title = "<b>" + Escape(english ?? "Waiting for package") + "</b>";
-            string localizedTitle = "<b>" + Escape(japanese ?? english ?? "パッケージを待機中") + "</b>";
+            string title = "<b>" + Escape(english ?? LocalizationManager.GetEnglish("waiting")) + "</b>";
+            string localizedTitle = "<b>" + Escape(japanese ?? LocalizationManager.GetJapanese("waiting")) + "</b>";
             decisionPrompt.Show(
                 new DecisionPromptDefinition(
                     new(title, localizedTitle),
-                    new("This item is ready, but its materials and textures were not included. The creator may have provided them in a companion Unity package.",
-                        "アイテムの準備はできましたが、マテリアルとテクスチャが含まれていません。作者が別の Unity パッケージで提供している場合があります。"),
-                    new("Companion package not found", "追加パッケージが見つかりません"),
-                    new("Import Companion Package", "追加パッケージをインポート"),
-                    new("Continue with Placeholder Materials", "仮のマテリアルで続行"),
-                    new("Back", "戻る")),
+                    new(LocalizationManager.GetEnglish("companionDescription"),
+                        LocalizationManager.GetJapanese("companionDescription")),
+                    new(LocalizationManager.GetEnglish("companionMissing"),
+                        LocalizationManager.GetJapanese("companionMissing")),
+                    new(LocalizationManager.GetEnglish("importCompanion"),
+                        LocalizationManager.GetJapanese("importCompanion")),
+                    new(LocalizationManager.GetEnglish("placeholderMaterials"),
+                        LocalizationManager.GetJapanese("placeholderMaterials")),
+                    new(LocalizationManager.GetEnglish("back"),
+                        LocalizationManager.GetJapanese("back"))),
                 () => { dependencies?.BeginWaiting(); return Task.CompletedTask; },
                 () => { dependencies?.Continue(); return Task.CompletedTask; },
                 () => { dependencies?.Back(); return Task.CompletedTask; });
@@ -535,25 +620,41 @@ internal sealed class UnityStationHandle
         using (session.Enter())
         {
             _ = session.CancelAsync();
+            if (preview != null && !preview.IsDestroyed) preview.Destroy();
+            preview = null;
             Get<SmoothValue<float>>("arc").TargetValue.Value = 0f;
             Get<SmoothValue<float>>("arc").Speed.Value = 3f;
             Get<BooleanValueDriver<float3>>("cardScale").State.Value = false;
             Get<BooleanValueDriver<float3>>("cardPosition").State.Value = false;
-            await Task.Delay(2000);
+            if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletScale))
+                tabletScale.State.Value = false;
+            if (previewScaleDriver != null && !previewScaleDriver.IsDestroyed)
+                previewScaleDriver.State.Value = false;
+            await Task.Delay(1000);
             await default(ToWorld);
         }
         await session.CleanupAsync();
+        await default(ToWorld);
+        if (ui.Root != null && !ui.Root.IsDestroyed)
+            ui.Root.Destroy();
+        if (ui.Host != null && !ui.Host.IsDestroyed)
+            ui.Host.Destroy();
     }
-    private string BuildReceipt(UnityPrefabImportTask item, bool japanese = false) =>
-        (japanese ? "プレハブ: " : "Prefab: ") + Path.GetFileName(item.ID.Value) +
-        (japanese ? "\nインポートしたオブジェクト: " : "\nImported objects: ") + (item.existingIUnityObjects?.Count ?? 0) +
-        (japanese ? "\nメッシュレンダラー: " : "\nMesh renderers: ") + item.CurrentStructureRootSlot.GetComponentsInChildren<SkinnedMeshRenderer>().Count +
-        (japanese ? "\n不足しているマテリアル: " : "\nMissing materials: ") + importer.GetMissingMaterialSummary(item?.CurrentStructureRootSlot).MissingAssetCount +
-        (japanese ? "\n検出した Modular Avatar コンポーネント: " : "\nModular Avatar components detected: ") + (item.Manifest?.ModularAvatarComponents.Count ?? 0) +
-        (japanese ? "\nUI テンプレート: " : "\nUI template: ") + ui.Version +
-        (japanese ? "\nShape Changer と Blendshape Sync の変換: 未対応" : "\nShape Changer and Blendshape Sync translation: not supported");
+    private string BuildReceipt(UnityPrefabImportTask item, string locale = null)
+    {
+        string loc = locale ?? CurrentLocale;
+        return LocalizationManager.GetStringForLocale(loc, "receiptPrefab", Path.GetFileName(item.ID.Value)) + "\n" +
+            LocalizationManager.GetStringForLocale(loc, "receiptImportedObjects", item.existingIUnityObjects?.Count ?? 0) + "\n" +
+            LocalizationManager.GetStringForLocale(loc, "receiptMeshRenderers", item.CurrentStructureRootSlot.GetComponentsInChildren<SkinnedMeshRenderer>().Count) + "\n" +
+            LocalizationManager.GetStringForLocale(loc, "receiptMissingMaterials", importer.GetMissingMaterialSummary(item?.CurrentStructureRootSlot).MissingAssetCount) + "\n" +
+            LocalizationManager.GetStringForLocale(loc, "receiptModularAvatar", item.Manifest?.ModularAvatarComponents.Count ?? 0) + "\n" +
+            LocalizationManager.GetStringForLocale(loc, "receiptUiTemplate", ui.Version) + "\n" +
+            LocalizationManager.GetStringForLocale(loc, "receiptShapeChanger");
+    }
+    private string CurrentLocale => LocalizationManager.DetectLocaleCode();
+
     private void SaveReceipt(Slot output, UnityPrefabImportTask item) =>
-        output.AddSlot("Unity Import Receipt").AttachComponent<ValueField<string>>().Value.Value = BuildReceipt(item, ui.Locale("ready").First().State.Value);
+        output.AddSlot("Unity Import Receipt").AttachComponent<ValueField<string>>().Value.Value = BuildReceipt(item);
     private static string Escape(string value) => (value ?? "").Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
 }
 

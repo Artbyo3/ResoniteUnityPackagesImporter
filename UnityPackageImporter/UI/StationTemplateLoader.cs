@@ -7,6 +7,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using Elements.Core;
 using FrooxEngine;
+using FrooxEngine.UIX;
 
 namespace UnityPackageImporter.UI;
 
@@ -66,17 +67,55 @@ internal sealed class StationTemplate
         bindings.TryGetValue(key, out var value) && value is T typed
             ? typed : throw new InvalidDataException("UI binding has the wrong type: " + key);
 
-    public IEnumerable<BooleanValueDriver<string>> Locale(string key) =>
+    public bool TryGet<T>(string key, out T result) where T : class, IWorldElement
+    {
+        if (bindings.TryGetValue(key, out var value) && value is T typed)
+        {
+            result = typed;
+            return true;
+        }
+        result = null;
+        return false;
+    }
+
+    public IEnumerable<IWorldElement> Locale(string key) =>
         bindings.Where(pair => pair.Key.StartsWith("locale." + key + ".", StringComparison.Ordinal))
-            .Select(pair => (BooleanValueDriver<string>)pair.Value);
+            .Select(pair => pair.Value);
+
+    public void SetLocalized(string key, string text)
+    {
+        foreach (var element in Locale(key))
+        {
+            if (element is Text label)
+            {
+                label.Content.Value = text;
+            }
+            else if (element is BooleanValueDriver<string> driver)
+            {
+                if (key.Equals("complete", StringComparison.OrdinalIgnoreCase))
+                    driver.FalseValue.Value = text;
+                else
+                    driver.TrueValue.Value = text;
+            }
+        }
+    }
 
     public void SetLocalized(string key, string english, string japanese)
     {
-        foreach (var driver in Locale(key))
-        {
-            driver.FalseValue.Value = english;
-            driver.TrueValue.Value = japanese;
-        }
+        string text = LocalizationManager.DetectLocaleCode() == "ja" ? japanese : english;
+        SetLocalized(key, text);
+    }
+
+    public void SetLocalized(string key, params object[] args)
+    {
+        string text = LocalizationManager.GetString(key, args);
+        SetLocalized(key, text);
+    }
+
+    public void SetLocalizedKey(string driverKey, string messageKey, params object[] args)
+    {
+        string text = LocalizationManager.GetString(messageKey, args);
+        SetLocalized(driverKey, text);
     }
 
     private static string FriendlyType(Type type)
@@ -98,6 +137,7 @@ internal static class StationTemplateLoader
     {
         byte[] package, contractData;
         string packageHash;
+        Func<byte[]> getSharedSource;
         await default(ToBackground);
         string devDirectory = UnityPackageImporter.Config.GetValue(UnityPackageImporter.uiTemplateDevelopmentDirectory);
         if (!string.IsNullOrWhiteSpace(devDirectory))
@@ -106,6 +146,7 @@ internal static class StationTemplateLoader
             package = await File.ReadAllBytesAsync(Path.Combine(devDirectory, name + ".ResonitePackage"));
             contractData = await File.ReadAllBytesAsync(Path.Combine(devDirectory, name + ".bindings.json"));
             packageHash = Convert.ToHexString(SHA256.HashData(package));
+            getSharedSource = () => File.ReadAllBytes(Path.Combine(devDirectory, "station.ResonitePackage"));
         }
         else
         {
@@ -118,7 +159,17 @@ internal static class StationTemplateLoader
             TemplateIntegrity.Verify(package, hashes.PackageSha256);
             TemplateIntegrity.Verify(contractData, hashes.ContractSha256);
             packageHash = hashes.PackageSha256;
+            getSharedSource = () =>
+            {
+                if (!manifest.Templates.TryGetValue("station", out var stationHashes))
+                    throw new InvalidDataException("Missing station UI bundle in manifest.");
+                byte[] stationBytes = ReadResource("station.ResonitePackage");
+                TemplateIntegrity.Verify(stationBytes, stationHashes.PackageSha256);
+                return stationBytes;
+            };
         }
+        byte[] standalonePackage = TemplateIntegrity.EnsureStandalonePackage(package, getSharedSource);
+        string standaloneHash = Convert.ToHexString(SHA256.HashData(standalonePackage));
         using var contractStream = new MemoryStream(contractData);
         var contract = TemplateContract.Read(contractStream);
         string directory = Path.Combine(Engine.Current.CachePath, "UnityPackageImporter", "UITemplates");
@@ -128,13 +179,13 @@ internal static class StationTemplateLoader
         {
             Directory.CreateDirectory(directory);
             bool valid = File.Exists(cached) && Convert.ToHexString(SHA256.HashData(await File.ReadAllBytesAsync(cached)))
-                .Equals(packageHash, StringComparison.OrdinalIgnoreCase);
+                .Equals(standaloneHash, StringComparison.OrdinalIgnoreCase);
             if (!valid)
             {
                 string temporary = cached + "." + Guid.NewGuid().ToString("N") + ".tmp";
                 try
                 {
-                    await File.WriteAllBytesAsync(temporary, package);
+                    await File.WriteAllBytesAsync(temporary, standalonePackage);
                     File.Move(temporary, cached, true);
                 }
                 finally { if (File.Exists(temporary)) File.Delete(temporary); }
@@ -164,6 +215,19 @@ internal static class StationTemplateLoader
             template.Root.GlobalRotation = rotation;
             // Preserve the template's authored scale; native import handles asset dependencies.
             template.Root.PersistentSelf = false;
+
+            // Runtime selection/progress fills parameterized labels later. Clear
+            // their saved placeholder patterns before making the package visible.
+            string activeLocale = LocalizationManager.DetectLocaleCode();
+            foreach (string baseKey in contract.Bindings.Keys
+                .Where(key => key.StartsWith("locale.", StringComparison.Ordinal))
+                .Select(key => key.Split('.')[1]).Distinct(StringComparer.Ordinal))
+            {
+                string messageKey = baseKey == "phase" ? "ready" : baseKey;
+                LocalizationManager.TryGetStaticStringForLocale(activeLocale, messageKey, out string localizedText);
+                template.SetLocalized(baseKey, localizedText);
+            }
+
             host.ActiveSelf = true;
             UnityPackageImporter.Msg("Loaded bundled " + name + " UI " + contract.TemplateVersion + " (" + contract.Bindings.Count + " bindings).");
             return template;

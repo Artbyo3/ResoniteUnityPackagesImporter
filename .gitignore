@@ -356,6 +356,8 @@ scripts/*
 /local-data/
 /test-packages/
 /evidence/
+/*HANDOFF*.md
+/RESONITE_LINK_WORKFLOW.md
 *.unitypackage
 *.fbx
 *.blend

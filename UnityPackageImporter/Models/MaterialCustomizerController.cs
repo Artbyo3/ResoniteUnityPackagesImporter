@@ -43,6 +43,8 @@ internal sealed class MaterialCustomizerController
     private readonly Slot folderChoiceRootTemplate;
     private readonly Slot folderChoiceTemplate;
     private readonly Button folderNavUp;
+    private readonly Sync<bool>? folderCanGoUp;
+    private readonly Sync<int>? folderBrowseIndex;
     private readonly Text breadcrumbPath;
     private readonly BooleanValueDriver<bool> folderPickerVisible;
     private readonly Text meshCountText;
@@ -70,6 +72,8 @@ internal sealed class MaterialCustomizerController
     private string materialQuery = "";
     private string currentFolder = "";
     private string browsedFolder = "";
+    private string lastBrowsedFolder = "";
+    private int lastBrowseDepthIndex;
     private MaterialSlotBinding selectedSlot;
     private MaterialRendererBinding expandedRenderer;
     private readonly HashSet<string> expandedRendererNames = new(StringComparer.OrdinalIgnoreCase);
@@ -108,7 +112,7 @@ internal sealed class MaterialCustomizerController
             {
                 if (directText != null && !directText.IsDestroyed)
                 {
-                    directText.Content.Value = value;
+                    if (!directText.Content.IsDriven) directText.Content.Value = value;
                     directText.Enabled = false;
                     directText.InteractionTarget.Value = false;
                 }
@@ -116,7 +120,7 @@ internal sealed class MaterialCustomizerController
                 {
                     if (childText == null || childText.IsDestroyed) continue;
                     childText.ParseRichText.Value = true;
-                    childText.Content.Value = value;
+                    if (!childText.Content.IsDriven) childText.Content.Value = value;
                     childText.Enabled = true;
                     childText.InteractionTarget.Value = false;
                 }
@@ -124,7 +128,7 @@ internal sealed class MaterialCustomizerController
             else if (directText != null && !directText.IsDestroyed)
             {
                 directText.ParseRichText.Value = false;
-                directText.Content.Value = value;
+                if (!directText.Content.IsDriven) directText.Content.Value = value;
                 directText.Enabled = true;
                 directText.InteractionTarget.Value = false;
             }
@@ -162,7 +166,7 @@ internal sealed class MaterialCustomizerController
     {
         public required Slot Row;
         public FittedTextBinding? Label;
-        public Func<Task>? CurrentAction;
+        public Action? CurrentAction;
     }
 
     private readonly List<NativeMeshCardHolder> nativeCards = new();
@@ -249,8 +253,6 @@ internal sealed class MaterialCustomizerController
                 if (child != materialRowTemplate) child.Destroy();
             }
 
-            UnhookActiveSelfDrivers(mainRowTemplate);
-            UnhookActiveSelfDrivers(materialRowTemplate);
             StripMaterialCardFixtureDrivers(materialRowTemplate);
             mainRowTemplate.ActiveSelf = false;
             materialRowTemplate.ActiveSelf = false;
@@ -281,7 +283,6 @@ internal sealed class MaterialCustomizerController
                 }
                 if (children.Count > 0)
                 {
-                    UnhookActiveSelfDrivers(children[0]);
                     children[0].ActiveSelf = false;
                 }
             }
@@ -338,6 +339,37 @@ internal sealed class MaterialCustomizerController
                 });
             }
 
+            foreach (var mux in customizerPreview.GetComponents<ValueMultiplexer<string>>())
+            {
+                mux.Target.Target = null;
+                mux.Enabled = false;
+            }
+            foreach (var mux in customizerPreview.GetComponents<ValueMultiplexer<int>>())
+            {
+                mux.Target.Target = null;
+                mux.Enabled = false;
+            }
+            foreach (var eq in customizerPreview.GetComponents<ValueEqualityDriver<int>>())
+            {
+                eq.Target.Target = null;
+                eq.Enabled = false;
+            }
+            foreach (var vmd in customizerPreview.GetComponents<ValueMultiDriver<bool>>())
+            {
+                vmd.Drives.Clear();
+                vmd.Enabled = false;
+            }
+            var browseDriver = customizerPreview.GetComponent<ValueMultiDriver<int>>();
+            if (browseDriver != null)
+            {
+                browseDriver.Drives.Clear();
+                folderBrowseIndex = browseDriver.Value;
+                folderBrowseIndex.Value = 0;
+            }
+            Slot? folderNavTransition = Descendants(customizerPreview).FirstOrDefault(slot => slot.Name == "Folder Navigation Transition");
+            folderCanGoUp = folderNavTransition?.GetComponent<ValueField<bool>>()?.Value;
+            if (folderCanGoUp != null) folderCanGoUp.Value = false;
+
             foldersOpenButton = Descendants(materialRoot).FirstOrDefault(slot => slot.Name == "folders-open")?.GetComponent<Button>();
             if (foldersOpenButton != null)
             {
@@ -359,7 +391,7 @@ internal sealed class MaterialCustomizerController
                     if (next)
                     {
                         browsedFolder = currentFolder;
-                        RefreshFolderRows();
+                        RefreshFolderRows(animateTransition: false);
                     }
                 });
             }
@@ -370,7 +402,12 @@ internal sealed class MaterialCustomizerController
                     .FirstOrDefault(d => d.TargetField.Target == folderPickerRoot.ActiveSelf_Field)
                     ?? customizerPreview.GetComponents<BooleanValueDriver<bool>>().ElementAtOrDefault(2);
             }
-            if (folderPickerVisible != null) folderPickerVisible.State.Value = false;
+            if (folderPickerVisible != null)
+            {
+                folderPickerVisible.TargetField.Target = null;
+                folderPickerVisible.State.Value = false;
+                if (folderPickerRoot != null) folderPickerRoot.ActiveSelf = true;
+            }
             else if (folderPickerRoot != null) folderPickerRoot.ActiveSelf = false;
 
             if (folderPickerRoot != null)
@@ -389,7 +426,6 @@ internal sealed class MaterialCustomizerController
                     }
                     if (folderChoiceRootTemplate != null)
                     {
-                        UnhookActiveSelfDrivers(folderChoiceRootTemplate);
                         folderChoiceRootTemplate.ActiveSelf = false;
                         var rootBtn = folderChoiceRootTemplate.GetComponent<Button>();
                         if (rootBtn != null)
@@ -403,20 +439,27 @@ internal sealed class MaterialCustomizerController
                             rootBtn.RequireLockInToPress.Value = true;
                             rootBtn.PassThroughVerticalMovement.Value = true;
                             rootBtn.PassThroughHorizontalMovement.Value = true;
-                            NativeButtonEvents.Pressed(rootBtn, (_, _) => schedule(() =>
+                            NativeButtonEvents.Pressed(rootBtn, (_, _) =>
                             {
+                                if (!isAlive() || isBusy()) return;
                                 currentFolder = browsedFolder;
                                 if (folderPickerVisible != null) folderPickerVisible.State.Value = false;
                                 else if (folderPickerRoot != null) folderPickerRoot.ActiveSelf = false;
                                 UpdateBreadcrumb();
-                                RefreshMaterialRows(materialQuery);
-                                return Task.CompletedTask;
-                            }));
+                                _ = rootBtn.World.RootSlot.StartGlobalTask(async () =>
+                                {
+                                    await Task.Delay(180);
+                                    await default(ToWorld);
+                                    if (isAlive() && !isBusy() && materialVisible.State.Value)
+                                    {
+                                        RefreshMaterialRows(materialQuery);
+                                    }
+                                });
+                            });
                         }
                     }
                     if (folderChoiceTemplate != null)
                     {
-                        UnhookActiveSelfDrivers(folderChoiceTemplate);
                         folderChoiceTemplate.ActiveSelf = false;
                     }
                 }
@@ -430,19 +473,70 @@ internal sealed class MaterialCustomizerController
                         if (comp.GetType().Name.StartsWith("ButtonValueSet`", StringComparison.Ordinal))
                             comp.Enabled = false;
                     }
+                    navUpSlot.ActiveSelf = true;
+                    var le = navUpSlot.GetComponent<LayoutElement>();
+                    if (le != null)
+                    {
+                        le.MinWidth.Value = 0f;
+                        le.UseZeroMetrics.Value = true;
+                    }
+                    var labelSlot = FindDescendant(navUpSlot, "folder-nav-up-label");
+                    var labelLe = labelSlot?.GetComponent<LayoutElement>();
+                    if (labelLe != null)
+                    {
+                        labelLe.FlexibleHeight.Value = -1f;
+                        labelLe.UseZeroMetrics.Value = true;
+                    }
+                    var labelText = labelSlot?.GetComponent<Text>();
+                    if (folderNavTransition != null && folderCanGoUp != null && folderNavTransition.GetComponent<SmoothValue<float>>() == null)
+                    {
+                        if (le != null)
+                        {
+                            var smoothW = folderNavTransition.AttachComponent<SmoothValue<float>>();
+                            smoothW.Speed.Value = 14f;
+                            smoothW.Value.Target = le.PreferredWidth;
+                            var bvdW = folderNavTransition.AttachComponent<BooleanValueDriver<float>>();
+                            bvdW.FalseValue.Value = 0f;
+                            bvdW.TrueValue.Value = 44f;
+                            bvdW.TargetField.Target = smoothW.TargetValue;
+                            var vcW = folderNavTransition.AttachComponent<ValueCopy<bool>>();
+                            vcW.Source.Target = folderCanGoUp;
+                            vcW.Target.Target = bvdW.State;
+                        }
+                        var smoothS = folderNavTransition.AttachComponent<SmoothValue<float3>>();
+                        smoothS.Speed.Value = 14f;
+                        smoothS.Value.Target = navUpSlot.Scale_Field;
+                        var bvdS = folderNavTransition.AttachComponent<BooleanValueDriver<float3>>();
+                        bvdS.FalseValue.Value = float3.Zero;
+                        bvdS.TrueValue.Value = float3.One;
+                        bvdS.TargetField.Target = smoothS.TargetValue;
+                        var vcS = folderNavTransition.AttachComponent<ValueCopy<bool>>();
+                        vcS.Source.Target = folderCanGoUp;
+                        vcS.Target.Target = bvdS.State;
+                        if (labelText != null)
+                        {
+                            var vcT = folderNavTransition.AttachComponent<ValueCopy<bool>>();
+                            vcT.Source.Target = folderCanGoUp;
+                            vcT.Target.Target = labelText.EnabledField;
+                        }
+                        var vcB = folderNavTransition.AttachComponent<ValueCopy<bool>>();
+                        vcB.Source.Target = folderCanGoUp;
+                        vcB.Target.Target = folderNavUp.EnabledField;
+                    }
+
                     folderNavUp.RequireLockInToPress.Value = true;
                     folderNavUp.PassThroughVerticalMovement.Value = true;
                     folderNavUp.PassThroughHorizontalMovement.Value = true;
-                    folderNavUp.Enabled = false;
-                    folderNavUp.Slot.ActiveSelf = false;
-                    NativeButtonEvents.Pressed(folderNavUp, (_, _) => schedule(() =>
+                    if (folderCanGoUp != null) folderCanGoUp.Value = false;
+                    else folderNavUp.Enabled = false;
+                    NativeButtonEvents.Pressed(folderNavUp, (_, _) =>
                     {
+                        if (!isAlive() || isBusy()) return;
                         string normalized = NormalizeFolder(browsedFolder);
                         int lastSlash = normalized.LastIndexOf('/');
                         browsedFolder = lastSlash >= 0 ? normalized[..lastSlash] : "";
-                        RefreshFolderRows();
-                        return Task.CompletedTask;
-                    }));
+                        RefreshFolderRows(animateTransition: true);
+                    });
                 }
             }
 
@@ -465,7 +559,7 @@ internal sealed class MaterialCustomizerController
                         UpdateBreadcrumb();
                         if (folderPickerVisible?.State.Value == true || (folderPickerVisible == null && folderPickerRoot?.ActiveSelf == true))
                         {
-                            RefreshFolderRows();
+                            RefreshFolderRows(animateTransition: true);
                         }
                         RefreshMaterialRows(materialQuery);
                         return Task.CompletedTask;
@@ -487,6 +581,8 @@ internal sealed class MaterialCustomizerController
         {
             isNative = false;
             folderPickerVisible = null;
+            folderCanGoUp = null;
+            folderBrowseIndex = null;
             meshCountText = null;
             materialCountText = null;
             pickerContextText = null;
@@ -574,9 +670,9 @@ internal sealed class MaterialCustomizerController
         Slot existingPresetField = FindDescendant(card, "Field element");
         if (existingPresetField != null) existingPresetField.ActiveSelf = false;
         SetText(FindDescendant(card, "Labels").Children.Single(slot => slot.Name == "Title").GetComponent<Text>(),
-            "Customize Materials", "マテリアルをカスタマイズ");
+            "customizeMaterials");
         SetText(FindDescendant(card, "Labels").Children.Single(slot => slot.Name == "Subtitle").GetComponent<Text>(),
-            "Choose materials for individual mesh slots", "メッシュスロットごとにマテリアルを選択");
+            "customizeMaterialsSubtitle");
 
         Slot buttonSlot = FindDescendant(card, "Button element");
         var button = buttonSlot.GetComponent<Button>();
@@ -587,7 +683,7 @@ internal sealed class MaterialCustomizerController
             other.Slot.ActiveSelf = false;
         }
         UnityStationHandle.ReleaseFixtureActions(button);
-        SetText(buttonSlot.GetComponentInChildren<Text>(), "Open", "開く");
+        SetText(buttonSlot.GetComponentInChildren<Text>(), "open");
         NativeButtonEvents.Pressed(button, (_, _) => schedule(OpenMainAsync));
         entryButtons.Add(button);
     }
@@ -627,11 +723,11 @@ internal sealed class MaterialCustomizerController
             mainSearchHint = Descendants(mainSearchField).FirstOrDefault(slot => slot.Name == "mesh-search-placeholder");
             if (mainSearchText != null) mainSearchText.Content.Value = "";
             UpdateSearchHint(mainSearchField, mainSearchHint);
-            SetText(mainTitle, "Customize Materials", "マテリアルをカスタマイズ");
+            SetText(mainTitle, "customizeMaterials");
             if (meshCountText != null)
             {
                 meshCountText.Slot.ActiveSelf = true;
-                meshCountText.Content.Value = $"{renderers.Count} {L("meshes", "メッシュ")}";
+                meshCountText.Content.Value = L("meshesCount", renderers.Count);
             }
             ClosePickerOnly();
             mainVisible.State.Value = true;
@@ -642,10 +738,10 @@ internal sealed class MaterialCustomizerController
         {
             mainSearchField = EnsureSearchField(mainList, "Renderer Search");
             mainSearchText = SearchText(mainSearchField);
-            mainSearchHint = EnsureSearchHint(mainSearchField, "Search mesh names", "メッシュ名を検索");
+            mainSearchHint = EnsureSearchHint(mainSearchField, "searchMeshes");
             mainSearchText.Content.Value = "";
             UpdateSearchHint(mainSearchField, mainSearchHint);
-            SetText(mainTitle, $"Customize Materials · {renderers.Count} meshes", $"マテリアルをカスタマイズ · {renderers.Count} メッシュ");
+            SetText(mainTitle, "customizeMaterialsMeshes", renderers.Count);
             ClosePickerOnly();
             mainVisible.State.Value = true;
             RefreshMainRows("");
@@ -766,7 +862,7 @@ internal sealed class MaterialCustomizerController
 
     private string MaterialName(IAssetProvider<Material> material, UnityProjectImporter importer, PackageMaterialCatalog catalog)
     {
-        if (material == null) return L("Missing material", "マテリアルなし");
+        if (material == null) return L("missingMaterial");
         if (importer != null && importer.TryGetMaterialGuid(material, out string registeredGuid))
         {
             var registeredChoice = catalog?.Choices.FirstOrDefault(candidate => candidate.Guid.Equals(registeredGuid, StringComparison.OrdinalIgnoreCase));
@@ -795,7 +891,7 @@ internal sealed class MaterialCustomizerController
             return providerSlot.Name.Replace(" - Material", "", StringComparison.OrdinalIgnoreCase).Trim();
         }
 
-        return L("Imported material", "インポート済みマテリアル");
+        return L("importedMaterial");
     }
 
     private void RefreshMainRows(string query)
@@ -815,20 +911,21 @@ internal sealed class MaterialCustomizerController
         {
             ClearRows(mainList, mainRowTemplate, mainSearchField);
             var matches = renderers.Where(renderer => renderer.Name.Contains(mainQuery.Trim(), StringComparison.OrdinalIgnoreCase)).ToArray();
-            SetText(mainTitle,
-                string.IsNullOrWhiteSpace(mainQuery) ? $"Customize Materials · {renderers.Count} meshes" : $"Customize Materials · {matches.Length} of {renderers.Count} meshes",
-                string.IsNullOrWhiteSpace(mainQuery) ? $"マテリアルをカスタマイズ · {renderers.Count} メッシュ" : $"マテリアルをカスタマイズ · {matches.Length} / {renderers.Count} メッシュ");
+            if (string.IsNullOrWhiteSpace(mainQuery))
+                SetText(mainTitle, "customizeMaterialsMeshes", renderers.Count);
+            else
+                SetText(mainTitle, "customizeMaterialsSearch", mainQuery);
 
             if (matches.Length == 0)
             {
-                AddRow(mainList, mainRowTemplate, L("No renderer names match that search", "検索条件に一致するメッシュがありません"), null);
+                AddRow(mainList, mainRowTemplate, L("noMatchingMeshes"), null);
                 return;
             }
 
             foreach (var renderer in matches)
             {
                 string marker = ReferenceEquals(expandedRenderer, renderer) ? "−" : "+";
-                AddRow(mainList, mainRowTemplate, $"{marker}  {renderer.Name}  ·  {renderer.Slots.Count} {L("material slots", "マテリアルスロット")}",
+                AddRow(mainList, mainRowTemplate, $"{marker}  {renderer.Name}  ·  {L("materialSlotsCount", renderer.Slots.Count)}",
                     () =>
                     {
                         expandedRenderer = ReferenceEquals(expandedRenderer, renderer) ? null : renderer;
@@ -840,7 +937,7 @@ internal sealed class MaterialCustomizerController
                 foreach (var slot in renderer.Slots)
                 {
                     string currentName = MaterialName(slot.ReadCurrent(), getImporter(), materialCatalog);
-                    AddRow(mainList, mainRowTemplate, $"    {L("Slot", "スロット")} {slot.Index + 1}  ·  {currentName}", () => OpenMaterialPickerAsync(slot));
+                    AddRow(mainList, mainRowTemplate, $"    {L("slotPrefix", slot.Index + 1)}  ·  {currentName}", () => OpenMaterialPickerAsync(slot));
                 }
             }
         }
@@ -894,8 +991,8 @@ internal sealed class MaterialCustomizerController
         {
             meshCountText.Slot.ActiveSelf = true;
             meshCountText.Content.Value = string.IsNullOrWhiteSpace(mainQuery)
-                ? $"{nativeCards.Count} {L("meshes", "メッシュ")}"
-                : $"{visibleCount} / {nativeCards.Count} {L("meshes", "メッシュ")}";
+                ? L("meshesCount", nativeCards.Count)
+                : L("meshesCountFiltered", visibleCount, nativeCards.Count);
         }
     }
 
@@ -903,14 +1000,13 @@ internal sealed class MaterialCustomizerController
     {
         Slot card = mainRowTemplate.Duplicate(mainList, false);
         card.Name = $"Mesh Card · {renderer.Name}";
-        UnhookActiveSelfDrivers(card);
         card.ActiveSelf = true;
 
         Slot titleSlot = FindDescendant(card, "mesh-0-title");
         SetFittedText(titleSlot, renderer.Name);
 
         Slot countSlot = FindDescendant(card, "mesh-0-slot-count");
-        SetFittedText(countSlot, $"{renderer.Slots.Count} {L("slots", "スロット")}");
+        SetFittedText(countSlot, L("slotsCount", renderer.Slots.Count));
 
         Slot header = FindDescendant(card, "mesh-0-header");
         Slot reveal = FindDescendant(card, "Material Slots Reveal");
@@ -937,7 +1033,6 @@ internal sealed class MaterialCustomizerController
         {
             foreach (Slot child in slotsContainer.Children)
             {
-                UnhookActiveSelfDrivers(child);
                 child.ActiveSelf = false;
             }
         }
@@ -1088,11 +1183,10 @@ internal sealed class MaterialCustomizerController
         {
             Slot slotRow = holder.SlotTemplate.Duplicate(holder.SlotsContainer, false);
             slotRow.Name = $"Material Slot Row {slot.Index + 1}";
-            UnhookActiveSelfDrivers(slotRow);
             slotRow.ActiveSelf = true;
 
             Slot slotLabel = FindDescendant(slotRow, "slot-0-0-slot-label");
-            SetFittedText(slotLabel, $"Slot {slot.Index + 1}");
+            SetFittedText(slotLabel, L("slotPrefix", slot.Index + 1));
 
             string currentName = MaterialName(slot.ReadCurrent(), getImporter(), materialCatalog);
             Slot nameSlot = FindDescendant(slotRow, "slot-0-0-name");
@@ -1116,7 +1210,6 @@ internal sealed class MaterialCustomizerController
             if (restoreBtn != null)
             {
                 UnityStationHandle.ReleaseFixtureActions(restoreBtn);
-                UnhookActiveSelfDrivers(restoreBtn.Slot);
                 restoreBtn.Slot.ActiveSelf = isModified;
                 NativeButtonEvents.Pressed(restoreBtn, (_, _) => schedule(() => RestoreOriginalAsync(slot)));
             }
@@ -1146,7 +1239,6 @@ internal sealed class MaterialCustomizerController
                 bool isModified = !ReferenceEquals(slot.ReadCurrent(), slot.Original);
                 if (rowInfo.RestoreBtn != null && !rowInfo.RestoreBtn.Slot.IsDestroyed)
                 {
-                    UnhookActiveSelfDrivers(rowInfo.RestoreBtn.Slot);
                     rowInfo.RestoreBtn.Slot.ActiveSelf = isModified;
                 }
             }
@@ -1222,9 +1314,9 @@ internal sealed class MaterialCustomizerController
             materialSearchHint = Descendants(materialSearchField).FirstOrDefault(s => s.Name == "material-search-placeholder");
             if (materialSearchText != null) materialSearchText.Content.Value = "";
             UpdateSearchHint(materialSearchField, materialSearchHint);
-            SetText(materialTitle, "Choose Material", "マテリアルを選択");
+            SetText(materialTitle, "chooseMaterial");
             if (pickerContextText != null)
-                pickerContextText.Content.Value = $"{slot.RendererName} · Slot {slot.Index + 1}";
+                pickerContextText.Content.Value = $"{slot.RendererName} · {L("slotPrefix", slot.Index + 1)}";
             if (pickerContextMaterialText != null)
             {
                 string curName = MaterialName(slot.ReadCurrent(), getImporter(), materialCatalog);
@@ -1243,11 +1335,10 @@ internal sealed class MaterialCustomizerController
         {
             materialSearchField = EnsureSearchField(materialList, "Material Search");
             materialSearchText = SearchText(materialSearchField);
-            materialSearchHint = EnsureSearchHint(materialSearchField, "Search materials or folders", "マテリアルまたはフォルダーを検索");
+            materialSearchHint = EnsureSearchHint(materialSearchField, "searchMaterials");
             materialSearchText.Content.Value = "";
             UpdateSearchHint(materialSearchField, materialSearchHint);
-            SetText(materialTitle, $"Choose Material · {slot.RendererName} · Slot {slot.Index + 1}",
-                $"マテリアルを選択 · {slot.RendererName} · スロット {slot.Index + 1}");
+            SetText(materialTitle, "chooseMaterialSlot", slot.RendererName, slot.Index + 1);
             materialVisible.State.Value = true;
             RefreshMaterialRows("");
             StartSearchMonitor(materialRoot, materialSearchField, isMain: false);
@@ -1291,7 +1382,7 @@ internal sealed class MaterialCustomizerController
                 materialCountText.Slot.ActiveSelf = true;
                 if (!materialCountText.Content.IsDriven)
                 {
-                    try { materialCountText.Content.Value = $"{choices.Count} {L("materials", "マテリアル")}"; } catch { }
+                    try { materialCountText.Content.Value = L("materialsCount", choices.Count); } catch { }
                 }
             }
 
@@ -1319,7 +1410,7 @@ internal sealed class MaterialCustomizerController
             }
             else
             {
-                AddRow(materialList, materialRowTemplate, L("Restore Original Material", "元のマテリアルに戻す"), () => RestoreOriginalAsync(selectedSlot));
+                AddRow(materialList, materialRowTemplate, L("restoreOriginal"), () => RestoreOriginalAsync(selectedSlot));
             }
 
             IReadOnlyList<PackageMaterialChoice> choices;
@@ -1331,7 +1422,7 @@ internal sealed class MaterialCustomizerController
                 foreach (string child in materialCatalog.ChildFolders(folder))
                 {
                     string destination = string.IsNullOrEmpty(folder) ? child : folder + "/" + child;
-                    AddRow(materialList, materialRowTemplate, L("Folder", "フォルダー") + "  ·  " + child, () =>
+                    AddRow(materialList, materialRowTemplate, L("folderPrefix") + "  ·  " + child, () =>
                     {
                         currentFolder = destination;
                         RefreshMaterialRows(materialQuery);
@@ -1341,7 +1432,7 @@ internal sealed class MaterialCustomizerController
                 if (!string.IsNullOrEmpty(folder))
                 {
                     string parent = folder.Contains('/') ? folder[..folder.LastIndexOf('/')] : "";
-                    AddRow(materialList, materialRowTemplate, L("Folder", "フォルダー") + "  ·  ..", () =>
+                    AddRow(materialList, materialRowTemplate, L("folderPrefix") + "  ·  ..", () =>
                     {
                         currentFolder = parent;
                         RefreshMaterialRows(materialQuery);
@@ -1355,7 +1446,7 @@ internal sealed class MaterialCustomizerController
 
             if (choices.Count == 0 && (string.IsNullOrWhiteSpace(materialQuery) || !materialCatalog.Search(materialQuery).Any()))
             {
-                AddRow(materialList, materialRowTemplate, L("No matching materials", "一致するマテリアルがありません"), null);
+                AddRow(materialList, materialRowTemplate, L("noMatchingMaterials"), null);
                 return;
             }
 
@@ -1374,12 +1465,10 @@ internal sealed class MaterialCustomizerController
         while (pooledMaterialCards.Count <= index)
         {
             Slot card = materialRowTemplate.Duplicate(materialList, false);
-            UnhookActiveSelfDrivers(card);
             StripMaterialCardFixtureDrivers(card);
 
             Slot? nameSlot = FindDescendant(card, "material-0-name");
             Slot? outlineSlot = FindDescendant(card, "material-0-outline");
-            if (outlineSlot != null) UnhookActiveSelfDrivers(outlineSlot);
 
             Slot? sphereSlot = FindDescendant(card, "material-0-sphere")
                 ?? FindDescendant(card, "material-0-preview");
@@ -1430,7 +1519,6 @@ internal sealed class MaterialCustomizerController
         bool isCurrent = !string.IsNullOrEmpty(currentGuid) && choice.Guid.Equals(currentGuid, StringComparison.OrdinalIgnoreCase);
         if (pooled.OutlineSlot != null)
         {
-            UnhookActiveSelfDrivers(pooled.OutlineSlot);
             pooled.OutlineSlot.ActiveSelf = isCurrent;
         }
 
@@ -1514,7 +1602,6 @@ internal sealed class MaterialCustomizerController
         while (pooledFolderRows.Count <= index)
         {
             Slot row = folderChoiceTemplate.Duplicate(folderList, false);
-            UnhookActiveSelfDrivers(row);
             Slot? labelSlot = FindDescendant(row, "folder-choice-1-label");
 
             var pooled = new PooledFolderRow
@@ -1537,8 +1624,8 @@ internal sealed class MaterialCustomizerController
                 btn.PassThroughHorizontalMovement.Value = true;
                 NativeButtonEvents.Pressed(btn, (_, _) =>
                 {
-                    var action = pooled.CurrentAction;
-                    if (action != null) schedule(action);
+                    if (!isAlive() || isBusy()) return;
+                    pooled.CurrentAction?.Invoke();
                 });
             }
 
@@ -1548,15 +1635,18 @@ internal sealed class MaterialCustomizerController
         return pooledFolderRows[index];
     }
 
-    private void RefreshFolderRows()
+    private void RefreshFolderRows(bool animateTransition = false)
     {
         if (!isAlive() || folderList == null || folderChoiceTemplate == null) return;
 
+        string normalizedBrowsed = NormalizeFolder(browsedFolder);
+        bool canGoUp = !string.IsNullOrEmpty(normalizedBrowsed);
+
         if (folderPickerTitle != null && !folderPickerTitle.Content.IsDriven)
         {
-            string titleText = string.IsNullOrEmpty(browsedFolder)
-                ? L("Folders", "フォルダー")
-                : System.IO.Path.GetFileName(NormalizeFolder(browsedFolder));
+            string titleText = !canGoUp
+                ? L("folders")
+                : System.IO.Path.GetFileName(normalizedBrowsed);
             folderPickerTitle.ParseRichText.Value = false;
             folderPickerTitle.Content.Value = titleText;
         }
@@ -1565,7 +1655,7 @@ internal sealed class MaterialCustomizerController
         {
             folderChoiceRootTemplate.ActiveSelf = true;
             folderChoiceRootLabel ??= new FittedTextBinding(FindDescendant(folderChoiceRootTemplate, "folder-choice-0-label"));
-            folderChoiceRootLabel.SetText(L("Use folder", "フォルダーを使用"));
+            folderChoiceRootLabel.SetText(L("useFolder"));
         }
 
         var subfolders = materialCatalog?.ChildFolders(browsedFolder) ?? Array.Empty<string>();
@@ -1577,13 +1667,12 @@ internal sealed class MaterialCustomizerController
             pooled.Row.ActiveSelf = true;
             pooled.Label?.SetText(folderName);
 
-            string destination = string.IsNullOrEmpty(browsedFolder) ? folderName : browsedFolder + "/" + folderName;
+            string destination = string.IsNullOrEmpty(normalizedBrowsed) ? folderName : normalizedBrowsed + "/" + folderName;
             pooled.CurrentAction = () =>
             {
-                // Navigating into a subfolder only updates the folder popover without rebuilding material cards
+                // Navigating into a subfolder updates the folder popover and plays the FolderSlide transition
                 browsedFolder = destination;
-                RefreshFolderRows();
-                return Task.CompletedTask;
+                RefreshFolderRows(animateTransition: true);
             };
         }
 
@@ -1597,12 +1686,50 @@ internal sealed class MaterialCustomizerController
             }
         }
 
-        if (folderNavUp != null)
+        if (folderCanGoUp != null && !folderCanGoUp.IsRemoved)
         {
-            bool canGoUp = !string.IsNullOrEmpty(browsedFolder);
+            if (folderNavUp != null && !folderNavUp.Slot.IsDestroyed)
+            {
+                folderNavUp.Slot.ActiveSelf = true;
+            }
+            if (!folderCanGoUp.IsDriven)
+            {
+                folderCanGoUp.Value = canGoUp;
+            }
+        }
+        else if (folderNavUp != null && !folderNavUp.Slot.IsDestroyed)
+        {
             folderNavUp.Enabled = canGoUp;
             folderNavUp.Slot.ActiveSelf = canGoUp;
+            var labelText = folderNavUp.Slot.GetComponentInChildren<Text>();
+            if (labelText != null) labelText.Enabled = canGoUp;
         }
+
+        if (folderBrowseIndex != null && !folderBrowseIndex.IsRemoved && !folderBrowseIndex.IsDriven)
+        {
+            int nextDepth = ComputeBrowseDepthIndex(normalizedBrowsed, animateTransition);
+            folderBrowseIndex.Value = nextDepth;
+            lastBrowseDepthIndex = nextDepth;
+            lastBrowsedFolder = normalizedBrowsed;
+        }
+    }
+
+    private int ComputeBrowseDepthIndex(string normalizedFolder, bool animateTransition)
+    {
+        if (string.IsNullOrEmpty(normalizedFolder)) return 0;
+
+        int depth = 1;
+        for (int i = 0; i < normalizedFolder.Length; i++)
+        {
+            if (normalizedFolder[i] == '/') depth++;
+        }
+
+        int clamped = Math.Clamp(depth, 1, 4);
+        if (animateTransition && clamped == lastBrowseDepthIndex && !string.Equals(normalizedFolder, lastBrowsedFolder, StringComparison.OrdinalIgnoreCase))
+        {
+            return clamped == 4 ? 3 : clamped + 1;
+        }
+        return clamped;
     }
 
     private void UpdateBreadcrumb()
@@ -1618,34 +1745,6 @@ internal sealed class MaterialCustomizerController
         return (folder ?? "").Replace('\\', '/').Trim('/').Replace("//", "/");
     }
 
-    private static void UnhookActiveSelfDrivers(Slot? slot)
-    {
-        if (slot == null || slot.IsDestroyed) return;
-        foreach (var bvd in slot.GetComponentsInChildren<BooleanValueDriver<bool>>())
-        {
-            if (bvd.TargetField.Target == slot.ActiveSelf_Field)
-            {
-                bvd.TargetField.Target = null;
-                bvd.Enabled = false;
-            }
-        }
-        foreach (var eq in slot.GetComponentsInChildren<ValueEqualityDriver<string>>())
-        {
-            if (eq.Target.Target == slot.ActiveSelf_Field)
-            {
-                eq.Target.Target = null;
-                eq.Enabled = false;
-            }
-        }
-        foreach (var eqInt in slot.GetComponentsInChildren<ValueEqualityDriver<int>>())
-        {
-            if (eqInt.Target.Target == slot.ActiveSelf_Field)
-            {
-                eqInt.Target.Target = null;
-                eqInt.Enabled = false;
-            }
-        }
-    }
 
     private static void StripMaterialCardFixtureDrivers(Slot? card)
     {
@@ -1678,14 +1777,14 @@ internal sealed class MaterialCustomizerController
         {
             if (directText != null)
             {
-                directText.Content.Value = value;
+                if (!directText.Content.IsDriven) directText.Content.Value = value;
                 directText.Enabled = false;
                 directText.InteractionTarget.Value = false;
             }
             foreach (var childText in childTexts)
             {
                 childText.ParseRichText.Value = true;
-                childText.Content.Value = value;
+                if (!childText.Content.IsDriven) childText.Content.Value = value;
                 childText.Enabled = true;
                 childText.InteractionTarget.Value = false;
             }
@@ -1693,7 +1792,7 @@ internal sealed class MaterialCustomizerController
         else if (directText != null)
         {
             directText.ParseRichText.Value = false;
-            directText.Content.Value = value;
+            if (!directText.Content.IsDriven) directText.Content.Value = value;
             directText.Enabled = true;
             directText.InteractionTarget.Value = false;
         }
@@ -1702,7 +1801,7 @@ internal sealed class MaterialCustomizerController
             foreach (var t in root.GetComponentsInChildren<Text>())
             {
                 t.ParseRichText.Value = true;
-                t.Content.Value = value;
+                if (!t.Content.IsDriven) t.Content.Value = value;
                 t.Enabled = true;
                 t.InteractionTarget.Value = false;
             }
@@ -1808,12 +1907,12 @@ internal sealed class MaterialCustomizerController
         return field;
     }
 
-    private Slot EnsureSearchHint(Slot field, string english, string japanese)
+    private Slot EnsureSearchHint(Slot field, string key)
     {
         Slot existing = field.Children.SingleOrDefault(slot => slot.Name == "Runtime Search Hint");
         if (existing != null)
         {
-            existing.GetComponent<Text>().Content.Value = L(english, japanese);
+            existing.GetComponent<Text>().Content.Value = L(key);
             return existing;
         }
 
@@ -1823,7 +1922,7 @@ internal sealed class MaterialCustomizerController
         var hintText = hint.GetComponent<Text>();
         DisableLocalizedOverrides(hint);
         hintText.ParseRichText.Value = false;
-        hintText.Content.Value = L(english, japanese);
+        hintText.Content.Value = L(key);
         hintText.Color.Value = new colorX(0.55f, 0.60f, 0.66f, 0.9f);
         hintText.InteractionTarget.Value = false;
         return hint;
@@ -1916,16 +2015,17 @@ internal sealed class MaterialCustomizerController
         }
     }
 
-    private void SetText(Text text, string english, string japanese)
+    private string CurrentLocale => LocalizationManager.DetectLocaleCode();
+
+    private void SetText(Text text, string key, params object[] args)
     {
         if (text == null) return;
         text.ParseRichText.Value = false;
-        bool japaneseSelected = ui.Locale("advanced").FirstOrDefault()?.State.Value == true;
-        text.Content.Value = japaneseSelected ? japanese : english;
+        text.Content.Value = LocalizationManager.GetStringForLocale(CurrentLocale, key, args);
     }
 
-    private string L(string english, string japanese) =>
-        ui.Locale("advanced").FirstOrDefault()?.State.Value == true ? japanese : english;
+    private string L(string key, params object[] args) =>
+        LocalizationManager.GetStringForLocale(CurrentLocale, key, args);
 
     private static BooleanValueDriver<bool> FirstVisibilityDriver(Slot root) =>
         root.GetComponents<BooleanValueDriver<bool>>().FirstOrDefault()

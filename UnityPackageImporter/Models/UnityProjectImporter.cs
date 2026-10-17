@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Elements.Core;
 using FrooxEngine;
 using UnityPackageImporter.Models;
+using UnityPackageImporter.UI;
 
 
 namespace UnityPackageImporter;
@@ -341,7 +342,7 @@ public class UnityProjectImporter
 
         // I feel so smart making the wait all import fbx tasks code. - @989onan
         await default(ToWorld);
-        Station?.UpdateProgress(0.1f, "Loading meshes and materials", "メッシュとマテリアルを読み込み中", "");
+        Station?.UpdateProgress(0.1f, LocalizationManager.GetEnglish("loadingMeshesAndMaterials"), LocalizationManager.GetJapanese("loadingMeshesAndMaterials"), "");
         var fbx_tasks = FillFBXFiles().ToArray();
 
         await Task.WhenAll(fbx_tasks.Select(task => task.RunnerWrapper()).ToArray());

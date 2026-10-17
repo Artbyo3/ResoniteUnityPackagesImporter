@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "templateVersion": "1.0.2",
+  "templateVersion": "1.0.5",
   "rootName": "[UnityPackage Station Prototype]",
   "bindings": {
     "mode": {
@@ -24,6 +24,13 @@
     "progressPedestal": {
       "path": [
         "Circular UIX Pedestal"
+      ],
+      "type": "Slot",
+      "index": 0
+    },
+    "progressCard": {
+      "path": [
+        "Importing Disclosure Card (ProgressBar)"
       ],
       "type": "Slot",
       "index": 0
@@ -501,355 +508,738 @@
       "type": "Slot",
       "index": 0
     },
+    "tabletScale": {
+      "path": [
+        "Contextual Tablet"
+      ],
+      "type": "FrooxEngine.BooleanValueDriver<float3>",
+      "index": 0
+    },
     "locale.avatarContext.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Candidate Card",
+        "Meta"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
+      "type": "FrooxEngine.UIX.Text",
       "index": 0
     },
     "locale.avatarName.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Avatar Name Card",
+        "Labels",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 1
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.displayName.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Avatar Name Card",
+        "Labels",
+        "Subtitle"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 2
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.protectAvatar.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Protect Avatar Card",
+        "Labels",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 3
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.protectDescription.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Protect Avatar Card",
+        "Labels",
+        "Subtitle"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 4
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.createAvatar.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Primary Action Button",
+        "Labeled button element",
+        "Text"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 5
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.advanced.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Advanced Mode Button",
+        "Element",
+        "Text"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 6
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.materialsHeading.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Advanced Options Content",
+        "MATERIALS & SHADING"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 7
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.materials.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Advanced Options Content",
+        "Materials & Shading Card",
+        "Labels",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 8
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.avatarShading.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Advanced Options Content",
+        "Materials & Shading Card",
+        "Labels",
+        "Subtitle"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 9
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.change.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Advanced Options Content",
+        "Materials & Shading Card",
+        "Materials Receiver Field",
+        "Horizontal Layout",
+        "Button element",
+        "Text"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 10
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.vrchatFeatures.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Advanced Options Content",
+        "VRCHAT FEATURES"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 11
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.expressionsMenu.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Advanced Options Content",
+        "Import Expressions Menu",
+        "Description",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 12
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.expressionsDescription.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Advanced Options Content",
+        "Import Expressions Menu",
+        "Description",
+        "Subtitle"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 13
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.receipt.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Advanced Options Content",
+        "Save Import Receipt",
+        "Description",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 14
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.receiptDescription.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Advanced Options Content",
+        "Save Import Receipt",
+        "Description",
+        "Subtitle"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 15
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.outfitContext.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Candidate Card",
+        "Meta"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 16
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.targetAvatar.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Target Avatar Card",
+        "Labels",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 17
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.outfitReceiver.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Target Avatar Card",
+        "Labels",
+        "Subtitle"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 18
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.change.1": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Target Avatar Card",
+        "Target Avatar Receiver Field",
+        "Horizontal Layout",
+        "Button element",
+        "Text"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 19
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.installOutfit.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Primary Action Button",
+        "Labeled button element",
+        "Text"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 20
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.advanced.1": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Mode Button",
+        "Element",
+        "Text"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 21
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.materialsHeading.1": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Options Content",
+        "MATERIALS & SHADING"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 22
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.materials.1": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Options Content",
+        "Materials & Shading Card",
+        "Labels",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 23
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.outfitShading.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Options Content",
+        "Materials & Shading Card",
+        "Labels",
+        "Subtitle"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 24
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.change.2": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Options Content",
+        "Materials & Shading Card",
+        "Materials Receiver Field",
+        "Horizontal Layout",
+        "Button element",
+        "Text"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 25
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.outfitFeatures.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Options Content",
+        "OUTFIT FEATURES"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 26
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.outfitMenu.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Options Content",
+        "Install Outfit Menu",
+        "Description",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 27
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.outfitMenuDescription.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Options Content",
+        "Install Outfit Menu",
+        "Description",
+        "Subtitle"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 28
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.bodyShape.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Options Content",
+        "Apply Body Shape Adjustments",
+        "Description",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 29
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.bodyShapeDescription.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Options Content",
+        "Apply Body Shape Adjustments",
+        "Description",
+        "Subtitle"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 30
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.receipt.1": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Options Content",
+        "Save Import Receipt",
+        "Description",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 31
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.receiptDescription.1": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Options Content",
+        "Save Import Receipt",
+        "Description",
+        "Subtitle"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 32
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.chooseAvatar.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Avatar Selection Popover",
+        "Avatar Selection Popover Content",
+        "Selection Surface",
+        "Header",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 33
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.waiting.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Companion Package Prompt",
+        "Companion Package Prompt Content",
+        "Companion Waiting UI",
+        "Waiting Surface",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 34
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.back.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Companion Package Prompt",
+        "Companion Package Prompt Content",
+        "Companion Waiting UI",
+        "Waiting Surface",
+        "Back",
+        "Back Label"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 35
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.attention.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Companion Package Prompt",
+        "Companion Package Prompt Content",
+        "Companion Choices Animation Container",
+        "Companion Package Surface",
+        "Context"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 36
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.missingMaterials.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Companion Package Prompt",
+        "Companion Package Prompt Content",
+        "Companion Choices Animation Container",
+        "Companion Package Surface",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 37
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.companionDescription.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Companion Package Prompt",
+        "Companion Package Prompt Content",
+        "Companion Choices Animation Container",
+        "Companion Package Surface",
+        "Explanation"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 38
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.companionMissing.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Companion Package Prompt",
+        "Companion Package Prompt Content",
+        "Companion Choices Animation Container",
+        "Companion Package Surface",
+        "Missing Appearance Files",
+        "Status"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 39
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.placeholderMaterials.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Companion Package Prompt",
+        "Companion Package Prompt Content",
+        "Companion Choices Animation Container",
+        "Companion Package Surface",
+        "Continue with Placeholder Materials",
+        "Label"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 40
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.importCompanion.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Companion Package Prompt",
+        "Companion Package Prompt Content",
+        "Companion Choices Animation Container",
+        "Companion Package Surface",
+        "Import Companion Package",
+        "Label"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 41
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.shaderPreset.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Material Preset Popover",
+        "Material Preset Popover Content",
+        "Selection Surface",
+        "Header",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 42
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.automatic.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Material Preset Popover",
+        "Material Preset Popover Content",
+        "Selection Surface",
+        "Option - Automatic",
+        "Labels",
+        "Title"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 43
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.preserveShaders.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Material Preset Popover",
+        "Material Preset Popover Content",
+        "Selection Surface",
+        "Option - Automatic",
+        "Labels",
+        "Subtitle"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 44
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.convertToon.0": {
       "path": [
-        "UI Localization"
+        "Contextual Tablet",
+        "Material Preset Popover",
+        "Material Preset Popover Content",
+        "Selection Surface",
+        "Option - Xiexe Toon",
+        "Labels",
+        "Subtitle"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 45
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.loaded.0": {
       "path": [
-        "UI Localization"
+        "Importing Disclosure Card (ProgressBar)",
+        "Logo 3D",
+        "Canvas Root",
+        "Canvas",
+        "Main Information",
+        "Texts",
+        "Data"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 46
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.phase.0": {
       "path": [
-        "UI Localization"
+        "Importing Disclosure Card (ProgressBar)",
+        "Logo 3D",
+        "Canvas Root",
+        "Canvas",
+        "Main Information",
+        "Texts",
+        "Server Crasher"
       ],
-      "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 47
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     },
     "locale.complete.0": {
       "path": [
-        "UI Localization"
+        "Importing Disclosure Card (ProgressBar)",
+        "Logo 3D",
+        "Canvas Root",
+        "Canvas",
+        "Main Information",
+        "Texts",
+        "Final Message"
       ],
       "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 48
+      "index": 0
     },
     "locale.failure.0": {
       "path": [
-        "UI Localization"
+        "Importing Disclosure Card (ProgressBar)",
+        "Logo 3D",
+        "Canvas Root",
+        "Canvas",
+        "Main Information",
+        "Texts",
+        "Final Message"
       ],
       "type": "FrooxEngine.BooleanValueDriver<string>",
-      "index": 49
+      "index": 0
     },
     "nameCard": {
       "path": [
