@@ -16,11 +16,11 @@ internal sealed class UnityStationHandle
     private readonly StationTemplate ui;
     private readonly ImportSession session;
     private readonly Dictionary<UnityPrefabImportTask, float> progress = new();
-    private readonly HashSet<UnityPrefabImportTask> created = new();
-    private readonly HashSet<UnityPrefabImportTask> failedCreation = new();
-    private readonly Dictionary<UnityPrefabImportTask, string> names = new();
-    private readonly Dictionary<UnityPrefabImportTask, string> presets = new();
-    private readonly SelectableImportItems<UnityPrefabImportTask> items = new();
+    private readonly HashSet<PreparedImportItem> created = new();
+    private readonly HashSet<PreparedImportItem> failedCreation = new();
+    private readonly Dictionary<PreparedImportItem, string> names = new();
+    private readonly Dictionary<PreparedImportItem, string> presets = new();
+    private readonly SelectableImportItems<PreparedImportItem> items = new();
     private Slot preview, rowTemplate;
     private BooleanValueDriver<float3> previewScaleDriver;
     private Slider<float> previewTurntableSlider;
@@ -31,11 +31,13 @@ internal sealed class UnityStationHandle
     private MaterialCustomizerController materialCustomizer;
     private int lifecycle;
     private bool busy, ready;
+    private Task closeTask;
+    private readonly object closeGate = new();
     private string operationStage = "Package import";
     private string operationStageKey;
     public Slot RootSlot => ui.Root;
     public bool IsAlive => !ui.Host.IsDestroyed && !ui.Root.IsDestroyed && !session.Token.IsCancellationRequested;
-    private UnityPrefabImportTask Current => items.Current;
+    private PreparedImportItem Current => items.Current;
     private bool IsOutfit => Current?.Manifest?.IsModularAvatarAttachment == true;
     private bool IsAvatar => !IsOutfit && Current != null && (Current.Manifest?.IsAvatarPrefab == true ||
         Current.CurrentStructureRootSlot.GetComponentInChildren<BipedRig>() != null);
@@ -257,12 +259,16 @@ internal sealed class UnityStationHandle
             UnityPackageImporter.Warn("Could not save the sanitized import failure report: " + reportError.GetType().Name);
         }
     }
-    public async Task CompleteSuccessAsync()
+    public async Task CompleteSuccessAsync(bool isPartial = false)
     {
         if (!IsAlive) return;
         int generation = ++lifecycle;
         ResetOutcome();
         Get<Slot>("progressCard").ActiveSelf = true;
+        if (isPartial)
+        {
+            ui.SetLocalizedKey("phase", "partialCompatibility");
+        }
         Get<ValueField<bool>>("success").Value.Value = true;
         Get<SmoothValue<float>>("arc").TargetValue.Value = 360f;
         await Task.Delay(3500, session.Token);
@@ -282,7 +288,7 @@ internal sealed class UnityStationHandle
             Get<SmoothValue<float>>("arc").Speed.Value = 10f;
         }
     }
-    internal async Task StageAsync(UnityProjectImporter project, List<UnityPrefabImportTask> tasks)
+    internal async Task StageAsync(UnityProjectImporter project, List<PreparedImportItem> tasks)
     {
         await default(ToWorld);
         if (!IsAlive) return;
@@ -291,7 +297,7 @@ internal sealed class UnityStationHandle
         items.Reset(tasks.Where(task => task.CurrentStructureRootSlot != null && !task.CurrentStructureRootSlot.IsDestroyed));
         foreach (var item in items.Entries)
         {
-            names[item] = Path.GetFileNameWithoutExtension(item.ID.Value);
+            names[item] = item.DisplayName;
             presets[item] = "Automatic";
         }
         ready = true;
@@ -517,8 +523,6 @@ internal sealed class UnityStationHandle
             if (!items.Consume(item))
                 UnityPackageImporter.Warn("A committed import item was not present in the station's selectable list.");
 
-            if (preview != null && !preview.IsDestroyed) preview.Destroy();
-            preview = null;
             materialCustomizer?.CloseAll();
             if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletDriver))
                 tabletDriver.State.Value = false;
@@ -530,6 +534,9 @@ internal sealed class UnityStationHandle
                 await Task.Delay(260, session.Token);
                 await default(ToWorld);
             }
+
+            if (preview != null && !preview.IsDestroyed) preview.Destroy();
+            preview = null;
         }
         catch
         {
@@ -630,33 +637,104 @@ internal sealed class UnityStationHandle
         else decisionPrompt.SetState(false, waiting);
     }
     internal void RefreshMaterials() { if (IsAlive) RebuildPreview(); }
-    private async Task CloseAsync()
+    public Task CloseAsync()
+    {
+        lock (closeGate)
+        {
+            return closeTask ??= CloseCoreAsync();
+        }
+    }
+
+    private async Task CloseCoreAsync()
     {
         lifecycle++;
-        materialCustomizer?.CloseAll();
-        dependencies?.Continue();
-        using (session.Enter())
+        try
         {
-            _ = session.CancelAsync();
-            if (preview != null && !preview.IsDestroyed) preview.Destroy();
-            preview = null;
-            Get<SmoothValue<float>>("arc").TargetValue.Value = 0f;
-            Get<SmoothValue<float>>("arc").Speed.Value = 3f;
-            Get<BooleanValueDriver<float3>>("cardScale").State.Value = false;
-            Get<BooleanValueDriver<float3>>("cardPosition").State.Value = false;
-            if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletScale))
-                tabletScale.State.Value = false;
-            if (previewScaleDriver != null && !previewScaleDriver.IsDestroyed)
-                previewScaleDriver.State.Value = false;
-            await Task.Delay(1000);
-            await default(ToWorld);
+            materialCustomizer?.CloseAll();
+            materialCustomizer?.ClearThumbnailCaches();
         }
-        await session.CleanupAsync();
-        await default(ToWorld);
-        if (ui.Root != null && !ui.Root.IsDestroyed)
-            ui.Root.Destroy();
-        if (ui.Host != null && !ui.Host.IsDestroyed)
-            ui.Host.Destroy();
+        catch (Exception error)
+        {
+            UnityPackageImporter.Warn($"Failed to close material customizer during station close: {error.Message}");
+        }
+
+        try
+        {
+            dependencies?.Continue();
+        }
+        catch (Exception error)
+        {
+            UnityPackageImporter.Warn($"Failed to continue dependencies during station close: {error.Message}");
+        }
+
+        try
+        {
+            if (session.TryEnter(out var lease))
+            {
+                using (lease)
+                {
+                    _ = session.CancelAsync();
+                    await default(ToWorld);
+                    if (preview != null && !preview.IsDestroyed) preview.Destroy();
+                    preview = null;
+
+                    if (IsAlive)
+                    {
+                        if (ui.TryGet<SmoothValue<float>>("arc", out var arc))
+                        {
+                            arc.TargetValue.Value = 0f;
+                            arc.Speed.Value = 3f;
+                        }
+                        if (ui.TryGet<BooleanValueDriver<float3>>("cardScale", out var cardScale))
+                            cardScale.State.Value = false;
+                        if (ui.TryGet<BooleanValueDriver<float3>>("cardPosition", out var cardPosition))
+                            cardPosition.State.Value = false;
+                        if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletScale))
+                            tabletScale.State.Value = false;
+                        if (previewScaleDriver != null && !previewScaleDriver.IsDestroyed)
+                            previewScaleDriver.State.Value = false;
+                    }
+
+                    await Task.Delay(1000).ConfigureAwait(false);
+                    await default(ToWorld);
+                }
+            }
+            else
+            {
+                _ = session.CancelAsync();
+                await default(ToWorld);
+                if (preview != null && !preview.IsDestroyed) preview.Destroy();
+                preview = null;
+            }
+        }
+        catch (Exception error)
+        {
+            UnityPackageImporter.Warn($"Failed to run station close transition: {error.Message}");
+        }
+        finally
+        {
+            try
+            {
+                await session.CleanupAsync().ConfigureAwait(false);
+            }
+            catch (Exception error)
+            {
+                UnityPackageImporter.Warn($"Failed to clean up import session: {error.Message}");
+            }
+
+            try
+            {
+                await default(ToWorld);
+                if (ui.Root != null && !ui.Root.IsDestroyed)
+                    ui.Root.Destroy();
+                if (ui.Host != null && !ui.Host.IsDestroyed)
+                    ui.Host.Destroy();
+            }
+            catch (Exception error)
+            {
+                UnityPackageImporter.Warn($"Failed to tear down station UI: {error.Message}");
+            }
+        }
     }
     private static string FormatShaderPresetDisplay(string preset, string locale)
     {
@@ -667,20 +745,39 @@ internal sealed class UnityStationHandle
                            .Replace("</b>", "", StringComparison.OrdinalIgnoreCase)
                            .Trim();
     }
-    private string BuildReceipt(UnityPrefabImportTask item, string locale = null)
+    private string BuildReceipt(PreparedImportItem item, string locale = null)
     {
         string loc = locale ?? CurrentLocale;
-        return LocalizationManager.GetStringForLocale(loc, "receiptPrefab", Path.GetFileName(item.ID.Value)) + "\n" +
-            LocalizationManager.GetStringForLocale(loc, "receiptImportedObjects", item.existingIUnityObjects?.Count ?? 0) + "\n" +
-            LocalizationManager.GetStringForLocale(loc, "receiptMeshRenderers", item.CurrentStructureRootSlot.GetComponentsInChildren<SkinnedMeshRenderer>().Count) + "\n" +
-            LocalizationManager.GetStringForLocale(loc, "receiptMissingMaterials", importer.GetMissingMaterialSummary(item?.CurrentStructureRootSlot).MissingAssetCount) + "\n" +
-            LocalizationManager.GetStringForLocale(loc, "receiptModularAvatar", item.Manifest?.ModularAvatarComponents.Count ?? 0) + "\n" +
-            LocalizationManager.GetStringForLocale(loc, "receiptUiTemplate", ui.Version) + "\n" +
-            LocalizationManager.GetStringForLocale(loc, "receiptShapeChanger");
+        var lines = new List<string>
+        {
+            LocalizationManager.GetStringForLocale(loc, "receiptPrefab", Path.GetFileName(item.ID.Value)),
+            LocalizationManager.GetStringForLocale(loc, "receiptImportedObjects", item.existingIUnityObjects?.Count ?? 0),
+            LocalizationManager.GetStringForLocale(loc, "receiptMeshRenderers", item.CurrentStructureRootSlot.GetComponentsInChildren<SkinnedMeshRenderer>().Count),
+            LocalizationManager.GetStringForLocale(loc, "receiptMissingMaterials", importer.GetMissingMaterialSummary(item?.CurrentStructureRootSlot).MissingAssetCount),
+            LocalizationManager.GetStringForLocale(loc, "receiptModularAvatar", item.Manifest?.ModularAvatarComponents.Count ?? 0)
+        };
+        if (item.Manifest?.HasVrcFuryComponents == true)
+        {
+            int linkCount = item.Manifest.AllVrcFuryArmatureLinks.Count;
+            int unsupported = item.Manifest.UnsupportedVrcFuryFeatureCount;
+            string status = unsupported > 0 ? $"{unsupported} deferred" : "fully converted";
+            lines.Add(LocalizationManager.GetStringForLocale(loc, "receiptVrcFury", item.Manifest.VrcFuryComponents.Count) + $" ({linkCount} Armature Link(s), {status})");
+        }
+        if (item.ConversionPlan != null && item.ConversionPlan.Operations.Count > 0)
+        {
+            lines.Add($"Conversion operations: {item.ConversionPlan.Operations.Count} (Errors: {(item.ConversionPlan.HasErrors ? "Yes" : "None")})");
+        }
+        if (item.IncompleteComponents.Count > 0)
+        {
+            lines.Add(LocalizationManager.GetStringForLocale(loc, "receiptIncompleteComponents", item.IncompleteComponents.Count));
+        }
+        lines.Add(LocalizationManager.GetStringForLocale(loc, "receiptUiTemplate", ui.Version));
+        lines.Add(LocalizationManager.GetStringForLocale(loc, "receiptShapeChanger"));
+        return string.Join("\n", lines);
     }
     private string CurrentLocale => LocalizationManager.DetectLocaleCode();
 
-    private void SaveReceipt(Slot output, UnityPrefabImportTask item) =>
+    private void SaveReceipt(Slot output, PreparedImportItem item) =>
         output.AddSlot("Unity Import Receipt").AttachComponent<ValueField<string>>().Value.Value = BuildReceipt(item);
     private static string Escape(string value) => (value ?? "").Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
 }

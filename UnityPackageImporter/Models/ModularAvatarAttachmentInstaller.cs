@@ -725,7 +725,7 @@ internal static class ModularAvatarAttachmentInstaller
             source.GlobalScale = originalScale;
     }
 
-    private static BodyNode MapUnityHumanoidBone(int boneReference)
+    internal static BodyNode MapUnityHumanoidBone(int boneReference)
     {
         // UnityEngine.HumanBodyBones numeric values are serialized into prefab
         // YAML. Keep this mapping explicit so importing does not require Unity.

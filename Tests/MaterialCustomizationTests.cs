@@ -198,6 +198,124 @@ internal static class MaterialCustomizationTests
                 try { Directory.Delete(tempDir, true); } catch { }
             }
         });
+
+        test("ThumbnailTaskCache handles concurrent requests for the same material with single generation", () =>
+        {
+            var cache = new ThumbnailTaskCache();
+            int generateCount = 0;
+            var expectedUri = new Uri("resdb:///test-material-hash");
+
+            var tasks = Enumerable.Range(0, 16).Select(_ => cache.GetOrLoadThumbnailAsync("guid-1", async _ =>
+            {
+                Interlocked.Increment(ref generateCount);
+                await Task.Delay(50);
+                return expectedUri;
+            })).ToArray();
+
+            Task.WaitAll(tasks);
+            Check(generateCount == 1, $"Generation should run exactly once for concurrent requests, ran {generateCount} times.");
+            Check(tasks.All(t => t.Result == expectedUri), "All concurrent requests should receive the identical URI.");
+            Check(cache.TryGetCachedUri("guid-1", out var cached) && cached == expectedUri, "URI must be saved in cache.");
+        });
+
+        test("ThumbnailTaskCache caller cancellation does not poison cache and allows subsequent retrieval", () =>
+        {
+            var cache = new ThumbnailTaskCache();
+            var expectedUri = new Uri("resdb:///test-cancel-recovery");
+            var tcs = new TaskCompletionSource<Uri?>();
+
+            using var cts = new CancellationTokenSource();
+            var firstTask = cache.GetOrLoadThumbnailAsync("guid-cancel", _ => tcs.Task, cts.Token);
+            cts.Cancel();
+
+            bool threwCanceled = false;
+            try
+            {
+                firstTask.GetAwaiter().GetResult();
+            }
+            catch (OperationCanceledException)
+            {
+                threwCanceled = true;
+            }
+            Check(threwCanceled, "First caller should observe OperationCanceledException when callerToken is canceled.");
+
+            // Complete the background task
+            tcs.SetResult(expectedUri);
+
+            // Second caller comes in after cancellation
+            var secondTask = cache.GetOrLoadThumbnailAsync("guid-cancel", _ => Task.FromResult<Uri?>(null));
+            var secondResult = secondTask.GetAwaiter().GetResult();
+            Check(secondResult == expectedUri, "Subsequent caller should receive result once background task completes.");
+        });
+
+        test("ThumbnailTaskCache retries after fault and null without poisoning cache", () =>
+        {
+            var cache = new ThumbnailTaskCache();
+            var expectedUri = new Uri("resdb:///test-fault-recovery");
+            int attempts = 0;
+
+            Func<string, Task<Uri?>> failingGenerator = _ =>
+            {
+                int attempt = Interlocked.Increment(ref attempts);
+                if (attempt == 1) throw new InvalidOperationException("Simulated transient generator fault");
+                if (attempt == 2) return Task.FromResult<Uri?>(null); // transient null return
+                return Task.FromResult<Uri?>(expectedUri);
+            };
+
+            // Attempt 1: Throws
+            bool threwFault = false;
+            try
+            {
+                cache.GetOrLoadThumbnailAsync("guid-fault", failingGenerator).GetAwaiter().GetResult();
+            }
+            catch (InvalidOperationException)
+            {
+                threwFault = true;
+            }
+            Check(threwFault, "Attempt 1 should propagate exception.");
+
+            // Attempt 2: Returns null
+            var result2 = cache.GetOrLoadThumbnailAsync("guid-fault", failingGenerator).GetAwaiter().GetResult();
+            Check(result2 == null, "Attempt 2 should return null without caching it.");
+
+            // Attempt 3: Succeeds
+            var result3 = cache.GetOrLoadThumbnailAsync("guid-fault", failingGenerator).GetAwaiter().GetResult();
+            Check(result3 == expectedUri, "Attempt 3 should succeed after previous fault and null were safely evicted.");
+            Check(attempts == 3, $"Should have invoked generator 3 times, got {attempts}.");
+        });
+
+        test("ThumbnailTaskCache simulates rapid folder switching and searching without deadlock or poisoning", () =>
+        {
+            var cache = new ThumbnailTaskCache();
+
+            // Rapid switching across 10 folders/search queries
+            for (int i = 0; i < 10; i++)
+            {
+                using var cts = new CancellationTokenSource();
+                var guid = $"mat-{i % 3}";
+                var task = cache.GetOrLoadThumbnailAsync(guid, async id =>
+                {
+                    await Task.Delay(20);
+                    return new Uri($"resdb:///{id}");
+                }, cts.Token);
+
+                // Cancel rapidly
+                cts.Cancel();
+                try { task.GetAwaiter().GetResult(); } catch (OperationCanceledException) { }
+            }
+
+            // Stable navigation settles and requests all 3 materials
+            var stable1 = cache.GetOrLoadThumbnailAsync("mat-0", id => Task.FromResult<Uri?>(new Uri($"resdb:///{id}"))).GetAwaiter().GetResult();
+            var stable2 = cache.GetOrLoadThumbnailAsync("mat-1", id => Task.FromResult<Uri?>(new Uri($"resdb:///{id}"))).GetAwaiter().GetResult();
+            var stable3 = cache.GetOrLoadThumbnailAsync("mat-2", id => Task.FromResult<Uri?>(new Uri($"resdb:///{id}"))).GetAwaiter().GetResult();
+
+            Check(stable1 == new Uri("resdb:///mat-0"), "mat-0 must load correctly after rapid navigation.");
+            Check(stable2 == new Uri("resdb:///mat-1"), "mat-1 must load correctly after rapid navigation.");
+            Check(stable3 == new Uri("resdb:///mat-2"), "mat-2 must load correctly after rapid navigation.");
+
+            cache.Clear();
+            Check(cache.InFlightCount == 0 && cache.CachedUriCount == 0, "Cache clear should empty all entries.");
+        });
     }
 
     private static void Check(bool condition, string message)

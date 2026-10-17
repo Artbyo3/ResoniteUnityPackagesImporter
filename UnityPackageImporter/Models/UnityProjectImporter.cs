@@ -436,13 +436,24 @@ public class UnityProjectImporter
         Session?.Check();
         if (stationHandle != null)
         {
-            await stationHandle.CompleteSuccessAsync();
+            var prefabTasks = unityImportTasks.OfType<UnityPrefabImportTask>().ToList();
+            var sceneTasks = unityImportTasks.OfType<UnitySceneImportTask>().ToList();
+            bool isPartial = prefabTasks.Any(t => t.IsPartialCompatibility) || sceneTasks.Any(t => t.IsPartialCompatibility);
+            await stationHandle.CompleteSuccessAsync(isPartial);
             Session?.Check();
-            // Scene packages have no selection action: completion commits their scenes.
-            if (!isClothingOrAvatar)
-                foreach (var scene in unityImportTasks.OfType<UnitySceneImportTask>())
+            var preparedItems = sceneTasks.SelectMany(scene => scene.PreparedItems)
+                .Concat(prefabTasks.Select(prefab => prefab.PreparedItem).Where(item => item != null)).ToList();
+            bool hasAvatarDefinitions = prefabTasks.Any(task => task.Manifest?.IsAvatarPrefab == true) ||
+                sceneTasks.Any(task => task.Manifest?.IsAvatarPrefab == true);
+            bool hasAvatarOrOutfitItems = preparedItems.Any(item =>
+                item.Manifest.IsModularAvatarAttachment ||
+                item.CurrentStructureRootSlot.GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>().Count > 0);
+            if (AvatarImportSelection.AutoCommitScenes(hasAvatarDefinitions, hasAvatarOrOutfitItems))
+            {
+                foreach (var scene in sceneTasks)
                     Session?.Commit(scene.CurrentStructureRootSlot);
-            await stationHandle.StageAsync(this, unityImportTasks.OfType<UnityPrefabImportTask>().ToList());
+            }
+            await stationHandle.StageAsync(this, preparedItems);
         }
 
         await default(ToBackground);

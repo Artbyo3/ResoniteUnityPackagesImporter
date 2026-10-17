@@ -19,6 +19,8 @@ internal static class LocalizationManager
 
     // localeCode -> (key -> messagePattern)
     private static readonly Dictionary<string, Dictionary<string, string>> Messages = new(StringComparer.OrdinalIgnoreCase);
+    private static volatile IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Snapshot =
+        new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
     private static bool initialized;
     private static readonly object InitLock = new();
 
@@ -36,6 +38,7 @@ internal static class LocalizationManager
             if (initialized) return;
             LoadEmbeddedResources();
             LoadDevelopmentOverrides();
+            PublishSnapshot();
             RegisterSettingsHook();
             initialized = true;
         }
@@ -48,6 +51,7 @@ internal static class LocalizationManager
             Messages.Clear();
             LoadEmbeddedResources();
             LoadDevelopmentOverrides();
+            PublishSnapshot();
             initialized = true;
         }
     }
@@ -59,7 +63,18 @@ internal static class LocalizationManager
         {
             using var doc = JsonDocument.Parse(jsonContent);
             ParseLocaleDocument(doc.RootElement);
+            PublishSnapshot();
         }
+    }
+
+    private static void PublishSnapshot()
+    {
+        var newSnapshot = new Dictionary<string, IReadOnlyDictionary<string, string>>(Messages.Count, StringComparer.OrdinalIgnoreCase);
+        foreach (var kvp in Messages)
+        {
+            newSnapshot[kvp.Key] = new Dictionary<string, string>(kvp.Value, StringComparer.OrdinalIgnoreCase);
+        }
+        Snapshot = newSnapshot;
     }
 
     private static void LoadEmbeddedResources()
@@ -179,7 +194,8 @@ internal static class LocalizationManager
                 return "no";
         }
 
-        if (SupportedLocaleSet.Contains(code) || Messages.ContainsKey(code))
+        var snapshot = Snapshot;
+        if (SupportedLocaleSet.Contains(code) || snapshot.ContainsKey(code))
             return code;
 
         int dash = code.IndexOf('-');
@@ -224,6 +240,7 @@ internal static class LocalizationManager
 
     public static string DetectLocaleCode()
     {
+        var snapshot = Snapshot;
 #if !REGRESSION_TESTS
         try
         {
@@ -234,19 +251,19 @@ internal static class LocalizationManager
                 if (!string.IsNullOrWhiteSpace(active))
                 {
                     string norm = NormalizeLocaleCode(active);
-                    if (Messages.ContainsKey(norm)) return norm;
+                    if (snapshot.ContainsKey(norm)) return norm;
                 }
                 string primary = settings.PrimaryInterfaceLocaleCode?.Value;
                 if (!string.IsNullOrWhiteSpace(primary))
                 {
                     string norm = NormalizeLocaleCode(primary);
-                    if (Messages.ContainsKey(norm)) return norm;
+                    if (snapshot.ContainsKey(norm)) return norm;
                 }
                 string culture = settings.ActiveCulture?.Name;
                 if (!string.IsNullOrWhiteSpace(culture))
                 {
                     string norm = NormalizeLocaleCode(culture);
-                    if (Messages.ContainsKey(norm)) return norm;
+                    if (snapshot.ContainsKey(norm)) return norm;
                 }
             }
         }
@@ -261,13 +278,13 @@ internal static class LocalizationManager
                 if (!string.IsNullOrWhiteSpace(active))
                 {
                     string norm = NormalizeLocaleCode(active);
-                    if (Messages.ContainsKey(norm)) return norm;
+                    if (snapshot.ContainsKey(norm)) return norm;
                 }
                 string primary = fallbackSettings.PrimaryInterfaceLocaleCode?.Value;
                 if (!string.IsNullOrWhiteSpace(primary))
                 {
                     string norm = NormalizeLocaleCode(primary);
-                    if (Messages.ContainsKey(norm)) return norm;
+                    if (snapshot.ContainsKey(norm)) return norm;
                 }
             }
         }
@@ -280,13 +297,13 @@ internal static class LocalizationManager
             if (!string.IsNullOrWhiteSpace(cultureName))
             {
                 string norm = NormalizeLocaleCode(cultureName);
-                if (Messages.ContainsKey(norm)) return norm;
+                if (snapshot.ContainsKey(norm)) return norm;
             }
             string twoLetter = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
             if (!string.IsNullOrWhiteSpace(twoLetter))
             {
                 string norm = NormalizeLocaleCode(twoLetter);
-                if (Messages.ContainsKey(norm)) return norm;
+                if (snapshot.ContainsKey(norm)) return norm;
             }
         }
         catch { }
@@ -339,9 +356,10 @@ internal static class LocalizationManager
     private static bool TryGetPattern(string localeCode, string key, out string template)
     {
         string normalized = NormalizeLocaleCode(localeCode);
+        var snapshot = Snapshot;
 
         template = null;
-        if (Messages.TryGetValue(normalized, out var dict))
+        if (snapshot.TryGetValue(normalized, out var dict))
         {
             dict.TryGetValue(KeyPrefix + key, out template);
             if (template == null) dict.TryGetValue(key, out template);
@@ -353,7 +371,7 @@ internal static class LocalizationManager
             if (dash > 0)
             {
                 string baseCode = normalized.Substring(0, dash);
-                if (Messages.TryGetValue(baseCode, out var baseDict))
+                if (snapshot.TryGetValue(baseCode, out var baseDict))
                 {
                     baseDict.TryGetValue(KeyPrefix + key, out template);
                     if (template == null) baseDict.TryGetValue(key, out template);
@@ -362,7 +380,7 @@ internal static class LocalizationManager
         }
 
         // Fallback to "en" if not found in requested locale
-        if (template == null && !normalized.Equals("en", StringComparison.OrdinalIgnoreCase) && Messages.TryGetValue("en", out var enDict))
+        if (template == null && !normalized.Equals("en", StringComparison.OrdinalIgnoreCase) && snapshot.TryGetValue("en", out var enDict))
         {
             enDict.TryGetValue(KeyPrefix + key, out template);
             if (template == null) enDict.TryGetValue(key, out template);

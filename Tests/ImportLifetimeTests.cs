@@ -115,6 +115,46 @@ internal static class ImportLifetimeTests
                 Complete(drain);
             }
         });
+
+        test("Import lifetime TryEnter and IsClosing reflect closing state safely", () =>
+        {
+            var lifetime = new ImportLifetime();
+            Check(!lifetime.IsClosing, "Lifetime must not be closing initially.");
+            Check(lifetime.TryEnter(out var lease), "TryEnter must succeed on an open lifetime.");
+            Check(lease != null, "A successful TryEnter must produce a non-null lease.");
+
+            var drain = lifetime.CancelAndDrainAsync();
+            Check(lifetime.IsClosing, "Lifetime must report IsClosing after CancelAndDrainAsync.");
+            Check(!drain.IsCompleted, "Active TryEnter lease must hold drain.");
+
+            Check(!lifetime.TryEnter(out var closedLease), "TryEnter must return false once closing.");
+            Check(closedLease == null, "Failed TryEnter must output null lease.");
+
+            lease.Dispose();
+            Complete(drain);
+            Check(!lifetime.TryEnter(out _), "TryEnter must continue to return false after drainage.");
+        });
+
+        test("Import lifetime Enter throws OperationCanceledException when closing while TryEnter returns false", () =>
+        {
+            var lifetime = new ImportLifetime();
+            var drain = lifetime.CancelAndDrainAsync();
+            Complete(drain);
+
+            Check(!lifetime.TryEnter(out var lease), "TryEnter must safely return false without throwing.");
+            Check(lease == null, "Lease must be null.");
+
+            bool threwExpected = false;
+            try
+            {
+                using var _ = lifetime.Enter();
+            }
+            catch (OperationCanceledException)
+            {
+                threwExpected = true;
+            }
+            Check(threwExpected, "Enter must throw OperationCanceledException when closing.");
+        });
     }
 
     private static void RejectEntry(ImportLifetime lifetime)

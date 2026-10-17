@@ -19,7 +19,7 @@ namespace UnityPackageImporter.Models;
 internal sealed class MaterialCustomizerController
 {
     private readonly StationTemplate ui;
-    private readonly Func<UnityPrefabImportTask> getCurrent;
+    private readonly Func<PreparedImportItem> getCurrent;
     private readonly Func<UnityProjectImporter> getImporter;
     private readonly Func<bool> isAlive;
     private readonly Func<bool> isBusy;
@@ -57,7 +57,7 @@ internal sealed class MaterialCustomizerController
     private readonly Button materialSearchClear;
     private readonly Button foldersOpenButton;
     private readonly Button folderRootButton;
-    private readonly Dictionary<(UnityPrefabImportTask Item, object Renderer, int Index), IAssetProvider<Material>> originals = new();
+    private readonly Dictionary<(PreparedImportItem Item, object Renderer, int Index), IAssetProvider<Material>> originals = new();
 
     private Slot mainSearchField;
     private Slot materialSearchField;
@@ -77,15 +77,14 @@ internal sealed class MaterialCustomizerController
     private MaterialSlotBinding selectedSlot;
     private MaterialRendererBinding expandedRenderer;
     private readonly HashSet<string> expandedRendererNames = new(StringComparer.OrdinalIgnoreCase);
-    private UnityPrefabImportTask displayedItem;
+    private PreparedImportItem displayedItem;
     private IReadOnlyList<MaterialRendererBinding> renderers = Array.Empty<MaterialRendererBinding>();
     private PackageMaterialCatalog materialCatalog;
     private int mainSearchGeneration;
     private int materialSearchGeneration;
     private CancellationTokenSource materialRowsCts;
     private CancellationTokenSource? meshSpheresCts;
-    private readonly ConcurrentDictionary<string, Uri> thumbnailUriCache = new(StringComparer.OrdinalIgnoreCase);
-    private readonly ConcurrentDictionary<string, Task<Uri?>> thumbnailTaskCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ThumbnailTaskCache thumbnailCache = new();
 
     private sealed class FittedTextBinding
     {
@@ -173,11 +172,11 @@ internal sealed class MaterialCustomizerController
     private readonly List<PooledMaterialCard> pooledMaterialCards = new();
     private readonly List<PooledFolderRow> pooledFolderRows = new();
     private FittedTextBinding? folderChoiceRootLabel;
-    private UnityPrefabImportTask cachedMeshCardsItem;
+    private PreparedImportItem cachedMeshCardsItem;
 
     internal MaterialCustomizerController(
         StationTemplate ui,
-        Func<UnityPrefabImportTask> getCurrent,
+        Func<PreparedImportItem> getCurrent,
         Func<UnityProjectImporter> getImporter,
         Func<bool> isAlive,
         Func<bool> isBusy,
@@ -380,7 +379,7 @@ internal sealed class MaterialCustomizerController
                         .FirstOrDefault(d => d.State == vs.TargetValue.Target);
                 }
                 UnityStationHandle.ReleaseFixtureActions(foldersOpenButton);
-                foldersOpenButton.RequireLockInToPress.Value = true;
+                foldersOpenButton.RequireLockInToPress.Value = false;
                 foldersOpenButton.PassThroughVerticalMovement.Value = true;
                 foldersOpenButton.PassThroughHorizontalMovement.Value = true;
                 NativeButtonEvents.Pressed(foldersOpenButton, (_, _) =>
@@ -474,7 +473,7 @@ internal sealed class MaterialCustomizerController
                             comp.Enabled = false;
                     }
                     navUpSlot.ActiveSelf = true;
-                    var le = navUpSlot.GetComponent<LayoutElement>();
+                    var le = navUpSlot.GetComponent<LayoutElement>() ?? navUpSlot.AttachComponent<LayoutElement>();
                     if (le != null)
                     {
                         le.MinWidth.Value = 0f;
@@ -524,7 +523,7 @@ internal sealed class MaterialCustomizerController
                         vcB.Target.Target = folderNavUp.EnabledField;
                     }
 
-                    folderNavUp.RequireLockInToPress.Value = true;
+                    folderNavUp.RequireLockInToPress.Value = false;
                     folderNavUp.PassThroughVerticalMovement.Value = true;
                     folderNavUp.PassThroughHorizontalMovement.Value = true;
                     if (folderCanGoUp != null) folderCanGoUp.Value = false;
@@ -757,6 +756,11 @@ internal sealed class MaterialCustomizerController
         if (mainVisible != null && !mainVisible.IsDestroyed) mainVisible.State.Value = false;
     }
 
+    internal void ClearThumbnailCaches()
+    {
+        thumbnailCache.Clear();
+    }
+
     private void ClosePickerOnly()
     {
         materialRowsCts?.Cancel();
@@ -800,7 +804,7 @@ internal sealed class MaterialCustomizerController
     {
         if (!isAlive() || isBusy()) return;
         setStage("Open material customizer");
-        UnityPrefabImportTask item = getCurrent();
+        PreparedImportItem item = getCurrent();
         UnityProjectImporter importer = getImporter();
         if (item == null || item.CurrentStructureRootSlot == null || item.CurrentStructureRootSlot.IsDestroyed || importer == null)
             return;
@@ -872,7 +876,7 @@ internal sealed class MaterialCustomizerController
     }
 
     private IReadOnlyList<MaterialRendererBinding> BuildRendererBindings(
-        UnityPrefabImportTask item,
+        PreparedImportItem item,
         UnityProjectImporter importer,
         PackageMaterialCatalog catalog)
     {
@@ -1311,21 +1315,49 @@ internal sealed class MaterialCustomizerController
             if (changeBtn != null)
             {
                 UnityStationHandle.ReleaseFixtureActions(changeBtn);
+                changeBtn.RequireLockInToPress.Value = false;
+                changeBtn.PassThroughVerticalMovement.Value = true;
+                changeBtn.PassThroughHorizontalMovement.Value = true;
                 NativeButtonEvents.Pressed(changeBtn, (_, _) => schedule(() => OpenMaterialPickerAsync(slot)));
             }
 
             Slot restoreSlot = FindDescendant(slotRow, "slot-0-0-restore");
             var restoreBtn = restoreSlot?.GetComponent<Button>();
-            bool isModified = !ReferenceEquals(slot.ReadCurrent(), slot.Original);
+            bool isModified = IsSlotModified(slot);
             if (restoreBtn != null)
             {
                 UnityStationHandle.ReleaseFixtureActions(restoreBtn);
+                restoreBtn.RequireLockInToPress.Value = false;
+                restoreBtn.PassThroughVerticalMovement.Value = true;
+                restoreBtn.PassThroughHorizontalMovement.Value = true;
                 restoreBtn.Slot.ActiveSelf = isModified;
                 NativeButtonEvents.Pressed(restoreBtn, (_, _) => schedule(() => RestoreOriginalAsync(slot)));
             }
 
             holder.SlotRows[slot] = (nameLabel, sphereSlot, restoreBtn);
         }
+    }
+
+    private bool IsSlotModified(MaterialSlotBinding slot)
+    {
+        if (slot == null) return false;
+        var current = slot.ReadCurrent();
+        if (ReferenceEquals(current, slot.Original)) return false;
+        if (current == null && slot.Original == null) return false;
+        if (current == null || slot.Original == null) return true;
+
+        var importer = getImporter();
+        string currentGuid = slot.CurrentGuid(importer);
+        if (!string.IsNullOrEmpty(currentGuid))
+        {
+            if (importer != null && importer.TryGetMaterialGuid(slot.Original, out string originalGuid) &&
+                !string.IsNullOrEmpty(originalGuid))
+            {
+                return !currentGuid.Equals(originalGuid, StringComparison.OrdinalIgnoreCase);
+            }
+        }
+
+        return true;
     }
 
     private void UpdateSlotInNativeCards(MaterialSlotBinding slot)
@@ -1346,7 +1378,7 @@ internal sealed class MaterialCustomizerController
                 rowInfo.NameLabel.SetText(updatedName);
                 UpdateSlotSphere(holder.CardSlot, rowInfo.SphereSlot, slot, sphereToken);
 
-                bool isModified = !ReferenceEquals(slot.ReadCurrent(), slot.Original);
+                bool isModified = IsSlotModified(slot);
                 if (rowInfo.RestoreBtn != null && !rowInfo.RestoreBtn.Slot.IsDestroyed)
                 {
                     rowInfo.RestoreBtn.Slot.ActiveSelf = isModified;
@@ -1665,27 +1697,19 @@ internal sealed class MaterialCustomizerController
                 await Task.Delay(100, cancellationToken);
                 if (cancellationToken.IsCancellationRequested) return;
 
-                if (!thumbnailUriCache.TryGetValue(materialGuid, out Uri url))
+                Uri? url = await thumbnailCache.GetOrLoadThumbnailAsync(materialGuid, async guid =>
                 {
-                    Task<Uri?> task = thumbnailTaskCache.GetOrAdd(materialGuid, async guid =>
-                    {
-                        string? thumbPath = await MaterialThumbnailGenerator.GetOrCreateThumbnailAsync(guid, importer, cancellationToken);
-                        if (string.IsNullOrEmpty(thumbPath) || cancellationToken.IsCancellationRequested) return null;
+                    var currentImporter = getImporter();
+                    if (currentImporter?.world == null || currentImporter.world.IsDestroyed) return null;
 
-                        Uri importedUrl = await importer.world.Engine.LocalDB.ImportLocalAssetAsync(thumbPath, LocalDB.ImportLocation.Copy);
-                        if (importedUrl != null) thumbnailUriCache[guid] = importedUrl;
-                        return importedUrl;
-                    });
+                    string? thumbPath = await MaterialThumbnailGenerator.GetOrCreateThumbnailAsync(guid, currentImporter, CancellationToken.None);
+                    if (string.IsNullOrEmpty(thumbPath)) return null;
 
-                    url = await task;
-                    if (url == null)
-                    {
-                        thumbnailTaskCache.TryRemove(materialGuid, out _);
-                        return;
-                    }
-                }
+                    if (currentImporter.world == null || currentImporter.world.IsDestroyed) return null;
+                    return await currentImporter.world.Engine.LocalDB.ImportLocalAssetAsync(thumbPath, LocalDB.ImportLocation.Copy);
+                }, cancellationToken);
 
-                if (cancellationToken.IsCancellationRequested) return;
+                if (url == null || cancellationToken.IsCancellationRequested) return;
 
                 importer.world.RunSynchronously(() =>
                 {

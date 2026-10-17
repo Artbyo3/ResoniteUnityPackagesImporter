@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using Elements.Core;
@@ -37,7 +38,7 @@ public class Transform: IUnityObject
 
         instanciated = true;
 
-        if (m_CorrespondingSourceObject?.guid == null)
+        if (string.IsNullOrEmpty(m_CorrespondingSourceObject?.guid))
         {
             await CreateSelf(importer);
         }
@@ -48,69 +49,86 @@ public class Transform: IUnityObject
                 importer.existingIUnityObjects.TryGetValue(prefabInstanceId, out IUnityObject PrefabInstanceObject))
             {
                 PrefabInstance prefab = PrefabInstanceObject as PrefabInstance;
+                if (prefab == null)
+                {
+                    throw new InvalidDataException($"Transform {id} references prefab instance {prefabInstanceId}, but it could not be resolved. Cannot reconstruct object hierarchy.");
+                }
+
                 await default(ToWorld);
                 await prefab.InstanciateAsync(importer);
                 await default(ToBackground);
 
-                if (prefab.PrefabHashes.TryGetValue(m_CorrespondingSourceObject, out IUnityObject targetObj))
+                if (prefab.TryFindObject(m_CorrespondingSourceObject, out IUnityObject targetObj))
                 {
                     Transform alreadydefined = (targetObj as Transform);
-
-                    try
+                    if (alreadydefined == null)
                     {
-                        this.parentHashedGameObj = alreadydefined.parentHashedGameObj;
+                        throw new InvalidDataException($"Transform {id} resolved target {m_CorrespondingSourceObject.fileID}, but target is not a Transform. Cannot reconstruct object hierarchy.");
+                    }
 
-                        UnityPackageImporter.Msg("transform import stage 1");
-                        foreach (IUnityObject variab in importer.existingIUnityObjects.Values)
+                    this.parentHashedGameObj = alreadydefined.parentHashedGameObj;
+
+                    UnityPackageImporter.Msg("transform import stage 1");
+                    foreach (IUnityObject variab in importer.existingIUnityObjects.Values)
+                    {
+                        if (variab is GameObject actual &&
+                            actual.m_CorrespondingSourceObject?.guid != null &&
+                            actual.m_CorrespondingSourceObject.fileID != 0 &&
+                            alreadydefined.parentHashedGameObj?.m_CorrespondingSourceObject != null)
                         {
-                            if (variab is GameObject actual &&
-                                actual.m_CorrespondingSourceObject?.guid != null &&
-                                actual.m_CorrespondingSourceObject.fileID != 0 &&
-                                alreadydefined.parentHashedGameObj?.m_CorrespondingSourceObject != null)
+                            if (actual.m_CorrespondingSourceObject.fileID == alreadydefined.parentHashedGameObj.m_CorrespondingSourceObject.fileID
+                                && actual.m_CorrespondingSourceObject.guid.Equals(alreadydefined.parentHashedGameObj.m_CorrespondingSourceObject.guid))
                             {
-                                if (actual.m_CorrespondingSourceObject.fileID == alreadydefined.parentHashedGameObj.m_CorrespondingSourceObject.fileID
-                                    && actual.m_CorrespondingSourceObject.guid.Equals(alreadydefined.parentHashedGameObj.m_CorrespondingSourceObject.guid))
-                                {
-                                    UnityPackageImporter.Msg("transform import stage 1.5");
-                                    this.parentHashedGameObj = actual;
-                                    break;
-                                }
+                                UnityPackageImporter.Msg("transform import stage 1.5");
+                                this.parentHashedGameObj = actual;
+                                break;
                             }
                         }
-                        UnityPackageImporter.Msg("transform import stage 3");
-                        await default(ToWorld);
-                        await this.parentHashedGameObj.InstanciateAsync(importer);
-                        await default(ToBackground);
-
-                        UnityPackageImporter.Msg("transform import stage 4");
-                        this.m_GameObject = new Dictionary<string, ulong>
-                            {
-                                { "fileID", this.parentHashedGameObj.id}
-                            };
-                        m_GameObjectID = m_GameObject["fileID"];
-
-                        UnityPackageImporter.Msg("transform import stage 5");
-                        await default(ToWorld);
-                        this.m_LocalRotation = alreadydefined.m_LocalRotation;
-                        this.m_LocalPosition = alreadydefined.m_LocalPosition;
-                        this.m_LocalScale = alreadydefined.m_LocalScale;
-
-                        this.parentHashedGameObj.frooxEngineSlot.LocalPosition = new float3(this.m_LocalPosition.x, this.m_LocalPosition.y, this.m_LocalPosition.z);
-                        this.parentHashedGameObj.frooxEngineSlot.LocalRotation = new floatQ(this.m_LocalRotation.x, this.m_LocalRotation.y, this.m_LocalRotation.z, this.m_LocalRotation.w);
-                        this.parentHashedGameObj.frooxEngineSlot.LocalScale = new float3(this.m_LocalScale.x, this.m_LocalScale.y, this.m_LocalScale.z);
-                        await default(ToBackground);
-                        UnityPackageImporter.Msg("transform import stage 6");
                     }
-                    catch (Exception ex)
+
+                    if (this.parentHashedGameObj == null)
                     {
-                        UnityPackageImporter.Warn("The inline prefab is malformed!!! the transform with an id \"" + id.ToString() + "\" did not find it's parent transform's game object! this will split your import in half heiarchy wise! This should never happen!");
-                        UnityPackageImporter.Warn(ex.Message, ex.StackTrace);
+                        throw new InvalidDataException($"Transform {id} could not find its associated GameObject in prefab hierarchy. Cannot reconstruct object hierarchy.");
                     }
+
+                    UnityPackageImporter.Msg("transform import stage 3");
+                    await default(ToWorld);
+                    await this.parentHashedGameObj.InstanciateAsync(importer);
+                    await default(ToBackground);
+
+                    UnityPackageImporter.Msg("transform import stage 4");
+                    this.m_GameObject = new Dictionary<string, ulong>
+                    {
+                        { "fileID", this.parentHashedGameObj.id}
+                    };
+                    m_GameObjectID = m_GameObject["fileID"];
+
+                    UnityPackageImporter.Msg("transform import stage 5");
+                    await default(ToWorld);
+                    this.m_LocalRotation = alreadydefined.m_LocalRotation;
+                    this.m_LocalPosition = alreadydefined.m_LocalPosition;
+                    this.m_LocalScale = alreadydefined.m_LocalScale;
+
+                    if (this.parentHashedGameObj?.frooxEngineSlot != null)
+                    {
+                        if (this.m_LocalPosition != null)
+                            this.parentHashedGameObj.frooxEngineSlot.LocalPosition = new float3(this.m_LocalPosition.x, this.m_LocalPosition.y, this.m_LocalPosition.z);
+                        if (this.m_LocalRotation != null)
+                            this.parentHashedGameObj.frooxEngineSlot.LocalRotation = new floatQ(this.m_LocalRotation.x, this.m_LocalRotation.y, this.m_LocalRotation.z, this.m_LocalRotation.w);
+                        if (this.m_LocalScale != null)
+                            this.parentHashedGameObj.frooxEngineSlot.LocalScale = new float3(this.m_LocalScale.x, this.m_LocalScale.y, this.m_LocalScale.z);
+                    }
+                    await default(ToBackground);
+                    UnityPackageImporter.Msg("transform import stage 6");
+                }
+                else
+                {
+                    throw new InvalidDataException($"Transform {id} could not resolve prefab target {m_CorrespondingSourceObject.fileID} in {m_CorrespondingSourceObject.guid}. Hierarchy integrity cannot be guaranteed.");
                 }
             }
             else
             {
-                UnityPackageImporter.Warn("The transform with an id \"" + id.ToString() + "\" has a m_CorrespondingSourceObject with a GUID of \"" + m_CorrespondingSourceObject.guid + "\" but it can't find it's prefab! This should never happen!");
+                throw new InvalidDataException($"Transform {id} has prefab source {m_CorrespondingSourceObject.guid} but could not find its PrefabInstance. Hierarchy integrity cannot be guaranteed.");
             }
             instanciated = true;
 
@@ -119,8 +137,8 @@ public class Transform: IUnityObject
 
     private async Task CreateSelf(IUnityStructureImporter importer)
     {
-        m_FatherID = m_Father["fileID"];
-        m_GameObjectID = m_GameObject["fileID"];
+        m_FatherID = (m_Father != null && m_Father.TryGetValue("fileID", out ulong fId)) ? fId : 0;
+        m_GameObjectID = (m_GameObject != null && m_GameObject.TryGetValue("fileID", out ulong gId)) ? gId : 0;
         if (importer.existingIUnityObjects.TryGetValue(m_GameObjectID, out IUnityObject foundobject) && foundobject.GetType() == typeof(GameObject))
         {
             GameObject parentobj;
@@ -130,9 +148,15 @@ public class Transform: IUnityObject
             await default(ToBackground);
 
             await default(ToWorld);
-            parentobj.frooxEngineSlot.LocalPosition = new float3(m_LocalPosition.x, m_LocalPosition.y, m_LocalPosition.z);
-            parentobj.frooxEngineSlot.LocalRotation = new floatQ(m_LocalRotation.x, m_LocalRotation.y, m_LocalRotation.z, m_LocalRotation.w);
-            parentobj.frooxEngineSlot.LocalScale = new float3(m_LocalScale.x, m_LocalScale.y, m_LocalScale.z);
+            if (parentobj.frooxEngineSlot != null)
+            {
+                if (m_LocalPosition != null)
+                    parentobj.frooxEngineSlot.LocalPosition = new float3(m_LocalPosition.x, m_LocalPosition.y, m_LocalPosition.z);
+                if (m_LocalRotation != null)
+                    parentobj.frooxEngineSlot.LocalRotation = new floatQ(m_LocalRotation.x, m_LocalRotation.y, m_LocalRotation.z, m_LocalRotation.w);
+                if (m_LocalScale != null)
+                    parentobj.frooxEngineSlot.LocalScale = new float3(m_LocalScale.x, m_LocalScale.y, m_LocalScale.z);
+            }
             
             await default(ToBackground);
             if (importer.existingIUnityObjects.TryGetValue(m_FatherID, out IUnityObject foundobjectparent) && foundobjectparent.GetType() == typeof(Transform))
@@ -142,11 +166,19 @@ public class Transform: IUnityObject
                 await parentTransform.InstanciateAsync(importer);
                 if (importer.existingIUnityObjects.TryGetValue(parentTransform.m_GameObjectID, out IUnityObject parentobj_parent) && parentobj_parent.GetType() == typeof(GameObject))
                 {
-                    await default(ToWorld);
-                    parentobj.frooxEngineSlot.SetParent((parentobj_parent as GameObject).frooxEngineSlot, false);
-                    await default(ToBackground);
+                    var targetSlot = (parentobj_parent as GameObject)?.frooxEngineSlot;
+                    if (parentobj.frooxEngineSlot != null && targetSlot != null)
+                    {
+                        await default(ToWorld);
+                        parentobj.frooxEngineSlot.SetParent(targetSlot, false);
+                        await default(ToBackground);
+                    }
+                    else
+                    {
+                        throw new InvalidDataException($"Transform {id} could not parent slot to parent GameObject {parentTransform.m_GameObjectID} (slot is null). Hierarchy would be split.");
+                    }
                 }
-                else if(parentTransform.parentHashedGameObj != null)
+                else if(parentTransform.parentHashedGameObj?.frooxEngineSlot != null && parentobj.frooxEngineSlot != null)
                 {
                     //if this transform was instanciated through the FileImportTaskScene class, we parent ourselves to it's game object here, which is filled by the FileImportTaskScene class.
                     await default(ToWorld);
@@ -155,26 +187,27 @@ public class Transform: IUnityObject
                 }
                 else
                 {
-                    UnityPackageImporter.Warn("The prefab is malformed!!! the transform with an id \"" + id.ToString() + "\" did not find it's parent transform's game object! this will split your import in half heiarchy wise!");
+                    throw new InvalidDataException($"Transform {id} could not find parent transform's GameObject (parent transform {parentTransform.id}). Hierarchy would be split.");
                 }
             }
             else
             {
                 //this is to solve a problem where the root of prefabs can be called their game object name
-                if(m_FatherID == 0)
+                if(m_FatherID == 0 && parentobj.frooxEngineSlot != null)
                 {
                     await default(ToWorld);
                     parentobj.frooxEngineSlot.Name = "RootNode";
                     await default(ToBackground);
                 }
-                
-                UnityPackageImporter.Warn("Slot did not find it's parent. If there is more than one of these messages in an import then that is bad! Transform id: " + m_FatherID.ToString());
+                else if (m_FatherID != 0)
+                {
+                    throw new InvalidDataException($"Transform {id} specifies parent transform fileID {m_FatherID}, but parent does not exist. Hierarchy would be split.");
+                }
             }
         }
         else
         {
-            UnityPackageImporter.Warn("The prefab is malformed!!! the transform with an id \"" + id.ToString() + "\" did not find it's game object! ");
-
+            throw new InvalidDataException($"Transform {id} did not find its associated GameObject {m_GameObjectID}. Cannot reconstruct object hierarchy.");
         }
     }
 

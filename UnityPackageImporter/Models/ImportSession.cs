@@ -52,6 +52,7 @@ internal sealed class ImportSession
         Unsubscribe();
     }
 
+    public bool TryEnter(out IDisposable? lease) => lifetime.TryEnter(out lease);
     public IDisposable Enter() => lifetime.Enter();
     public void Check() => Token.ThrowIfCancellationRequested();
     public Task CancelAsync() => lifetime.CancelAndDrainAsync();
@@ -108,7 +109,14 @@ internal sealed class ImportSession
     }
 
     // Called on the world context. Reentrant close / external deletion share one cleanup.
-    public Task CleanupAsync() => cleanup ??= CleanupCoreAsync();
+    private readonly object cleanupLock = new();
+    public Task CleanupAsync()
+    {
+        lock (cleanupLock)
+        {
+            return cleanup ??= CleanupCoreAsync();
+        }
+    }
 
     private async Task CleanupCoreAsync()
     {

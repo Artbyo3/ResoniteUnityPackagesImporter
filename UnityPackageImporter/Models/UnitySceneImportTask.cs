@@ -18,6 +18,15 @@ public class UnitySceneImportTask: IUnityStructureImporter
 
     public KeyValuePair<string, string> ID { get; set; }
 
+    public List<string> IncompleteComponents { get; } = new List<string>();
+    internal AvatarPackageManifest Manifest { get; private set; }
+    internal PreparedImportItem ScenePreparation { get; set; }
+    internal IReadOnlyList<PreparedImportItem> PreparedItems { get; private set; } = Array.Empty<PreparedImportItem>();
+    public AvatarBuildPlan ConversionPlan { get; private set; }
+    public bool IsPartialCompatibility => PrefabVariantResolver.EvaluatePartialCompatibility(
+        IncompleteComponents.Count,
+        (Manifest?.HasUnsupportedVrcFuryFeatures ?? false) || (ConversionPlan?.HasErrors ?? false));
+
     private float3 GlobalIndicatorPosition;
     public ProgressBarInterface progressIndicator { get; set; }
 
@@ -54,6 +63,9 @@ public class UnitySceneImportTask: IUnityStructureImporter
             progressIndicator?.UpdateProgress(0f, "", "now loading unity YAML objects for Scene.");
             await default(ToBackground);
 
+            this.Manifest = AvatarPackageIndex.ParseFile(
+                this.ID.Value,
+                this.unityProjectImporter?.ListOfPrefabs);
             this.existingIUnityObjects = YamlToFrooxEngine.parseYaml(this.ID.Value);
             int totalProgress = 0;
 
@@ -91,9 +103,9 @@ public class UnitySceneImportTask: IUnityStructureImporter
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
                     UnityPackageImporter.Warn("Scene IUnityObject failed to instanciate!");
-                    UnityPackageImporter.Msg("Scene IUnityObject ID: \"" + obj.Value.id.ToString() + "\"");
+                    UnityPackageImporter.Msg("Scene IUnityObject ID: \"" + obj.Value.id.ToString() + "\" (" + type.Name + ")");
                     UnityPackageImporter.Warn(e.Message + e.StackTrace);
-                    throw new InvalidDataException("Could not build scene component " + obj.Value.id + " (" + type.Name + ").", e);
+                    IncompleteComponents.Add($"{type.Name} ({obj.Value.id})");
                 }
                 try
                 {
@@ -107,26 +119,35 @@ public class UnitySceneImportTask: IUnityStructureImporter
                 }
             }
 
+            if (this.CurrentStructureRootSlot == null || this.CurrentStructureRootSlot.IsDestroyed)
+            {
+                throw new InvalidDataException($"Root slot for scene {Path.GetFileName(ID.Value)} was not created.");
+            }
+
+            var authoredSkins = existingIUnityObjects.Values.OfType<FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer>().ToList();
+            int successfulSkins = authoredSkins.Count(s => s.createdMeshRenderer != null);
+            if (authoredSkins.Count > 0 && !PrefabVariantResolver.EvaluateSkinnedMeshReconstruction(authoredSkins.Count, successfulSkins, Path.GetFileName(ID.Value), out string failureReason))
+            {
+                throw new InvalidDataException(failureReason);
+            }
+
             await default(ToBackground);
 
             List<IUnityObject> movethese = new List<IUnityObject>();
 
             foreach (var obj in existingIUnityObjects)
             {
-                if (obj.Value.GetType() == typeof(FrooxEngineRepresentation.GameObjectTypes.Transform))
+                if (obj.Value is FrooxEngineRepresentation.GameObjectTypes.Transform trans)
                 {
-                    FrooxEngineRepresentation.GameObjectTypes.Transform trans = obj.Value as FrooxEngineRepresentation.GameObjectTypes.Transform;
-                    if (trans != null)
+                    if (trans.m_FatherID == 0 && trans.parentHashedGameObj == null)
                     {
-                        if (trans.m_FatherID == 0 && trans.parentHashedGameObj == null)
+                        if (existingIUnityObjects.TryGetValue(trans.m_GameObjectID, out var go) && go != null)
                         {
-                            try{
-                                movethese.Add(existingIUnityObjects[trans.m_GameObjectID]);
-                            }
-                            catch
-                            {
-                                UnityPackageImporter.Warn("transform with id \""+trans.id.ToString()+"\" does not have a parent game object! This is bad!" );
-                            }
+                            movethese.Add(go);
+                        }
+                        else
+                        {
+                            UnityPackageImporter.Warn("transform with id \"" + trans.id.ToString() + "\" does not have a parent game object!");
                         }
                     }
                 }
@@ -136,10 +157,33 @@ public class UnitySceneImportTask: IUnityStructureImporter
             // Getting rid of objects that should go under the prefab slot.
             foreach (var obj in movethese)
             {
-                FrooxEngineRepresentation.GameObjectTypes.GameObject gameobj = obj as FrooxEngineRepresentation.GameObjectTypes.GameObject;
-                await default(ToWorld);
-                gameobj.frooxEngineSlot.SetParent(this.CurrentStructureRootSlot, false);
-                await default(ToBackground);
+                if (obj is FrooxEngineRepresentation.GameObjectTypes.GameObject gameobj && gameobj.frooxEngineSlot != null)
+                {
+                    await default(ToWorld);
+                    gameobj.frooxEngineSlot.SetParent(this.CurrentStructureRootSlot, false);
+                    await default(ToBackground);
+                }
+            }
+
+            // Milestone 1: Unified Avatar Conversion Architecture for Scene avatars
+            if (this.Manifest != null && (this.Manifest.ModularAvatarComponents.Count > 0 || this.Manifest.VrcFuryComponents.Count > 0))
+            {
+                ConversionPlan = AvatarBuildPlanner.CreatePlan(this.Manifest, Path.GetFileName(ID.Value));
+                if (!ConversionPlan.HasErrors)
+                {
+                    await default(ToWorld);
+                    await AvatarBuildPlanExecutor.ExecutePlanAsync(
+                        ConversionPlan,
+                        this.CurrentStructureRootSlot,
+                        this.existingIUnityObjects,
+                        this,
+                        unityProjectImporter?.Session?.Token ?? default);
+                    await default(ToBackground);
+                }
+                else
+                {
+                    UnityPackageImporter.Warn($"Conversion plan for '{ID.Value}' has errors; skipping structural execution to prevent hierarchy corruption.");
+                }
             }
 
             UnityPackageImporter.Msg("re-enabling skinned mesh renderers in scene \""+ID.Value+"\"");
@@ -168,40 +212,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
                 }
             }
 
-            progressIndicator?.UpdateProgress(0f, "", "setting up IK for objects in scene");
-            UnityPackageImporter.Msg("Setting up IK for Prefabs in scene \"" + ID.Value + "\"");
-            await default(ToWorld);
-            foreach (var obj in existingIUnityObjects)
-            {
-                if (obj.Value.GetType() == typeof(FrooxEngineRepresentation.GameObjectTypes.PrefabInstance))
-                {
-                    FrooxEngineRepresentation.GameObjectTypes.PrefabInstance prefab = obj.Value as FrooxEngineRepresentation.GameObjectTypes.PrefabInstance;
-                    if(prefab.m_SourcePrefab != null)
-                    {
-                        if(prefab.m_SourcePrefab.guid != null)
-                        {
-                            if(prefab.ImportRoot != null)
-                            {
-                                if (prefab.ImportRoot.frooxEngineSlot != null)
-                                {
-                                    if (unityProjectImporter.SharedImportedFBXScenes.ContainsKey(prefab.m_SourcePrefab.guid))
-                                    {
-                                        await default(ToWorld);
-                                        await HumanoidRigSetup.SetupAsync(
-                                        prefab.importask,
-                                        prefab.ImportRoot.frooxEngineSlot);
-                                        await default(ToBackground);
-                                    }
-                                    else
-                                    {
-                                        UnityPackageImporter.Msg("A prefab (source fbx id: \"" + prefab.id.ToString() + "\") in scene \"" + this.ID.Value + "\" that probably points to another prefab was attempted to be imported. TODO: FIX THIS"); //TODO: FIX THIS!
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            PreparedItems = await PreparedImportItem.FromSceneAsync(this);
             await default(ToBackground);
 
             progressIndicator?.ProgressDone("Finished Scene!");
