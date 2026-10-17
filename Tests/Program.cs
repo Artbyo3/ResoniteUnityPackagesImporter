@@ -1488,6 +1488,9 @@ HandCalibrationTests.Register(Test);
 SelectableImportItemsTests.Register(Test);
 TemporaryRigParentTests.Register(Test);
 UnityYamlDocumentParserTests.Register(Test, Check);
+ImportCompatibilityPhase1Tests.Register(Test, Check);
+AvatarStructuralConversionTests.Register(Test, Check);
+AvatarImportSelectionTests.Register(Test, Check);
 
 foreach (var test in tests)
 {

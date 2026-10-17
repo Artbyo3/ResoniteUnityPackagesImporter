@@ -22,8 +22,12 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
     public ProgressBarInterface progressIndicator { get; set; }
     internal Func<float, Task> ReportProgress { get; set; }
     internal AvatarPackageManifest Manifest { get; private set; }
-    private bool expressionsBuilt;
-    private readonly List<ImportedHumanoidRig> preparedHumanoids = new();
+    public List<string> IncompleteComponents { get; } = new();
+    public AvatarBuildPlan ConversionPlan { get; private set; }
+    public bool IsPartialCompatibility => PrefabVariantResolver.EvaluatePartialCompatibility(
+        IncompleteComponents.Count,
+        (Manifest?.HasUnsupportedVrcFuryFeatures ?? false) || (ConversionPlan?.HasErrors ?? false));
+    internal PreparedImportItem PreparedItem { get; private set; }
     public UnityProjectImporter unityProjectImporter { get; set; }
 
     public UnityPrefabImportTask(float3 globalPosition, KeyValuePair<string, string> ID, UnityProjectImporter unityProjectImporter, floatQ? globalRotation = null)
@@ -66,6 +70,16 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
             AvatarPackageManifest avatarManifest = Manifest = AvatarPackageIndex.ParseFile(
                 this.ID.Value,
                 this.unityProjectImporter?.ListOfPrefabs);
+            if (avatarManifest.HasVrcFuryComponents)
+            {
+                int linkCount = avatarManifest.AllVrcFuryArmatureLinks.Count;
+                int unsupportedCount = avatarManifest.UnsupportedVrcFuryFeatureCount;
+                UnityPackageImporter.Msg($"Avatar package contains {avatarManifest.VrcFuryComponents.Count} VRCFury component(s) with {linkCount} Armature Link(s).");
+                if (unsupportedCount > 0)
+                {
+                    UnityPackageImporter.Warn($"{unsupportedCount} unsupported VRCFury feature(s) detected; non-structural processing is deferred.");
+                }
+            }
             this.existingIUnityObjects  = YamlToFrooxEngine.parseYaml(this.ID.Value);
 
             int totalProgress = 0;
@@ -108,9 +122,9 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
                     UnityPackageImporter.Warn("Prefab IUnityObject failed to instanciate!");
-                    UnityPackageImporter.Msg("Prefab IUnityObject ID: \"" + obj.Value.id.ToString() + "\"");
+                    UnityPackageImporter.Msg("Prefab IUnityObject ID: \"" + obj.Value.id.ToString() + "\" (" + type.Name + ")");
                     UnityPackageImporter.Warn(e.Message + e.StackTrace);
-                    throw new InvalidDataException("Could not build prefab component " + obj.Value.id + " (" + type.Name + ").", e);
+                    IncompleteComponents.Add($"{type.Name} ({obj.Value.id})");
                 }
                 try
                 {
@@ -125,6 +139,13 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
             }
 
             progressIndicator?.UpdateProgress(0f, "", "instanciated " + existingIUnityObjects.Count.ToString() + " Unity objects/components/meshes for prefab! Now cleaning up.");
+
+            var authoredSkins = existingIUnityObjects.Values.OfType<FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer>().ToList();
+            int successfulSkins = authoredSkins.Count(s => s.createdMeshRenderer != null);
+            if (!PrefabVariantResolver.EvaluateSkinnedMeshReconstruction(authoredSkins.Count, successfulSkins, Path.GetFileName(ID.Value), out string failureReason))
+            {
+                throw new InvalidDataException(failureReason);
+            }
 
             List<IUnityObject> movethese = new List<IUnityObject>();
 
@@ -162,40 +183,30 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
 
             UnityPackageImporter.Msg("Yaml generation done");
 
-            // Clothing and other Modular Avatar attachments keep their imported
-            // skin bones, but they are not standalone avatars. Adding BipedRig or
-            // VRIK here creates an empty avatar rig and gets in the way of merging
-            // the attachment onto the user's selected avatar later.
-            if (avatarManifest.ShouldSetUpHumanoid)
+            // Milestone 1: Unified Avatar Conversion Architecture
+            if (avatarManifest != null && (avatarManifest.ModularAvatarComponents.Count > 0 || avatarManifest.VrcFuryComponents.Count > 0))
             {
-                UnityPackageImporter.Msg(
-                    avatarManifest.IsAvatarPrefab
-                        ? "Setting up humanoid rig for VRChat avatar prefab"
-                        : "Setting up humanoid rig for ordinary prefab model");
-
-                // Create humanoid stuff for prefabs that are inline.
-                await default(ToWorld);
-                foreach (var obj in existingIUnityObjects)
+                ConversionPlan = AvatarBuildPlanner.CreatePlan(avatarManifest, Path.GetFileName(ID.Value));
+                if (!ConversionPlan.HasErrors)
                 {
-                    if (obj.Value.GetType() == typeof(FrooxEngineRepresentation.GameObjectTypes.PrefabInstance))
-                    {
-                        FrooxEngineRepresentation.GameObjectTypes.PrefabInstance prefab = obj.Value as FrooxEngineRepresentation.GameObjectTypes.PrefabInstance;
-
-                        if (prefab != null && prefab.importask != null && prefab.ImportRoot != null && prefab.ImportRoot.frooxEngineSlot != null)
-                        {
-                            await PrepareHumanoidAsync(
-                                prefab.importask,
-                                prefab.ImportRoot.frooxEngineSlot);
-                        }
-                    }
+                    await default(ToWorld);
+                    await AvatarBuildPlanExecutor.ExecutePlanAsync(
+                        ConversionPlan,
+                        this.CurrentStructureRootSlot,
+                        this.existingIUnityObjects,
+                        this,
+                        unityProjectImporter?.Session?.Token ?? default);
+                    await default(ToBackground);
                 }
+                else
+                {
+                    UnityPackageImporter.Warn($"Conversion plan for '{ID.Value}' has errors; skipping structural execution to prevent hierarchy corruption.");
+                }
+            }
 
-                await default(ToBackground);
-            }
-            else if (avatarManifest.IsModularAvatarAttachment)
-            {
-                UnityPackageImporter.Msg("Skipping standalone humanoid rig setup for Modular Avatar attachment");
-            }
+            PreparedItem = new PreparedImportItem(this, CurrentStructureRootSlot, Manifest,
+                ConversionPlan, IncompleteComponents, Path.GetFileNameWithoutExtension(ID.Value));
+            await PreparedItem.PrepareHumanoidsAsync();
 
             await default(ToWorld);
             // The YAML index omits inherited FBX skins without overrides.
@@ -215,6 +226,10 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                     if (newobj.createdMeshRenderer == null)
                     {
                         UnityPackageImporter.Warn("Skipping missing renderer " + newobj.id + " in prefab " + ID.Value);
+                        if (!IncompleteComponents.Contains($"SkinnedMeshRenderer ({newobj.id})"))
+                        {
+                            IncompleteComponents.Add($"SkinnedMeshRenderer ({newobj.id})");
+                        }
                         continue;
                     }
                     newobj.createdMeshRenderer.Enabled = newobj.m_Enabled == 1;
@@ -223,38 +238,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
             }
 
             await default(ToWorld);
-            if (avatarManifest.ShouldSetUpHumanoid &&
-                !CurrentStructureRootSlot.GetComponentsInChildren<BipedRig>().Any(rig => rig.IsBiped))
-            {
-                progressIndicator?.UpdateProgress(0f, "", "setting up humanoid rig for prefab.");
-
-                foreach (var obj in existingIUnityObjects)
-                {
-                    if (obj.Value.GetType() != typeof(FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer))
-                        continue;
-
-                    var newobj = (obj.Value as FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer);
-                    if (newobj.createdMeshRenderer == null ||
-                        string.IsNullOrEmpty(newobj.m_Mesh?.guid))
-                        continue;
-
-                    if (this.unityProjectImporter.SharedImportedFBXScenes.TryGetValue(newobj.m_Mesh.guid, out FileImportTaskScene importedfbx))
-                    {
-                        await default(ToWorld);
-                        await PrepareHumanoidAsync(importedfbx, this.CurrentStructureRootSlot);
-                        await default(ToBackground);
-                        break;
-                        // All skinned mesh renderers should go to the current prefab if they're under the root.
-                        // I think that is the root above in the if statement with "RootNode" - @989onan
-                    }
-                    else
-                    {
-                        UnityPackageImporter.Msg("A prefab (source fbx id: \"" + newobj.m_Mesh.guid + "\") in prefab \"" + this.ID.Value + "\" that probably points to another prefab was attempted to be imported. TODO: FIX THIS"); //TODO: FIX THIS!
-                    }
-                }
-            }
-
-            if (ReportProgress == null) await BuildExpressionsAsync();
+            if (ReportProgress == null) await PreparedItem.BuildExpressionsAsync();
 
             if (avatarManifest.ModularAvatarComponents.Count > 0)
             {
@@ -282,62 +266,4 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
         UnityPackageImporter.Msg("Yaml generation done");
         UnityPackageImporter.Msg("Prefab finished!");
     }
-    private async Task PrepareHumanoidAsync(FileImportTaskScene task, Slot rigRoot)
-    {
-        var prepared = await HumanoidRigSetup.SetupAsync(task, rigRoot);
-        await default(ToWorld);
-        if (prepared != null) preparedHumanoids.Add(prepared);
-    }
-
-    internal void CompleteHumanoidHierarchy(Slot avatarRoot)
-    {
-        foreach (var prepared in preparedHumanoids)
-            prepared.CompleteAvatar(avatarRoot);
-    }
-
-    internal async Task BuildExpressionsAsync()
-    {
-        if (expressionsBuilt || Manifest == null) return;
-        expressionsBuilt = true;
-            try
-            {
-                var animClips = AvatarStateReconstructor.ParseAllAnimationClips(this.unityProjectImporter.files);
-                foreach (var avatar in Manifest.Avatars)
-                {
-                    if (avatar.GameObjectFileId <= 0 ||
-                        !existingIUnityObjects.TryGetValue((ulong)avatar.GameObjectFileId, out IUnityObject descriptorObject) ||
-                        descriptorObject is not FrooxEngineRepresentation.GameObjectTypes.GameObject avatarGameObject)
-                    {
-                        UnityPackageImporter.Warn("Skipping avatar descriptor without a resolvable GameObject in " + ID.Value);
-                        continue;
-                    }
-
-                    await avatarGameObject.InstanciateAsync(this);
-                    Slot targetAvatarSlot = avatarGameObject.frooxEngineSlot;
-                    if (targetAvatarSlot == null)
-                    {
-                        UnityPackageImporter.Warn("Skipping avatar descriptor whose root slot was not created in " + ID.Value);
-                        continue;
-                    }
-
-                    var (rootMenu, _) = ExpressionMenuParser.LoadMenuHierarchy(
-                        avatar.ExpressionsMenu?.Guid,
-                        avatar.ExpressionParameters?.Guid,
-                        this.unityProjectImporter.AssetIDDict);
-                    if (rootMenu == null || rootMenu.Controls.Count == 0) continue;
-
-                    var paramToSlots = AvatarStateReconstructor.BuildParameterToSlotsMap(rootMenu, animClips, targetAvatarSlot);
-
-                    await ContextMenuBuilder.BuildExpressionsMenuAsync(targetAvatarSlot, rootMenu, paramToSlots, this.unityProjectImporter);
-                    await default(ToBackground);
-                }
-
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                UnityPackageImporter.Warn("Failed to reconstruct expressions menu: " + ex);
-            }
-
-    }
-
 }

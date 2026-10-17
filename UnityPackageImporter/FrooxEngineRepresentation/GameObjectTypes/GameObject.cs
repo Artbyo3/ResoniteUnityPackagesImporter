@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 using FrooxEngine;
@@ -25,7 +26,7 @@ public class GameObject: IUnityObject
 
         await default(ToWorld);
         importer.unityProjectImporter.Session?.Check();
-        if (m_CorrespondingSourceObject?.guid == null && frooxEngineSlot == null)
+        if (string.IsNullOrEmpty(m_CorrespondingSourceObject?.guid) && frooxEngineSlot == null)
         {
             frooxEngineSlot = importer.CurrentStructureRootSlot.AddSlot(this.m_Name);
             frooxEngineSlot.ActiveSelf = m_IsActive == 1 ? true : false;
@@ -37,22 +38,35 @@ public class GameObject: IUnityObject
             frooxEngineSlot.ActiveSelf = m_IsActive == 1 ? true : false;
             frooxEngineSlot.Name = m_Name;
         }
-        else if (importer.existingIUnityObjects.TryGetValue(m_PrefabInstance["fileID"], out IUnityObject prefab_inc))
+        else if (m_PrefabInstance != null &&
+                 m_PrefabInstance.TryGetValue("fileID", out ulong piId) &&
+                 importer.existingIUnityObjects.TryGetValue(piId, out IUnityObject prefab_inc))
         {
             PrefabInstance prefab = prefab_inc as PrefabInstance;
-            await default(ToWorld);
-            await prefab.InstanciateAsync(importer);
-            await default(ToBackground);
-            if (prefab.PrefabHashes.TryGetValue(m_CorrespondingSourceObject, out IUnityObject existingobject))
+            if (prefab != null)
             {
-                GameObject existing = existingobject as GameObject;
                 await default(ToWorld);
-                m_Name = existing.m_Name;
-                frooxEngineSlot = existing.frooxEngineSlot;
-                frooxEngineSlot.Name = m_Name;
-                frooxEngineSlot.ActiveSelf = existing.m_IsActive == 1;
+                await prefab.InstanciateAsync(importer);
                 await default(ToBackground);
-            } 
+                if (prefab.TryFindObject(m_CorrespondingSourceObject, out IUnityObject existingobject) && existingobject is GameObject existing)
+                {
+                    await default(ToWorld);
+                    if (string.IsNullOrEmpty(m_Name))
+                        m_Name = existing.m_Name;
+                    frooxEngineSlot = existing.frooxEngineSlot;
+                    if (frooxEngineSlot != null)
+                    {
+                        frooxEngineSlot.Name = m_Name;
+                        frooxEngineSlot.ActiveSelf = existing.m_IsActive == 1;
+                    }
+                    await default(ToBackground);
+                }
+            }
+        }
+
+        if (frooxEngineSlot == null)
+        {
+            throw new InvalidDataException($"Unresolved prefab reference for GameObject {id} (source: fileID {m_CorrespondingSourceObject?.fileID} in {m_CorrespondingSourceObject?.guid}). Cannot reconstruct object hierarchy.");
         }
 
         await default(ToBackground);

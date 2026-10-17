@@ -20,7 +20,7 @@ public class YamlToFrooxEngine
         var objects = new Dictionary<ulong, IUnityObject>();
         foreach (var document in documents)
         {
-            IUnityObject obj = document.Value.Result();
+            IUnityObject obj = document.Value?.Result() ?? new FrooxEngineRepresentation.GameObjectTypes.NullType();
             obj.id = document.Key;
             objects.Add(document.Key, obj);
         }

@@ -17,7 +17,7 @@ namespace UnityPackageImporter.Models;
 /// </summary>
 internal static class NativeAvatarCreation
 {
-    internal static async Task<Slot> CreateAsync(UnityPrefabImportTask item, Slot envelope,
+    internal static async Task<Slot> CreateAsync(PreparedImportItem item, Slot envelope,
         bool protectAvatar, CancellationToken cancellationToken = default)
     {
         await default(ToWorld);
@@ -32,7 +32,7 @@ internal static class NativeAvatarCreation
         if (rigs.Length != 1)
             throw new InvalidOperationException(rigs.Length == 0
                 ? "This import has no complete humanoid rig. Use the native Avatar Creator to configure it."
-                : "This import contains multiple humanoid rigs. Choose a prefab with a single avatar.");
+                : "This import contains multiple humanoid rigs. Choose an import item with a single avatar.");
 
         BipedRig rig = rigs[0];
         if (envelope.GetComponentInChildren<AvatarRoot>() != null)
@@ -110,7 +110,7 @@ internal static class NativeAvatarCreation
         }
     }
 
-    private static (float3 Position, floatQ Rotation) ResolveViewpoint(UnityPrefabImportTask item, BipedRig rig)
+    private static (float3 Position, floatQ Rotation) ResolveViewpoint(PreparedImportItem item, BipedRig rig)
     {
         var descriptors = item.Manifest?.Avatars
             .Select(definition => (Definition: definition, Root: ResolveDescriptorRoot(item, definition)))
@@ -141,7 +141,7 @@ internal static class NativeAvatarCreation
 
     private static bool Contains(Slot parent, Slot child) => child != null && (parent == child || child.IsChildOf(parent));
 
-    private static Slot ResolveDescriptorRoot(UnityPrefabImportTask item, VrcAvatarDefinition definition) =>
+    private static Slot ResolveDescriptorRoot(PreparedImportItem item, VrcAvatarDefinition definition) =>
         item.existingIUnityObjects != null &&
         item.existingIUnityObjects.TryGetValue(unchecked((ulong)definition.GameObjectFileId), out var value) &&
         value is UnityGameObject gameObject && gameObject.frooxEngineSlot is { IsDestroyed: false } slot

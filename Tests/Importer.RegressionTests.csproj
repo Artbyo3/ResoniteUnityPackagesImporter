@@ -7,6 +7,7 @@
     <DefineConstants>$(DefineConstants);REGRESSION_TESTS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Remove="ModelUnits/**/*.cs" />
     <EmbeddedResource Include="../localization/station/*.json" LogicalName="UnityPackageImporter.Localization.%(Filename)%(Extension)" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
     <Compile Include="../UnityPackageImporter/Models/UnityMaterialData.cs" Link="UnityMaterialData.cs" />
@@ -19,6 +20,7 @@
     <Compile Include="../UnityPackageImporter/Models/LilToonRamp.cs" Link="LilToonRamp.cs" />
     <Compile Include="../UnityPackageImporter/Models/SkinBoneMapping.cs" Link="SkinBoneMapping.cs" />
     <Compile Include="../UnityPackageImporter/Models/HandCalibration.cs" Link="HandCalibration.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AvatarImportSelection.cs" Link="AvatarImportSelection.cs" />
     <Compile Include="../UnityPackageImporter/Models/SelectableImportItems.cs" Link="SelectableImportItems.cs" />
     <Compile Include="../UnityPackageImporter/UI/TemplateContract.cs" Link="TemplateContract.cs" />
     <Compile Include="../UnityPackageImporter/UnityPackageExtractor.cs" Link="UnityPackageExtractor.cs" />
@@ -46,5 +48,8 @@
     <Compile Include="../UnityPackageImporter/Models/UnityPackageAssetIndex.cs" Link="UnityPackageAssetIndex.cs" />
     <Compile Include="../UnityPackageImporter/Models/UnityYamlDocumentParser.cs" Link="UnityYamlDocumentParser.cs" />
     <Compile Include="../UnityPackageImporter/Models/ModelMetaParser.cs" Link="ModelMetaParser.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ThumbnailTaskCache.cs" Link="ThumbnailTaskCache.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AvatarConversionOperations.cs" Link="AvatarConversionOperations.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AvatarBuildPlanner.cs" Link="AvatarBuildPlanner.cs" />
   </ItemGroup>
 </Project>

@@ -351,7 +351,7 @@ internal static class StationTemplateLoader
                 while (host != null && !host.IsDestroyed && host.World?.RootSlot != null && !host.World.RootSlot.IsDestroyed)
                 {
                     await Task.Delay(400);
-                    if (host.World.RootSlot.IsDestroyed) return;
+                    if (host == null || host.IsDestroyed || host.World?.RootSlot == null || host.World.RootSlot.IsDestroyed) return;
                     await default(ToWorld);
                     if (host.IsDestroyed || template.Root == null || template.Root.IsDestroyed) return;
                     string current = LocalizationManager.DetectLocaleCode();

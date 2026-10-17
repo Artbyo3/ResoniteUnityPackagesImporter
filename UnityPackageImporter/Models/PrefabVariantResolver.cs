@@ -13,26 +13,66 @@ public static class PrefabVariantResolver
         try
         {
             string meshGuid = null;
-            foreach (var line in File.ReadLines(file))
+            bool insideSourcePrefab = false;
+            int sourcePrefabIndent = -1;
+            bool insideMesh = false;
+            int meshIndent = -1;
+
+            foreach (var rawLine in File.ReadLines(file))
             {
-                if (line.Contains("m_SourcePrefab:") && line.Contains("guid:"))
+                string line = rawLine;
+                int indent = 0;
+                while (indent < line.Length && line[indent] == ' ') indent++;
+
+                if (insideSourcePrefab)
                 {
-                    var parts = line.Split(new[] { "guid:" }, StringSplitOptions.None);
-                    if (parts.Length > 1)
+                    if (indent <= sourcePrefabIndent && !string.IsNullOrWhiteSpace(line))
                     {
-                        var tokens = parts[1].Split(new[] { ',', ' ', '}', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                        if (tokens.Length > 0 && !string.IsNullOrEmpty(tokens[0]))
-                            return tokens[0].Trim();
+                        insideSourcePrefab = false;
+                    }
+                    else if (line.Contains("guid:"))
+                    {
+                        string guid = ExtractGuidFromLine(line);
+                        if (!string.IsNullOrEmpty(guid)) return guid;
                     }
                 }
-                if (meshGuid == null && line.Contains("m_Mesh:") && line.Contains("guid:"))
+
+                if (insideMesh && meshGuid == null)
                 {
-                    var parts = line.Split(new[] { "guid:" }, StringSplitOptions.None);
-                    if (parts.Length > 1)
+                    if (indent <= meshIndent && !string.IsNullOrWhiteSpace(line))
                     {
-                        var tokens = parts[1].Split(new[] { ',', ' ', '}', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
-                        if (tokens.Length > 0 && !string.IsNullOrEmpty(tokens[0]))
-                            meshGuid = tokens[0].Trim();
+                        insideMesh = false;
+                    }
+                    else if (line.Contains("guid:"))
+                    {
+                        meshGuid = ExtractGuidFromLine(line);
+                    }
+                }
+
+                if (line.Contains("m_SourcePrefab:"))
+                {
+                    if (line.Contains("guid:"))
+                    {
+                        string guid = ExtractGuidFromLine(line);
+                        if (!string.IsNullOrEmpty(guid)) return guid;
+                    }
+                    else
+                    {
+                        insideSourcePrefab = true;
+                        sourcePrefabIndent = indent;
+                    }
+                }
+
+                if (meshGuid == null && line.Contains("m_Mesh:"))
+                {
+                    if (line.Contains("guid:"))
+                    {
+                        meshGuid = ExtractGuidFromLine(line);
+                    }
+                    else
+                    {
+                        insideMesh = true;
+                        meshIndent = indent;
                     }
                 }
             }
@@ -42,6 +82,18 @@ public static class PrefabVariantResolver
         {
             return null;
         }
+    }
+
+    private static string ExtractGuidFromLine(string line)
+    {
+        var parts = line.Split(new[] { "guid:" }, StringSplitOptions.None);
+        if (parts.Length > 1)
+        {
+            var tokens = parts[1].Split(new[] { ',', ' ', '}', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+            if (tokens.Length > 0 && !string.IsNullOrEmpty(tokens[0]))
+                return tokens[0].Trim();
+        }
+        return null;
     }
 
     public static string ResolveFbxGuid(
@@ -308,4 +360,97 @@ public static class PrefabVariantResolver
         else if (!ReferenceEquals(existing, target))
             targets[key] = null;
     }
+
+    public static bool TryResolveParentTransform(
+        ulong parentTransformId,
+        Func<ulong, (bool exists, ulong gameObjectId)> getTransformInfo,
+        Func<ulong, (bool exists, bool hasValidSlot)> getGameObjectInfo,
+        out string failureReason)
+    {
+        return TryResolveParentTransform(
+            parentTransformId,
+            id =>
+            {
+                var (exists, gId) = getTransformInfo(id);
+                return (exists, gId, false);
+            },
+            getGameObjectInfo,
+            out failureReason);
+    }
+
+    public static bool TryResolveParentTransform(
+        ulong parentTransformId,
+        Func<ulong, (bool exists, ulong gameObjectId, bool hasDirectSlot)> getTransformInfo,
+        Func<ulong, (bool exists, bool hasValidSlot)> getGameObjectInfo,
+        out string failureReason)
+    {
+        failureReason = null;
+        if (parentTransformId == 0)
+        {
+            // Explicitly no parent -> valid root-level placement
+            return true;
+        }
+
+        // Non-zero parent reference exists: it MUST resolve successfully.
+        var (transformExists, gameObjectId, hasDirectSlot) = getTransformInfo(parentTransformId);
+        if (!transformExists)
+        {
+            failureReason = $"Specifies parent transform fileID {parentTransformId}, but parent transform does not exist. Cannot reconstruct object hierarchy.";
+            return false;
+        }
+
+        if (hasDirectSlot)
+        {
+            return true;
+        }
+
+        var (gameObjExists, hasValidSlot) = getGameObjectInfo(gameObjectId);
+        if (!gameObjExists)
+        {
+            failureReason = $"Parent transform {parentTransformId} references GameObject {gameObjectId}, but GameObject does not exist. Cannot reconstruct object hierarchy.";
+            return false;
+        }
+
+        if (!hasValidSlot)
+        {
+            failureReason = $"Parent GameObject {gameObjectId} has null slot. Cannot reconstruct object hierarchy.";
+            return false;
+        }
+
+        return true;
+    }
+
+    public static bool EvaluateSkinnedMeshReconstruction(
+        int authoredSkinCount,
+        int successfulSkinCount,
+        string prefabName,
+        out string failureReason)
+    {
+        if (authoredSkinCount > 0 && successfulSkinCount == 0)
+        {
+            failureReason = $"Critical reconstruction failure: None of the {authoredSkinCount} skinned mesh renderer(s) could be reconstructed for prefab {prefabName}.";
+            return false;
+        }
+        failureReason = null;
+        return true;
+    }
+
+    public static bool EvaluatePartialCompatibility(int incompleteComponentCount, bool hasVrcFury)
+    {
+        return incompleteComponentCount > 0 || hasVrcFury;
+    }
+
+    public static bool EvaluatePartialCompatibility(int incompleteComponentCount, int unhandledVrcFuryFeatures, int planErrors = 0)
+    {
+        return incompleteComponentCount > 0 || unhandledVrcFuryFeatures > 0 || planErrors > 0;
+    }
+
+    public const long RootGameObjectFileId = 919132149155446097L;
+    public const long RootTransformFileId = -8679921383154817045L;
+
+    public static bool IsRootModelFileId(long fileId)
+    {
+        return fileId == RootGameObjectFileId || fileId == RootTransformFileId;
+    }
+
 }

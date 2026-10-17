@@ -23,6 +23,78 @@ public class PrefabInstance : IUnityObject
     public Dictionary<string, ulong> m_PrefabInstance { get; set; }
 
     public Dictionary<SourceObj, IUnityObject> PrefabHashes = new Dictionary<SourceObj, IUnityObject>(new SourceObjCompare());
+    public string ResolvedFbxGuid { get; internal set; }
+    public HashSet<string> LineageGuids { get; internal set; }
+
+    public bool TryFindObject(SourceObj source, out IUnityObject result)
+    {
+        result = null;
+        if (source == null || this.PrefabHashes == null) return false;
+
+        // 1. Direct exact key match
+        if (this.PrefabHashes.TryGetValue(source, out result))
+            return true;
+
+        string resolvedFbxGuid = this.ResolvedFbxGuid ?? this.m_SourcePrefab?.guid;
+
+        // 2. Validate reference identity: if a non-empty GUID is specified,
+        // it must belong to this prefab's lineage. References to foreign assets must not match.
+        if (!string.IsNullOrEmpty(source.guid))
+        {
+            bool isLineage = string.Equals(source.guid, this.m_SourcePrefab?.guid, StringComparison.OrdinalIgnoreCase)
+                || (!string.IsNullOrEmpty(resolvedFbxGuid) && string.Equals(source.guid, resolvedFbxGuid, StringComparison.OrdinalIgnoreCase))
+                || (this.LineageGuids != null && this.LineageGuids.Contains(source.guid));
+
+            if (!isLineage)
+                return false;
+        }
+
+        // 3. Match using resolved FBX GUID
+        if (!string.IsNullOrEmpty(resolvedFbxGuid))
+        {
+            if (this.PrefabHashes.TryGetValue(new SourceObj(source.fileID, resolvedFbxGuid, source.type), out result))
+                return true;
+        }
+
+        // 4. Match using local/empty GUID
+        if (this.PrefabHashes.TryGetValue(new SourceObj(source.fileID, "", source.type), out result))
+            return true;
+
+        // 5. Search candidates by fileID while validating lineage and detecting ambiguity
+        var candidateTargets = new List<IUnityObject>();
+        foreach (var kvp in this.PrefabHashes)
+        {
+            if (kvp.Key.fileID != source.fileID) continue;
+
+            // Ensure key's GUID also belongs to this prefab's lineage
+            bool keyInLineage = string.IsNullOrEmpty(kvp.Key.guid)
+                || string.Equals(kvp.Key.guid, resolvedFbxGuid, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(kvp.Key.guid, this.m_SourcePrefab?.guid, StringComparison.OrdinalIgnoreCase)
+                || (this.LineageGuids != null && this.LineageGuids.Contains(kvp.Key.guid));
+
+            if (!keyInLineage) continue;
+
+            if (source.type != 0 && kvp.Key.type != 0 && source.type != kvp.Key.type) continue;
+
+            if (!candidateTargets.Contains(kvp.Value))
+                candidateTargets.Add(kvp.Value);
+        }
+
+        if (candidateTargets.Count == 1)
+        {
+            result = candidateTargets[0];
+            return true;
+        }
+
+        if (candidateTargets.Count > 1)
+        {
+            UnityPackageImporter.Warn($"Ambiguous target resolution for fileID {source.fileID} in prefab instance {id}: found {candidateTargets.Count} candidates. Refusing arbitrary selection.");
+            result = null;
+            return false;
+        }
+
+        return false;
+    }
 
     public async Task InstanciateAsync(IUnityStructureImporter importer)
     {
@@ -49,32 +121,49 @@ public class PrefabInstance : IUnityObject
             // Next we associate each shared FBX to prefabs that use them. then we duplicate the shared FBX's to each scene including this one, and then those duplicated FBXs become the prefabs themselves
             // Instanciate our objects to generate our prefab entirely, using the ids we assigned ealier to identify our prefab elements in our list.
             Slot targetParent;
-            if (m_Modification?.m_TransformParent == null ||
-                !m_Modification.m_TransformParent.TryGetValue("fileID", out ulong parentTransformId))
+            ulong parentTransformId = 0;
+            bool hasParentRef = m_Modification?.m_TransformParent != null &&
+                m_Modification.m_TransformParent.TryGetValue("fileID", out parentTransformId) &&
+                parentTransformId != 0;
+
+            if (!hasParentRef)
             {
+                // Explicitly no parent or root-level prefab instance
                 targetParent = importer.CurrentStructureRootSlot;
-            }
-            else if (importer.existingIUnityObjects.TryGetValue(parentTransformId, out IUnityObject foundtransformparent))
-            {
-                await default(ToWorld);
-                await foundtransformparent.InstanciateAsync(importer);
-                await default(ToBackground);
-                if (importer.existingIUnityObjects.TryGetValue((foundtransformparent as Transform).m_GameObjectID, out IUnityObject parentobjnew))
-                {
-                    await default(ToWorld);
-                    await parentobjnew.InstanciateAsync(importer);
-                    await default(ToBackground);
-                    targetParent = (parentobjnew as GameObject).frooxEngineSlot;
-                }
-                else
-                {
-                    UnityPackageImporter.Warn("targetParent had a value for prefab \"" + id.ToString() + "\" but could not find the id \"" + (foundtransformparent as Transform).m_GameObjectID + "\" in the list of game objects that exist in scene!");
-                    targetParent = importer.CurrentStructureRootSlot;
-                }
             }
             else
             {
-                targetParent = importer.CurrentStructureRootSlot;
+                // Non-zero parent reference exists: it MUST resolve successfully.
+                if (!importer.existingIUnityObjects.TryGetValue(parentTransformId, out IUnityObject foundtransformparent) ||
+                    foundtransformparent is not Transform parentTransform)
+                {
+                    throw new InvalidDataException($"PrefabInstance {id} specifies parent transform fileID {parentTransformId}, but parent transform does not exist. Cannot reconstruct object hierarchy.");
+                }
+
+                await default(ToWorld);
+                await parentTransform.InstanciateAsync(importer);
+                await default(ToBackground);
+
+                Slot resolvedParentSlot = null;
+                if (importer.existingIUnityObjects.TryGetValue(parentTransform.m_GameObjectID, out IUnityObject parentobjnew) &&
+                    parentobjnew is GameObject parentGameObj)
+                {
+                    await default(ToWorld);
+                    await parentGameObj.InstanciateAsync(importer);
+                    await default(ToBackground);
+                    resolvedParentSlot = parentGameObj.frooxEngineSlot;
+                }
+                else if (parentTransform.parentHashedGameObj?.frooxEngineSlot != null)
+                {
+                    resolvedParentSlot = parentTransform.parentHashedGameObj.frooxEngineSlot;
+                }
+
+                if (resolvedParentSlot == null)
+                {
+                    throw new InvalidDataException($"PrefabInstance {id} parent transform {parentTransformId} could not resolve to a valid slot. Cannot reconstruct object hierarchy.");
+                }
+
+                targetParent = resolvedParentSlot;
             }
 
             UnityPackageImporter.Msg("is targetParent instanciated?: " + (targetParent != null));
@@ -82,7 +171,7 @@ public class PrefabInstance : IUnityObject
             if (importask != null) return;
 
             ImportRoot = new GameObject();
-            string resolvedFbxGuid = ResolveFBXGuid(importer, m_SourcePrefab?.guid);
+            string resolvedFbxGuid = this.ResolvedFbxGuid = ResolveFBXGuid(importer, m_SourcePrefab?.guid);
             if (!string.IsNullOrEmpty(resolvedFbxGuid) && importer.unityProjectImporter.SharedImportedFBXScenes.ContainsKey(resolvedFbxGuid))
             {
                 importask = await importer.unityProjectImporter.SharedImportedFBXScenes[resolvedFbxGuid].MakeCopyAndPopulatePrefabData();
@@ -98,11 +187,31 @@ public class PrefabInstance : IUnityObject
                 importrootsource.fileID = 919132149155446097; // Hash of root object path
                 importrootsource.type = 3;
 
+                FrooxEngineRepresentation.GameObjectTypes.Transform rootTransform = new FrooxEngineRepresentation.GameObjectTypes.Transform();
+                rootTransform.parentHashedGameObj = ImportRoot;
+                rootTransform.m_GameObjectID = ImportRoot.id;
+
+                SourceObj rootTransformSource = new SourceObj();
+                rootTransformSource.guid = this.m_SourcePrefab.guid;
+                rootTransformSource.fileID = -8679921383154817045; // Hash of root transform
+                rootTransformSource.type = 3;
+
+                ImportRoot.m_CorrespondingSourceObject = importrootsource;
+                rootTransform.m_CorrespondingSourceObject = rootTransformSource;
+
                 this.PrefabHashes = importask.FILEID_To_Slot_Pairs;
-                this.PrefabHashes.Add(importrootsource, ImportRoot);
+                this.PrefabHashes[importrootsource] = ImportRoot;
+                this.PrefabHashes[rootTransformSource] = rootTransform;
+                if (!string.IsNullOrEmpty(resolvedFbxGuid))
+                {
+                    this.PrefabHashes[new SourceObj(919132149155446097, resolvedFbxGuid, 3)] = ImportRoot;
+                    this.PrefabHashes[new SourceObj(-8679921383154817045, resolvedFbxGuid, 3)] = rootTransform;
+                }
+                this.PrefabHashes[new SourceObj(919132149155446097, "", 3)] = ImportRoot;
+                this.PrefabHashes[new SourceObj(-8679921383154817045, "", 3)] = rootTransform;
                 List<IUnityObject> modifiedObjects = new List<IUnityObject>();
 
-                var lineageGuids = PrefabVariantResolver.GetLineageGuids(
+                var lineageGuids = this.LineageGuids = PrefabVariantResolver.GetLineageGuids(
                     this.m_SourcePrefab?.guid,
                     resolvedFbxGuid,
                     importer.unityProjectImporter?.ListOfPrefabs);

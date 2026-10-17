@@ -4,6 +4,8 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using YamlDotNet.Core;
+using YamlDotNet.RepresentationModel;
 
 namespace UnityPackageImporter.Models;
 
@@ -75,13 +77,60 @@ public sealed class ModularAvatarComponentDefinition
     public bool BoneProxyMatchScale { get; init; }
 }
 
+public sealed class VrcFuryLinkToTarget
+{
+    public bool UseBone { get; init; }
+    public int Bone { get; init; } = -1; // Unresolved unless explicitly serialized (0 = Hips).
+    public bool UseObj { get; init; }
+    public long? ObjFileId { get; init; }
+    public string Offset { get; init; } = "";
+}
+
+public sealed class VrcFuryArmatureLinkDefinition
+{
+    public string SourcePath { get; init; } = "";
+    public long ComponentFileId { get; init; }
+    public long GameObjectFileId { get; init; }
+    public string GameObjectName { get; init; } = "";
+    public long? PropBoneFileId { get; init; }
+    public IReadOnlyList<VrcFuryLinkToTarget> LinkToTargets { get; init; } = Array.Empty<VrcFuryLinkToTarget>();
+    public int LinkMode { get; init; } // Auto = 0, SkinRewrite = 1, MergeAsChildren = 2, ParentConstraint = 3, ReparentRoot = 4
+    public bool Recursive { get; init; } = true;
+    public string RemoveBoneSuffix { get; init; } = "";
+    public bool AlignPosition { get; init; }
+    public bool AlignRotation { get; init; }
+    public bool AlignScale { get; init; }
+    public bool AutoScaleFactor { get; init; } = true;
+    public bool KeepOffsets { get; init; }
+}
+
+public sealed class VrcFuryComponentDefinition
+{
+    public string SourcePath { get; init; } = "";
+    public long ComponentFileId { get; init; }
+    public long GameObjectFileId { get; init; }
+    public string GameObjectName { get; init; } = "";
+    public string ScriptGuid { get; init; } = "";
+    public string FeatureSummary { get; init; } = "";
+    public IReadOnlyList<VrcFuryArmatureLinkDefinition> ArmatureLinks { get; init; } = Array.Empty<VrcFuryArmatureLinkDefinition>();
+    public IReadOnlyList<string> UnsupportedFeatures { get; init; } = Array.Empty<string>();
+    public bool HasUnsupportedFeatures => UnsupportedFeatures.Count > 0;
+}
+
 public sealed class AvatarPackageManifest
 {
     public string SourcePath { get; init; } = "";
     public IReadOnlyList<VrcAvatarDefinition> Avatars { get; init; } = Array.Empty<VrcAvatarDefinition>();
     public IReadOnlyList<ModularAvatarComponentDefinition> ModularAvatarComponents { get; init; } = Array.Empty<ModularAvatarComponentDefinition>();
+    public IReadOnlyList<VrcFuryComponentDefinition> VrcFuryComponents { get; init; } = Array.Empty<VrcFuryComponentDefinition>();
 
     public bool IsAvatarPrefab => Avatars.Count > 0;
+    public bool HasVrcFuryComponents => VrcFuryComponents.Count > 0;
+    public IReadOnlyList<VrcFuryArmatureLinkDefinition> AllVrcFuryArmatureLinks =>
+        VrcFuryComponents.SelectMany(c => c.ArmatureLinks).ToList();
+    public int UnsupportedVrcFuryFeatureCount =>
+        VrcFuryComponents.Sum(c => c.UnsupportedFeatures.Count);
+    public bool HasUnsupportedVrcFuryFeatures => UnsupportedVrcFuryFeatureCount > 0;
 
     // Components such as Bone Proxy are also valid inside ordinary avatar and
     // model prefabs. Merge Armature is the reliable signal that this prefab is
@@ -103,6 +152,7 @@ public sealed class AvatarPackageManifest
 public static class AvatarPackageIndex
 {
     // VRChat SDK3 avatar descriptor script used by current avatar packages.
+    public const long VrcAvatarDescriptorScriptFileId = 542108242;
     public const string VrcAvatarDescriptorScriptGuid = "67cc4cb7839cd3741b63733d5adf0442";
 
     public const string MergeArmatureScriptGuid = "2df373bf91cf30b4bbd495e11cb1a2ec";
@@ -112,6 +162,22 @@ public static class AvatarPackageIndex
     public const string MenuInstallerScriptGuid = "7ef83cb0c23d4d7c9d41021e544a1978";
     public const string ParametersScriptGuid = "71a96d4ea0c344f39e277d82035bf9bd";
     public const string ObjectToggleScriptGuid = "a162bb8ec7e24a5abcf457887f1df3fa";
+
+    // Verified VRCFury component script GUIDs across versions.
+    public const string VrcFuryFullScriptGuid = "d9e94e501a2d4c95bff3d5601013d923";
+    public const string VrcFuryScriptGuid = "e011eed4b7a4cf848a61cb4f56f3458d";
+    public const string VrcFuryLegacyScriptGuid = "46fb26db4e6e4774caee952b7bcfda88";
+    public const string VrcFuryTestScriptGuid = "8e6c7102e3a1f7e44a7276dfc5cb1d61";
+    public const string VrcFuryArmatureLinkScriptGuid = "1a4502d9220f4186a2f7b71cec18fec3";
+
+    public static readonly HashSet<string> RecognizedVrcFuryScriptGuids = new(StringComparer.OrdinalIgnoreCase)
+    {
+        VrcFuryFullScriptGuid,
+        VrcFuryScriptGuid,
+        VrcFuryLegacyScriptGuid,
+        VrcFuryTestScriptGuid,
+        VrcFuryArmatureLinkScriptGuid
+    };
 
     private static readonly Regex HeaderPattern = new(
         @"^--- !u!(?<class>\d+) &(?<id>-?\d+)(?: stripped)?\s*$",
@@ -146,27 +212,49 @@ public static class AvatarPackageIndex
     {
         if (string.IsNullOrWhiteSpace(filePath)) throw new ArgumentException("A prefab or scene path is required.", nameof(filePath));
         var manifest = ParseText(File.ReadAllText(filePath), filePath);
-        if (prefabs != null && manifest.ModularAvatarComponents.Count == 0 && manifest.Avatars.Count == 0 && File.Exists(filePath))
+        if (prefabs != null && File.Exists(filePath))
         {
             string sourceGuid = PrefabVariantResolver.FindSourceGuidInPrefabFile(filePath);
             if (!string.IsNullOrEmpty(sourceGuid))
             {
                 var ancestorFiles = PrefabVariantResolver.GetAncestorPrefabFiles(sourceGuid, prefabs);
+                var inheritedAvatars = new List<VrcAvatarDefinition>(manifest.Avatars);
+                var inheritedModularAvatar = new List<ModularAvatarComponentDefinition>(manifest.ModularAvatarComponents);
+                var inheritedVrcFury = new List<VrcFuryComponentDefinition>(manifest.VrcFuryComponents);
+
                 foreach (var ancestorFile in ancestorFiles)
                 {
                     if (File.Exists(ancestorFile))
                     {
                         var ancestorManifest = ParseFile(ancestorFile, prefabs);
-                        if (ancestorManifest.ModularAvatarComponents.Count > 0 || ancestorManifest.Avatars.Count > 0)
+                        if (inheritedAvatars.Count == 0 && ancestorManifest.Avatars.Count > 0)
                         {
-                            return new AvatarPackageManifest
-                            {
-                                SourcePath = filePath,
-                                Avatars = ancestorManifest.Avatars,
-                                ModularAvatarComponents = ancestorManifest.ModularAvatarComponents
-                            };
+                            inheritedAvatars.AddRange(ancestorManifest.Avatars);
+                        }
+                        foreach (var mac in ancestorManifest.ModularAvatarComponents)
+                        {
+                            if (!inheritedModularAvatar.Any(existing => existing.ComponentFileId == mac.ComponentFileId))
+                                inheritedModularAvatar.Add(mac);
+                        }
+                        foreach (var vfc in ancestorManifest.VrcFuryComponents)
+                        {
+                            if (!inheritedVrcFury.Any(existing => existing.ComponentFileId == vfc.ComponentFileId))
+                                inheritedVrcFury.Add(vfc);
                         }
                     }
+                }
+
+                if (inheritedAvatars.Count != manifest.Avatars.Count ||
+                    inheritedModularAvatar.Count != manifest.ModularAvatarComponents.Count ||
+                    inheritedVrcFury.Count != manifest.VrcFuryComponents.Count)
+                {
+                    return new AvatarPackageManifest
+                    {
+                        SourcePath = filePath,
+                        Avatars = inheritedAvatars,
+                        ModularAvatarComponents = inheritedModularAvatar,
+                        VrcFuryComponents = inheritedVrcFury
+                    };
                 }
             }
         }
@@ -184,12 +272,15 @@ public static class AvatarPackageIndex
         if (yaml == null) throw new ArgumentNullException(nameof(yaml));
 
         var documents = SplitDocuments(yaml);
-        var gameObjectNames = documents
-            .Where(document => document.ClassId == 1)
-            .ToDictionary(document => document.FileId, document => ReadScalar(document.Lines, "m_Name") ?? "");
+        var gameObjectNames = new Dictionary<long, string>();
+        foreach (var document in documents.Where(d => d.ClassId == 1))
+        {
+            gameObjectNames.TryAdd(document.FileId, ReadScalar(document.Lines, "m_Name") ?? "");
+        }
 
         var avatars = new List<VrcAvatarDefinition>();
         var modularAvatarComponents = new List<ModularAvatarComponentDefinition>();
+        var vrcFuryComponents = new List<VrcFuryComponentDefinition>();
 
         foreach (var document in documents.Where(document => document.ClassId == 114))
         {
@@ -203,7 +294,11 @@ public static class AvatarPackageIndex
             var menu = ReadReference(document.Lines, "expressionsMenu");
             var parameters = ReadReference(document.Lines, "expressionParameters");
             bool hasDescriptorShape = menu != null && parameters != null;
-            if (script.Guid.Equals(VrcAvatarDescriptorScriptGuid, StringComparison.OrdinalIgnoreCase) || hasDescriptorShape)
+            // The GUID identifies the SDK assembly, not a component type. Seats
+            // and other SDK behaviours share it; the local file ID selects the type.
+            bool knownDescriptor = script.Guid.Equals(VrcAvatarDescriptorScriptGuid, StringComparison.OrdinalIgnoreCase) &&
+                script.FileId == VrcAvatarDescriptorScriptFileId;
+            if (knownDescriptor || hasDescriptorShape)
             {
                 avatars.Add(new VrcAvatarDefinition
                 {
@@ -216,6 +311,27 @@ public static class AvatarPackageIndex
                     ExpressionsMenu = menu,
                     ExpressionParameters = parameters,
                     BaseAnimationLayers = ReadAnimationLayers(document.Lines)
+                });
+            }
+
+            if (RecognizedVrcFuryScriptGuids.Contains(script.Guid) || HasVrcFuryStructuralSignature(document.Lines))
+            {
+                var (armatureLinks, unsupportedFeatures) = ReadVrcFuryFeatures(document.Lines, sourcePath, document.FileId, gameObjectFileId, gameObjectName);
+                string summary = ReadScalar(document.Lines, "content");
+                if (string.IsNullOrEmpty(summary) && armatureLinks.Count > 0)
+                {
+                    summary = "ArmatureLink";
+                }
+                vrcFuryComponents.Add(new VrcFuryComponentDefinition
+                {
+                    SourcePath = sourcePath,
+                    ComponentFileId = document.FileId,
+                    GameObjectFileId = gameObjectFileId,
+                    GameObjectName = gameObjectName ?? "",
+                    ScriptGuid = script.Guid,
+                    FeatureSummary = summary ?? "",
+                    ArmatureLinks = armatureLinks,
+                    UnsupportedFeatures = unsupportedFeatures
                 });
             }
 
@@ -248,7 +364,8 @@ public static class AvatarPackageIndex
         {
             SourcePath = sourcePath,
             Avatars = avatars,
-            ModularAvatarComponents = modularAvatarComponents
+            ModularAvatarComponents = modularAvatarComponents,
+            VrcFuryComponents = vrcFuryComponents
         };
     }
 
@@ -463,6 +580,252 @@ public static class AvatarPackageIndex
         if (value.Length >= 2 && ((value[0] == '\'' && value[^1] == '\'') || (value[0] == '"' && value[^1] == '"')))
             return value.Substring(1, value.Length - 2);
         return value;
+    }
+
+    public static bool HasVrcFuryStructuralSignature(IReadOnlyList<string> lines)
+    {
+        for (int i = 0; i < lines.Count; i++)
+        {
+            string trimmed = lines[i].TrimStart();
+            if (trimmed.StartsWith("vrcfury:", StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (trimmed.StartsWith("type:", StringComparison.Ordinal) &&
+                (trimmed.Contains("asm: VRCFury", StringComparison.Ordinal) || trimmed.Contains("ns: VF.", StringComparison.Ordinal)))
+                return true;
+        }
+        return false;
+    }
+
+    private static (List<VrcFuryArmatureLinkDefinition> ArmatureLinks, List<string> UnsupportedFeatures) ReadVrcFuryFeatures(
+        IReadOnlyList<string> lines, string sourcePath, long componentFileId, long gameObjectFileId, string gameObjectName)
+    {
+        var armatureLinks = new List<VrcFuryArmatureLinkDefinition>();
+        var unsupportedFeatures = new List<string>();
+
+        // 1. Look for references.RefIds section (Unity [SerializeReference])
+        int refIdsIndex = -1;
+        for (int i = 0; i < lines.Count; i++)
+        {
+            string trimmed = lines[i].TrimStart();
+            if (trimmed.StartsWith("RefIds:", StringComparison.Ordinal))
+            {
+                refIdsIndex = i;
+                break;
+            }
+        }
+
+        if (refIdsIndex >= 0)
+        {
+            int i = refIdsIndex + 1;
+            while (i < lines.Count)
+            {
+                string line = lines[i];
+                string trimmed = line.TrimStart();
+                if (trimmed.StartsWith("- rid:", StringComparison.Ordinal))
+                {
+                    int refIndent = CountIndent(line);
+                    var entryLines = new List<string> { line };
+                    i++;
+                    while (i < lines.Count)
+                    {
+                        if (lines[i].Length > 0 && CountIndent(lines[i]) <= refIndent && lines[i].TrimStart().StartsWith("- rid:", StringComparison.Ordinal))
+                            break;
+                        if (lines[i].Length > 0 && CountIndent(lines[i]) < refIndent)
+                            break;
+                        entryLines.Add(lines[i]);
+                        i++;
+                    }
+
+                    string typeLine = entryLines.FirstOrDefault(l => l.TrimStart().StartsWith("type:", StringComparison.Ordinal));
+                    if (typeLine != null)
+                    {
+                        if (typeLine.Contains("ArmatureLink", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var link = ParseArmatureLinkFromLines(entryLines, sourcePath, componentFileId, gameObjectFileId, gameObjectName);
+                            if (link != null) armatureLinks.Add(link);
+                        }
+                        else
+                        {
+                            var match = Regex.Match(typeLine, @"class:\s*([^,}\s]+)", RegexOptions.CultureInvariant);
+                            string className = match.Success ? match.Groups[1].Value : "UnknownFeature";
+                            unsupportedFeatures.Add(className);
+                        }
+                    }
+                    continue;
+                }
+                i++;
+            }
+        }
+
+        // 2. Also check if the MonoBehaviour directly contains ArmatureLink fields (inline or legacy without RefIds)
+        if (armatureLinks.Count == 0)
+        {
+            if (FindField(lines, "propBone") >= 0 || FindField(lines, "linkTo") >= 0)
+            {
+                var link = ParseArmatureLinkFromLines(lines, sourcePath, componentFileId, gameObjectFileId, gameObjectName);
+                if (link != null) armatureLinks.Add(link);
+            }
+        }
+
+        return (armatureLinks, unsupportedFeatures);
+    }
+
+    private static VrcFuryArmatureLinkDefinition ParseArmatureLinkFromLines(
+        IReadOnlyList<string> lines, string sourcePath, long componentFileId, long gameObjectFileId, string gameObjectName)
+    {
+        long? propBoneFileId = null;
+        for (int i = 0; i < lines.Count; i++)
+        {
+            string trimmed = lines[i].Trim();
+            if (trimmed.StartsWith("propBone:", StringComparison.Ordinal))
+            {
+                var refObj = ReadReferenceAt(lines, i);
+                if (refObj != null && refObj.FileId != 0) propBoneFileId = refObj.FileId;
+                break;
+            }
+        }
+
+        var linkToTargets = new List<VrcFuryLinkToTarget>();
+        int linkToIndex = -1;
+        for (int i = 0; i < lines.Count; i++)
+        {
+            if (lines[i].TrimStart().StartsWith("linkTo:", StringComparison.Ordinal))
+            {
+                linkToIndex = i;
+                break;
+            }
+        }
+
+        if (linkToIndex >= 0)
+        {
+            // Parse only this field with the existing YAML library. This supports
+            // both Unity block lists and flow lists without guessing missing values.
+            int linkIndent = CountIndent(lines[linkToIndex]);
+            var targetLines = new List<string> { lines[linkToIndex].Substring(linkIndent) };
+            for (int i = linkToIndex + 1; i < lines.Count; i++)
+            {
+                string line = lines[i];
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                int indent = CountIndent(line);
+                if (indent < linkIndent || (indent == linkIndent && !line.TrimStart().StartsWith("-", StringComparison.Ordinal)))
+                    break;
+                targetLines.Add(line.Substring(linkIndent));
+            }
+            try
+            {
+                var stream = new YamlStream();
+                stream.Load(new StringReader(string.Join("\n", targetLines)));
+                var root = stream.Documents[0].RootNode as YamlMappingNode;
+                if (root != null && root.Children.TryGetValue(new YamlScalarNode("linkTo"), out var targets) && targets is YamlSequenceNode sequence)
+                {
+                    foreach (var entry in sequence.Children)
+                    {
+                        var mapping = entry as YamlMappingNode;
+                        YamlMappingNode obj = null;
+                        if (mapping != null && mapping.Children.TryGetValue(new YamlScalarNode("obj"), out var objNode))
+                            obj = objNode as YamlMappingNode;
+                        linkToTargets.Add(new VrcFuryLinkToTarget
+                        {
+                            UseBone = ReadTargetBool(mapping, "useBone"),
+                            Bone = int.TryParse(ReadTargetScalar(mapping, "bone"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int bone) ? bone : -1,
+                            UseObj = ReadTargetBool(mapping, "useObj"),
+                            ObjFileId = long.TryParse(ReadTargetScalar(obj, "fileID"), NumberStyles.Integer, CultureInfo.InvariantCulture, out long id) && id != 0 ? id : null,
+                            Offset = ReadTargetScalar(mapping, "offset") ?? ""
+                        });
+                    }
+                }
+            }
+            catch (YamlException)
+            {
+                // Leave unresolved: the planner reports TARGET_UNRESOLVED.
+                linkToTargets.Clear();
+            }
+        }
+
+        // An explicitly empty or malformed modern list must not revive stale legacy fields.
+        if (linkToIndex < 0)
+        {
+            int legacyBone = -1;
+            string legacyPath = "";
+            for (int i = 0; i < lines.Count; i++)
+            {
+                string trimmed = lines[i].Trim();
+                if (trimmed.StartsWith("boneOnAvatar:", StringComparison.Ordinal))
+                    legacyBone = int.TryParse(trimmed.Substring("boneOnAvatar:".Length).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int bone) ? bone : -1;
+                else if (trimmed.StartsWith("bonePathOnAvatar:", StringComparison.Ordinal))
+                    legacyPath = Unquote(trimmed.Substring("bonePathOnAvatar:".Length).Trim());
+            }
+
+            if (legacyBone >= 0 || !string.IsNullOrEmpty(legacyPath))
+            {
+                linkToTargets.Add(new VrcFuryLinkToTarget
+                {
+                    UseBone = legacyBone >= 0,
+                    Bone = legacyBone,
+                    Offset = legacyPath
+                });
+            }
+        }
+
+        int linkMode = 0;
+        bool? recursive = null;
+        string removeBoneSuffix = "";
+        bool alignPosition = false;
+        bool alignRotation = false;
+        bool alignScale = false;
+        bool autoScaleFactor = true;
+        bool keepOffsets = false;
+
+        for (int i = 0; i < lines.Count; i++)
+        {
+            string trimmed = lines[i].Trim();
+            if (trimmed.StartsWith("linkMode:", StringComparison.Ordinal))
+                linkMode = ParseInt(trimmed.Substring("linkMode:".Length));
+            else if (trimmed.StartsWith("recursive:", StringComparison.Ordinal))
+                recursive = ParseInt(trimmed.Substring("recursive:".Length)) != 0;
+            else if (trimmed.StartsWith("removeBoneSuffix:", StringComparison.Ordinal))
+                removeBoneSuffix = Unquote(trimmed.Substring("removeBoneSuffix:".Length).Trim());
+            else if (trimmed.StartsWith("alignPosition:", StringComparison.Ordinal))
+                alignPosition = ParseInt(trimmed.Substring("alignPosition:".Length)) != 0;
+            else if (trimmed.StartsWith("alignRotation:", StringComparison.Ordinal))
+                alignRotation = ParseInt(trimmed.Substring("alignRotation:".Length)) != 0;
+            else if (trimmed.StartsWith("alignScale:", StringComparison.Ordinal))
+                alignScale = ParseInt(trimmed.Substring("alignScale:".Length)) != 0;
+            else if (trimmed.StartsWith("autoScaleFactor:", StringComparison.Ordinal))
+                autoScaleFactor = ParseInt(trimmed.Substring("autoScaleFactor:".Length)) != 0;
+            else if (trimmed.StartsWith("keepBoneOffsets:", StringComparison.Ordinal) || trimmed.StartsWith("keepBoneOffsets2:", StringComparison.Ordinal))
+                keepOffsets = ParseInt(trimmed.Substring(trimmed.IndexOf(':') + 1)) != 0;
+        }
+
+        bool isRecursive = recursive ?? (linkMode != 4);
+
+        return new VrcFuryArmatureLinkDefinition
+        {
+            SourcePath = sourcePath,
+            ComponentFileId = componentFileId,
+            GameObjectFileId = gameObjectFileId,
+            GameObjectName = gameObjectName,
+            PropBoneFileId = propBoneFileId,
+            LinkToTargets = linkToTargets.AsReadOnly(),
+            LinkMode = linkMode,
+            Recursive = isRecursive,
+            RemoveBoneSuffix = removeBoneSuffix,
+            AlignPosition = alignPosition,
+            AlignRotation = alignRotation,
+            AlignScale = alignScale,
+            AutoScaleFactor = autoScaleFactor,
+            KeepOffsets = keepOffsets
+        };
+    }
+
+    private static string ReadTargetScalar(YamlMappingNode mapping, string key) =>
+        mapping != null && mapping.Children.TryGetValue(new YamlScalarNode(key), out var value) && value is YamlScalarNode scalar
+            ? scalar.Value : null;
+
+    private static bool ReadTargetBool(YamlMappingNode mapping, string key)
+    {
+        string value = ReadTargetScalar(mapping, key);
+        return value == "1" || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
     }
 
     private sealed class UnityYamlDocument

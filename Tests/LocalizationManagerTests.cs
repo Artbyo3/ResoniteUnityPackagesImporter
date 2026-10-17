@@ -166,6 +166,89 @@ internal static class LocalizationManagerTests
             string xxFallback = LocalizationManager.GetStringForLocale("xx", "customizeMaterials");
             Check(xxFallback == "<b>Customize Materials</b>", $"Expected '<b>Customize Materials</b>' as fallback, got '{xxFallback}'");
         });
+
+        test("LocalizationManager concurrent reads, dynamic registration, and reload are thread-safe", () =>
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            var token = cts.Token;
+            int readCount = 0;
+            var exceptions = new System.Collections.Concurrent.ConcurrentBag<Exception>();
+
+            // Concurrent readers
+            var readerTasks = Enumerable.Range(0, 12).Select(_ => Task.Run(() =>
+            {
+                while (!token.IsCancellationRequested)
+                {
+                    try
+                    {
+                        var en = LocalizationManager.GetStringForLocale("en", "ready");
+                        Check(en == "Ready to import", "English 'ready' must always resolve correctly.");
+
+                        var ja = LocalizationManager.GetStringForLocale("ja", "ready");
+                        Check(ja == "インポートの準備完了", "Japanese 'ready' must always resolve correctly.");
+
+                        var fallback = LocalizationManager.GetStringForLocale("non-existent-lang", "ready");
+                        Check(fallback == "Ready to import", "Unknown locale must safely fall back to English.");
+
+                        var norm = LocalizationManager.NormalizeLocaleCode("ja-JP");
+                        Check(norm == "ja", "NormalizeLocaleCode must remain consistent under concurrent access.");
+
+                        Interlocked.Increment(ref readCount);
+                    }
+                    catch (Exception ex)
+                    {
+                        exceptions.Add(ex);
+                        break;
+                    }
+                }
+            })).ToArray();
+
+            // Concurrent writers: dynamic registration & reload
+            var writerTask = Task.Run(async () =>
+            {
+                int iteration = 0;
+                while (!token.IsCancellationRequested && iteration < 15)
+                {
+                    iteration++;
+                    try
+                    {
+                        string dynamicJson = $$"""
+                        {
+                          "localeCode": "dyn{{iteration}}",
+                          "messages": {
+                            "UI.Artbyo3.UnityPackageImporter.ready": "DynReady {{iteration}}"
+                          }
+                        }
+                        """;
+                        LocalizationManager.RegisterLocale(dynamicJson);
+                        if (iteration % 5 == 0)
+                        {
+                            LocalizationManager.Reload();
+                        }
+                        await Task.Delay(10);
+                    }
+                    catch (Exception ex)
+                    {
+                        exceptions.Add(ex);
+                        break;
+                    }
+                }
+            });
+
+            Task.WaitAll(writerTask);
+            cts.Cancel();
+            Task.WaitAll(readerTasks);
+
+            if (!exceptions.IsEmpty)
+            {
+                throw new AggregateException("Concurrent localization test failed with exceptions", exceptions);
+            }
+
+            Check(readCount > 100, $"Concurrent readers must successfully execute many reads, ran {readCount}.");
+            // Final check after reloads and registrations: English and Japanese must remain intact
+            Check(LocalizationManager.GetEnglish("ready") == "Ready to import", "English ready must be valid after concurrent run.");
+            Check(LocalizationManager.GetJapanese("ready") == "インポートの準備完了", "Japanese ready must be valid after concurrent run.");
+        });
     }
 
     private static void Check(bool condition, string message)

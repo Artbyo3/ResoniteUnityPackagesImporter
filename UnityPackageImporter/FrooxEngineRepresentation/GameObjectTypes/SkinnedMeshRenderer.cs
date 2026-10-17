@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -34,16 +35,15 @@ public class SkinnedMeshRenderer : IUnityObject
         bool NotFromInLinePrefab = true;
         instanciated = true;
 
-        try
-        {
-
-            if (m_CorrespondingSourceObject != null)
+        if (m_CorrespondingSourceObject != null)
             {
                 if (m_CorrespondingSourceObject.guid != null)
                 {
                     UnityPackageImporter.Msg("Importing skinned mesh renderer via corrosponding object. this id is: \"" + this.id + "\"");
                     NotFromInLinePrefab = false;
-                    if (importer.existingIUnityObjects.TryGetValue(m_PrefabInstance["fileID"], out IUnityObject parentobj_inc))
+                    if (m_PrefabInstance != null &&
+                        m_PrefabInstance.TryGetValue("fileID", out ulong piId) &&
+                        importer.existingIUnityObjects.TryGetValue(piId, out IUnityObject parentobj_inc))
                     {
                         PrefabInstance prefab;
                         try
@@ -53,7 +53,7 @@ public class SkinnedMeshRenderer : IUnityObject
                             await default(ToWorld);
                             prefab = parentobj_inc as PrefabInstance;
 
-                            if (prefab.PrefabHashes.TryGetValue(this.m_CorrespondingSourceObject, out IUnityObject gameobj))
+                            if (prefab != null && prefab.TryFindObject(this.m_CorrespondingSourceObject, out IUnityObject gameobj))
                             {
                                 try
                                 {
@@ -61,22 +61,26 @@ public class SkinnedMeshRenderer : IUnityObject
                                     await default(ToWorld);
                                     await gameobj.InstanciateAsync(importer);
                                     await default(ToWorld);
-                                    this.createdMeshRenderer = newskin.createdMeshRenderer;
-                                    this.SourceBlendShapeNames = newskin.SourceBlendShapeNames;
-                                    this.materials = new List<FileImportHelperTaskMaterial>(newskin.materials);
-                                    var mergedMaterials = new List<SourceObj>(newskin.m_Materials);
-                                    if (this.m_Materials != null)
+                                    if (newskin != null)
                                     {
-                                        for (int matIdx = 0; matIdx < this.m_Materials.Count; matIdx++)
+                                        this.createdMeshRenderer = newskin.createdMeshRenderer;
+                                        this.SourceBlendShapeNames = newskin.SourceBlendShapeNames;
+                                        this.materials = new List<FileImportHelperTaskMaterial>(newskin.materials);
+                                        var mergedMaterials = new List<SourceObj>(newskin.m_Materials);
+                                        if (this.m_Materials != null)
                                         {
-                                            while (mergedMaterials.Count <= matIdx)
-                                                mergedMaterials.Add(new SourceObj());
-                                            if (!string.IsNullOrEmpty(this.m_Materials[matIdx]?.guid))
-                                                mergedMaterials[matIdx] = this.m_Materials[matIdx];
+                                            for (int matIdx = 0; matIdx < this.m_Materials.Count; matIdx++)
+                                            {
+                                                while (mergedMaterials.Count <= matIdx)
+                                                    mergedMaterials.Add(new SourceObj());
+                                                if (!string.IsNullOrEmpty(this.m_Materials[matIdx]?.guid))
+                                                    mergedMaterials[matIdx] = this.m_Materials[matIdx];
+                                            }
                                         }
+                                        this.m_Materials = mergedMaterials;
+                                        if (newskin.createdMeshRenderer?.Slot != null)
+                                            UnityPackageImporter.Warn("assigned skinned mesh renderer \"" + newskin.createdMeshRenderer.Slot.Name + "\" some properties from one already created by a prefab.");
                                     }
-                                    this.m_Materials = mergedMaterials;
-                                    UnityPackageImporter.Warn("assigned skinned mesh renderer \"" + newskin.createdMeshRenderer.Slot.Name + "\" some properties from one already created by a prefab.");
                                 }
                                 catch (Exception)
                                 {
@@ -107,87 +111,72 @@ public class SkinnedMeshRenderer : IUnityObject
             if (NotFromInLinePrefab)
             {
                 UnityPackageImporter.Msg("Importing skinned mesh renderer via mesh guid. this id is: \"" + this.id + "\"");
-                if (importer.unityProjectImporter.SharedImportedFBXScenes.TryGetValue(m_Mesh.guid, out FileImportTaskScene importedfbx2))
+                if (m_Mesh?.guid != null && importer.unityProjectImporter.SharedImportedFBXScenes.TryGetValue(m_Mesh.guid, out FileImportTaskScene importedfbx2))
                 {
-
-
-                    importer.existingIUnityObjects.TryGetValue(m_GameObject["fileID"], out IUnityObject parentobj_inc);
-                    parentobj = parentobj_inc as GameObject;
-                    if (parentobj == null) throw new System.IO.InvalidDataException("Skinned renderer has no parent GameObject.");
-
-                    UnityPackageImporter.Msg("Importing skinned mesh renderer via mesh guid. this id is: \"" + this.id + "\", parentobj = " + parentobj.ToString());
-                    foreach (var pair in importedfbx2.FILEID_To_Slot_Pairs)
+                    if (m_GameObject != null && m_GameObject.TryGetValue("fileID", out ulong goId) && importer.existingIUnityObjects.TryGetValue(goId, out IUnityObject parentobj_inc))
                     {
-                        if (pair.Value.GetType() == typeof(SkinnedMeshRenderer))
+                        parentobj = parentobj_inc as GameObject;
+                    }
+
+                    if (parentobj != null)
+                    {
+                        UnityPackageImporter.Msg("Importing skinned mesh renderer via mesh guid. this id is: \"" + this.id + "\", parentobj = " + parentobj.ToString());
+                        foreach (var pair in importedfbx2.FILEID_To_Slot_Pairs)
                         {
-                            UnityPackageImporter.Msg("Importing skinned mesh renderer via mesh guid 2. this id is: \"" + this.id + "\", parentobj = " + parentobj.ToString());
-
-                            FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer newskin = (pair.Value as FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer);
-                            if (newskin.m_Mesh.fileID == this.m_Mesh.fileID)
+                            if (pair.Value.GetType() == typeof(SkinnedMeshRenderer))
                             {
+                                UnityPackageImporter.Msg("Importing skinned mesh renderer via mesh guid 2. this id is: \"" + this.id + "\", parentobj = " + parentobj.ToString());
 
-                                UnityPackageImporter.Msg("Assigning parent object for skinned mesh renderer: \"" + this.id + "\"");
-
-                                await default(ToWorld);
-                                await parentobj.InstanciateAsync(importer);
-                                await default(ToWorld);
-
-                                Slot newslot = newskin.createdMeshRenderer.Slot.Duplicate(parentobj.frooxEngineSlot.Parent, false, new DuplicationSettings());
-                                newslot.TRS = parentobj.frooxEngineSlot.TRS;
-                                foreach (Slot child in parentobj.frooxEngineSlot.Children.ToArray())
+                                FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer newskin = (pair.Value as FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer);
+                                if (newskin.m_Mesh.fileID == this.m_Mesh.fileID)
                                 {
-                                    child.SetParent(newslot, false);
-                                }
-                                await default(ToWorld);
-                                parentobj.frooxEngineSlot.Destroy();
-                                parentobj.frooxEngineSlot = newslot;
-                                this.createdMeshRenderer = newslot.GetComponent<FrooxEngine.SkinnedMeshRenderer>();
-                                this.SourceBlendShapeNames = newskin.SourceBlendShapeNames;
-                                await default(ToBackground);
-                                break;
+                                    UnityPackageImporter.Msg("Assigning parent object for skinned mesh renderer: \"" + this.id + "\"");
 
+                                    await default(ToWorld);
+                                    await parentobj.InstanciateAsync(importer);
+                                    await default(ToWorld);
+
+                                    if (newskin.createdMeshRenderer?.Slot != null && parentobj.frooxEngineSlot != null)
+                                    {
+                                        Slot newslot = newskin.createdMeshRenderer.Slot.Duplicate(parentobj.frooxEngineSlot.Parent, false, new DuplicationSettings());
+                                        newslot.TRS = parentobj.frooxEngineSlot.TRS;
+                                        foreach (Slot child in parentobj.frooxEngineSlot.Children.ToArray())
+                                        {
+                                            child.SetParent(newslot, false);
+                                        }
+                                        await default(ToWorld);
+                                        parentobj.frooxEngineSlot.Destroy();
+                                        parentobj.frooxEngineSlot = newslot;
+                                        this.createdMeshRenderer = newslot.GetComponent<FrooxEngine.SkinnedMeshRenderer>();
+                                        this.SourceBlendShapeNames = newskin.SourceBlendShapeNames;
+                                        await default(ToBackground);
+                                        break;
+                                    }
+                                }
                             }
                         }
+                    }
+                    else
+                    {
+                        UnityPackageImporter.Warn("Skinned renderer " + id + " has no parent GameObject.");
                     }
                 }
                 else
                 {
-                    UnityPackageImporter.Warn("The prefab is malformed!!! a skinned mesh render with a guid of \"" + m_Mesh.guid + "\" could not find the pre-imported FBX!");
+                    UnityPackageImporter.Warn("The prefab is malformed!!! a skinned mesh render with a guid of \"" + m_Mesh?.guid + "\" could not find the pre-imported FBX!");
                 }
 
                 if (createdMeshRenderer == null)
-                    throw new System.IO.InvalidDataException("No imported mesh matches renderer " + id + ".");
-            }
-
-
-
-
-
-        }
-        catch (Exception)
-        {
-            try
-            {
-                UnityPackageImporter.Warn("The prefab is malformed!!! a skinned mesh render couldn't find it's parent an id of \"" + m_GameObject["fileID"].ToString() + "\" Your renderer will come out mis-shapen!");
-            }
-            catch
-            {
-                try
                 {
-                    UnityPackageImporter.Warn("The prefab is malformed!!! a skinned mesh render couldn't find it's parent a source obj of \"" + m_CorrespondingSourceObject.ToString() + "\" Your renderer will come out mis-shapen!");
-                }
-                catch
-                {
-                    UnityPackageImporter.Warn("The prefab is malformed!!! a skinned mesh render does not have a valid parent obj type! Your renderer will come out mis-shapen!");
+                    UnityPackageImporter.Warn("No imported mesh matches renderer " + id + ".");
                 }
             }
-            //UnityPackageImporter.Warn(ex.Message, ex.StackTrace);
-            throw;
-        }
 
         FrooxEngine.SkinnedMeshRenderer FoundMesh = this.createdMeshRenderer;
         if (FoundMesh == null)
-            throw new System.IO.InvalidDataException("Skinned renderer " + id + " could not be reconstructed.");
+        {
+            throw new InvalidDataException($"Skinned renderer {id} could not be reconstructed (mesh: {m_Mesh?.guid}).");
+        }
 
 
         int counter = 0;

@@ -127,6 +127,11 @@ public class FileImportTaskScene
         this.importDialogue?.UpdateProgress(0f, "", "Preprocessing scene for file " + Path.GetFileName(file));
         if (scene?.RootNode == null)
             throw new InvalidDataException("Model has no scene root: " + file);
+        var modelMetadata = ModelMetaParser.ParseFile(file + UnityPackageImporter.UNITY_META_EXTENSION);
+        float unitConversion = ModelScaleHelper.CalculateEffectiveScale(modelMetadata.GlobalScale,
+            modelMetadata.UseFileUnits, modelMetadata.UseFileScale, ModelScaleHelper.GetFbxUnitScaleFactor(file));
+        ModelUnitConversion.Apply(scene, unitConversion);
+        UnityPackageImporter.Msg($"Converted model coordinate units ({unitConversion}) for '{Path.GetFileName(file)}', including vertices, bind poses and translations.");
         FrooxInternalBridge.PreprocessScene(scene);
         RecordBlendShapeNames(scene, scene.RootNode);
         UnityPackageImporter.Msg("making model import data for file: " + file);
@@ -146,19 +151,6 @@ public class FileImportTaskScene
 
         Slot sceneRootSlot = FrooxInternalBridge.TryGetSlot(data, scene.RootNode);
         await this.metafile.ScanFile(this, sceneRootSlot);
-
-        float scaleFactor = this.metafile.CalculatedScaleFactor;
-        if (float.IsFinite(scaleFactor) && scaleFactor > 0f && Math.Abs(scaleFactor - 1.0f) > 0.00001f)
-        {
-            await default(ToWorld);
-            UnityPackageImporter.Msg($"Applying unit scale normalization ({scaleFactor}) to root children of '{Path.GetFileName(file)}'.");
-            foreach (Slot child in sceneRootSlot.Children)
-            {
-                child.LocalPosition *= scaleFactor;
-                child.LocalScale *= scaleFactor;
-            }
-            await default(ToBackground);
-        }
 
         // Match native ImportModel ordering: finish hierarchy transforms, then
         // bind and finalize every skin before exposing the template to copies.

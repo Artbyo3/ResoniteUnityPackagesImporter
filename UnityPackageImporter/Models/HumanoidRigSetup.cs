@@ -185,6 +185,9 @@ internal static class HumanoidRigSetup
         {
             UnityPackageImporter.Msg("this prefab is not biped. ");
         }
+        // A failed metadata candidate must not leave an empty rig behind.
+        await default(ToWorld);
+        if (!biped.IsBiped) biped.Destroy();
         await default(ToBackground);
         return null;
     }

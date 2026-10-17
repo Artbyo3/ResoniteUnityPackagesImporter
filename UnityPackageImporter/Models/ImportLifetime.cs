@@ -14,14 +14,33 @@ internal sealed class ImportLifetime
     private bool closing;
     public CancellationToken Token => cancellation.Token;
 
-    public IDisposable Enter()
+    public bool IsClosing
+    {
+        get
+        {
+            lock (sync) return closing;
+        }
+    }
+
+    public bool TryEnter(out IDisposable? lease)
     {
         lock (sync)
         {
-            if (closing) throw new OperationCanceledException(Token);
+            if (closing)
+            {
+                lease = null;
+                return false;
+            }
             operations++;
-            return new Lease(this);
+            lease = new Lease(this);
+            return true;
         }
+    }
+
+    public IDisposable Enter()
+    {
+        if (TryEnter(out var lease)) return lease!;
+        throw new OperationCanceledException(Token);
     }
 
     public Task CancelAndDrainAsync()

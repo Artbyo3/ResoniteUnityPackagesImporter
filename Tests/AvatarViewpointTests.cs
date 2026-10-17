@@ -46,6 +46,6 @@ internal static class AvatarViewpointTests
 
     private static string Descriptor(int root, int component, string viewpoint) =>
         $"--- !u!1 &{root}\nGameObject:\n  m_Name: Test Avatar\n--- !u!114 &{component}\nMonoBehaviour:\n" +
-        $"  m_GameObject: {{fileID: {root}}}\n  m_Script: {{fileID: 11500000, guid: {AvatarPackageIndex.VrcAvatarDescriptorScriptGuid}, type: 3}}\n" +
+        $"  m_GameObject: {{fileID: {root}}}\n  m_Script: {{fileID: 542108242, guid: {AvatarPackageIndex.VrcAvatarDescriptorScriptGuid}, type: 3}}\n" +
         viewpoint + "\n";
 }
