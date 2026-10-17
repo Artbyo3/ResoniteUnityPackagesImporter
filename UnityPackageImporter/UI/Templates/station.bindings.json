@@ -1241,6 +1241,115 @@
       "type": "FrooxEngine.BooleanValueDriver<string>",
       "index": 0
     },
+    "locale.customizeMaterials.0": {
+      "path": [
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Advanced Options Content",
+        "Customize Materials Card",
+        "Labels",
+        "Title"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.customizeMaterialsSubtitle.0": {
+      "path": [
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Advanced Options Content",
+        "Customize Materials Card",
+        "Labels",
+        "Subtitle"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.customize.0": {
+      "path": [
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Avatar Simple View",
+        "Advanced Options Content",
+        "Customize Materials Card",
+        "Customize Action Button",
+        "Text"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.customizeMaterials.1": {
+      "path": [
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Options Content",
+        "Customize Materials Card",
+        "Labels",
+        "Title"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.customizeMaterialsSubtitle.1": {
+      "path": [
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Options Content",
+        "Customize Materials Card",
+        "Labels",
+        "Subtitle"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.customize.1": {
+      "path": [
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Simple Mode Root",
+        "Clothing Simple View",
+        "Advanced Options Content",
+        "Customize Materials Card",
+        "Customize Action Button",
+        "Text"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.xiexeToon.0": {
+      "path": [
+        "Contextual Tablet",
+        "Material Preset Popover",
+        "Material Preset Popover Content",
+        "Selection Surface",
+        "Option - Xiexe Toon",
+        "Labels",
+        "Title"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
     "nameCard": {
       "path": [
         "Contextual Tablet",

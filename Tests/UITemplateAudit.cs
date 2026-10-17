@@ -28,7 +28,7 @@ internal static class UITemplateAudit
                 var reader = section.GetReader(checked((int)resource.Offset), section.Length - checked((int)resource.Offset));
                 resources.Add(metadata.GetString(resource.Name), reader.ReadBytes(reader.ReadInt32()));
             }
-            foreach (string loc in new[] { "en", "ja" })
+            foreach (string loc in LocalizationManager.SupportedLocales)
             {
                 string locKey = "UnityPackageImporter.Localization." + loc + ".json";
                 if (!resources.TryGetValue(locKey, out var locBytes))

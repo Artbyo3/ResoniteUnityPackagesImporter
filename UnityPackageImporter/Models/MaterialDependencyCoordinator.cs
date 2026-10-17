@@ -125,7 +125,7 @@ internal sealed class MaterialDependencySession
         IsDismissed = false;
         IsWaiting = true;
         MaterialDependencyCoordinator.BeginWaiting(this);
-        station.SetCompanionState(true, true, "Waiting for package", "パッケージを待機中");
+        station.SetCompanionState(true, true, "waiting");
     }
     public void Back()
     {
@@ -142,7 +142,7 @@ internal sealed class MaterialDependencySession
         MaterialDependencyCoordinator.StopWaiting(this);
         station.SetCompanionState(false, false);
     }
-    public void NoMatch() => station.SetCompanionState(true, true, "This package has no matching materials", "このパッケージに対応するマテリアルがありません");
+    public void NoMatch() => station.SetCompanionState(true, true, "companionNoMatchingMaterials");
     internal async Task<bool> ApplyAsync(IReadOnlyDictionary<string, string> assets, int request)
     {
         await applyLock.WaitAsync(Token);
@@ -154,7 +154,7 @@ internal sealed class MaterialDependencySession
             if (!IsCurrentRequest(request)) return true;
             if (!CanUse(assets?.Keys)) return false;
             applying = true;
-            station.SetCompanionState(true, true, "Connecting materials", "マテリアルを接続中");
+            station.SetCompanionState(true, true, "companionConnectingMaterials");
             var result = await importer.ResolveMissingMaterialsAsync(assets);
             await default(ToWorld);
             importer.Session?.Check();
@@ -162,12 +162,12 @@ internal sealed class MaterialDependencySession
             station.RefreshMaterials();
             if (request != generation || !IsUsable) return true;
             if (result.Remaining.HasMissingAssets)
-                station.SetCompanionState(true, true, "More materials are needed", "追加のマテリアルが必要です");
+                station.SetCompanionState(true, true, "companionMoreMaterialsNeeded");
             else
             {
                 IsWaiting = false;
                 MaterialDependencyCoordinator.StopWaiting(this);
-                station.SetCompanionState(true, true, "Materials ready", "マテリアルの準備ができました");
+                station.SetCompanionState(true, true, "companionMaterialsReady");
                 await Task.Delay(1000, importer.Session?.Token ?? default);
                 await default(ToWorld);
                 importer.Session?.Check();

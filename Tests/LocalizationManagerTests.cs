@@ -17,13 +17,13 @@ internal static class LocalizationManagerTests
             Check(jaReady == "インポートの準備完了", $"Expected 'インポートの準備完了', got '{jaReady}'");
 
             string enCustom = LocalizationManager.GetEnglish("customizeMaterials");
-            Check(enCustom == "Customize Materials", $"Expected 'Customize Materials', got '{enCustom}'");
+            Check(enCustom == "<b>Customize Materials</b>", $"Expected '<b>Customize Materials</b>', got '{enCustom}'");
 
             string jaCustom = LocalizationManager.GetJapanese("customizeMaterials");
-            Check(jaCustom == "マテリアルをカスタマイズ", $"Expected 'マテリアルをカスタマイズ', got '{jaCustom}'");
+            Check(jaCustom == "<b>マテリアルをカスタマイズ</b>", $"Expected '<b>マテリアルをカスタマイズ</b>', got '{jaCustom}'");
         });
 
-        test("LocalizationManager loads embedded dictionaries outside the repository", () =>
+        test("LocalizationManager loads embedded dictionaries outside the repository for all 26 Resonite locales", () =>
         {
             string workingDirectory = Directory.GetCurrentDirectory();
             string isolatedDirectory = Path.Combine(Path.GetTempPath(), "station-locale-test-" + Guid.NewGuid().ToString("N"));
@@ -32,8 +32,20 @@ internal static class LocalizationManagerTests
             {
                 Directory.SetCurrentDirectory(isolatedDirectory);
                 LocalizationManager.Reload();
-                Check(LocalizationManager.GetEnglish("ready") == "Ready to import", "English must be available without development files.");
-                Check(LocalizationManager.GetJapanese("ready") == "インポートの準備完了", "Japanese must be available without development files.");
+                Check(LocalizationManager.SupportedLocales.Count == 26, $"Expected 26 supported Resonite locales, got {LocalizationManager.SupportedLocales.Count}");
+                foreach (string locale in LocalizationManager.SupportedLocales)
+                {
+                    Check(LocalizationManager.TryGetStaticStringForLocale(locale, "ready", out string ready) && !string.IsNullOrWhiteSpace(ready),
+                        $"Locale '{locale}' must resolve 'ready' from embedded resources.");
+                    Check(LocalizationManager.TryGetStaticStringForLocale(locale, "importUnity", out string importUnity) && !string.IsNullOrWhiteSpace(importUnity),
+                        $"Locale '{locale}' must resolve 'importUnity' from embedded resources.");
+                    Check(LocalizationManager.TryGetStaticStringForLocale(locale, "rawFile", out string rawFile) && !string.IsNullOrWhiteSpace(rawFile),
+                        $"Locale '{locale}' must resolve 'rawFile' from embedded resources.");
+                }
+                Check(LocalizationManager.GetStringForLocale("zh-cn", "ready") != LocalizationManager.GetStringForLocale("zh-tw", "ready"),
+                    "zh-cn and zh-tw must remain distinct and not collide.");
+                Check(LocalizationManager.GetStringForLocale("es", "customizeMaterials") == "<b>Personalizar materiales</b>",
+                    "Spanish embedded locale must resolve '<b>Personalizar materiales</b>'.");
             }
             finally
             {
@@ -45,14 +57,14 @@ internal static class LocalizationManagerTests
 
         test("Initial station copy never exposes pending format arguments or unknown keys", () =>
         {
-            foreach (string locale in new[] { "en", "ja" })
+            foreach (string locale in LocalizationManager.SupportedLocales)
             {
                 Check(LocalizationManager.TryGetStaticStringForLocale(locale, "ready", out string ready) && !string.IsNullOrEmpty(ready),
-                    "Static progress copy must be ready before staging.");
+                    "Static progress copy must be ready before staging: " + locale);
                 foreach (string key in new[] { "avatarContext", "outfitContext", "loaded", "failureReason" })
                 {
                     Check(!LocalizationManager.TryGetStaticStringForLocale(locale, key, out string pending) && pending == "",
-                        "Parameterized copy must remain empty until runtime supplies arguments: " + key);
+                        $"Parameterized copy must remain empty until runtime supplies arguments ({locale}.{key})");
                 }
             }
             Check(!LocalizationManager.TryGetStaticStringForLocale("en", "missingTestKey", out string missing) && missing == "",
@@ -113,39 +125,46 @@ internal static class LocalizationManagerTests
             Check(jaPkg == "2 個のパッケージ", $"Expected '2 個のパッケージ', got '{jaPkg}'");
 
             string enSlot = LocalizationManager.GetEnglish("slotPrefix", 1);
-            Check(enSlot == "Slot 1", $"Expected 'Slot 1', got '{enSlot}'");
+            Check(enSlot == "Material slot 1", $"Expected 'Material slot 1', got '{enSlot}'");
 
             string jaSlot = LocalizationManager.GetJapanese("slotPrefix", 1);
-            Check(jaSlot == "スロット 1", $"Expected 'スロット 1', got '{jaSlot}'");
+            Check(jaSlot == "マテリアルスロット 1", $"Expected 'マテリアルスロット 1', got '{jaSlot}'");
         });
 
         test("LocalizationManager handles locale normalization and dynamic locale registration", () =>
         {
-            Check(LocalizationManager.NormalizeLocaleCode("ja-JP") == "ja", "NormalizeLocaleCode should trim country code");
-            Check(LocalizationManager.NormalizeLocaleCode("EN_us") == "en", "NormalizeLocaleCode should trim underscore variant and lowercase");
+            Check(LocalizationManager.NormalizeLocaleCode("ja-JP") == "ja", "NormalizeLocaleCode should trim country code when not a distinct Resonite locale");
+            Check(LocalizationManager.NormalizeLocaleCode("EN_us") == "en", "NormalizeLocaleCode should map en_US to 'en'");
+            Check(LocalizationManager.NormalizeLocaleCode("en-GB") == "en-gb", "NormalizeLocaleCode should preserve 'en-gb'");
+            Check(LocalizationManager.NormalizeLocaleCode("pt-BR") == "pt-br", "NormalizeLocaleCode should preserve 'pt-br'");
+            Check(LocalizationManager.NormalizeLocaleCode("pt-PT") == "pt-br", "NormalizeLocaleCode should map 'pt-PT' to 'pt-br'");
+            Check(LocalizationManager.NormalizeLocaleCode("zh-CN") == "zh-cn", "NormalizeLocaleCode should preserve 'zh-cn'");
+            Check(LocalizationManager.NormalizeLocaleCode("zh-TW") == "zh-tw", "NormalizeLocaleCode should preserve 'zh-tw'");
+            Check(LocalizationManager.NormalizeLocaleCode("zh-HK") == "zh-tw", "NormalizeLocaleCode should map 'zh-HK' to 'zh-tw'");
+            Check(LocalizationManager.NormalizeLocaleCode("nb-NO") == "no", "NormalizeLocaleCode should map 'nb-NO' to 'no'");
             Check(LocalizationManager.NormalizeLocaleCode(null) == "en", "Null should default to 'en'");
 
-            string esJson = """
+            string customJson = """
             {
-              "localeCode": "es",
+              "localeCode": "xx",
               "authors": ["Test"],
               "messages": {
-                "UI.Artbyo3.UnityPackageImporter.ready": "Listo para importar",
-                "UI.Artbyo3.UnityPackageImporter.loaded": "Cargado {0} de {1}"
+                "UI.Artbyo3.UnityPackageImporter.ready": "Custom Ready",
+                "UI.Artbyo3.UnityPackageImporter.loaded": "Custom {0} of {1}"
               }
             }
             """;
-            LocalizationManager.RegisterLocale(esJson);
+            LocalizationManager.RegisterLocale(customJson);
 
-            string esReady = LocalizationManager.GetStringForLocale("es", "ready");
-            Check(esReady == "Listo para importar", $"Expected 'Listo para importar', got '{esReady}'");
+            string xxReady = LocalizationManager.GetStringForLocale("xx", "ready");
+            Check(xxReady == "Custom Ready", $"Expected 'Custom Ready', got '{xxReady}'");
 
-            string esLoaded = LocalizationManager.GetStringForLocale("es-ES", "loaded", 2, 8);
-            Check(esLoaded == "Cargado 2 de 8", $"Expected 'Cargado 2 de 8', got '{esLoaded}'");
+            string xxLoaded = LocalizationManager.GetStringForLocale("xx-YY", "loaded", 2, 8);
+            Check(xxLoaded == "Custom 2 of 8", $"Expected 'Custom 2 of 8', got '{xxLoaded}'");
 
-            // Key not present in 'es' should fall back to English
-            string esFallback = LocalizationManager.GetStringForLocale("es", "customizeMaterials");
-            Check(esFallback == "Customize Materials", $"Expected 'Customize Materials' as fallback, got '{esFallback}'");
+            // Key not present in 'xx' should fall back to English
+            string xxFallback = LocalizationManager.GetStringForLocale("xx", "customizeMaterials");
+            Check(xxFallback == "<b>Customize Materials</b>", $"Expected '<b>Customize Materials</b>' as fallback, got '{xxFallback}'");
         });
     }
 

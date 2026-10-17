@@ -34,6 +34,35 @@ internal static class ReusableDecisionPromptTests
             prompt.SetState(true, true);
             Check(state == (true, true), "A reusable prompt must preserve the waiting status while remaining visible.");
         });
+
+        test("Reusable decision prompt supports key-based localization for all 26 Resonite languages", () =>
+        {
+            var keys = new Dictionary<string, string>();
+            (bool Visible, bool Waiting) state = default;
+            string? selected = null;
+            var prompt = new ReusableDecisionPrompt(
+                (driverKey, messageKey) => keys[driverKey] = messageKey,
+                (visible, waiting) => state = (visible, waiting));
+
+            prompt.Show(
+                new DecisionPromptKeys(
+                    "waiting",
+                    "companionDescription",
+                    "companionMissing",
+                    "importCompanion",
+                    "placeholderMaterials",
+                    "back"),
+                () => { selected = "primary"; return Task.CompletedTask; },
+                () => { selected = "secondary"; return Task.CompletedTask; },
+                () => { selected = "dismiss"; return Task.CompletedTask; });
+
+            Check(state == (true, false), "Showing a key-based prompt must show the native surface.");
+            Check(keys["waiting"] == "waiting", "Title key must be mapped to waiting.");
+            Check(keys["companionDescription"] == "companionDescription", "Description key must be mapped.");
+            Check(keys["importCompanion"] == "importCompanion", "Primary choice key must be mapped.");
+            prompt.InvokePrimaryAsync().GetAwaiter().GetResult();
+            Check(selected == "primary", "Key-based prompt must route primary choice.");
+        });
     }
 
     private static void Check(bool condition, string message)

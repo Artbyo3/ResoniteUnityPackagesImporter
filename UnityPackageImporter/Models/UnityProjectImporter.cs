@@ -342,7 +342,7 @@ public class UnityProjectImporter
 
         // I feel so smart making the wait all import fbx tasks code. - @989onan
         await default(ToWorld);
-        Station?.UpdateProgress(0.1f, LocalizationManager.GetEnglish("loadingMeshesAndMaterials"), LocalizationManager.GetJapanese("loadingMeshesAndMaterials"), "");
+        Station?.UpdateProgress(0.1f, "loadingMeshesAndMaterials", "");
         var fbx_tasks = FillFBXFiles().ToArray();
 
         await Task.WhenAll(fbx_tasks.Select(task => task.RunnerWrapper()).ToArray());

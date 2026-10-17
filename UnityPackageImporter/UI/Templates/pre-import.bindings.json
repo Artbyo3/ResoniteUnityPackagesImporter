@@ -57,6 +57,39 @@
       ],
       "type": "FrooxEngine.UIX.Text",
       "index": 0
+    },
+    "locale.importUnity.0": {
+      "path": [
+        "Prompt Canvas",
+        "Prompt Content",
+        "Import Unity Package",
+        "Labeled Button",
+        "Text"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.rawFile.0": {
+      "path": [
+        "Prompt Canvas",
+        "Prompt Content",
+        "Import as Raw File",
+        "Labeled Button",
+        "Text"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.cancel.0": {
+      "path": [
+        "Prompt Canvas",
+        "Prompt Content",
+        "Cancel",
+        "Labeled Button",
+        "Text"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
     }
   }
 }

@@ -22,6 +22,8 @@ internal static class LocalizationManager
     private static bool initialized;
     private static readonly object InitLock = new();
 
+    public static event Action<string> GlobalLocaleChanged;
+
     static LocalizationManager()
     {
         Initialize();
@@ -34,6 +36,7 @@ internal static class LocalizationManager
             if (initialized) return;
             LoadEmbeddedResources();
             LoadDevelopmentOverrides();
+            RegisterSettingsHook();
             initialized = true;
         }
     }
@@ -141,23 +144,90 @@ internal static class LocalizationManager
         }
     }
 
+    public static readonly IReadOnlyList<string> SupportedLocales = new[]
+    {
+        "cs", "de", "en", "en-gb", "eo", "es", "et", "fi", "fr", "hu",
+        "is", "ja", "ko", "mn", "nl", "no", "pl", "pt-br", "ru", "sv",
+        "th", "tok", "tr", "uk", "zh-cn", "zh-tw"
+    };
+
+    private static readonly HashSet<string> SupportedLocaleSet = new(SupportedLocales, StringComparer.OrdinalIgnoreCase);
+
     public static string NormalizeLocaleCode(string code)
     {
         if (string.IsNullOrWhiteSpace(code)) return "en";
-        code = code.Trim().ToLowerInvariant();
+        code = code.Trim().Replace('_', '-').ToLowerInvariant();
+
+        switch (code)
+        {
+            case "zh-hk":
+            case "zh-mo":
+            case "zh-hant":
+            case "zh-cht":
+                return "zh-tw";
+            case "zh":
+            case "zh-sg":
+            case "zh-hans":
+            case "zh-chs":
+                return "zh-cn";
+            case "pt":
+                return "pt-br";
+            case "nb":
+            case "nn":
+            case "nb-no":
+            case "nn-no":
+                return "no";
+        }
+
+        if (SupportedLocaleSet.Contains(code) || Messages.ContainsKey(code))
+            return code;
+
         int dash = code.IndexOf('-');
-        if (dash > 0) code = code.Substring(0, dash);
-        int under = code.IndexOf('_');
-        if (under > 0) code = code.Substring(0, under);
+        if (dash > 0)
+        {
+            string baseCode = code.Substring(0, dash);
+            return NormalizeLocaleCode(baseCode);
+        }
+
         return code;
     }
+
+    private static void RegisterSettingsHook()
+    {
+#if !REGRESSION_TESTS
+        try
+        {
+            FrooxEngine.Settings.RegisterValueChanges<LocaleSettings>(OnLocaleSettingsChanged);
+        }
+        catch { }
+#endif
+    }
+
+#if !REGRESSION_TESTS
+    private static void OnLocaleSettingsChanged(LocaleSettings settings)
+    {
+        try
+        {
+            if (settings == null) return;
+            string code = settings.ActiveLocaleCode;
+            if (string.IsNullOrWhiteSpace(code))
+                code = settings.PrimaryInterfaceLocaleCode?.Value;
+            if (string.IsNullOrWhiteSpace(code))
+                code = settings.ActiveCulture?.Name;
+
+            string norm = NormalizeLocaleCode(code);
+            GlobalLocaleChanged?.Invoke(norm);
+        }
+        catch { }
+    }
+#endif
 
     public static string DetectLocaleCode()
     {
 #if !REGRESSION_TESTS
         try
         {
-            var settings = Userspace.UserspaceWorld?.RootSlot?.GetComponentInChildren<LocaleSettings>();
+            var settings = FrooxEngine.Settings.GetActiveSetting<LocaleSettings>();
             if (settings != null)
             {
                 string active = settings.ActiveLocaleCode;
@@ -172,6 +242,33 @@ internal static class LocalizationManager
                     string norm = NormalizeLocaleCode(primary);
                     if (Messages.ContainsKey(norm)) return norm;
                 }
+                string culture = settings.ActiveCulture?.Name;
+                if (!string.IsNullOrWhiteSpace(culture))
+                {
+                    string norm = NormalizeLocaleCode(culture);
+                    if (Messages.ContainsKey(norm)) return norm;
+                }
+            }
+        }
+        catch { }
+
+        try
+        {
+            var fallbackSettings = Userspace.UserspaceWorld?.RootSlot?.GetComponentInChildren<LocaleSettings>();
+            if (fallbackSettings != null)
+            {
+                string active = fallbackSettings.ActiveLocaleCode;
+                if (!string.IsNullOrWhiteSpace(active))
+                {
+                    string norm = NormalizeLocaleCode(active);
+                    if (Messages.ContainsKey(norm)) return norm;
+                }
+                string primary = fallbackSettings.PrimaryInterfaceLocaleCode?.Value;
+                if (!string.IsNullOrWhiteSpace(primary))
+                {
+                    string norm = NormalizeLocaleCode(primary);
+                    if (Messages.ContainsKey(norm)) return norm;
+                }
             }
         }
         catch { }
@@ -179,10 +276,16 @@ internal static class LocalizationManager
 
         try
         {
-            string culture = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
-            if (!string.IsNullOrWhiteSpace(culture))
+            string cultureName = CultureInfo.CurrentUICulture.Name;
+            if (!string.IsNullOrWhiteSpace(cultureName))
             {
-                string norm = NormalizeLocaleCode(culture);
+                string norm = NormalizeLocaleCode(cultureName);
+                if (Messages.ContainsKey(norm)) return norm;
+            }
+            string twoLetter = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+            if (!string.IsNullOrWhiteSpace(twoLetter))
+            {
+                string norm = NormalizeLocaleCode(twoLetter);
                 if (Messages.ContainsKey(norm)) return norm;
             }
         }
@@ -190,6 +293,7 @@ internal static class LocalizationManager
 
         return "en";
     }
+
 
     public static string GetString(string key, params object[] args) =>
         GetStringForLocale(DetectLocaleCode(), key, args);
@@ -241,6 +345,20 @@ internal static class LocalizationManager
         {
             dict.TryGetValue(KeyPrefix + key, out template);
             if (template == null) dict.TryGetValue(key, out template);
+        }
+
+        if (template == null)
+        {
+            int dash = normalized.IndexOf('-');
+            if (dash > 0)
+            {
+                string baseCode = normalized.Substring(0, dash);
+                if (Messages.TryGetValue(baseCode, out var baseDict))
+                {
+                    baseDict.TryGetValue(KeyPrefix + key, out template);
+                    if (template == null) baseDict.TryGetValue(key, out template);
+                }
+            }
         }
 
         // Fallback to "en" if not found in requested locale

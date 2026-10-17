@@ -4,11 +4,11 @@
   "templates": {
     "station": {
       "packageSha256": "b7210e0d289fc576dc0d4dd0690a8e8ef85c927725eda745f1a8d21c05641ed4",
-      "contractSha256": "10f2c2fa9de83e23bf447b47ee8216fc6864c95944fc4c85521d35f0811d4c91"
+      "contractSha256": "63aa38ec3e02cbedfb05bf6a5d58703a57e6335314f8be818c2fa47d06b5a712"
     },
     "pre-import": {
       "packageSha256": "f64094af1e4aec7c7ebd709e0ece5d316605d5b79c3ff57901db3658665e2142",
-      "contractSha256": "960ba3f54ee22e7d98f0b05d0a164ae372600297276ddb3b3dc08a64921a3ef4"
+      "contractSha256": "93370fdd127405de9cd5fc71ce47a30d4a0607ee0056b0d6f9d4e5f2637fb48d"
     }
   }
 }

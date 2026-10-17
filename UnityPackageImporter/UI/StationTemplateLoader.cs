@@ -78,19 +78,38 @@ internal sealed class StationTemplate
         return false;
     }
 
+    private sealed record LocalizedEntry(string MessageKey, object[] Args, string RawText);
+    private readonly Dictionary<string, LocalizedEntry> activeLocaleEntries = new(StringComparer.Ordinal);
+    public event Action<string> LocaleChanged;
+
     public IEnumerable<IWorldElement> Locale(string key) =>
         bindings.Where(pair => pair.Key.StartsWith("locale." + key + ".", StringComparison.Ordinal))
             .Select(pair => pair.Value);
 
-    public void SetLocalized(string key, string text)
+    private static void ApplyTextToLabel(Text label, string text)
+    {
+        if (label == null || label.IsDestroyed) return;
+        if (!label.Content.IsDriven) label.Content.Value = text;
+        Slot singleLine = label.Slot?.Children.FirstOrDefault(child => child.Name == "Single Line Presentation");
+        if (singleLine != null && !singleLine.IsDestroyed)
+        {
+            foreach (var childText in singleLine.GetComponentsInChildren<Text>())
+            {
+                if (childText != null && !childText.IsDestroyed && !childText.Content.IsDriven)
+                    childText.Content.Value = text;
+            }
+        }
+    }
+
+    private void ApplyRawText(string key, string text)
     {
         foreach (var element in Locale(key))
         {
             if (element is Text label)
             {
-                label.Content.Value = text;
+                ApplyTextToLabel(label, text);
             }
-            else if (element is BooleanValueDriver<string> driver)
+            else if (element is BooleanValueDriver<string> driver && !driver.IsDestroyed)
             {
                 if (key.Equals("complete", StringComparison.OrdinalIgnoreCase))
                     driver.FalseValue.Value = text;
@@ -100,22 +119,57 @@ internal sealed class StationTemplate
         }
     }
 
+    public void SetLocalizedRaw(string key, string text)
+    {
+        string safe = text ?? "";
+        activeLocaleEntries[key] = new LocalizedEntry(null, Array.Empty<object>(), safe);
+        ApplyRawText(key, safe);
+    }
+
     public void SetLocalized(string key, string english, string japanese)
     {
         string text = LocalizationManager.DetectLocaleCode() == "ja" ? japanese : english;
-        SetLocalized(key, text);
+        SetLocalizedRaw(key, text);
     }
 
-    public void SetLocalized(string key, params object[] args)
-    {
-        string text = LocalizationManager.GetString(key, args);
-        SetLocalized(key, text);
-    }
+    public void SetLocalized(string key, params object[] args) =>
+        SetLocalizedKey(key, key, args);
 
     public void SetLocalizedKey(string driverKey, string messageKey, params object[] args)
     {
-        string text = LocalizationManager.GetString(messageKey, args);
-        SetLocalized(driverKey, text);
+        object[] safeArgs = args ?? Array.Empty<object>();
+        activeLocaleEntries[driverKey] = new LocalizedEntry(messageKey, safeArgs, null);
+        string text = LocalizationManager.GetString(messageKey, safeArgs);
+        ApplyRawText(driverKey, text);
+    }
+
+    public void RefreshLocale(string localeCode = null)
+    {
+        if (Host == null || Host.IsDestroyed || Root == null || Root.IsDestroyed) return;
+        string activeLocale = string.IsNullOrWhiteSpace(localeCode)
+            ? LocalizationManager.DetectLocaleCode()
+            : LocalizationManager.NormalizeLocaleCode(localeCode);
+        foreach (var pair in activeLocaleEntries.ToArray())
+        {
+            var entry = pair.Value;
+            if (entry.MessageKey != null)
+            {
+                if (entry.Args.Length == 0)
+                {
+                    LocalizationManager.TryGetStaticStringForLocale(activeLocale, entry.MessageKey, out string staticText);
+                    ApplyRawText(pair.Key, staticText);
+                }
+                else
+                {
+                    ApplyRawText(pair.Key, LocalizationManager.GetStringForLocale(activeLocale, entry.MessageKey, entry.Args));
+                }
+            }
+            else
+            {
+                ApplyRawText(pair.Key, entry.RawText ?? "");
+            }
+        }
+        LocaleChanged?.Invoke(activeLocale);
     }
 
     private static string FriendlyType(Type type)
@@ -216,6 +270,8 @@ internal static class StationTemplateLoader
             // Preserve the template's authored scale; native import handles asset dependencies.
             template.Root.PersistentSelf = false;
 
+            EnsureWorldFontFallbacks(world, root);
+
             // Runtime selection/progress fills parameterized labels later. Clear
             // their saved placeholder patterns before making the package visible.
             string activeLocale = LocalizationManager.DetectLocaleCode();
@@ -224,9 +280,13 @@ internal static class StationTemplateLoader
                 .Select(key => key.Split('.')[1]).Distinct(StringComparer.Ordinal))
             {
                 string messageKey = baseKey == "phase" ? "ready" : baseKey;
-                LocalizationManager.TryGetStaticStringForLocale(activeLocale, messageKey, out string localizedText);
-                template.SetLocalized(baseKey, localizedText);
+                if (LocalizationManager.TryGetStaticStringForLocale(activeLocale, messageKey, out _))
+                    template.SetLocalizedKey(baseKey, messageKey);
+                else
+                    template.SetLocalizedRaw(baseKey, "");
             }
+
+            StartLocaleWatcher(host, template, activeLocale);
 
             host.ActiveSelf = true;
             UnityPackageImporter.Msg("Loaded bundled " + name + " UI " + contract.TemplateVersion + " (" + contract.Bindings.Count + " bindings).");
@@ -239,6 +299,76 @@ internal static class StationTemplateLoader
             throw;
         }
     }
+
+    private static void EnsureWorldFontFallbacks(World world, Slot templateRoot)
+    {
+        try
+        {
+            var worldChain = world?.RootSlot?.GetComponentInChildren<FontChain>();
+            if (worldChain == null) return;
+            var fallbackProviders = new List<IAssetProvider<Font>>();
+            if (worldChain.MainFont.Target != null) fallbackProviders.Add(worldChain.MainFont.Target);
+            foreach (var fb in worldChain.FallbackFonts)
+            {
+                if (fb != null && !fallbackProviders.Contains(fb))
+                    fallbackProviders.Add(fb);
+            }
+            if (fallbackProviders.Count == 0) return;
+
+            foreach (var chain in templateRoot.GetComponentsInChildren<FontChain>())
+            {
+                if (chain == null || chain.IsDestroyed) continue;
+                foreach (var provider in fallbackProviders)
+                {
+                    if (chain.MainFont.Target == provider || chain.FallbackFonts.Contains(provider)) continue;
+                    chain.FallbackFonts.Add().Target = provider;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private static void StartLocaleWatcher(Slot host, StationTemplate template, string initialLocale)
+    {
+        if (host?.World?.RootSlot == null) return;
+
+        Action<string> onGlobalChange = newLocale =>
+        {
+            if (host == null || host.IsDestroyed || template.Root == null || template.Root.IsDestroyed) return;
+            host.World.RunSynchronously(() =>
+            {
+                if (host.IsDestroyed || template.Root == null || template.Root.IsDestroyed) return;
+                template.RefreshLocale(newLocale);
+            });
+        };
+        LocalizationManager.GlobalLocaleChanged += onGlobalChange;
+
+        _ = host.World.RootSlot.StartGlobalTask(async () =>
+        {
+            string previous = initialLocale;
+            try
+            {
+                while (host != null && !host.IsDestroyed && host.World?.RootSlot != null && !host.World.RootSlot.IsDestroyed)
+                {
+                    await Task.Delay(400);
+                    if (host.World.RootSlot.IsDestroyed) return;
+                    await default(ToWorld);
+                    if (host.IsDestroyed || template.Root == null || template.Root.IsDestroyed) return;
+                    string current = LocalizationManager.DetectLocaleCode();
+                    if (!string.Equals(previous, current, StringComparison.OrdinalIgnoreCase))
+                    {
+                        previous = current;
+                        template.RefreshLocale(current);
+                    }
+                }
+            }
+            finally
+            {
+                LocalizationManager.GlobalLocaleChanged -= onGlobalChange;
+            }
+        });
+    }
+
 
     private sealed class TemplateImportProgress : IProgressIndicator
     {

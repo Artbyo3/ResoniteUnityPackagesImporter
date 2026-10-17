@@ -170,7 +170,7 @@ internal static class PackageImportCoordinator
             }
             session = new ImportSession(assets);
             station = await UnityStationBuilder.BuildStationAsync(world, position, rotation, session);
-            station.UpdateProgress(0f, LocalizationManager.GetEnglish("extractingPackage"), LocalizationManager.GetJapanese("extractingPackage"), Path.GetFileName(files[0]), 0, files.Count);
+            station.UpdateProgress(0f, "extractingPackage", Path.GetFileName(files[0]), 0, files.Count);
             prompt.Close();
             using (session.Enter())
                 await ExtractAndImportAsync(files, session.Staging, world, station, session);

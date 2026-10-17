@@ -21,7 +21,13 @@ internal sealed class PreImportPrompt
         template = ui;
         // The filename fitter owns the visible Text.Content. Update its full source
         // so the approved fitting behavior uses the actual package name.
-        ui.Get<ValueField<string>>("filenameSource").Value.Value = files.Count == 1 ? Path.GetFileName(files[0]) : LocalizationManager.GetString("packagesCount", files.Count);
+        var filenameSource = ui.Get<ValueField<string>>("filenameSource");
+        filenameSource.Value.Value = files.Count == 1 ? Path.GetFileName(files[0]) : LocalizationManager.GetString("packagesCount", files.Count);
+        ui.LocaleChanged += locale =>
+        {
+            if (files.Count != 1 && !filenameSource.IsDestroyed)
+                filenameSource.Value.Value = LocalizationManager.GetStringForLocale(locale, "packagesCount", files.Count);
+        };
         long bytes = files.Sum(file => new FileInfo(file).Length);
         ui.Get<Text>("size").Content.Value = (bytes / 1048576d).ToString("0.0", System.Globalization.CultureInfo.InvariantCulture) + " MB";
         Bind("import", PackageImportChoice.Import);

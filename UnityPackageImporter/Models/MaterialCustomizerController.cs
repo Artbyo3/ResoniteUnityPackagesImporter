@@ -127,7 +127,7 @@ internal sealed class MaterialCustomizerController
             }
             else if (directText != null && !directText.IsDestroyed)
             {
-                directText.ParseRichText.Value = false;
+                directText.ParseRichText.Value = true;
                 if (!directText.Content.IsDriven) directText.Content.Value = value;
                 directText.Enabled = true;
                 directText.InteractionTarget.Value = false;
@@ -576,6 +576,8 @@ internal sealed class MaterialCustomizerController
                     entryButtons.Add(button);
                 }
             }
+
+            ApplyStaticLocalizedLabels();
         }
         else
         {
@@ -627,6 +629,112 @@ internal sealed class MaterialCustomizerController
 
             foreach (Slot advanced in Descendants(ui.Root).Where(slot => slot.Name == "Advanced Options Content"))
                 AddAdvancedEntryPoint(advanced);
+        }
+    }
+
+    private void ApplyStaticLocalizedLabels()
+    {
+        if (!isNative) return;
+        if (foldersOpenButton?.Slot != null && !foldersOpenButton.Slot.IsDestroyed)
+        {
+            Slot? labelSlot = FindDescendant(foldersOpenButton.Slot, "folders-open-label");
+            if (labelSlot != null) SetFittedText(labelSlot, L("folders"));
+        }
+        if (folderRootButton?.Slot != null && !folderRootButton.Slot.IsDestroyed)
+        {
+            SetFittedText(folderRootButton.Slot, L("allFolders"));
+        }
+        if (folderNavUp?.Slot != null && !folderNavUp.Slot.IsDestroyed)
+        {
+            Slot? upLabelSlot = FindDescendant(folderNavUp.Slot, "folder-nav-up-label");
+            if (upLabelSlot != null) SetFittedText(upLabelSlot, L("up"));
+        }
+        if (mainDismissButton != null && !mainDismissButton.IsDestroyed)
+        {
+            Slot? closeLabelSlot = FindDescendant(mainDismissButton, "mesh-panel-close-label");
+            if (closeLabelSlot != null) SetFittedText(closeLabelSlot, L("closeBold"));
+        }
+        if (mainSearchHint != null && !mainSearchHint.IsDestroyed)
+        {
+            SetFittedText(mainSearchHint, L("searchMeshes"));
+        }
+        if (materialSearchHint != null && !materialSearchHint.IsDestroyed)
+        {
+            SetFittedText(materialSearchHint, L("searchMaterials"));
+        }
+        if (mainRowTemplate != null && !mainRowTemplate.IsDestroyed)
+        {
+            Slot? changeLabelSlot = FindDescendant(mainRowTemplate, "slot-0-0-change-label");
+            if (changeLabelSlot != null) SetFittedText(changeLabelSlot, L("changeBold"));
+        }
+    }
+
+    internal void RefreshLocale()
+    {
+        if (!isAlive()) return;
+        if (isNative)
+        {
+            ApplyStaticLocalizedLabels();
+            SetText(mainTitle, "customizeMaterials");
+            SetText(materialTitle, "chooseMaterial");
+            foreach (var holder in nativeCards)
+            {
+                if (holder.CardSlot == null || holder.CardSlot.IsDestroyed) continue;
+                Slot? countSlot = FindDescendant(holder.CardSlot, "mesh-0-slot-count");
+                if (countSlot != null) SetFittedText(countSlot, L("slotsCount", holder.Renderer.Slots.Count));
+                if (holder.IsPopulated && holder.SlotsContainer != null && !holder.SlotsContainer.IsDestroyed)
+                {
+                    foreach (Slot slotRow in holder.SlotsContainer.Children)
+                    {
+                        if (slotRow == holder.SlotTemplate || slotRow.IsDestroyed) continue;
+                        Slot? changeLabelSlot = FindDescendant(slotRow, "slot-0-0-change-label");
+                        if (changeLabelSlot != null) SetFittedText(changeLabelSlot, L("changeBold"));
+                    }
+                    foreach (var pair in holder.SlotRows)
+                    {
+                        var slot = pair.Key;
+                        var rowInfo = pair.Value;
+                        rowInfo.NameLabel.SetText(MaterialName(slot.ReadCurrent(), getImporter(), materialCatalog));
+                    }
+                    int idx = 0;
+                    foreach (Slot slotRow in holder.SlotsContainer.Children)
+                    {
+                        if (slotRow == holder.SlotTemplate || slotRow.IsDestroyed) continue;
+                        if (idx < holder.Renderer.Slots.Count)
+                        {
+                            Slot? slotLabel = FindDescendant(slotRow, "slot-0-0-slot-label");
+                            if (slotLabel != null) SetFittedText(slotLabel, L("slotPrefix", holder.Renderer.Slots[idx].Index + 1));
+                            idx++;
+                        }
+                    }
+                }
+            }
+            if (mainVisible != null && !mainVisible.IsDestroyed && mainVisible.State.Value)
+            {
+                ApplyNativeMeshFilter(mainQuery);
+            }
+            if (materialVisible != null && !materialVisible.IsDestroyed && materialVisible.State.Value && selectedSlot != null)
+            {
+                if (pickerContextText != null && !pickerContextText.IsDestroyed)
+                    pickerContextText.Content.Value = $"{selectedSlot.RendererName} · {L("slotPrefix", selectedSlot.Index + 1)}";
+                if (pickerContextMaterialText != null && !pickerContextMaterialText.IsDestroyed)
+                    pickerContextMaterialText.Content.Value = MaterialName(selectedSlot.ReadCurrent(), getImporter(), materialCatalog);
+                RefreshMaterialRows(materialQuery);
+            }
+            if (folderPickerVisible?.State.Value == true || (folderPickerVisible == null && folderPickerRoot?.ActiveSelf == true))
+            {
+                RefreshFolderRows(animateTransition: false);
+            }
+        }
+        else
+        {
+            if (mainVisible != null && !mainVisible.IsDestroyed && mainVisible.State.Value)
+                RefreshMainRows(mainQuery);
+            if (materialVisible != null && !materialVisible.IsDestroyed && materialVisible.State.Value && selectedSlot != null)
+            {
+                SetText(materialTitle, "chooseMaterialSlot", selectedSlot.RendererName, selectedSlot.Index + 1);
+                RefreshMaterialRows(materialQuery);
+            }
         }
     }
 
@@ -1197,6 +1305,8 @@ internal sealed class MaterialCustomizerController
             UpdateSlotSphere(slotRow, sphereSlot, slot, sphereToken);
 
             Slot changeSlot = FindDescendant(slotRow, "slot-0-0-change");
+            Slot? changeLabelSlot = FindDescendant(slotRow, "slot-0-0-change-label");
+            if (changeLabelSlot != null) SetFittedText(changeLabelSlot, L("changeBold"));
             var changeBtn = changeSlot?.GetComponent<Button>();
             if (changeBtn != null)
             {
@@ -1645,9 +1755,9 @@ internal sealed class MaterialCustomizerController
         if (folderPickerTitle != null && !folderPickerTitle.Content.IsDriven)
         {
             string titleText = !canGoUp
-                ? L("folders")
+                ? L("folderTitle")
                 : System.IO.Path.GetFileName(normalizedBrowsed);
-            folderPickerTitle.ParseRichText.Value = false;
+            folderPickerTitle.ParseRichText.Value = true;
             folderPickerTitle.Content.Value = titleText;
         }
 
@@ -1791,7 +1901,7 @@ internal sealed class MaterialCustomizerController
         }
         else if (directText != null)
         {
-            directText.ParseRichText.Value = false;
+            directText.ParseRichText.Value = true;
             if (!directText.Content.IsDriven) directText.Content.Value = value;
             directText.Enabled = true;
             directText.InteractionTarget.Value = false;
@@ -2020,7 +2130,7 @@ internal sealed class MaterialCustomizerController
     private void SetText(Text text, string key, params object[] args)
     {
         if (text == null) return;
-        text.ParseRichText.Value = false;
+        text.ParseRichText.Value = true;
         text.Content.Value = LocalizationManager.GetStringForLocale(CurrentLocale, key, args);
     }
 
