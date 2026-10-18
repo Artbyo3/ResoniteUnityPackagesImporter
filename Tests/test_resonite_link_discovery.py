@@ -9,6 +9,11 @@ from unittest.mock import patch
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import FindResoniteLink as discovery
 
+try:
+    import websockets
+except ImportError:
+    websockets = None
+
 
 def packet(session_id="one", name="Example world", port=49635):
     return json.dumps({"sessionID": session_id, "sessionName": name, "linkPort": port}).encode("utf-8")
@@ -103,6 +108,7 @@ class DiscoveryTests(unittest.TestCase):
                 discovery.discover_sessions(seconds)
 
 
+@unittest.skipUnless(websockets is not None, "websockets is not installed")
 class SessionVerificationTests(unittest.IsolatedAsyncioTestCase):
     async def verify(self, response, unsolicited=None):
         class Connection:

@@ -36,5 +36,8 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install Python test dependencies
+        run: pip install websockets
+
       - name: Run Python unit tests
         run: python -m unittest discover -s Tests -p "test_*.py"
