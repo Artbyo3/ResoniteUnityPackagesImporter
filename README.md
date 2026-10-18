@@ -27,7 +27,7 @@ dotnet build UnityPackageImporter/UnityPackageImporter.csproj -c Release
 dotnet run --project Tests/Importer.RegressionTests.csproj -c Release
 ```
 
-If Resonite is not installed in the default Steam location, specify `-p:GamePath="<path-to-resonite>"`.
+If Resonite is not installed in the default Steam location, set the `GAMEPATH` environment variable (e.g. `$env:GAMEPATH = "C:\Path\To\Resonite\"` or `export GAMEPATH="/path/to/Resonite/"`) or specify `-p:GamePath="<path-to-resonite>"`.
 
 ---
 

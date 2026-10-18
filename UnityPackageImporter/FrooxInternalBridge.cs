@@ -1,3 +1,20 @@
+/*
+ * Private Resonite engine members accessed via reflection.
+ * After each Resonite update, check that these still exist with the same signatures;
+ * ValidateModelImportApi() only checks some of them at startup.
+ *
+ * - FrooxEngine.ModelImporter.PreprocessScene(Assimp.Scene)                      [static]
+ * - FrooxEngine.ModelImporter.ImportNode(Assimp.Node, Slot, ModelImportData)     [static, returns IEnumerator<Context>]
+ * - FrooxEngine.ModelImporter.SetupDraggable(Slot, solver, pos, rot, weight)     [static, 5 args; exact types not pinned in this file]
+ * - FrooxEngine.SkinnedMeshRenderer.SetupBlendShapes()                           [instance]
+ * - FrooxEngine.ModelImporter+ModelImportData.TryGetSlot(Assimp.Node)            [instance]
+ * - FrooxEngine.ModelImporter+ModelImportData.TryGetBoneMapping(StaticMesh)      [instance]
+ * - FrooxEngine.ModelImporter+ModelImportData(string, Assimp.Scene, Slot, Slot,
+ *       ModelImportSettings, IProgressIndicator)                                 [constructor]
+ *
+ * Last verified against Resonite version: 2026.9.18.82
+ */
+
 using System;
 using System.Collections.Generic;
 using System.Reflection;

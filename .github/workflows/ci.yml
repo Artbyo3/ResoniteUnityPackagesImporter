@@ -30,3 +30,11 @@ jobs:
 
       - name: Run standalone regression test suite
         run: dotnet run --project Tests/Importer.RegressionTests.csproj -c Release
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Run Python unit tests
+        run: python -m unittest discover -s Tests -p "test_*.py"
