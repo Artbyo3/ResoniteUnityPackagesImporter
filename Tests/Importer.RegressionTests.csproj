@@ -8,6 +8,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Remove="ModelUnits/**/*.cs" />
+    <Compile Remove="Textures/**/*.cs" />
     <EmbeddedResource Include="../localization/station/*.json" LogicalName="UnityPackageImporter.Localization.%(Filename)%(Extension)" />
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
     <Compile Include="../UnityPackageImporter/Models/UnityMaterialData.cs" Link="UnityMaterialData.cs" />
@@ -17,10 +18,21 @@
     <Compile Include="../UnityPackageImporter/UI/ReusableDecisionPrompt.cs" Link="ReusableDecisionPrompt.cs" />
     <Compile Include="../UnityPackageImporter/UI/LocalizationManager.cs" Link="LocalizationManager.cs" />
     <Compile Include="../UnityPackageImporter/Models/LilToonSettings.cs" Link="LilToonSettings.cs" />
+    <Compile Include="../UnityPackageImporter/Materials/Poiyomi/PoiyomiSettings.cs" Link="PoiyomiSettings.cs" />
+    <Compile Include="../UnityPackageImporter/Materials/Poiyomi/PoiyomiRamp.cs" Link="PoiyomiRamp.cs" />
+    <Compile Include="../UnityPackageImporter/Materials/TexturePixelTransform.cs" Link="TexturePixelTransform.cs" />
+    <Compile Include="../UnityPackageImporter/Materials/MaterialSlotAssignment.cs" Link="MaterialSlotAssignment.cs" />
+    <Compile Include="../UnityPackageImporter/Materials/TextureCompositionPlan.cs" Link="Materials/TextureCompositionPlan.cs" />
+    <Compile Include="../UnityPackageImporter/Materials/EmissionPlanInputs.cs" Link="Materials/EmissionPlanInputs.cs" />
+    <Compile Include="../UnityPackageImporter/Materials/Poiyomi/PoiyomiEmissionPlan.cs" Link="Materials/Poiyomi/PoiyomiEmissionPlan.cs" />
+    <Compile Include="../UnityPackageImporter/Materials/LilToon/LilToonEmissionPlan.cs" Link="Materials/LilToon/LilToonEmissionPlan.cs" />
     <Compile Include="../UnityPackageImporter/Models/LilToonRamp.cs" Link="LilToonRamp.cs" />
     <Compile Include="../UnityPackageImporter/Models/SkinBoneMapping.cs" Link="SkinBoneMapping.cs" />
     <Compile Include="../UnityPackageImporter/Models/HandCalibration.cs" Link="HandCalibration.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarImportSelection.cs" Link="AvatarImportSelection.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ImportResult.cs" Link="ImportResult.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ImportMeasurements.cs" Link="ImportMeasurements.cs" />
+    <Compile Include="../UnityPackageImporter/Models/SourceImportBatch.cs" Link="SourceImportBatch.cs" />
     <Compile Include="../UnityPackageImporter/Models/SelectableImportItems.cs" Link="SelectableImportItems.cs" />
     <Compile Include="../UnityPackageImporter/UI/TemplateContract.cs" Link="TemplateContract.cs" />
     <Compile Include="../UnityPackageImporter/UnityPackageExtractor.cs" Link="UnityPackageExtractor.cs" />
@@ -28,6 +40,7 @@
     <Compile Include="../UnityPackageImporter/Models/PendingAssetAssignments.cs" Link="PendingAssetAssignments.cs" />
     <Compile Include="../UnityPackageImporter/Models/InitialToggleBinding.cs" Link="InitialToggleBinding.cs" />
     <Compile Include="../UnityPackageImporter/Models/ImportLifetime.cs" Link="ImportLifetime.cs" />
+    <Compile Include="../UnityPackageImporter/Models/BoundedTaskScheduler.cs" Link="BoundedTaskScheduler.cs" />
     <Compile Include="../UnityPackageImporter/Models/TemporaryRigParent.cs" Link="TemporaryRigParent.cs" />
     <Compile Include="../UnityPackageImporter/Models/UnityPropertyPath.cs" Link="UnityPropertyPath.cs" />
     <Compile Include="../UnityPackageImporter/Models/BlendShapeDefaults.cs" Link="BlendShapeDefaults.cs" />
@@ -41,6 +54,7 @@
     <Compile Include="../UnityPackageImporter/Models/BoneAttachmentHierarchy.cs" Link="BoneAttachmentHierarchy.cs" />
     <Compile Include="../UnityPackageImporter/Models/BoneAttachmentTarget.cs" Link="BoneAttachmentTarget.cs" />
     <Compile Include="../UnityPackageImporter/Models/AttachmentInstallationGate.cs" Link="AttachmentInstallationGate.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AvatarOwnershipValidator.cs" Link="AvatarOwnershipValidator.cs" />
     <Compile Include="../UnityPackageImporter/Models/OwnedAttachmentTransaction.cs" Link="OwnedAttachmentTransaction.cs" />
     <Compile Include="../UnityPackageImporter/Models/OutfitInstallIdentity.cs" Link="OutfitInstallIdentity.cs" />
     <Compile Include="../UnityPackageImporter/Models/MaterialDependencyDiagnostics.cs" Link="MaterialDependencyDiagnostics.cs" />
@@ -51,5 +65,10 @@
     <Compile Include="../UnityPackageImporter/Models/ThumbnailTaskCache.cs" Link="ThumbnailTaskCache.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarConversionOperations.cs" Link="AvatarConversionOperations.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarBuildPlanner.cs" Link="AvatarBuildPlanner.cs" />
+    <Compile Include="../UnityPackageImporter/Conversion/IAvatarPlanSink.cs" Link="Conversion/IAvatarPlanSink.cs" />
+    <Compile Include="../UnityPackageImporter/Conversion/AvatarPlanValidator.cs" Link="Conversion/AvatarPlanValidator.cs" />
+    <Compile Include="../UnityPackageImporter/Importing/AvatarPlanComposer.cs" Link="Importing/AvatarPlanComposer.cs" />
+    <Compile Include="../UnityPackageImporter/Frameworks/ModularAvatar/ModularAvatarPlanAdapter.cs" Link="Frameworks/ModularAvatarPlanAdapter.cs" />
+    <Compile Include="../UnityPackageImporter/Frameworks/VrcFury/VrcFuryPlanAdapter.cs" Link="Frameworks/VrcFuryPlanAdapter.cs" />
   </ItemGroup>
 </Project>

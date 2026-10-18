@@ -13,6 +13,7 @@
     <OutputPath>bin\$(Configuration)\</OutputPath>
   </PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="Materials/Resources/PoiyomiToonSkinRamp.png" LogicalName="UnityPackageImporter.Materials.PoiyomiToonSkinRamp.png" />
     <None Include="../THIRD_PARTY_NOTICES.md" Link="THIRD_PARTY_NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
     <EmbeddedResource Include="UI/Templates/*.json;UI/Templates/*.ResonitePackage" LogicalName="UnityPackageImporter.UI.Templates.%(Filename)%(Extension)" />
     <EmbeddedResource Include="../localization/station/*.json" LogicalName="UnityPackageImporter.Localization.%(Filename)%(Extension)" />

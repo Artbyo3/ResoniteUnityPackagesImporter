@@ -14,6 +14,15 @@ internal static class ImportFailureReportTests
             Check(report.Contains("InvalidOperationException: Material conversion failed", StringComparison.Ordinal), "The outer failure must be recorded.");
             Check(report.Contains("IOException: Could not read <local path>", StringComparison.Ordinal), "The inner cause should be useful without leaking a local path.");
             Check(!report.Contains(@"C:\Users\TestUser", StringComparison.OrdinalIgnoreCase), "The report must not include local account paths.");
+
+            var forwardSlash = ImportFailureReport.Sanitize("Error at C:/Users/TestUser/AppData/Local/mesh.fbx");
+            Check(forwardSlash == "Error at <local path>", "Forward slash Windows path must be sanitized.");
+
+            var unixPath = ImportFailureReport.Sanitize("Failed opening /home/testuser/project/model.fbx");
+            Check(unixPath == "Failed opening <local path>", "Unix home path must be sanitized.");
+
+            var fileUri = ImportFailureReport.Sanitize("Loaded file:///C:/Users/testuser/package.unitypackage");
+            Check(fileUri == "Loaded <local path>", "File URI path must be sanitized.");
         });
     }
 

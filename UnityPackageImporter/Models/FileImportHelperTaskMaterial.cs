@@ -7,6 +7,8 @@ using Elements.Core;
 using FrooxEngine;
 using FrooxEngine.Store;
 using Renderite.Shared;
+using UnityPackageImporter.Materials;
+using UnityPackageImporter.Materials.Poiyomi;
 
 namespace UnityPackageImporter.Models;
 
@@ -103,9 +105,9 @@ public class FileImportHelperTaskMaterial
         var floats = data.Numbers;
         var colors = data.Colors;
         string shaderName = ResolveShaderName(data);
-        bool isPoiyomi = (shaderName?.Contains("Poiyomi", StringComparison.OrdinalIgnoreCase) ?? false) ||
-            data.Keywords.Any(key => key.StartsWith("POI_", StringComparison.OrdinalIgnoreCase)) ||
-            floats.Keys.Any(key => key.StartsWith("_Poi", StringComparison.OrdinalIgnoreCase));
+        bool isPoiyomi = PoiyomiSettings.Matches(data, shaderName);
+        if (isPoiyomi)
+            return await PoiyomiMaterialConverter.ConvertAsync(this, data, forceToon);
         bool isLilToon = !isPoiyomi && ((data.ShaderGuid != null && LilToonGuids.Contains(data.ShaderGuid)) ||
             (shaderName?.Contains("lilToon", StringComparison.OrdinalIgnoreCase) ?? false) ||
             floats.ContainsKey("_lilToonVersion") || floats.ContainsKey("_BackfaceForceShadow") ||
@@ -233,10 +235,11 @@ public class FileImportHelperTaskMaterial
     }
 
     internal async Task AssignTextureAsync(string guid, AssetRef<ITexture2D> target,
-        bool multiplyRgbByAlpha = false, bool normalMap = false, bool requiredForCompletion = true)
+        bool multiplyRgbByAlpha = false, bool normalMap = false, bool requiredForCompletion = true,
+        TexturePixelTransform transform = null, bool clamp = false, bool mipmaps = true)
     {
         if (MaterialDependencyDiagnostics.IsBuiltinOrEmptyGuid(guid)) return;
-        var texture = await ImportTexture(guid, multiplyRgbByAlpha, normalMap);
+        var texture = await ImportTextureVariant(guid, multiplyRgbByAlpha, normalMap, transform, clamp, mipmaps);
         await default(ToWorld);
         importer.Session?.Check();
         // The asset index may have changed while the first attempt was
@@ -244,7 +247,7 @@ public class FileImportHelperTaskMaterial
         // companion package merely because it missed the resolution snapshot.
         if (texture == null && importer.AssetIDDict.ContainsKey(guid))
         {
-            texture = await ImportTexture(guid, multiplyRgbByAlpha, normalMap);
+            texture = await ImportTextureVariant(guid, multiplyRgbByAlpha, normalMap, transform, clamp, mipmaps);
             await default(ToWorld);
             importer.Session?.Check();
         }
@@ -252,7 +255,7 @@ public class FileImportHelperTaskMaterial
         if (texture != null) return;
 
         importer.MissingTextureAssignments.Register(target, guid,
-            () => ImportTexture(guid, multiplyRgbByAlpha, normalMap), async (restored, cancellation) =>
+            () => ImportTextureVariant(guid, multiplyRgbByAlpha, normalMap, transform, clamp, mipmaps), async (restored, cancellation) =>
         {
             await default(ToWorld);
             cancellation.ThrowIfCancellationRequested();
@@ -266,11 +269,16 @@ public class FileImportHelperTaskMaterial
     }
 
     public async Task<StaticTexture2D> ImportTexture(string idtarget, bool multiplyRgbByAlpha = false, bool normalMap = false)
+        => await ImportTextureVariant(idtarget, multiplyRgbByAlpha, normalMap, null, false, true);
+
+    private async Task<StaticTexture2D> ImportTextureVariant(string idtarget, bool multiplyRgbByAlpha, bool normalMap,
+        TexturePixelTransform transform, bool clamp, bool mipmaps)
     {
         importer.Session?.Check();
-        string key = idtarget.ToLowerInvariant() + (multiplyRgbByAlpha ? ":alpha-rgb" : "") + (normalMap ? ":normal" : "");
+        string key = idtarget.ToLowerInvariant() + (multiplyRgbByAlpha ? ":alpha-rgb" : "") + (normalMap ? ":normal" : "") +
+            (transform == null ? "" : ":" + transform.Key) + (clamp ? ":clamp" : "") + (mipmaps ? "" : ":no-mips");
         var texture = await importer.TextureImports.GetOrAdd(key,
-            () => ImportTextureCore(idtarget, multiplyRgbByAlpha, normalMap));
+            () => ImportTextureCore(idtarget, multiplyRgbByAlpha, normalMap, transform, clamp, mipmaps));
         importer.Session?.Check();
         if (texture == null && importer.AssetIDDict.ContainsKey(idtarget))
         {
@@ -279,13 +287,14 @@ public class FileImportHelperTaskMaterial
             // successful or still-running attempt started by another caller.
             importer.TextureImports.RetryUnsuccessful(key);
             texture = await importer.TextureImports.GetOrAdd(key,
-                () => ImportTextureCore(idtarget, multiplyRgbByAlpha, normalMap));
+                () => ImportTextureCore(idtarget, multiplyRgbByAlpha, normalMap, transform, clamp, mipmaps));
             importer.Session?.Check();
         }
         return texture;
     }
 
-    private async Task<StaticTexture2D> ImportTextureCore(string idtarget, bool multiplyRgbByAlpha, bool normalMap)
+    private async Task<StaticTexture2D> ImportTextureCore(string idtarget, bool multiplyRgbByAlpha, bool normalMap,
+        TexturePixelTransform transform, bool clamp, bool mipmaps)
     {
         await default(ToBackground);
         importer.Session?.Check();
@@ -298,20 +307,11 @@ public class FileImportHelperTaskMaterial
         Uri url;
         try
         {
-            if (multiplyRgbByAlpha)
+            if (multiplyRgbByAlpha || transform != null)
             {
                 temporary = Path.Combine(Path.GetTempPath(), "importer-alpha-" + Guid.NewGuid().ToString("N") + ".png");
-                var bitmap = Elements.Assets.Bitmap2D.Load(filePath, null, Elements.Assets.AlphaHandling.ForceRGBA, -1, 0f);
-                for (int y = 0; y < bitmap.Size.y; y++)
-                {
-                    importer.Session?.Check();
-                    for (int x = 0; x < bitmap.Size.x; x++)
-                    {
-                        var c = bitmap[x, y];
-                        bitmap[x, y] = new color(c.r * c.a, c.g * c.a, c.b * c.a, c.a);
-                    }
-                }
-                if (!bitmap.Save(temporary, -1, true)) throw new IOException("Could not encode texture alpha.");
+                MaterialTextureProcessor.ProcessFile(filePath, temporary, multiplyRgbByAlpha, transform,
+                    () => importer.Session?.Check());
             }
             importer.Session?.Check();
             url = await importer.world.Engine.LocalDB.ImportLocalAssetAsync(temporary ?? filePath, LocalDB.ImportLocation.Copy);
@@ -322,8 +322,32 @@ public class FileImportHelperTaskMaterial
         var slot = assetsRoot.AddSlot(Path.GetFileName(filePath) + " [" + idtarget + "] - Texture");
         var texture = slot.AttachComponent<StaticTexture2D>();
         texture.IsNormalMap.Value = normalMap;
+        if (clamp)
+        {
+            texture.WrapModeU.Value = TextureWrapMode.Clamp;
+            texture.WrapModeV.Value = TextureWrapMode.Clamp;
+        }
+        texture.MipMaps.Value = mipmaps;
         texture.URL.Value = url;
         return texture;
+    }
+
+    internal async Task<StaticTexture2D> ImportProcessedLocalTextureFile(string filePath, string slotName, TexturePixelTransform transform)
+    {
+        await default(ToBackground);
+        importer.Session?.Check();
+        string temporary = Path.Combine(Path.GetTempPath(), "importer-ramp-" + Guid.NewGuid().ToString("N") + ".png");
+        try
+        {
+            MaterialTextureProcessor.ProcessFile(filePath, temporary, transform: transform,
+                checkCancellation: () => importer.Session?.Check());
+            return await ImportLocalTextureFile(temporary, slotName, clamp: true, mipmaps: false);
+        }
+        finally
+        {
+            await default(ToBackground);
+            if (File.Exists(temporary)) File.Delete(temporary);
+        }
     }
 
     public async Task<StaticTexture2D> ImportLocalTextureFile(string filePath, string slotName, bool clamp = false, bool mipmaps = true)

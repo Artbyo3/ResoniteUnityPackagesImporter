@@ -22,6 +22,16 @@ public enum AvatarOperationSeverity
     Error
 }
 
+public enum AvatarOperationExecutionState
+{
+    Pending,
+    Running,
+    Succeeded,
+    Failed,
+    Cancelled,
+    AwaitingInstallation
+}
+
 public sealed class AvatarOperationDiagnostic
 {
     public AvatarOperationSeverity Severity { get; init; } = AvatarOperationSeverity.Info;
@@ -48,6 +58,7 @@ public sealed class AvatarBuildOperationSource
 
 public abstract class AvatarBuildOperation
 {
+    public AvatarOperationExecutionState ExecutionState { get; internal set; }
     private string? operationId;
     public string OperationId
     {
@@ -270,6 +281,16 @@ public sealed class AvatarBuildPlan
 /// </summary>
 public static class AvatarPlanExecution
 {
+    internal static void DeferSupportedInstallation(AvatarBuildPlan plan)
+    {
+        if (plan.Operations.Any(op => op.ExecutionState != AvatarOperationExecutionState.Pending))
+            throw new InvalidOperationException("Only a new conversion plan can be deferred for installation.");
+        foreach (var operation in plan.Operations)
+            if (operation.Source.Framework == "ModularAvatar" &&
+                operation is ArmatureMergeOperation or BoneAttachmentOperation)
+                operation.ExecutionState = AvatarOperationExecutionState.AwaitingInstallation;
+    }
+
     public static async Task ExecuteAsync(
         AvatarBuildPlan plan,
         Func<AvatarBuildOperation, CancellationToken, Task> executeOperation,
@@ -278,6 +299,8 @@ public static class AvatarPlanExecution
         if (plan == null) throw new ArgumentNullException(nameof(plan));
         if (executeOperation == null) throw new ArgumentNullException(nameof(executeOperation));
         cancellationToken.ThrowIfCancellationRequested();
+        if (plan.Operations.Any(op => op.ExecutionState != AvatarOperationExecutionState.Pending))
+            throw new InvalidOperationException("A conversion plan cannot be executed twice. Reconstruct a fresh staged source first.");
         var ordered = plan.GetOrderedOperations();
         if (plan.HasErrors)
         {
@@ -289,15 +312,25 @@ public static class AvatarPlanExecution
         foreach (var operation in ordered)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            operation.ExecutionState = AvatarOperationExecutionState.Running;
             try
             {
                 await executeOperation(operation, cancellationToken);
+            }
+            catch (OperationCanceledException)
+            {
+                operation.ExecutionState = AvatarOperationExecutionState.Cancelled;
+                throw;
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 operation.AddDiagnostic(AvatarOperationSeverity.Error, ex.Message, "EXECUTION_ERROR");
             }
+            if (cancellationToken.IsCancellationRequested)
+                operation.ExecutionState = AvatarOperationExecutionState.Cancelled;
             cancellationToken.ThrowIfCancellationRequested();
+            operation.ExecutionState = plan.HasErrors
+                ? AvatarOperationExecutionState.Failed : AvatarOperationExecutionState.Succeeded;
             if (plan.HasErrors) return;
         }
     }

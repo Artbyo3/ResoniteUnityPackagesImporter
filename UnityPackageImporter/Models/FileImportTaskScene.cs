@@ -1,3 +1,4 @@
+using UnityPackageImporter.Materials;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -331,25 +332,23 @@ public class FileImportTaskScene
             UnityPackageImporter.Msg("getting good material objects for initial import for: \"" + skinnedrenderer.createdMeshRenderer.Slot.Name + "\" it has \"" + skinnedrenderer.materials.Count.ToString() + " \" materials in the generated list to instanciate");
             foreach (FileImportHelperTaskMaterial materialtask in skinnedrenderer.materials)
             {
-                try
-                {
-                    await default(ToWorld);
-                    UnityPackageImporter.Msg("assigning material for initial import slot for: \"" + skinnedrenderer.createdMeshRenderer.Slot.Name + "\"");
-                    var material = await materialtask.runImportFileMaterialsAsync();
-                    await default(ToWorld);
-                    skinnedrenderer.createdMeshRenderer.Materials.Add().Target = material;
-                    await default(ToBackground);
-                }
-                catch (Exception e) when (e is not OperationCanceledException)
-                {
-                    UnityPackageImporter.Warn("Could not attach material  \"" + counter.ToString() + "\" for initial import on mesh \"" + skinnedrenderer.createdMeshRenderer.Slot.Name + "\" from skinned mesh renderer data. It's probably not in the project or in the files you dragged over.");
-                    UnityPackageImporter.Warn("stacktrace for material \"" + counter.ToString() + "\" for initial import on mesh \"" + skinnedrenderer.createdMeshRenderer.Slot.Name + "\"");
-                    UnityPackageImporter.Warn(e.Message);
-                    await default(ToWorld);
-                    var missing = new FileImportHelperTaskMaterial(copy.importer);
-                    skinnedrenderer.createdMeshRenderer.Materials.Add().Target = missing.finalMaterial;
-                    await default(ToBackground);
-                }
+                await MaterialSlotAssignment.AssignAsync<IAssetProvider<FrooxEngine.Material>>(counter,
+                    () => materialtask.runImportFileMaterialsAsync(),
+                    async error =>
+                    {
+                        UnityPackageImporter.Warn($"Initial material conversion failed at slot {counter} on '{skinnedrenderer.createdMeshRenderer.Slot.Name}': {error.Message}");
+                        await default(ToWorld);
+                        copy.importer.Session?.Check();
+                        return new FileImportHelperTaskMaterial(copy.importer).finalMaterial;
+                    },
+                    async (index, material) =>
+                    {
+                        await default(ToWorld);
+                        copy.importer.Session?.Check();
+                        while (skinnedrenderer.createdMeshRenderer.Materials.Count <= index) skinnedrenderer.createdMeshRenderer.Materials.Add();
+                        skinnedrenderer.createdMeshRenderer.Materials[index] = material;
+                        await default(ToBackground);
+                    }, copy.importer.Session?.Token ?? default);
                 counter++;
             }
         }

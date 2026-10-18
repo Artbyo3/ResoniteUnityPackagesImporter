@@ -19,6 +19,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
     public KeyValuePair<string, string> ID { get; set; }
 
     public List<string> IncompleteComponents { get; } = new List<string>();
+    internal List<ulong> FailedObjectIds { get; } = new();
     internal AvatarPackageManifest Manifest { get; private set; }
     internal PreparedImportItem ScenePreparation { get; set; }
     internal IReadOnlyList<PreparedImportItem> PreparedItems { get; private set; } = Array.Empty<PreparedImportItem>();
@@ -106,6 +107,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
                     UnityPackageImporter.Msg("Scene IUnityObject ID: \"" + obj.Value.id.ToString() + "\" (" + type.Name + ")");
                     UnityPackageImporter.Warn(e.Message + e.StackTrace);
                     IncompleteComponents.Add($"{type.Name} ({obj.Value.id})");
+                    FailedObjectIds.Add(obj.Value.id);
                 }
                 try
                 {

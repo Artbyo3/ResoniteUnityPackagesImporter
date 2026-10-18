@@ -9,7 +9,7 @@ namespace UnityPackageImporter.Models;
 internal static class ImportFailureReport
 {
     private static readonly Regex LocalPath = new(
-        @"(?i)(?:[a-z]:\\|\\\\)[^\r\n""'<>|]+",
+        @"(?i)(?:[a-z]:[\\/]|\\\\|file:///(?:[a-z]:[\\/])?|/(?:Users|home|tmp|var)/)[^\r\n""'<>|]+",
         RegexOptions.Compiled | RegexOptions.CultureInvariant);
 
     internal static string Build(string stage, Exception error, DateTimeOffset? time = null)

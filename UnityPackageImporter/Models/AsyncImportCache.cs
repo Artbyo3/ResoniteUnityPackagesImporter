@@ -15,6 +15,8 @@ internal sealed class AsyncImportCache<T>
     public Task<T> GetOrAdd(string assetId, Func<Task<T>> import) => tasks.GetOrAdd(assetId,
         _ => new Lazy<Task<T>>(async () => await import(), LazyThreadSafetyMode.ExecutionAndPublication)).Value;
 
+    public bool Contains(string assetId) => !string.IsNullOrEmpty(assetId) && tasks.ContainsKey(assetId);
+
     // A companion package may make previously unavailable assets loadable. Retry
     // only unsuccessful completed attempts: successful and in-flight imports
     // must retain their identity for all materials that share them.

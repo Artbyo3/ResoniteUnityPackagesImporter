@@ -82,7 +82,9 @@ internal sealed class MaterialDependencyRequest
         this.generation = generation;
     }
 
-    public async Task<bool> ResolveAsync(IReadOnlyDictionary<string, string> assets)
+    public async Task<bool> ResolveAsync(
+        IReadOnlyDictionary<string, string> assets,
+        IReadOnlyCollection<string> conflictedGuids = null)
     {
         Token.ThrowIfCancellationRequested();
         await default(ToWorld);
@@ -95,7 +97,7 @@ internal sealed class MaterialDependencyRequest
             owner.NoMatch();
             return false;
         }
-        return await owner.ApplyAsync(assets, generation);
+        return await owner.ApplyAsync(assets, generation, conflictedGuids);
     }
 }
 
@@ -143,7 +145,10 @@ internal sealed class MaterialDependencySession
         station.SetCompanionState(false, false);
     }
     public void NoMatch() => station.SetCompanionState(true, true, "companionNoMatchingMaterials");
-    internal async Task<bool> ApplyAsync(IReadOnlyDictionary<string, string> assets, int request)
+    internal async Task<bool> ApplyAsync(
+        IReadOnlyDictionary<string, string> assets,
+        int request,
+        IReadOnlyCollection<string> conflictedGuids = null)
     {
         await applyLock.WaitAsync(Token);
         try
@@ -155,7 +160,7 @@ internal sealed class MaterialDependencySession
             if (!CanUse(assets?.Keys)) return false;
             applying = true;
             station.SetCompanionState(true, true, "companionConnectingMaterials");
-            var result = await importer.ResolveMissingMaterialsAsync(assets);
+            var result = await importer.ResolveMissingMaterialsAsync(assets, conflictedGuids);
             await default(ToWorld);
             importer.Session?.Check();
             if (!IsUsable) return true;

@@ -345,8 +345,25 @@ internal sealed class UnityStationHandle
     }
     private void SetActions(bool enabled)
     {
-        Get<Button>("create").Enabled = enabled && Current != null && !created.Contains(Current) && !failedCreation.Contains(Current);
+        var result = Current?.ReadResult();
+        bool canCreateAvatar = IsAvatar && result?.CanPerform(ImportOutputAction.CreateAvatar) == true;
+        bool canKeepObject = !IsOutfit && result?.CanPerform(ImportOutputAction.KeepObject) == true;
+        bool canPerformMainAction = canCreateAvatar || canKeepObject;
+
+        ui.SetLocalizedKey("createAvatar", canCreateAvatar ? "createAvatar" : "keepInWorld");
+        ui.SetLocalizedKey("avatarName", canCreateAvatar ? "avatarName" : "objectName");
+        Get<Checkbox>("protect").Slot.Parent.ActiveSelf = canCreateAvatar;
+
+        if (result != null)
+        {
+            var action = IsOutfit ? ImportOutputAction.InstallOutfit : canCreateAvatar ? ImportOutputAction.CreateAvatar : ImportOutputAction.KeepObject;
+            ui.SetLocalizedKey("avatarContext", !result.CanPerform(action) ? "resultBlockedContext" :
+                (!IsAvatar && !IsOutfit) ? "prefabContext" : "avatarContext", items.SelectedIndex + 1, items.Count);
+        }
+        Get<Button>("create").Enabled = enabled && Current != null && !created.Contains(Current) && !failedCreation.Contains(Current)
+            && canPerformMainAction;
         Get<Button>("install").Enabled = enabled && Current != null && selectedAvatar != null &&
+            result.CanPerform(ImportOutputAction.InstallOutfit) &&
             ModularAvatarAttachmentInstaller.IsOwnedAvatar(selectedAvatar, RootSlot.World.LocalUser);
         bool canNavigate = items.CanNavigate;
         foreach (string key in new[] { "previous", "next" })
@@ -496,15 +513,20 @@ internal sealed class UnityStationHandle
         if (Current == null || IsOutfit || created.Contains(Current) || failedCreation.Contains(Current)) return;
         var item = Current;
         bool sourceConsumed = false;
-        operationStage = IsAvatar ? "Create avatar" : "Keep prefab in world";
+        var result = item.ReadResult();
+        bool canCreateAvatar = IsAvatar && result.CanPerform(ImportOutputAction.CreateAvatar);
+        bool canKeepObject = result.CanPerform(ImportOutputAction.KeepObject);
+        if (!canCreateAvatar && !canKeepObject) return;
+        operationStage = canCreateAvatar ? "Create avatar" : "Keep prefab in world";
         busy = true;
         SetActions(false);
         try
         {
+            item.ReadResult().Require(canCreateAvatar ? ImportOutputAction.CreateAvatar : ImportOutputAction.KeepObject);
             var source = item.CurrentStructureRootSlot;
             var envelope = session.Envelope(source);
-            bool avatar = IsAvatar;
-            bool protect = Get<Checkbox>("protect").State.Value;
+            bool avatar = canCreateAvatar;
+            bool protect = avatar && Get<Checkbox>("protect").State.Value;
             if (Get<Checkbox>("expressions").State.Value) await item.BuildExpressionsAsync();
             await default(ToWorld);
             session.Check();
@@ -516,7 +538,7 @@ internal sealed class UnityStationHandle
             await default(ToWorld);
             session.Check();
             if (Get<Checkbox>("avatarReceipt").State.Value) SaveReceipt(envelope, item);
-            session.Commit(source);
+            session.Commit(item);
             created.Add(item);
             names[item] = Get<Text>("name").Content.Value;
             sourceConsumed = true;
@@ -580,19 +602,19 @@ internal sealed class UnityStationHandle
         SetActions(false);
         try
         {
-            var (success, error) = await ModularAvatarAttachmentInstaller.TryInstallDirectlyDetailedAsync(
-                item.CurrentStructureRootSlot,
-                item.Manifest, item.existingIUnityObjects, target, item.ID.Key, item.ID.Value,
+            item.ReadResult().Require(ImportOutputAction.InstallOutfit);
+            var (installedResult, error) = await ModularAvatarAttachmentInstaller.TryInstallDirectlyDetailedAsync(
+                item, target,
                 menu, session.Token, assetFiles: importer.AssetIDDict);
             await default(ToWorld);
-            if (!success)
+            if (installedResult == null)
             {
                 string message = string.IsNullOrEmpty(error)
                     ? "The outfit could not be installed safely on the selected avatar."
                     : "The outfit could not be installed safely on the selected avatar: " + error;
                 throw new InvalidOperationException(message);
             }
-            if (receipt && IsAlive && !target.IsDestroyed) SaveReceipt(target.Slot, item);
+            if (receipt && IsAlive && !target.IsDestroyed) SaveReceipt(target.Slot, item, installedResult);
         }
         finally { await default(ToWorld); busy = false; if (IsAlive) SetActions(true); }
     }
@@ -611,6 +633,7 @@ internal sealed class UnityStationHandle
             presets[Current] = preset;
             Get<ValueField<string>>("shaderValue").Value.Value = FormatShaderPresetDisplay(preset, CurrentLocale);
             RebuildPreview();
+            ui.SetLocalizedRaw(IsOutfit ? "outfitMetricsBody" : "avatarMetricsBody", Escape(BuildReceipt(Current)));
         }
         finally { await default(ToWorld); busy = false; if (IsAlive) SetActions(true); }
     }
@@ -745,31 +768,31 @@ internal sealed class UnityStationHandle
                            .Replace("</b>", "", StringComparison.OrdinalIgnoreCase)
                            .Trim();
     }
-    private string BuildReceipt(PreparedImportItem item, string locale = null)
+    private string BuildReceipt(PreparedImportItem item, string locale = null, ImportResult outputResult = null)
     {
         string loc = locale ?? CurrentLocale;
+        var result = outputResult ?? item.ReadResult();
         var lines = new List<string>
         {
             LocalizationManager.GetStringForLocale(loc, "receiptPrefab", Path.GetFileName(item.ID.Value)),
             LocalizationManager.GetStringForLocale(loc, "receiptImportedObjects", item.existingIUnityObjects?.Count ?? 0),
             LocalizationManager.GetStringForLocale(loc, "receiptMeshRenderers", item.CurrentStructureRootSlot.GetComponentsInChildren<SkinnedMeshRenderer>().Count),
-            LocalizationManager.GetStringForLocale(loc, "receiptMissingMaterials", importer.GetMissingMaterialSummary(item?.CurrentStructureRootSlot).MissingAssetCount),
+            LocalizationManager.GetStringForLocale(loc, "receiptMissingMaterials", result.MissingMaterialAssets),
             LocalizationManager.GetStringForLocale(loc, "receiptModularAvatar", item.Manifest?.ModularAvatarComponents.Count ?? 0)
         };
         if (item.Manifest?.HasVrcFuryComponents == true)
         {
-            int linkCount = item.Manifest.AllVrcFuryArmatureLinks.Count;
-            int unsupported = item.Manifest.UnsupportedVrcFuryFeatureCount;
-            string status = unsupported > 0 ? $"{unsupported} deferred" : "fully converted";
-            lines.Add(LocalizationManager.GetStringForLocale(loc, "receiptVrcFury", item.Manifest.VrcFuryComponents.Count) + $" ({linkCount} Armature Link(s), {status})");
+            lines.Add(LocalizationManager.GetStringForLocale(loc, "receiptVrcFury", item.Manifest.VrcFuryComponents.Count));
         }
-        if (item.ConversionPlan != null && item.ConversionPlan.Operations.Count > 0)
+        lines.Add(LocalizationManager.GetStringForLocale(loc, result.StructureReady ? "resultStructureReady" : "resultStructureBlocked"));
+        lines.Add(LocalizationManager.GetStringForLocale(loc, "resultOperations", result.CompletedOperationCount, result.OperationCount));
+        foreach (var issue in result.Issues)
+            lines.Add(LocalizationManager.GetStringForLocale(loc, "result" + issue));
+        if (result.MaterialWarnings.Count > 0)
         {
-            lines.Add($"Conversion operations: {item.ConversionPlan.Operations.Count} (Errors: {(item.ConversionPlan.HasErrors ? "Yes" : "None")})");
-        }
-        if (item.IncompleteComponents.Count > 0)
-        {
-            lines.Add(LocalizationManager.GetStringForLocale(loc, "receiptIncompleteComponents", item.IncompleteComponents.Count));
+            lines.Add(LocalizationManager.GetStringForLocale(loc, "receiptMaterialWarningsHeading", result.MaterialWarnings.Count));
+            foreach (var warning in result.MaterialWarnings)
+                lines.Add("• " + warning);
         }
         lines.Add(LocalizationManager.GetStringForLocale(loc, "receiptUiTemplate", ui.Version));
         lines.Add(LocalizationManager.GetStringForLocale(loc, "receiptShapeChanger"));
@@ -777,8 +800,8 @@ internal sealed class UnityStationHandle
     }
     private string CurrentLocale => LocalizationManager.DetectLocaleCode();
 
-    private void SaveReceipt(Slot output, PreparedImportItem item) =>
-        output.AddSlot("Unity Import Receipt").AttachComponent<ValueField<string>>().Value.Value = BuildReceipt(item);
+    private void SaveReceipt(Slot output, PreparedImportItem item, ImportResult outputResult = null) =>
+        output.AddSlot("Unity Import Receipt").AttachComponent<ValueField<string>>().Value.Value = BuildReceipt(item, outputResult: outputResult);
     private static string Escape(string value) => (value ?? "").Replace("&", "&amp;").Replace("<", "&lt;").Replace(">", "&gt;");
 }
 
