@@ -22,6 +22,7 @@ internal sealed class ImportSession
     public Slot Staging { get; }
     public Slot Assets { get; }
     public CancellationToken Token => lifetime.Token;
+    internal ImportLifetime Lifetime => lifetime;
 
     public ImportSession(Slot root)
     {
@@ -98,9 +99,13 @@ internal sealed class ImportSession
         return current;
     }
 
-    public Slot Commit(Slot source)
+    public Slot Commit(PreparedImportItem item)
     {
         Check();
+        // The commit boundary repeats structural validation after asynchronous
+        // native setup. Native readiness is consumed by creation, not by release.
+        item.ReadResult().Require(ImportOutputAction.KeepObject);
+        var source = item.CurrentStructureRootSlot;
         var envelope = Envelope(source);
         RetainAssets();
         envelope.SetParent(Root.World.RootSlot, true);

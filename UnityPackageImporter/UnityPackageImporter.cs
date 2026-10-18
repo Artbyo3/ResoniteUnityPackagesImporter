@@ -12,7 +12,7 @@ public class UnityPackageImporter : ResoniteMod
 {
     public override string Name => "UnityPackageImporter";
     public override string Author => "dfgHiatus, eia485, delta, Frozenreflex, benaclejames, 989onan, Artbyo3";
-    public override string Version => "0.0.3";
+    public override string Version => "0.0.4";
     public override string Link => "https://github.com/Artbyo3/ResoniteUnityPackagesImporter";
 
     internal const string UNITY_PACKAGE_EXTENSION = ".unitypackage";

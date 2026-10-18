@@ -24,12 +24,19 @@ internal sealed class PreparedImportItem
     internal AvatarBuildPlan ConversionPlan { get; }
     internal IReadOnlyList<string> IncompleteComponents { get; }
     internal string DisplayName { get; }
+    internal IReadOnlyList<ulong> FailedObjectIds { get; }
+    internal bool IsScopedSceneItem { get; }
+    internal bool OptionalControlsFailed { get; private set; }
+    internal string SourcePath => source.ID.Value;
+    internal ImportResult ReadResult() => ImportResultAdapter.Read(this, Project);
+    internal IReadOnlyList<string> MaterialWarnings => ReadResult().MaterialWarnings;
     internal KeyValuePair<string, string> ID => source.ID;
     internal Dictionary<ulong, IUnityObject> existingIUnityObjects => source.existingIUnityObjects;
     private UnityProjectImporter Project => source.unityProjectImporter;
 
     internal PreparedImportItem(IUnityStructureImporter source, Slot root, AvatarPackageManifest manifest,
-        AvatarBuildPlan plan, IReadOnlyList<string> incomplete, string displayName)
+        AvatarBuildPlan plan, IReadOnlyList<string> incomplete, string displayName,
+        IReadOnlyList<ulong> failedObjectIds, bool scopedSceneItem = false)
     {
         this.source = source;
         CurrentStructureRootSlot = root;
@@ -37,6 +44,8 @@ internal sealed class PreparedImportItem
         ConversionPlan = plan;
         IncompleteComponents = incomplete;
         DisplayName = displayName;
+        FailedObjectIds = failedObjectIds;
+        IsScopedSceneItem = scopedSceneItem;
     }
 
     internal static bool Contains(Slot root, Slot child) =>
@@ -115,6 +124,7 @@ internal sealed class PreparedImportItem
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
+            OptionalControlsFailed = true;
             UnityPackageImporter.Warn("Failed to reconstruct expressions menu: " + ex);
         }
     }
@@ -132,7 +142,7 @@ internal sealed class PreparedImportItem
             // Preserve ordinary scene-model preparation without treating the
             // whole scene as one avatar or publishing it through avatar creation.
             scene.ScenePreparation = new PreparedImportItem(scene, scene.CurrentStructureRootSlot,
-                manifest, scene.ConversionPlan, scene.IncompleteComponents, Path.GetFileName(scene.ID.Value));
+                manifest, scene.ConversionPlan, scene.IncompleteComponents, Path.GetFileName(scene.ID.Value), scene.FailedObjectIds);
             await scene.ScenePreparation.PrepareHumanoidsAsync(includeAuthoredSkeleton: false);
             return Array.Empty<PreparedImportItem>();
         }
@@ -160,26 +170,46 @@ internal sealed class PreparedImportItem
                 .Select(skin => (skin.Slot, (IEnumerable<Slot>)skin.Bones.ToArray())), Contains);
 
         var items = new List<PreparedImportItem>();
-        foreach (var root in roots)
+        var envelopes = new OwnedAttachmentTransaction<Slot>();
+        try
         {
-            project.Session?.Check();
-            bool Owns(long id) => Contains(root, Resolve(id));
-            var scoped = AvatarImportSelection.Scope(manifest, Owns);
-            string name = scoped.Avatars.First().GameObjectName;
-            if (string.IsNullOrWhiteSpace(name)) name = root.Name;
-            // Preserve authored world transforms. Each output has a separate
-            // session envelope, so committing it cannot commit its scene siblings.
-            Slot wrapper = project.Session?.CreateStructure(name, root.GlobalPosition, root.GlobalRotation)
-                ?? project.world.AddSlot(name);
-            root.SetParent(wrapper, true);
-            var item = new PreparedImportItem(scene, wrapper, scoped, scene.ConversionPlan,
-                scene.IncompleteComponents, name + " (" + Path.GetFileNameWithoutExtension(scene.ID.Value) + ")");
-            await item.PrepareHumanoidsAsync();
-            await default(ToWorld);
-            items.Add(item);
-            if (project.Station == null) await item.BuildExpressionsAsync();
-            await default(ToWorld);
+            foreach (var root in roots)
+            {
+                project.Session?.Check();
+                bool Owns(long id) => Contains(root, Resolve(id));
+                var scoped = AvatarImportSelection.Scope(manifest, Owns);
+                string name = scoped.Avatars.First().GameObjectName;
+                if (string.IsNullOrWhiteSpace(name)) name = root.Name;
+                // Preserve authored world transforms. Each output has a separate
+                // session envelope, so committing it cannot commit its scene siblings.
+                Slot wrapper = project.Session?.CreateStructure(name, root.GlobalPosition, root.GlobalRotation)
+                    ?? project.world.AddSlot(name);
+                envelopes.Track(wrapper);
+                root.SetParent(wrapper, true);
+                var item = new PreparedImportItem(scene, wrapper, scoped, scene.ConversionPlan,
+                    scene.IncompleteComponents, name + " (" + Path.GetFileNameWithoutExtension(scene.ID.Value) + ")",
+                    scene.FailedObjectIds, scopedSceneItem: true);
+                await item.PrepareHumanoidsAsync();
+                await default(ToWorld);
+                items.Add(item);
+                if (project.Station == null) await item.BuildExpressionsAsync();
+                await default(ToWorld);
+            }
+            envelopes.Commit();
+            return items;
         }
-        return items;
+        catch
+        {
+            await default(ToWorld);
+            // These wrappers were moved outside the original scene root.
+            // The source-level cleanup alone cannot reach them after a failure.
+            var errors = envelopes.RollBack(slot =>
+            {
+                if (!slot.IsDestroyed) slot.DestroyPreservingAssets();
+            });
+            foreach (var error in errors)
+                UnityPackageImporter.Warn("Failed to clean up scene preparation: " + error.GetType().Name);
+            throw;
+        }
     }
 }

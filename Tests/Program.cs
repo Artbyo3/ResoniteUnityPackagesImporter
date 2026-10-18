@@ -270,9 +270,15 @@ Test("Keep GUID conflicts deterministic across Unity packages", () => InTemp(roo
     File.WriteAllText(first + ".meta", "guid: shared-guid\n");
     File.WriteAllText(second + ".meta", "guid: shared-guid\n");
 
-    var index = UnityPackageAssetIndex.Build(new[] { first + ".meta", second + ".meta" });
-    Check(index.Assets["shared-guid"] == first, "A later package silently replaced the first GUID.");
-    Check(index.Conflicts.Count == 1, "Conflicting package assets were not reported.");
+    var forward = UnityPackageAssetIndex.Build(new[] { first + ".meta", second + ".meta" });
+    Check(!forward.Assets.ContainsKey("shared-guid"), "Conflicting GUID was unexpectedly resolved to an asset.");
+    Check(forward.ConflictedGuids.Contains("shared-guid"), "Conflicted GUID was not registered.");
+    Check(forward.Conflicts.Count == 1, "Conflicting package assets were not reported.");
+
+    var reverse = UnityPackageAssetIndex.Build(new[] { second + ".meta", first + ".meta" });
+    Check(!reverse.Assets.ContainsKey("shared-guid"), "Reversed order unexpectedly resolved conflicting GUID.");
+    Check(reverse.ConflictedGuids.Contains("shared-guid"), "Conflicted GUID was not registered on reverse.");
+    Check(reverse.Conflicts.Count == 1, "Conflicting package assets were not reported on reverse.");
 }));
 
 Test("Prefab bounds override creates null nested objects and dictionary entries", () =>
@@ -1474,6 +1480,9 @@ ModelImporter:
 
 ImportLifetimeTests.Register(Test);
 MaterialConversionTests.Register(Test);
+PoiyomiConversionTests.Register(Test, Check);
+MaterialSlotAssignmentTests.Register(Test, Check);
+TextureCompositionTests.Register(Test, Check);
 NativeSkinBindingTests.Register(Test);
 ClothingFoundationTests.Register(Test);
 MaterialRecoveryTests.Register(Test);
@@ -1490,7 +1499,13 @@ TemporaryRigParentTests.Register(Test);
 UnityYamlDocumentParserTests.Register(Test, Check);
 ImportCompatibilityPhase1Tests.Register(Test, Check);
 AvatarStructuralConversionTests.Register(Test, Check);
+FrameworkPlanAdapterTests.Register(Test, Check);
+PlanningBoundaryTests.Register(Test);
 AvatarImportSelectionTests.Register(Test, Check);
+ImportResultTests.Register(Test, Check);
+AssetIdentityConflictTests.Register(Test, Check);
+BoundedTaskSchedulerTests.Register(Test, Check);
+FailureIsolationAndOwnershipTests.Register(Test, Check);
 
 foreach (var test in tests)
 {

@@ -402,7 +402,7 @@ public static class AvatarPackageIndex
         string prefix = "  " + field + ":";
         for (int i = 0; i < lines.Count; i++)
         {
-            if (lines[i].StartsWith(prefix, StringComparison.Ordinal)) return i;
+            if (lines[i].StartsWith(prefix, StringComparison.OrdinalIgnoreCase)) return i;
         }
         return -1;
     }
@@ -411,7 +411,8 @@ public static class AvatarPackageIndex
     {
         int index = FindField(lines, field);
         if (index < 0) return null;
-        string value = lines[index].Substring(("  " + field + ":").Length).Trim();
+        int colon = lines[index].IndexOf(':');
+        string value = colon >= 0 ? lines[index].Substring(colon + 1).Trim() : "";
         return Unquote(value);
     }
 
@@ -424,18 +425,51 @@ public static class AvatarPackageIndex
 
     private static UnityPosition? ReadPosition(IReadOnlyList<string> lines, string field)
     {
-        string value = ReadScalar(lines, field);
-        if (value == null) return null;
+        int index = FindField(lines, field);
+        if (index < 0) return null;
+        int colon = lines[index].IndexOf(':');
+        string value = colon >= 0 ? lines[index].Substring(colon + 1).Trim() : "";
         float[] coordinates = new float[3];
         string[] axes = { "x", "y", "z" };
-        for (int i = 0; i < axes.Length; i++)
+
+        if (!string.IsNullOrEmpty(value) && value.Contains('{'))
         {
-            var match = Regex.Match(value, @"(?:\{|,)\s*" + axes[i] + @":\s*(?<value>[^,}]+)", RegexOptions.CultureInvariant);
-            if (!match.Success || !float.TryParse(match.Groups["value"].Value.Trim(),
-                    NumberStyles.Float, CultureInfo.InvariantCulture, out coordinates[i]) || !float.IsFinite(coordinates[i]))
-                return null;
+            for (int i = 0; i < axes.Length; i++)
+            {
+                var match = Regex.Match(value, @"(?:\{|,)\s*" + axes[i] + @":\s*(?<value>[^,}]+)", RegexOptions.CultureInvariant | RegexOptions.IgnoreCase);
+                if (!match.Success || !float.TryParse(match.Groups["value"].Value.Trim(),
+                        NumberStyles.Float, CultureInfo.InvariantCulture, out coordinates[i]) || !float.IsFinite(coordinates[i]))
+                    return null;
+            }
+            return new UnityPosition(coordinates[0], coordinates[1], coordinates[2]);
         }
-        return new UnityPosition(coordinates[0], coordinates[1], coordinates[2]);
+
+        int parentIndent = CountIndent(lines[index]);
+        bool[] found = new bool[3];
+        for (int i = index + 1; i < lines.Count; i++)
+        {
+            int indent = CountIndent(lines[i]);
+            if (lines[i].Length > 0 && indent <= parentIndent) break;
+            string trimmed = lines[i].Trim();
+            for (int a = 0; a < axes.Length; a++)
+            {
+                string axisPrefix = axes[a] + ":";
+                if (trimmed.StartsWith(axisPrefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    string raw = trimmed.Substring(axisPrefix.Length).Trim();
+                    if (float.TryParse(raw, NumberStyles.Float, CultureInfo.InvariantCulture, out coordinates[a]) &&
+                        float.IsFinite(coordinates[a]))
+                    {
+                        found[a] = true;
+                    }
+                    break;
+                }
+            }
+        }
+        if (found[0] && found[1] && found[2])
+            return new UnityPosition(coordinates[0], coordinates[1], coordinates[2]);
+
+        return null;
     }
 
     private static UnityAssetReference ReadReference(IReadOnlyList<string> lines, string field)

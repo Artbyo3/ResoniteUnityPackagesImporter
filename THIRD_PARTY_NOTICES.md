@@ -54,16 +54,52 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-## Resonite.UnitySDK lilToon conversion rules
+## Resonite.UnitySDK lilToon and Poiyomi conversion rules
 
 Source: https://github.com/Yellow-Dog-Man/Resonite.UnitySDK/tree/b7b566260a8ebdee6dbdc5cdab32c7b06a87a9f7
 
 Runtime rules and the CPU shadow ramp were adapted from this MIT-licensed source.
 
+Poiyomi material selection, property mappings, blend modes, texture channel processing,
+shadow tinting and CPU ramp generation are adapted from the same SDK at
+[revision 809f86046a1d49ed44f30a80c89d67062fee5473](https://github.com/Yellow-Dog-Man/Resonite.UnitySDK/tree/809f86046a1d49ed44f30a80c89d67062fee5473/Assets/ResoniteSDK/MaterialConverters/Custom/Poiyomi).
+
 ```text
 MIT License
 
 Copyright (c) 2026 Yellow Dog Man Studios
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+## Poiyomi skin shadow ramp
+
+`UnityPackageImporter/Materials/Resources/PoiyomiToonSkinRamp.png` is the
+`T_ToonSkin_SR.png` ramp distributed with the SDK revision linked above.
+It originates from [Poiyomi's ramp textures](https://github.com/poiyomi/PoiyomiToonShader/tree/master/_PoiyomiShaders/Textures/Ramps).
+
+```text
+MIT License
+
+Copyright (c) 2023 Poiyomi Inc.
+
+https://github.com/poiyomi/PoiyomiToonShader/tree/master/_PoiyomiShaders/Textures/Ramps
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

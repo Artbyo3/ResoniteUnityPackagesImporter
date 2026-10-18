@@ -23,6 +23,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
     internal Func<float, Task> ReportProgress { get; set; }
     internal AvatarPackageManifest Manifest { get; private set; }
     public List<string> IncompleteComponents { get; } = new();
+    internal List<ulong> FailedObjectIds { get; } = new();
     public AvatarBuildPlan ConversionPlan { get; private set; }
     public bool IsPartialCompatibility => PrefabVariantResolver.EvaluatePartialCompatibility(
         IncompleteComponents.Count,
@@ -125,6 +126,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                     UnityPackageImporter.Msg("Prefab IUnityObject ID: \"" + obj.Value.id.ToString() + "\" (" + type.Name + ")");
                     UnityPackageImporter.Warn(e.Message + e.StackTrace);
                     IncompleteComponents.Add($"{type.Name} ({obj.Value.id})");
+                    FailedObjectIds.Add(obj.Value.id);
                 }
                 try
                 {
@@ -187,7 +189,13 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
             if (avatarManifest != null && (avatarManifest.ModularAvatarComponents.Count > 0 || avatarManifest.VrcFuryComponents.Count > 0))
             {
                 ConversionPlan = AvatarBuildPlanner.CreatePlan(avatarManifest, Path.GetFileName(ID.Value));
-                if (!ConversionPlan.HasErrors)
+                if (avatarManifest.IsModularAvatarAttachment)
+                {
+                    // The target skeleton is selected in the station. The existing
+                    // installer owns MA merge/proxy execution on a duplicate there.
+                    AvatarPlanExecution.DeferSupportedInstallation(ConversionPlan);
+                }
+                else if (!ConversionPlan.HasErrors)
                 {
                     await default(ToWorld);
                     await AvatarBuildPlanExecutor.ExecutePlanAsync(
@@ -205,7 +213,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
             }
 
             PreparedItem = new PreparedImportItem(this, CurrentStructureRootSlot, Manifest,
-                ConversionPlan, IncompleteComponents, Path.GetFileNameWithoutExtension(ID.Value));
+                ConversionPlan, IncompleteComponents, Path.GetFileNameWithoutExtension(ID.Value), FailedObjectIds);
             await PreparedItem.PrepareHumanoidsAsync();
 
             await default(ToWorld);

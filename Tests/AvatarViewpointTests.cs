@@ -39,6 +39,33 @@ internal static class AvatarViewpointTests
             if (avatars.Count != 2 || avatars[0].ViewPosition?.Y != 1.2f || avatars[1].ViewPosition?.Y != 2.1f)
                 throw new Exception("Descriptors were cross-wired.");
         });
+        test("Avatar viewpoint parses multiline block YAML correctly", () =>
+        {
+            string blockYaml = "  ViewPosition:\n    x: 0.05\n    y: 1.45\n    z: 0.12";
+            var avatar = Parse(blockYaml);
+            if (avatar.ViewPosition is not UnityPosition pos ||
+                pos.X != 0.05f || pos.Y != 1.45f || pos.Z != 0.12f)
+                throw new Exception("Multiline block YAML ViewPosition was not parsed correctly.");
+        });
+        test("Avatar viewpoint handles lowercase viewPosition in both block and flow formats", () =>
+        {
+            var flowAvatar = Parse("  viewPosition: {x: -0.01, y: 1.6, z: 0.08}");
+            if (flowAvatar.ViewPosition is not UnityPosition flowPos ||
+                flowPos.X != -0.01f || flowPos.Y != 1.6f || flowPos.Z != 0.08f)
+                throw new Exception("Lowercase viewPosition flow format was not parsed correctly.");
+
+            var blockAvatar = Parse("  viewPosition:\n    x: -0.01\n    y: 1.6\n    z: 0.08");
+            if (blockAvatar.ViewPosition is not UnityPosition blockPos ||
+                blockPos.X != -0.01f || blockPos.Y != 1.6f || blockPos.Z != 0.08f)
+                throw new Exception("Lowercase viewPosition block format was not parsed correctly.");
+        });
+        test("Missing or nonfinite coordinates in block YAML stay absent", () =>
+        {
+            if (Parse("  ViewPosition:\n    x: 0\n    y: 1.5").ViewPosition != null)
+                throw new Exception("Incomplete block mapping must return null.");
+            if (Parse("  ViewPosition:\n    x: 0\n    y: NaN\n    z: 0.1").ViewPosition != null)
+                throw new Exception("Block mapping with NaN must return null.");
+        });
     }
 
     private static VrcAvatarDefinition Parse(string viewpoint) =>

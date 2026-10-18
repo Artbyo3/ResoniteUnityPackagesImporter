@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - "dev/**"
+      - "codex/**"
   pull_request:
 
 permissions:

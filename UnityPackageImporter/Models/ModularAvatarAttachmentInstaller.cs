@@ -50,41 +50,27 @@ internal static class ModularAvatarAttachmentInstaller
 
     internal static List<BipedRig> GetAvailableAvatarRigs(Slot contextSlot) => FindAvatarRigs(contextSlot);
 
-    internal static async Task<bool> TryInstallDirectlyAsync(
-        Slot attachmentRoot,
-        AvatarPackageManifest manifest,
-        Dictionary<ulong, IUnityObject> unityObjects,
+    internal static async Task<(ImportResult result, string error)> TryInstallDirectlyDetailedAsync(
+        PreparedImportItem item,
         BipedRig targetRig,
-        string prefabGuid,
-        string prefabFile,
-        bool installOutfitMenu = true,
-        CancellationToken cancellationToken = default,
-        IReadOnlyDictionary<string, string> assetFiles = null)
-    {
-        var (success, _) = await TryInstallDirectlyDetailedAsync(
-            attachmentRoot, manifest, unityObjects, targetRig, prefabGuid, prefabFile,
-            installOutfitMenu, cancellationToken, assetFiles);
-        return success;
-    }
-
-    internal static async Task<(bool success, string error)> TryInstallDirectlyDetailedAsync(
-        Slot attachmentRoot,
-        AvatarPackageManifest manifest,
-        Dictionary<ulong, IUnityObject> unityObjects,
-        BipedRig targetRig,
-        string prefabGuid,
-        string prefabFile,
         bool installOutfitMenu = true,
         CancellationToken cancellationToken = default,
         IReadOnlyDictionary<string, string> assetFiles = null)
     {
         await default(ToWorld);
         cancellationToken.ThrowIfCancellationRequested();
+        if (item == null) return (null, "The prepared outfit is unavailable.");
+        var attachmentRoot = item.CurrentStructureRootSlot;
+        var manifest = item.Manifest;
+        var unityObjects = item.existingIUnityObjects;
+        var prefabGuid = item.ID.Key;
+        var prefabFile = item.ID.Value;
         if (attachmentRoot == null || manifest == null || unityObjects == null || targetRig == null)
-            return (false, "Attachment parameters are missing or invalid.");
+            return (null, "Attachment parameters are missing or invalid.");
 
         try
         {
+            item.ReadResult().Require(ImportOutputAction.InstallOutfit);
             var assetSnapshot = assetFiles?.ToDictionary(entry => entry.Key, entry => entry.Value,
                 StringComparer.OrdinalIgnoreCase);
             await default(ToBackground);
@@ -92,23 +78,28 @@ internal static class ModularAvatarAttachmentInstaller
             await default(ToWorld);
             cancellationToken.ThrowIfCancellationRequested();
             if (attachmentRoot.IsDestroyed || targetRig.IsDestroyed)
-                return (false, "Target avatar or outfit is no longer available.");
+                return (null, "Target avatar or outfit is no longer available.");
             using var installationLease = await AttachmentInstallationGate.EnterAsync(targetRig.Slot, cancellationToken);
             await default(ToWorld);
             cancellationToken.ThrowIfCancellationRequested();
             if (attachmentRoot.IsDestroyed || targetRig.IsDestroyed)
-                return (false, "Target avatar or outfit is no longer available.");
+                return (null, "Target avatar or outfit is no longer available.");
+            var sourceResult = item.ReadResult();
+            sourceResult.Require(ImportOutputAction.InstallOutfit);
             var mergeBindings = ResolveMergeSources(attachmentRoot, manifest, unityObjects);
             var boneProxyBindings = ResolveBoneProxies(attachmentRoot, manifest, unityObjects);
+            if (mergeBindings.Count != manifest.ModularAvatarComponents.Count(c => c.Kind == ModularAvatarComponentKind.MergeArmature) ||
+                boneProxyBindings.Count != manifest.ModularAvatarComponents.Count(c => c.Kind == ModularAvatarComponentKind.BoneProxy))
+                return (null, "Not all required outfit attachments could be resolved. Installation was not started.");
 
             if (mergeBindings.Count == 0 && boneProxyBindings.Count == 0)
-                return (false, "No Merge Armature or Bone Proxy components could be found in the outfit.");
+                return (null, "No Merge Armature or Bone Proxy components could be found in the outfit.");
 
             string currentError = GetTargetError(mergeBindings, boneProxyBindings, targetRig);
             if (currentError != null)
             {
                 UnityPackageImporter.Warn("Could not install on " + targetRig.Slot.Name + ": " + currentError);
-                return (false, currentError);
+                return (null, currentError);
             }
 
             var installed = await InstallCopyAsync(
@@ -121,9 +112,10 @@ internal static class ModularAvatarAttachmentInstaller
 
             await default(ToWorld);
             if (installed == null || !installed.IsHealthy)
-                return (false, "Installation copy produced an incomplete or unhealthy result.");
+                return (null, "Installation copy produced an incomplete or unhealthy result.");
             // The installation is committed. Finish its optional controls even if the
             // station closes now; do not report a completed outfit as cancelled.
+            bool optionalControlsFailed = false;
             if (installOutfitMenu && !installed.RecordRoot.Children.Any(child => child.Name == "Outfit Controls"))
             {
                 Slot controls = null;
@@ -138,12 +130,13 @@ internal static class ModularAvatarAttachmentInstaller
                 }
                 catch (Exception ex)
                 {
+                    optionalControlsFailed = true;
                     if (contextItem != null && !contextItem.IsDestroyed) contextItem.Destroy();
                     if (controls != null && !controls.IsDestroyed) controls.Destroy();
                     UnityPackageImporter.Warn("Outfit installed, but its optional menu could not be created: " + ex.Message);
                 }
             }
-            return (true, null);
+            return (sourceResult.ForInstalledCopy(optionalControlsFailed), null);
         }
         catch (OperationCanceledException)
         {
@@ -153,7 +146,7 @@ internal static class ModularAvatarAttachmentInstaller
         {
             await default(ToWorld);
             UnityPackageImporter.Error("Failed to install attachment '" + attachmentRoot.Name + "' directly: " + ex);
-            return (false, ex.Message);
+            return (null, ex.Message);
         }
     }
 
@@ -282,12 +275,17 @@ internal static class ModularAvatarAttachmentInstaller
 
     internal static bool IsOwnedAvatar(BipedRig rig, User localUser)
     {
-        if (rig == null || rig.IsDestroyed || rig.Slot.IsDestroyed || localUser == null || rig.World != localUser.World || ImportSession.IsTemporary(rig.Slot)) return false;
+        if (rig == null || rig.IsDestroyed || rig.Slot == null || rig.Slot.IsDestroyed || localUser == null) return false;
         var protections = rig.Slot.GetComponentsInParents<FrooxEngine.CommonAvatar.SimpleAvatarProtection>();
-        if (protections.Any(protection => protection.User.Target != localUser)) return false;
-        if (rig.Slot.ActiveUser != null) return rig.Slot.ActiveUser == localUser;
-        if (protections.Count > 0) return true;
-        return rig.Slot.GetAllocatingUser() == localUser;
+        return AvatarOwnershipValidator.EvaluateOwnership(
+            isRigValid: true,
+            isRigDestroyed: rig.IsDestroyed || rig.Slot.IsDestroyed,
+            isTemporaryStaging: ImportSession.IsTemporary(rig.Slot),
+            isSameWorld: rig.World == localUser.World,
+            localUser: localUser,
+            activeUser: rig.Slot.ActiveUser,
+            allocatingUser: rig.Slot.GetAllocatingUser(),
+            protectionUsers: protections.Select(p => p.User.Target).ToList());
     }
 
     private static List<BipedRig> FindAvatarRigs(Slot attachmentRoot)

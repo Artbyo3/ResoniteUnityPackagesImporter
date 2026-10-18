@@ -10,7 +10,7 @@ namespace UnityPackageImporter.Models;
 // does not mean a material field has actually been repaired.
 internal sealed class PendingAssetAssignments<TAsset> where TAsset : class
 {
-    private sealed record Assignment(string AssetGuid, Func<Task<TAsset>> Load,
+    private sealed record Assignment(string[] AssetGuids, Func<Task<TAsset>> Load,
         Func<TAsset, CancellationToken, Task<bool>> Apply, bool Required);
     private readonly object sync = new();
     private readonly Dictionary<object, Assignment> assignments = new(ReferenceEqualityComparer.Instance);
@@ -23,25 +23,30 @@ internal sealed class PendingAssetAssignments<TAsset> where TAsset : class
         {
             return assignments
                 .Where(pair => pair.Value.Required && (targetFilter == null || targetFilter(pair.Key)))
-                .Select(pair => pair.Value.AssetGuid)
+                .SelectMany(pair => pair.Value.AssetGuids)
                 .ToArray();
         }
     }
 
     public void Register(object target, string assetGuid, Func<Task<TAsset>> load,
         Func<TAsset, CancellationToken, Task<bool>> apply, bool required = true)
+        => RegisterMany(target, new[] { assetGuid }, load, apply, required);
+
+    public void RegisterMany(object target, IEnumerable<string> assetGuids, Func<Task<TAsset>> load,
+        Func<TAsset, CancellationToken, Task<bool>> apply, bool required = true)
     {
         ArgumentNullException.ThrowIfNull(target);
         ArgumentNullException.ThrowIfNull(load);
         ArgumentNullException.ThrowIfNull(apply);
-        if (string.IsNullOrWhiteSpace(assetGuid)) throw new ArgumentException("Missing asset GUID.", nameof(assetGuid));
-        lock (sync) assignments[target] = new Assignment(assetGuid, load, apply, required);
+        var guids = (assetGuids ?? Array.Empty<string>()).ToArray();
+        if (guids.Length == 0 || guids.Any(string.IsNullOrWhiteSpace)) throw new ArgumentException("Missing asset GUID.", nameof(assetGuids));
+        lock (sync) assignments[target] = new Assignment(guids.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(), load, apply, required);
     }
 
     public bool CanResolveAny(IEnumerable<string> availableGuids)
     {
         var available = new HashSet<string>(availableGuids ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
-        lock (sync) return assignments.Values.Any(value => available.Contains(value.AssetGuid));
+        lock (sync) return assignments.Values.Any(value => value.AssetGuids.Any(available.Contains));
     }
 
     // The import session serializes resolution requests. Registration can still
@@ -52,7 +57,7 @@ internal sealed class PendingAssetAssignments<TAsset> where TAsset : class
         cancellation.ThrowIfCancellationRequested();
         var available = new HashSet<string>(availableGuids ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
         KeyValuePair<object, Assignment>[] pending;
-        lock (sync) pending = assignments.Where(pair => available.Contains(pair.Value.AssetGuid)).ToArray();
+        lock (sync) pending = assignments.Where(pair => pair.Value.AssetGuids.Any(available.Contains)).ToArray();
         int restored = 0;
         foreach (var entry in pending)
         {
@@ -79,7 +84,7 @@ internal sealed class PendingAssetAssignments<TAsset> where TAsset : class
             }
             catch (Exception exception) when (exception is not OperationCanceledException)
             {
-                reportFailure?.Invoke(entry.Value.AssetGuid, exception);
+                reportFailure?.Invoke(string.Join(", ", entry.Value.AssetGuids), exception);
             }
         }
         return restored;

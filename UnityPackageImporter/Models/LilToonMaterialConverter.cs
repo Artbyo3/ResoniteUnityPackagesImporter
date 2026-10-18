@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using Elements.Core;
 using FrooxEngine;
 using Renderite.Shared;
+using UnityPackageImporter.Materials;
+using UnityPackageImporter.Materials.LilToon;
 
 namespace UnityPackageImporter.Models;
 
@@ -63,14 +65,24 @@ internal static class LilToonMaterialConverter
 
         if (generic || data.Enabled("_UseEmission"))
         {
-            await Texture("_EmissionMap", toon.EmissionMap, toon.EmissionMapScale, toon.EmissionMapOffset);
+            if (generic)
+                await Texture("_EmissionMap", toon.EmissionMap, toon.EmissionMapScale, toon.EmissionMapOffset);
+            else
+            {
+                var plan = LilToonEmissionPlan.Create(data);
+                await EmissionTextureImporter.AssignAsync(owner, plan, toon.EmissionMap);
+                await default(ToWorld);
+                owner.importer.Session?.Check();
+                toon.EmissionUV.Value = plan.Uv;
+                var input = plan.Inputs.Count == 0 ? null : plan.Inputs[0];
+                toon.EmissionMapScale.Value = input == null ? new float2(1, 1) : new float2(input.ScaleX, input.ScaleY);
+                toon.EmissionMapOffset.Value = input == null ? new float2(0, 0) : new float2(input.OffsetX, input.OffsetY);
+            }
             await default(ToWorld);
             var emission = data.Color("_EmissionColor", (0, 0, 0, 1));
             float strength = generic ? 1 : LilToonSettings.EmissionStrength(data) * emission.a;
             toon.EmissionColor.Value = Color((emission.r * strength, emission.g * strength, emission.b * strength, 1), ColorProfile.Linear);
-            toon.EmissionUV.Value = (int)data.Number("_EmissionMap_UVMode");
-            if (!generic && (data.Texture("_EmissionBlendMask") != null || data.Enabled("_EmissionMainStrength")))
-                Warn("Emission masking/main-texture blending needs the Unity baker; using the emission texture.");
+            if (generic) toon.EmissionUV.Value = (int)data.Number("_EmissionMap_UVMode");
         }
         if (!generic && data.Enabled("_UseEmission2nd"))
             Warn("Second emission is not converted by the SDK-compatible path.");
@@ -123,11 +135,23 @@ internal static class LilToonMaterialConverter
             toon.Metallic.Value = data.Number("_Metallic");
             toon.Glossiness.Value = data.Number("_Smoothness", 0.5f);
         }
+        if (!generic && data.Enabled("_UseAudioLink"))
+            Warn("Audio-driven shader behavior is not converted.");
+        if (!generic && data.Enabled("_UseGlitter"))
+            Warn("Glitter and procedural specular effects are not converted.");
+        if (!generic && data.Enabled("_UseParallax"))
+            Warn("Parallax interior/depth effects are not converted.");
+
         await default(ToWorld);
         owner.importer.Session?.Check();
         return toon;
 
-        void Warn(string message) => UnityPackageImporter.Warn(Path.GetFileName(owner.SourceFile) + ": " + message);
+        void Warn(string message)
+        {
+            string msg = Path.GetFileName(owner.SourceFile) + ": " + message;
+            UnityPackageImporter.Warn(msg);
+            owner.importer?.RegisterMaterialWarning(owner.MaterialGuid, msg);
+        }
         async Task Texture(string property, AssetRef<ITexture2D> target, Sync<float2> scale = null, Sync<float2> offset = null)
         {
             var guid = data.Texture(property);

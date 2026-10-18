@@ -18,8 +18,10 @@ public class UnityProjectImporter
     private readonly object dependencyLock = new();
     private readonly object materialCatalogLock = new();
     private readonly Dictionary<string, string> mutableAssetIndex;
+    private readonly HashSet<string> conflictedGuids;
     private readonly List<MissingMaterialBinding> missingMaterialBindings = new();
     private readonly ConcurrentDictionary<IAssetProvider<Material>, string> materialGuids = new();
+    private readonly Dictionary<string, List<string>> materialWarningsByGuid = new(StringComparer.OrdinalIgnoreCase);
     private Task<PackageMaterialCatalog> materialCatalogTask;
 
     public readonly Slot importTaskAssetRoot;
@@ -29,6 +31,7 @@ public class UnityProjectImporter
     internal readonly PendingAssetAssignments<StaticTexture2D> MissingTextureAssignments = new();
     private readonly Dictionary<SkinnedMeshRenderer, IAssetProvider<Material>[]> automaticMaterials = new();
     public Dictionary<string, FileImportTaskScene> SharedImportedFBXScenes = new Dictionary<string, FileImportTaskScene>();
+    internal ImportMeasurements Measurements { get; } = new();
     public ReadOnlyDictionary<string, string> AssetIDDict;
     public ReadOnlyDictionary<string, string> ListOfUnityScenes;
     public List<string> files;
@@ -38,6 +41,7 @@ public class UnityProjectImporter
     internal ImportSession Session { get; set; }
     public ReadOnlyDictionary<string, string> ListOfPrefabs;
     public IReadOnlyList<string> PackageNames { get; }
+    public IReadOnlyCollection<string> ConflictedGuids => conflictedGuids;
 
     public UnityProjectImporter(
         IEnumerable<string> files,
@@ -47,12 +51,14 @@ public class UnityProjectImporter
         Slot root,
         Slot assetsRoot,
         World world,
-        IReadOnlyList<string> packageNames)
+        IReadOnlyList<string> packageNames,
+        IEnumerable<string> conflictedGuids = null)
     {
         this.files = files.ToList();
         this.importTaskAssetRoot = assetsRoot;
         this.root = root;
         this.PackageNames = packageNames?.ToArray() ?? Array.Empty<string>();
+        this.conflictedGuids = new HashSet<string>(conflictedGuids ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
 
         // Publish asset-index snapshots: a companion package must not mutate a
         // dictionary while background material importers are reading it.
@@ -77,6 +83,81 @@ public class UnityProjectImporter
 
         materialGuid = string.Empty;
         return false;
+    }
+
+    internal void RegisterMaterialWarning(string materialGuid, string warning)
+    {
+        if (string.IsNullOrWhiteSpace(materialGuid) || string.IsNullOrWhiteSpace(warning)) return;
+        warning = ImportFailureReport.Sanitize(warning);
+        lock (dependencyLock)
+        {
+            if (!materialWarningsByGuid.TryGetValue(materialGuid, out var list))
+            {
+                list = new List<string>();
+                materialWarningsByGuid[materialGuid] = list;
+            }
+            if (!list.Contains(warning))
+                list.Add(warning);
+        }
+    }
+
+    internal IReadOnlyList<string> GetMaterialWarnings(string materialGuid)
+    {
+        if (string.IsNullOrWhiteSpace(materialGuid)) return Array.Empty<string>();
+        lock (dependencyLock)
+        {
+            if (materialWarningsByGuid.TryGetValue(materialGuid, out var list))
+                return list.ToArray();
+            return Array.Empty<string>();
+        }
+    }
+
+    internal IReadOnlyList<string> GetItemMaterialWarnings(Slot itemRoot)
+    {
+        if (itemRoot == null || itemRoot.IsDestroyed) return Array.Empty<string>();
+        var result = new List<string>();
+        var seenGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var renderers = itemRoot.GetComponentsInChildren<FrooxEngine.MeshRenderer>();
+        foreach (var renderer in renderers)
+        {
+            if (renderer == null || renderer.IsDestroyed) continue;
+            foreach (var mat in renderer.Materials)
+            {
+                if (mat != null && TryGetMaterialGuid(mat, out string guid) && seenGuids.Add(guid))
+                {
+                    lock (dependencyLock)
+                    {
+                        if (materialWarningsByGuid.TryGetValue(guid, out var warnings))
+                        {
+                            foreach (var w in warnings)
+                            {
+                                if (!result.Contains(w)) result.Add(w);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        lock (dependencyLock)
+        {
+            foreach (var binding in missingMaterialBindings)
+            {
+                if (IsPendingMissingBinding(binding, itemRoot) && !string.IsNullOrEmpty(binding.MaterialGuid) && seenGuids.Add(binding.MaterialGuid))
+                {
+                    if (materialWarningsByGuid.TryGetValue(binding.MaterialGuid, out var warnings))
+                    {
+                        foreach (var w in warnings)
+                        {
+                            if (!result.Contains(w)) result.Add(w);
+                        }
+                    }
+                }
+            }
+        }
+
+        return result;
     }
 
     internal void RegisterMissingMaterial(
@@ -143,7 +224,7 @@ public class UnityProjectImporter
         if (itemRoot != null && !itemRoot.IsDestroyed)
         {
             var usedMaterialSlots = new HashSet<Slot>();
-            foreach (var renderer in itemRoot.GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>())
+            foreach (var renderer in itemRoot.GetComponentsInChildren<FrooxEngine.MeshRenderer>())
             {
                 if (renderer == null || renderer.IsDestroyed) continue;
                 foreach (var mat in renderer.Materials)
@@ -170,8 +251,26 @@ public class UnityProjectImporter
         lock (dependencyLock)
             if (missingMaterialBindings.Any(binding =>
                 IsPendingMissingBinding(binding, itemRoot) &&
-                candidates.Contains(binding.MaterialGuid))) return true;
-        return MissingTextureAssignments.CanResolveAny(candidates);
+                candidates.Contains(binding.MaterialGuid) &&
+                !conflictedGuids.Contains(binding.MaterialGuid))) return true;
+        return MissingTextureAssignments.CanResolveAny(candidates.Where(c => !conflictedGuids.Contains(c)));
+    }
+
+    internal bool IsAssetAssignedOrCached(string guid)
+    {
+        if (string.IsNullOrWhiteSpace(guid)) return false;
+        if (materialGuids.Values.Any(g => string.Equals(g, guid, StringComparison.OrdinalIgnoreCase)))
+            return true;
+        if (MaterialImports.Contains(guid + ":toon") || MaterialImports.Contains(guid + ":automatic"))
+            return true;
+        if (TextureImports.Contains(guid))
+            return true;
+        lock (dependencyLock)
+        {
+            if (missingMaterialBindings.Any(b => b.Resolved && string.Equals(b.MaterialGuid, guid, StringComparison.OrdinalIgnoreCase)))
+                return true;
+        }
+        return false;
     }
 
     internal Task<PackageMaterialCatalog> GetPackageMaterialCatalogAsync()
@@ -234,7 +333,8 @@ public class UnityProjectImporter
     }
 
     internal async Task<MaterialResolutionResult> ResolveMissingMaterialsAsync(
-        IReadOnlyDictionary<string, string> dependencyAssets)
+        IReadOnlyDictionary<string, string> dependencyAssets,
+        IReadOnlyCollection<string> companionConflictedGuids = null)
     {
         if (dependencyAssets == null)
             return new MaterialResolutionResult(GetMissingMaterialSummary(), 0);
@@ -242,9 +342,14 @@ public class UnityProjectImporter
         Session?.Check();
         lock (dependencyLock)
         {
-            foreach (var asset in dependencyAssets)
-                if (!mutableAssetIndex.ContainsKey(asset.Key))
-                    mutableAssetIndex.Add(asset.Key, asset.Value);
+            UnityPackageAssetIndex.MergeCompanion(
+                mutableAssetIndex,
+                conflictedGuids,
+                dependencyAssets,
+                companionConflictedGuids,
+                IsAssetAssignedOrCached,
+                UnityPackageImporter.Warn);
+
             AssetIDDict = new ReadOnlyDictionary<string, string>(
                 new Dictionary<string, string>(mutableAssetIndex, StringComparer.OrdinalIgnoreCase));
         }
@@ -255,7 +360,9 @@ public class UnityProjectImporter
         List<MissingMaterialBinding> resolvable;
         lock (dependencyLock)
             resolvable = missingMaterialBindings
-                .Where(binding => !binding.Resolved && mutableAssetIndex.ContainsKey(binding.MaterialGuid))
+                .Where(binding => !binding.Resolved &&
+                                  mutableAssetIndex.ContainsKey(binding.MaterialGuid) &&
+                                  !conflictedGuids.Contains(binding.MaterialGuid))
                 .ToList();
 
         int restored = 0;
@@ -345,7 +452,8 @@ public class UnityProjectImporter
         Station?.UpdateProgress(0.1f, "loadingMeshesAndMaterials", "");
         var fbx_tasks = FillFBXFiles().ToArray();
 
-        await Task.WhenAll(fbx_tasks.Select(task => task.RunnerWrapper()).ToArray());
+        using (Measurements.Measure(ImportStage.ModelAssets, fbx_tasks.Length))
+            await BoundedTaskScheduler.RunAsync(fbx_tasks, (task, _) => task.RunnerWrapper(), lifetime: Session?.Lifetime);
         Session?.Check();
         await default(ToBackground);
         // Now we have a full list of meta files and prefabs regarding this import file list from our prefix (where ever this is even if not a unity package folder) we now begin the hard part *drums* making the files go onto the model!
@@ -431,18 +539,43 @@ public class UnityProjectImporter
 
         await default(ToWorld);
         stationHandle?.RegisterPrefabs(unityImportTasks.OfType<UnityPrefabImportTask>());
-        await Task.WhenAll(unityImportTasks.Select(task => task.StartImport()));
+        SourceImportBatchResult<IUnityStructureImporter> outcomes;
+        using (Measurements.Measure(ImportStage.SourceReconstruction, unityImportTasks.Count))
+        {
+            outcomes = await SourceImportBatch.RunAsync(unityImportTasks,
+                (task, token) => task.StartImport(), async (task, ex) =>
+            {
+                await default(ToWorld);
+                UnityPackageImporter.Warn($"Source reconstruction failed for '{task.ID.Value}': {ex.Message}");
+                try
+                {
+                    if (task.CurrentStructureRootSlot != null && !task.CurrentStructureRootSlot.IsDestroyed)
+                        task.CurrentStructureRootSlot.DestroyPreservingAssets();
+                }
+                catch (Exception cleanupEx)
+                {
+                    UnityPackageImporter.Warn($"Failed to clean up aborted task structure for '{task.ID.Value}': {cleanupEx.Message}");
+                }
+            }, lifetime: Session?.Lifetime);
+        }
+        foreach (var sample in Measurements.Snapshot())
+            UnityPackageImporter.Msg(FormattableString.Invariant($"Import stage {sample.Stage}: {sample.ScheduledItems} scheduled inputs, {sample.Elapsed.TotalMilliseconds:F0} ms elapsed."));
         await default(ToWorld);
         Session?.Check();
+        if (outcomes.Succeeded.Count == 0 && outcomes.Failed.Count > 0)
+            throw new InvalidDataException("No prefab or scene could be reconstructed. Review the import errors before retrying.");
         if (stationHandle != null)
         {
-            var prefabTasks = unityImportTasks.OfType<UnityPrefabImportTask>().ToList();
-            var sceneTasks = unityImportTasks.OfType<UnitySceneImportTask>().ToList();
-            bool isPartial = prefabTasks.Any(t => t.IsPartialCompatibility) || sceneTasks.Any(t => t.IsPartialCompatibility);
-            await stationHandle.CompleteSuccessAsync(isPartial);
-            Session?.Check();
-            var preparedItems = sceneTasks.SelectMany(scene => scene.PreparedItems)
-                .Concat(prefabTasks.Select(prefab => prefab.PreparedItem).Where(item => item != null)).ToList();
+            // A prepared item can exist before its source finishes. Only
+            // completed sources may participate in selection or automatic commit.
+            var prefabTasks = outcomes.Succeeded.OfType<UnityPrefabImportTask>().ToList();
+            var sceneTasks = outcomes.Succeeded.OfType<UnitySceneImportTask>().ToList();
+            bool isPartial = outcomes.Failed.Count > 0 || prefabTasks.Any(t => t.IsPartialCompatibility) || sceneTasks.Any(t => t.IsPartialCompatibility);
+            var preparedItems = sceneTasks.SelectMany(scene => scene.PreparedItems ?? Enumerable.Empty<PreparedImportItem>())
+                .Concat(prefabTasks.Select(prefab => prefab.PreparedItem))
+                .Where(item => item?.CurrentStructureRootSlot is { IsDestroyed: false }).ToList();
+            isPartial |= preparedItems.Any(item => item.ReadResult().IsPartial) ||
+                sceneTasks.Any(scene => scene.ScenePreparation?.ReadResult().IsPartial == true);
             bool hasAvatarDefinitions = prefabTasks.Any(task => task.Manifest?.IsAvatarPrefab == true) ||
                 sceneTasks.Any(task => task.Manifest?.IsAvatarPrefab == true);
             bool hasAvatarOrOutfitItems = preparedItems.Any(item =>
@@ -450,9 +583,15 @@ public class UnityProjectImporter
                 item.CurrentStructureRootSlot.GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>().Count > 0);
             if (AvatarImportSelection.AutoCommitScenes(hasAvatarDefinitions, hasAvatarOrOutfitItems))
             {
-                foreach (var scene in sceneTasks)
-                    Session?.Commit(scene.CurrentStructureRootSlot);
+                // Validate the entire automatic publication batch before releasing any scene.
+                var autoScenes = sceneTasks.Where(s => s.ScenePreparation != null).ToList();
+                foreach (var scene in autoScenes)
+                    scene.ScenePreparation.ReadResult().Require(ImportOutputAction.KeepObject);
+                foreach (var scene in autoScenes)
+                    Session?.Commit(scene.ScenePreparation);
             }
+            await stationHandle.CompleteSuccessAsync(isPartial);
+            Session?.Check();
             await stationHandle.StageAsync(this, preparedItems);
         }
 

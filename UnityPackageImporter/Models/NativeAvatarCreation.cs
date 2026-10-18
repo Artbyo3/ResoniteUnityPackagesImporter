@@ -17,6 +17,22 @@ namespace UnityPackageImporter.Models;
 /// </summary>
 internal static class NativeAvatarCreation
 {
+    internal static NativeAvatarReadiness ReadReadiness(PreparedImportItem item)
+    {
+        var root = item.CurrentStructureRootSlot;
+        if (root == null || root.IsDestroyed) return NativeAvatarReadiness.MissingRig;
+        if (root.GetComponentInChildren<AvatarRoot>() != null) return NativeAvatarReadiness.AlreadyCreated;
+        var rigs = root.GetComponentsInChildren<BipedRig>().Where(rig => rig.IsBiped).ToArray();
+        if (rigs.Length == 0) return NativeAvatarReadiness.MissingRig;
+        if (rigs.Length > 1) return NativeAvatarReadiness.MultipleRigs;
+        var ik = rigs[0].Slot.GetComponent<VRIK>();
+        if (ik == null || ik.Solver.BoneReferences.leftHand.Target == null || ik.Solver.BoneReferences.rightHand.Target == null)
+            return NativeAvatarReadiness.MissingIk;
+        try { ResolveViewpoint(item, rigs[0], reportFallback: false); }
+        catch (InvalidOperationException) { return NativeAvatarReadiness.MissingViewpoint; }
+        return NativeAvatarReadiness.Ready;
+    }
+
     internal static async Task<Slot> CreateAsync(PreparedImportItem item, Slot envelope,
         bool protectAvatar, CancellationToken cancellationToken = default)
     {
@@ -28,6 +44,7 @@ internal static class NativeAvatarCreation
         Slot source = item.CurrentStructureRootSlot;
         if (source != envelope && !source.IsChildOf(envelope))
             throw new InvalidOperationException("The avatar is outside its import session.");
+        item.ReadResult().Require(ImportOutputAction.CreateAvatar);
         var rigs = source.GetComponentsInChildren<BipedRig>().Where(rig => rig.IsBiped).ToArray();
         if (rigs.Length != 1)
             throw new InvalidOperationException(rigs.Length == 0
@@ -44,6 +61,8 @@ internal static class NativeAvatarCreation
         await ImportMeshReadiness.WaitAsync(meshes, cancellationToken);
         await default(ToWorld);
         cancellationToken.ThrowIfCancellationRequested();
+
+        item.ReadResult().Require(ImportOutputAction.CreateAvatar);
 
         // Capture the authored viewpoint before changing object-root boundaries.
         var viewpoint = ResolveViewpoint(item, rig);
@@ -110,7 +129,7 @@ internal static class NativeAvatarCreation
         }
     }
 
-    private static (float3 Position, floatQ Rotation) ResolveViewpoint(PreparedImportItem item, BipedRig rig)
+    private static (float3 Position, floatQ Rotation) ResolveViewpoint(PreparedImportItem item, BipedRig rig, bool reportFallback = true)
     {
         var descriptors = item.Manifest?.Avatars
             .Select(definition => (Definition: definition, Root: ResolveDescriptorRoot(item, definition)))
@@ -120,32 +139,105 @@ internal static class NativeAvatarCreation
             .Where(pair => pair.Root != null && Contains(pair.Root, rig[BodyNode.Head]) &&
                 Contains(pair.Root, rig[BodyNode.Hips]))
             .ToArray();
-        if (descriptors?.Length == 1 && descriptors[0].Definition.ViewPosition is UnityPosition point)
+
+        (VrcAvatarDefinition Definition, Slot Root)? chosen = null;
+        if (descriptors?.Length == 1)
         {
-            Slot root = descriptors[0].Root;
+            chosen = descriptors[0];
+        }
+        else if (descriptors?.Length > 1)
+        {
+            var rootMatch = descriptors.FirstOrDefault(d => d.Root == item.CurrentStructureRootSlot);
+            if (rootMatch.Root != null)
+            {
+                chosen = rootMatch;
+            }
+            else
+            {
+                var first = descriptors[0];
+                if (descriptors.All(d => d.Definition.ViewPosition?.X == first.Definition.ViewPosition?.X &&
+                                         d.Definition.ViewPosition?.Y == first.Definition.ViewPosition?.Y &&
+                                         d.Definition.ViewPosition?.Z == first.Definition.ViewPosition?.Z))
+                {
+                    chosen = first;
+                }
+            }
+        }
+
+        if (chosen.HasValue && chosen.Value.Definition.ViewPosition is UnityPosition point)
+        {
+            Slot root = chosen.Value.Root;
             float3 local = new(point.X, point.Y, point.Z);
             float3 position = root.LocalPointToGlobal(local);
             if (!IsFinite(position)) throw new InvalidOperationException("The authored avatar viewpoint has an invalid transform.");
             return (position, root.GlobalRotation);
         }
 
-        // A paired-eye midpoint is an anatomical fallback; the head joint itself
-        // is not an HMD viewpoint and is deliberately not used as one.
+        // Anatomical fallbacks when no authored viewpoint was resolved:
         Slot leftEye = rig.TryGetBone(BodyNode.LeftEye);
         Slot rightEye = rig.TryGetBone(BodyNode.RightEye);
-        if (leftEye == null || rightEye == null)
-            throw new InvalidOperationException("This avatar has no usable authored viewpoint or paired eye bones. Use the native Avatar Creator to calibrate its view.");
-        UnityPackageImporter.Warn("No unambiguous authored avatar viewpoint was available; using the midpoint of the eye bones.");
-        return ((leftEye.GlobalPosition + rightEye.GlobalPosition) * 0.5f, rig.Slot.GlobalRotation);
+
+        if (leftEye != null && rightEye != null)
+        {
+            if (reportFallback) UnityPackageImporter.Warn("No unambiguous authored avatar viewpoint was available; using the midpoint of the eye bones.");
+            return ((leftEye.GlobalPosition + rightEye.GlobalPosition) * 0.5f, rig.Slot.GlobalRotation);
+        }
+
+        Slot singleEye = leftEye ?? rightEye;
+        Slot head = rig.TryGetBone(BodyNode.Head);
+        if (singleEye != null && head != null)
+        {
+            if (reportFallback) UnityPackageImporter.Warn("Only one eye bone was mapped; using eye level projected to the avatar center.");
+            float3 localEye = head.GlobalPointToLocal(singleEye.GlobalPosition);
+            localEye = new float3(0f, localEye.y, localEye.z);
+            return (head.LocalPointToGlobal(localEye), rig.Slot.GlobalRotation);
+        }
+
+        if (head != null)
+        {
+            Slot hips = rig.TryGetBone(BodyNode.Hips);
+            float spineLength = hips != null ? MathF.Max(0.1f, (head.GlobalPosition - hips.GlobalPosition).Magnitude) : 0.65f;
+            float scale = MathX.Clamp(spineLength / 0.65f, 0.05f, 50f);
+            float upOffset = 0.08f * scale;
+            float forwardOffset = 0.09f * scale;
+
+            float3 estimatedPos = head.GlobalPosition + (rig.Slot.Up * upOffset) + (rig.Slot.Forward * forwardOffset);
+            if (!IsFinite(estimatedPos))
+                throw new InvalidOperationException("This avatar has no usable authored viewpoint or valid head bone transform.");
+
+            if (reportFallback) UnityPackageImporter.Warn("This avatar has no authored viewpoint or eye bones; estimated viewpoint from head bone anatomy.");
+            return (estimatedPos, rig.Slot.GlobalRotation);
+        }
+
+        throw new InvalidOperationException("This avatar has no usable authored viewpoint, eye bones, or head bone. Use the native Avatar Creator to calibrate its view.");
     }
 
     private static bool Contains(Slot parent, Slot child) => child != null && (parent == child || child.IsChildOf(parent));
 
-    private static Slot ResolveDescriptorRoot(PreparedImportItem item, VrcAvatarDefinition definition) =>
-        item.existingIUnityObjects != null &&
-        item.existingIUnityObjects.TryGetValue(unchecked((ulong)definition.GameObjectFileId), out var value) &&
-        value is UnityGameObject gameObject && gameObject.frooxEngineSlot is { IsDestroyed: false } slot
-            ? slot : null;
+    private static Slot ResolveDescriptorRoot(PreparedImportItem item, VrcAvatarDefinition definition)
+    {
+        if (item.existingIUnityObjects != null &&
+            item.existingIUnityObjects.TryGetValue(unchecked((ulong)definition.GameObjectFileId), out var value) &&
+            value is UnityGameObject gameObject && gameObject.frooxEngineSlot is { IsDestroyed: false } slot)
+        {
+            return slot;
+        }
+
+        if (!string.IsNullOrEmpty(definition.GameObjectName) && item.CurrentStructureRootSlot is { IsDestroyed: false } root)
+        {
+            if (string.Equals(root.Name, definition.GameObjectName, StringComparison.OrdinalIgnoreCase))
+                return root;
+            var match = root.FindChild(s => string.Equals(s.Name, definition.GameObjectName, StringComparison.OrdinalIgnoreCase));
+            if (match != null) return match;
+        }
+
+        if (item.CurrentStructureRootSlot is { IsDestroyed: false } currentRoot)
+        {
+            return currentRoot;
+        }
+
+        return null;
+    }
 
     private static Slot CreateHandReference(Slot parent, Slot hand, float3 palmAxis, float3 thumbAxis,
         Chirality side, string name)

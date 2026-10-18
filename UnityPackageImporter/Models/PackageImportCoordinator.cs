@@ -51,8 +51,9 @@ internal static class PackageImportCoordinator
             await default(ToBackground);
             var extractedFiles = ExtractPackages(packages, request.Token);
             var index = UnityPackageAssetIndex.Build(extractedFiles);
+            foreach (string conflict in index.Conflicts) UnityPackageImporter.Warn(conflict);
             request.Token.ThrowIfCancellationRequested();
-            return await request.ResolveAsync(index.Assets);
+            return await request.ResolveAsync(index.Assets, index.ConflictedGuids);
         }
         catch (System.OperationCanceledException) when (request.Token.IsCancellationRequested)
         {
@@ -136,7 +137,8 @@ internal static class PackageImportCoordinator
                 session?.Staging ?? importRoot,
                 session?.Assets ?? world.AssetsSlot.AddSlot("UnityPackageImport - Assets"),
                 world,
-                packageNames) { Station = station, Session = session }.StartImports());
+                packageNames,
+                assetIndex.ConflictedGuids) { Station = station, Session = session }.StartImports());
             await default(ToBackground);
         }
 

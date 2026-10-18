@@ -342,6 +342,7 @@ healthchecksdb
 # Local diagnostic dumps and session scripts
 scripts/*
 !scripts/Install-PreparedMod.ps1
+!scripts/Package-Release.ps1
 !scripts/Prepare-StationTemplates.py
 !scripts/RunStationDemo.py
 !scripts/FindResoniteLink.py
@@ -379,3 +380,4 @@ credentials.*
 /docs-site/site/
 /docs-site/.cache/
 /docs-site/.uv-cache/
+/dist/
