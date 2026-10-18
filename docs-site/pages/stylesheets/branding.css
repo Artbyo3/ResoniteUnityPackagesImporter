@@ -2,3 +2,16 @@
 .md-header__button.md-logo {
   display: none;
 }
+
+.md-header__topic a {
+  color: inherit;
+  text-decoration: none;
+  display: inline-block;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.md-header__topic a:hover {
+  opacity: 0.8;
+}
+
