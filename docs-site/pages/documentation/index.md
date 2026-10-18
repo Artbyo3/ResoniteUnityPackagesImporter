@@ -13,7 +13,7 @@ hide:
 
 [Compatibility guide](../reference/compatibility/){ .md-button .md-button--primary }
 
-<p class="landing-status">Experimental project in active development. No public release is available.</p>
+<p class="landing-status">An open-source mod for importing Unity packages, avatars, and clothing into Resonite.</p>
 
 </div>
 
@@ -46,9 +46,9 @@ hide:
 
     Avatar prefabs, clothing, and companion package workflows.
 
-- [**Project status**](../getting-started/)
+- [**Getting started**](../getting-started/)
 
-    Current scope and available setup notes.
+    Installation, prerequisites, and configuration.
 
 - [**Troubleshooting**](../reference/troubleshooting/)
 

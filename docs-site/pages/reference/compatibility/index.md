@@ -18,6 +18,6 @@ Compatibility depends on the assets, components, and materials included in each 
 | [Unity packages](unity-packages/) | Package extraction, reconstructed content, and companion materials |
 | [Modular Avatar](modular-avatar/) | Selected outfit components and known gaps |
 | [VRCFury](vrcfury/) | Current behavior support status |
-| [Shaders and materials](shaders/) | Shader-specific material conversion notes |
+| [Shaders and materials](shaders/) | Standard/PBS, lilToon, and Poiyomi material conversion notes |
 
 Keep the original Unity project and package files as the source of truth. Imported results may differ from their appearance or behavior in Unity or VRChat.

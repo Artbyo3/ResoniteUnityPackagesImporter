@@ -1,6 +1,6 @@
 # Poiyomi
 
-**Status: Experimental conversion in development builds.** Poiyomi materials are translated to native Resonite materials using rules adapted from the [official Unity SDK's Poiyomi converters](https://github.com/Yellow-Dog-Man/Resonite.UnitySDK/tree/809f86046a1d49ed44f30a80c89d67062fee5473/Assets/ResoniteSDK/MaterialConverters/Custom/Poiyomi). The Poiyomi shader itself does not run in Resonite. Visual validation in Resonite is still required.
+**Status: Partial.** Poiyomi materials are translated to native Resonite materials using rules adapted from the [official Unity SDK's Poiyomi converters](https://github.com/Yellow-Dog-Man/Resonite.UnitySDK/tree/809f86046a1d49ed44f30a80c89d67062fee5473/Assets/ResoniteSDK/MaterialConverters/Custom/Poiyomi). The Poiyomi shader itself does not run in Resonite.
 
 The automatic path chooses Xiexe Toon for toon lighting and PBS Metallic for wrapped, realistic, cloth and SDF lighting, following the SDK. Disabling shading selects the toon path. The material editor's explicit toon override keeps Poiyomi property mappings while selecting Xiexe.
 

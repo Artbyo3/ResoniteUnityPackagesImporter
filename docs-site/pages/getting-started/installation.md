@@ -1,9 +1,6 @@
 # Installation
 
-This guide describes installation, updates, and rollback for designated development testers and future releases.
-
-!!! warning "Development checkpoint"
-    Version 0.0.4 is a stabilization checkpoint, not a general-use release. The first public release is planned for 0.0.5 after further validation. These instructions do not mean a public download is available.
+This guide covers prerequisites, installation, configuration, updates, and uninstallation for the Unity Package Importer.
 
 ## Prerequisites
 
@@ -31,3 +28,14 @@ This guide describes installation, updates, and rollback for designated developm
 
 - **Rollback**: To revert to an earlier version, replace `UnityPackageImporter.dll` with the previously downloaded DLL.
 - **Uninstallation**: Remove `UnityPackageImporter.dll` from `rml_mods`. If no other mods require `YamlDotNet.dll`, you may optionally remove it from `rml_libs`.
+
+## Configuration
+
+The importer supports configuration options through ResoniteModLoader. You can customize them in your mod configuration file or in-game mod settings:
+
+| Setting | Default | Description |
+| --- | --- | --- |
+| `importPrefab` | `true` | Intercepts dropped `.unitypackage` files to stage and reconstruct supported prefabs and scenes in the station. |
+| `dumpPackageContents` | `false` | When enabled alongside `importPrefab`, extracts and imports all package files into the world rather than just prefabs. |
+| `importAsRawFiles` | `false` | Imports files inside unity packages as raw binary assets directly. |
+

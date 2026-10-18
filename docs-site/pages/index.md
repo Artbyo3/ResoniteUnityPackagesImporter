@@ -13,7 +13,7 @@ hide:
 <nav class="simple-landing__options" aria-label="Choose where to go">
 <a href="documentation/">Documentation</a>
 <a href="reference/compatibility/">Compatibility</a>
-<a href="getting-started/">Project status</a>
+<a href="getting-started/">Getting started</a>
 </nav>
 
 </div>

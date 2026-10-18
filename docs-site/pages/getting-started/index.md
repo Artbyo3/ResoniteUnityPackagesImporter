@@ -1,19 +1,20 @@
-# Project status
+# Getting started
 
-The Unity Package Importer is an experimental mod in active development. It explores bringing supported avatar and clothing content from Unity `.unitypackage` files into Resonite.
+The Unity Package Importer is a Resonite mod that brings supported humanoid avatars, clothing, props, and materials from Unity `.unitypackage` files directly into Resonite.
 
-!!! warning "No public release is available"
-    There is no version ready for general use. Do not install development builds or copy files from the source repository into Resonite. These docs are a project preview, not a user installation guide.
+!!! info "Active development"
+    The importer is actively developed and maintained. Because Unity packages use a wide range of custom shaders and editor scripts, package conversion results vary. Review the [compatibility reference](../reference/compatibility/) to check currently supported features and known limits.
 
-## What to expect from these docs
+## Overview
 
-- **Compatibility notes** describe the current conversion scope and known gaps. Package results vary.
-- **Getting started** explains the project status and why release instructions are not available yet.
-- **Legal notes** cover the importer’s license and the rights that remain with creators of imported content.
-
-When a public release is ready, this section will be updated with versioned installation and first-use instructions.
+- **[Installation](installation.md)**: Prerequisites, step-by-step setup with ResoniteModLoader, updates, and configuration options.
+- **[Importing avatars](../importing/avatars.md)**: Drag-and-drop intake, interactive staging station, 3D turntable preview, material customization, and native avatar creation.
+- **[Importing clothing](../importing/clothing.md)**: Modular Avatar and VRCFury outfit installation, target avatar selection, and context menu toggles.
+- **[Companion packages](../importing/companion-packages.md)**: Multi-package workflow for resolving missing textures and materials.
+- **[Compatibility reference](../reference/compatibility/)**: Detailed status for Unity packages, Modular Avatar, VRCFury, and shader conversion (Standard, lilToon, Poiyomi).
 
 ## Next steps
 
-- [Review compatibility](../reference/compatibility/) for the current feature notes.
-- [Read the license and notices](../legal/) for project and third-party terms.
+- [Follow the installation guide](installation.md) to set up the mod.
+- [Review compatibility](../reference/compatibility/) for supported components and shaders.
+- [Read legal notices](../legal/) for licensing terms and content ownership.

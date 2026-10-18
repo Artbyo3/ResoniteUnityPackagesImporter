@@ -1,10 +1,9 @@
-# Documentation site scaffold
+# Documentation site source
 
-This folder contains the public documentation site source. The home, onboarding,
-compatibility, and legal pages are drafts. Importing and troubleshooting pages
-remain placeholders and are not in the site navigation. Keep private
-development notes outside this source directory; the site build reads only
-`pages/`.
+This folder contains the public documentation site source for the Unity Package Importer.
+All documentation pages, compatibility guides, importing workflows, and legal notices
+are maintained here. Keep private development notes outside this source directory; the
+site build reads only `pages/`.
 
 ## Preview locally
 
