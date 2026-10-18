@@ -11,16 +11,19 @@ From this folder, install the pinned dependency and run:
 
 ```powershell
 python -m pip install -r requirements.txt
-zensical serve
+python serve.py
 ```
 
-To check a production build:
+This builds both the English and Japanese sites and serves them at `http://localhost:8000/`.
+
+To run a production build only:
 
 ```powershell
-zensical build --clean
+python build.py
 ```
 
-The generated site is written to `site/` and is ignored by Git.
+The generated site is written to `site/` (with English at `/` and Japanese at `/ja/`) and is ignored by Git.
+
 
 ## GitHub Pages
 

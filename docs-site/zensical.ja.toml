@@ -1,0 +1,70 @@
+[project]
+site_name = "Unity Package Importer"
+site_description = "Resonite 向け Unity Package Importer のステータス、互換性情報、およびドキュメント。"
+site_url = "https://artbyo3.github.io/ResoniteUnityPackagesImporter/ja/"
+repo_url = "https://github.com/Artbyo3/ResoniteUnityPackagesImporter"
+docs_dir = "pages/ja"
+site_dir = "site/ja"
+nav = [
+  { "ホーム" = "index.md" },
+  { "ドキュメント" = "documentation/index.md" },
+  { "はじめに" = [
+    "getting-started/index.md",
+    "getting-started/installation.md",
+  ] },
+  { "インポート機能" = [
+    "importing/avatars.md",
+    "importing/clothing.md",
+    "importing/companion-packages.md",
+  ] },
+  { "互換性情報" = [
+    "reference/compatibility/index.md",
+    "reference/compatibility/unity-packages.md",
+    "reference/compatibility/modular-avatar.md",
+    "reference/compatibility/vrcfury.md",
+    { "シェーダーとマテリアル" = [
+      "reference/compatibility/shaders/index.md",
+      "reference/compatibility/shaders/standard.md",
+      "reference/compatibility/shaders/liltoon.md",
+      "reference/compatibility/shaders/poiyomi.md",
+    ] },
+    "reference/troubleshooting.md",
+  ] },
+  { "法的情報" = [
+    "legal/index.md",
+    "legal/third-party-notices.md",
+  ] },
+]
+
+extra_css = ["../stylesheets/notice.css", "../stylesheets/branding.css", "../stylesheets/landing-v2.css"]
+extra_javascript = ["../javascripts/avatar-comparison.js", "../javascripts/contributors-v2.js", "../javascripts/landing-video.js"]
+
+[project.markdown_extensions]
+admonition = {}
+attr_list = {}
+md_in_html = {}
+
+[project.theme]
+custom_dir = "overrides"
+features = ["navigation.sections", "navigation.path", "search.highlight"]
+language = "ja"
+
+[[project.theme.palette]]
+scheme = "default"
+toggle.icon = "lucide/sun"
+toggle.name = "ダークモードに切り替え"
+primary = "teal"
+accent = "teal"
+
+[[project.theme.palette]]
+scheme = "slate"
+toggle.icon = "lucide/moon"
+toggle.name = "ライトモードに切り替え"
+primary = "teal"
+accent = "teal"
+
+[project.extra]
+alternate = [
+  { name = "English", link = "../", lang = "en" },
+  { name = "日本語", link = "", lang = "ja" },
+]
