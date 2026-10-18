@@ -4,22 +4,22 @@
 
 ## 衣装セットアップの手順
 
-1. **衣装アイテムの選択**: パッケージ内に `ModularAvatarMergeArmature`、`ModularAvatarBoneProxy`、または対応する `VRCFuryArmatureLink` コンポーネントを含む衣装や小物が存在する場合、ステーションはそのアイテムを衣装 Prefab（Outfit Prefab）として認識します。
+1. **衣装アイテムの選択**: パッケージ内に `ModularAvatarMergeArmature`、`ModularAvatarBoneProxy`、または対応する `VRCFuryArmatureLink` コンポーネントを含む衣装や小物が存在する場合、ステーションはそのアイテムを衣装プレハブ（`OUTFIT PREFAB`）として認識します。
 
     <figure markdown="span">
       ![衣装インストーラーのタブレット画面](../images/outfit-installation-panel.png){ width="560" }
-      <figcaption>検出された Modular Avatar コンポーネントとターゲットアバター選択を表示する衣装インストーラー画面。</figcaption>
+      <figcaption>検出された Modular Avatar コンポーネントと「対象アバター」の選択を表示する衣装インストーラー画面。</figcaption>
     </figure>
 
-2. **対象アバターの選択**: 現在のワールド内で、ローカルユーザーが所有・操作権限を持つアバターの一覧がステーションに表示されます。**Change** をタップして、一覧から着せ替え対象のアバターを選択します。
+2. **対象アバターの選択**: 現在のワールド内で、ローカルユーザーが所有・操作権限を持つアバターの一覧がステーションに表示されます。**「変更」 (Change)** をタップして、**「アバターを選択」 (Choose an Avatar)** ピッカーから着せ替え対象のアバターを選択します。
 
     <figure markdown="span">
       ![アバター選択ピッカー](../images/outfit-choose-avatar.png){ width="380" }
       <figcaption>現在のセッションで所有しているアバターを一覧表示するターゲット選択画面。</figcaption>
     </figure>
 
-3. **インストール（着せ替え実行）**: **Install on Selected Avatar** を選択すると、衣装が対象アバターの階層下に複製され、設定された設計に基づいてボーンが自動的にバインドされ、スキニングの境界範囲（Bounds）が構成されます。
-4. **コンテキストメニューのトグル生成**: オプションが有効になっている場合、アバターのパイメニュー（コンテキストメニュー）内に衣装を着脱するためのトグルが自動生成されます。
+3. **インストール（着せ替え実行）**: **「選択したアバターに取り付け」 (Install on Selected Avatar)** を選択すると、衣装が対象アバターの階層下に複製され、設定された設計に基づいてボーンが自動的にバインドされ、スキニングの境界範囲（Bounds）が構成されます。
+4. **コンテキストメニューのトグル生成**: **「衣装メニューを追加」 (Install Outfit Menu)** が有効になっている場合、アバターのパイメニュー（コンテキストメニュー）内に衣装を着脱するためのトグルが自動生成されます。
 
 ## 所有権と安全性
 

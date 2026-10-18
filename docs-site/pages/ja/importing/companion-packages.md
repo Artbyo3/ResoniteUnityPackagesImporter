@@ -4,14 +4,14 @@
 
 ## コンパニオンによる依存解決
 
-1. **欠落している依存関係の検出**: インポートしたアバターが、プライマリパッケージ内に含まれていないテクスチャやマテリアルを参照している場合、ステーションはマテリアルが別のパッケージにあることを示す通知モーダルを表示します。ユーザーは **Import Companion Package**（コンパニオンを取り込む）、**Continue with Placeholder Materials**（プレースホルダーマテリアルで続行）、または利用できない場合はキャンセルを選択できます。
+1. **欠落している依存関係の検出**: インポートしたアバターが、プライマリパッケージ内に含まれていないテクスチャやマテリアルを参照している場合、ステーションは **「マテリアルは別パッケージにあります」 (Materials are in another package)** という通知ダイアログを表示します。ユーザーは **「追加パッケージをインポート」 (Import Companion Package)**、**「仮のマテリアルで続行」 (Continue with Placeholder Materials)**、または利用できない場合はキャンセルを選択できます。
 
     <figure markdown="span">
       ![コンパニオンパッケージ要求プロンプト](../images/companion-package-prompt.png){ width="480" }
       <figcaption>インポートしたモデルがコンパニオンマテリアルを必要とする際に表示されるステーションの通知。</figcaption>
     </figure>
 
-2. **コンパニオンの受け入れ**: **Import Companion Package** をタップすると、ステーションは外部パッケージの受信待機状態に入ります。追加の `.unitypackage` ファイルをセッション内に直接ドラッグ＆ドロップしてください。
+2. **コンパニオンの受け入れ**: **「追加パッケージをインポート」** をタップすると、ステーションは **「パッケージを待機中」 (Waiting for package)** の待機状態に入ります。追加の `.unitypackage` ファイルをセッション内に直接ドラッグ＆ドロップしてください。
 
     <figure markdown="span">
       ![コンパニオンパッケージ待機状態](../images/companion-package-waiting.png){ width="360" }
