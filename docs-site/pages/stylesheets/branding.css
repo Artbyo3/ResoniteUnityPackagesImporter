@@ -15,3 +15,13 @@
   opacity: 0.8;
 }
 
+/* Avatar comparison widget image slots */
+[data-avatar-slot="resonite"] {
+  --avatar-image: url('../images/avatar-resonite.png');
+}
+
+[data-avatar-slot="vrchat"] {
+  --avatar-image: url('../images/avatar-vrchat.png');
+}
+
+

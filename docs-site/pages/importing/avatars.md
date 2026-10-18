@@ -8,6 +8,12 @@ The importer reconstructs humanoid avatars from Unity packages and stages them f
     - **Import Unity Package**: Launches the interactive staging station.
     - **Import Binaries**: Extracts all files as raw binary assets into the world.
     - **Cancel**: Aborts the operation without unpacking.
+
+    <figure markdown="span">
+      ![Pre-import intake prompt](../images/pre-import-prompt.png){ width="480" }
+      <figcaption>The pre-import prompt modal shown when dropping a Unity package into Resonite.</figcaption>
+    </figure>
+
 2. **Station staging**: When you choose the station, the package is extracted to a dedicated cache and verified. Staged prefabs are prepared for inspection.
 3. **Review and customize**: The station tablet displays each detected avatar or prefab:
     - **3D Turntable preview**: Rotate the avatar 360° using the interactive turntable slider on the preview pedestal.
@@ -31,3 +37,28 @@ The importer reconstructs humanoid avatars from Unity packages and stages them f
 - **Shader presets**: Each item defaults to **Automatic** conversion. You can also explicitly override with **Toon** or **PBS**.
 - **Item-level limitation warnings**: Visual approximations (such as unsupported blend modes, dynamic UV scrolling, unbaked lilToon layers, or second emission maps) are tracked as non-blocking limitations (`IsPartial = true`). The avatar remains structurally ready and can be created normally.
 - **In-world receipts**: The importer attaches a persistent receipt to the avatar slot detailing the package source, assigned materials, and any visual limitations.
+
+### Material customizer controls
+
+The station's material customizer provides tools to examine and override materials and textures across all detected meshes:
+
+<div class="grid cards" markdown>
+
+-   **Mesh and slot list**
+
+    ---
+
+    ![Material Customizer mesh list](../images/material-customizer-meshes.png)
+
+    Inspect all detected skinned mesh renderers, check submesh slot counts, and quickly locate specific parts using the search filter.
+
+-   **Package folder navigation**
+
+    ---
+
+    ![Folder navigation in the Material Customizer](../images/material-customizer-folders.png)
+
+    Browse texture and material folders within the extracted package to select and assign alternate assets directly.
+
+</div>
+
