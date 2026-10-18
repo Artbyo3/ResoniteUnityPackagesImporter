@@ -37,5 +37,5 @@ The importer supports configuration options through ResoniteModLoader. You can c
 | --- | --- | --- |
 | `importPrefab` | `true` | Intercepts dropped `.unitypackage` files to stage and reconstruct supported prefabs and scenes in the station. |
 | `dumpPackageContents` | `false` | When enabled alongside `importPrefab`, extracts and imports all package files into the world rather than just prefabs. |
-| `importAsRawFiles` | `false` | Imports files inside unity packages as raw binary assets directly. |
+| `importAsRawFiles` | `false` | When enabled, imports package files directly through Resonite's native file importer instead of processing them through the importer station. |
 

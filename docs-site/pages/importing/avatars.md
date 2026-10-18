@@ -4,10 +4,10 @@ The importer reconstructs humanoid avatars from Unity packages and stages them f
 
 ## Import workflow
 
-1. **Package intake**: Drag and drop a `.unitypackage` file into Resonite. The pre-import prompt displays the package name, file size, and gives three options:
-    - **Import Unity Package**: Launches the interactive staging station.
-    - **Import Binaries**: Extracts all files as raw binary assets into the world.
-    - **Cancel**: Aborts the operation without unpacking.
+1. **Package intake**: Drag and drop a `.unitypackage` file into Resonite. The pre-import prompt displays the package name, file size, and provides three choices:
+    - **Import Unity Package**: Launches the interactive staging station to reconstruct, inspect, and configure avatars and prefabs.
+    - **Import as Raw File**: Bypasses the station and imports the file directly through Resonite's native file importer, the same way standard Resonite handles raw files.
+    - **Cancel**: Aborts the operation without unpacking or importing.
 
     <figure markdown="span">
       ![Pre-import intake prompt](../images/pre-import-prompt.png){ width="480" }
