@@ -52,6 +52,14 @@ The station's material customizer provides tools to examine and override materia
 
     Inspect all detected skinned mesh renderers, check submesh slot counts, and quickly locate specific parts using the search filter.
 
+-   **Material sphere picker**
+
+    ---
+
+    ![Choose material preview spheres](../images/material-customizer-spheres.png)
+
+    Visual preview spheres render each material with realistic shading and reflections, letting you pick variants before committing.
+
 -   **Package folder navigation**
 
     ---
