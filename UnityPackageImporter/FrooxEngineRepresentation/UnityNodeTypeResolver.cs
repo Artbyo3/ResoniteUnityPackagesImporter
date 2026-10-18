@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using YamlDotNet.Core.Events;
 using YamlDotNet.Serialization;
 
@@ -10,7 +10,7 @@ class UnityNodeTypeResolver : INodeTypeResolver
 
     public bool Resolve(NodeEvent nodeEvent, ref Type currentType)
     {
-        if (nodeEvent.Tag != null && nodeEvent.Tag.Value.StartsWith(UnityTagPrefix))
+        if (nodeEvent.Tag != null && nodeEvent.Tag.Value.StartsWith(UnityTagPrefix, StringComparison.Ordinal))
         {
             if (!int.TryParse(nodeEvent.Tag.Value.Replace(UnityTagPrefix, ""), out _))
             {

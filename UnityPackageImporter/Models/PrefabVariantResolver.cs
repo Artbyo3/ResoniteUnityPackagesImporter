@@ -78,8 +78,11 @@ public static class PrefabVariantResolver
             }
             return meshGuid;
         }
-        catch
+        catch (Exception ex)
         {
+#if !REGRESSION_TESTS
+            UnityPackageImporter.Warn($"Failed to scan prefab '{file}' for source GUID: {ex.Message}");
+#endif
             return null;
         }
     }
@@ -263,8 +266,11 @@ public static class PrefabVariantResolver
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
+#if !REGRESSION_TESTS
+            UnityPackageImporter.Warn($"Failed to read prefab instance IDs from '{file}': {ex.Message}");
+#endif
         }
         return list;
     }

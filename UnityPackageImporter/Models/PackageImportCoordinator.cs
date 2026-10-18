@@ -179,6 +179,7 @@ internal static class PackageImportCoordinator
         }
         catch (System.OperationCanceledException) when (session?.Token.IsCancellationRequested == true)
         {
+            // Import was cancelled by user; clean up session staging.
             await default(ToWorld);
             await session.CleanupAsync();
         }

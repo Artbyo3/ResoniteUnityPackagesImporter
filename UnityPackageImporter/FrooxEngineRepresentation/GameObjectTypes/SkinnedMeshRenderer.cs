@@ -277,8 +277,9 @@ public class SkinnedMeshRenderer : IUnityObject
                             materials.RemoveAt(i);
                             materials.Insert(i, new FileImportHelperTaskMaterial(importer.unityProjectImporter));
                         }
-                        catch
+                        catch (ArgumentOutOfRangeException)
                         {
+                            // If slot index i exceeds the current materials count, append the fallback material to the end.
                             materials.Add(new FileImportHelperTaskMaterial(importer.unityProjectImporter));
                         }
                         await default(ToBackground);
@@ -293,8 +294,9 @@ public class SkinnedMeshRenderer : IUnityObject
                             materials.RemoveAt(i);
                             materials.Insert(i, new FileImportHelperTaskMaterial(importer.unityProjectImporter));
                         }
-                        catch
+                        catch (ArgumentOutOfRangeException)
                         {
+                            // If slot index i exceeds the current materials count, append the fallback material to the end.
                             materials.Add(new FileImportHelperTaskMaterial(importer.unityProjectImporter));
                         }
                         await default(ToBackground);

@@ -128,13 +128,19 @@ internal static class LocalizationManager
                             using var doc = JsonDocument.Parse(stream);
                             ParseLocaleDocument(doc.RootElement);
                         }
-                        catch { }
+                        catch (Exception ex)
+                        {
+                            Warn("Failed to load localization override: " + file + " -> " + ex.Message);
+                        }
                     }
                     break;
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Warn("Failed to load development localization overrides: " + ex.Message);
+        }
     }
 
     private static void ParseLocaleDocument(JsonElement root)
@@ -215,7 +221,10 @@ internal static class LocalizationManager
         {
             FrooxEngine.Settings.RegisterValueChanges<LocaleSettings>(OnLocaleSettingsChanged);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Warn("Failed to register locale settings hook: " + ex.Message);
+        }
 #endif
     }
 
@@ -234,7 +243,10 @@ internal static class LocalizationManager
             string norm = NormalizeLocaleCode(code);
             GlobalLocaleChanged?.Invoke(norm);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Warn("Failed to handle locale settings change: " + ex.Message);
+        }
     }
 #endif
 
@@ -267,7 +279,10 @@ internal static class LocalizationManager
                 }
             }
         }
-        catch { }
+        catch (Exception)
+        {
+            // Settings system may not be initialized yet; safely fall back to Userspace component.
+        }
 
         try
         {
@@ -288,7 +303,10 @@ internal static class LocalizationManager
                 }
             }
         }
-        catch { }
+        catch (Exception)
+        {
+            // Userspace world may be unavailable or destroyed; safely fall back to system culture.
+        }
 #endif
 
         try
@@ -306,7 +324,10 @@ internal static class LocalizationManager
                 if (snapshot.ContainsKey(norm)) return norm;
             }
         }
-        catch { }
+        catch (Exception)
+        {
+            // System culture lookup failed; safely fall back to default English.
+        }
 
         return "en";
     }
@@ -328,6 +349,7 @@ internal static class LocalizationManager
             }
             catch (FormatException)
             {
+                // Return unformatted template if format string arguments do not match.
                 return template;
             }
         }
@@ -349,6 +371,7 @@ internal static class LocalizationManager
         }
         catch (FormatException)
         {
+            // Template contains invalid or unsatisfied format tokens; safely report not static.
             return false;
         }
     }

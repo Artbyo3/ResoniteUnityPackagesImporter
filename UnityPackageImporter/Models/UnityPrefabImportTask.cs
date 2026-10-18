@@ -167,7 +167,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 {
                     movethese.Add(existingIUnityObjects[trans.m_GameObjectID]);
                 }
-                catch
+                catch (KeyNotFoundException)
                 {
                     UnityPackageImporter.Warn("transform with id \"" + trans.id.ToString() + "\" does not have a parent game object! This is bad!");
                 }

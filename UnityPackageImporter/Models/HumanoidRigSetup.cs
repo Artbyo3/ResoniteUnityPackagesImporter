@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Elements.Core;
@@ -76,9 +77,12 @@ internal static class HumanoidRigSetup
                     BodyNode node = BodyNode.NONE;
                     try
                     {
-                        node = biped.Bones.FirstOrDefault(i => i.Value != null && i.Value.Name.Equals(slot.Name)).Key;
+                        node = biped.Bones.FirstOrDefault(i => i.Value != null && i.Value.Name.Equals(slot.Name, StringComparison.Ordinal)).Key;
                     }
-                    catch (Exception) { } //this is to catch key not found so we shouldn't handle this.
+                    catch (NullReferenceException)
+                    {
+                        // Bone with a null Name is skipped; node remains BodyNode.NONE.
+                    }
 
                     if (BodyNode.NONE != node)
                     {

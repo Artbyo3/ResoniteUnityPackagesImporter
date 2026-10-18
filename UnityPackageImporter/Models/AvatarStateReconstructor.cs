@@ -61,15 +61,15 @@ public static class AvatarStateReconstructor
         for (int i = 0; i < lines.Length; i++)
         {
             string line = lines[i].Trim();
-            if (line.StartsWith("path:"))
+            if (line.StartsWith("path:", StringComparison.Ordinal))
             {
                 curPath = line.Substring(5).Trim().Trim('\'', '\"');
             }
-            else if (line.StartsWith("attribute:"))
+            else if (line.StartsWith("attribute:", StringComparison.Ordinal))
             {
                 curAttr = line.Substring(10).Trim();
             }
-            else if (line.StartsWith("value:") && curVal == null)
+            else if (line.StartsWith("value:", StringComparison.Ordinal) && curVal == null)
             {
                 string vStr = line.Substring(6).Trim();
                 if (float.TryParse(vStr, NumberStyles.Float, CultureInfo.InvariantCulture, out float val))

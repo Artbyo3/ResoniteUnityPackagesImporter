@@ -81,9 +81,9 @@ internal static class BoundedTaskScheduler
             {
                 await Task.WhenAll(tasks).ConfigureAwait(false);
             }
-            catch
+            catch (Exception)
             {
-                // Discard exceptions from tasks that were cancelled during drain
+                // Discard exceptions from tasks that were cancelled during drain before rethrowing original cancellation.
             }
             throw;
         }

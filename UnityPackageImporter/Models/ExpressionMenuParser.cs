@@ -50,7 +50,7 @@ public static class ExpressionMenuParser
         for (int i = 0; i < lines.Length; i++)
         {
             string line = lines[i].Trim();
-            if (line.StartsWith("parameters:"))
+            if (line.StartsWith("parameters:", StringComparison.Ordinal))
             {
                 inParameters = true;
                 continue;
@@ -58,7 +58,7 @@ public static class ExpressionMenuParser
 
             if (!inParameters) continue;
 
-            if (line.StartsWith("- name:"))
+            if (line.StartsWith("- name:", StringComparison.Ordinal))
             {
                 if (current != null && !string.IsNullOrEmpty(current.Name))
                 {
@@ -71,16 +71,16 @@ public static class ExpressionMenuParser
             }
             else if (current != null)
             {
-                if (line.StartsWith("valueType:"))
+                if (line.StartsWith("valueType:", StringComparison.Ordinal))
                 {
                     if (int.TryParse(line.Substring(10).Trim(), out int vt)) current.ValueType = vt;
                 }
-                else if (line.StartsWith("defaultValue:"))
+                else if (line.StartsWith("defaultValue:", StringComparison.Ordinal))
                 {
                     if (float.TryParse(line.Substring(13).Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float dv))
                         current.DefaultValue = dv;
                 }
-                else if (line.StartsWith("saved:"))
+                else if (line.StartsWith("saved:", StringComparison.Ordinal))
                 {
                     if (int.TryParse(line.Substring(6).Trim(), out int s)) current.Saved = s != 0;
                 }
@@ -113,7 +113,7 @@ public static class ExpressionMenuParser
         for (int i = 0; i < lines.Length; i++)
         {
             string line = lines[i].Trim();
-            if (line.StartsWith("controls:"))
+            if (line.StartsWith("controls:", StringComparison.Ordinal))
             {
                 inControls = true;
                 continue;
@@ -121,7 +121,7 @@ public static class ExpressionMenuParser
 
             if (!inControls) continue;
 
-            if (line.StartsWith("- name:"))
+            if (line.StartsWith("- name:", StringComparison.Ordinal))
             {
                 if (current != null) menu.Controls.Add(current);
                 current = new VrcMenuControl
@@ -131,25 +131,25 @@ public static class ExpressionMenuParser
             }
             else if (current != null)
             {
-                if (line.StartsWith("icon:"))
+                if (line.StartsWith("icon:", StringComparison.Ordinal))
                 {
                     current.IconGuid = ExtractGuid(line);
                 }
-                else if (line.StartsWith("type:"))
+                else if (line.StartsWith("type:", StringComparison.Ordinal))
                 {
                     if (int.TryParse(line.Substring(5).Trim(), out int t)) current.Type = t;
                 }
-                else if (line.StartsWith("name:") && string.IsNullOrEmpty(current.ParameterName))
+                else if (line.StartsWith("name:", StringComparison.Ordinal) && string.IsNullOrEmpty(current.ParameterName))
                 {
                     // under parameter:
                     current.ParameterName = line.Substring(5).Trim().Trim('\'', '\"');
                 }
-                else if (line.StartsWith("value:"))
+                else if (line.StartsWith("value:", StringComparison.Ordinal))
                 {
                     if (float.TryParse(line.Substring(6).Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float val))
                         current.Value = val;
                 }
-                else if (line.StartsWith("subMenu:"))
+                else if (line.StartsWith("subMenu:", StringComparison.Ordinal))
                 {
                     current.SubMenuGuid = ExtractGuid(line);
                 }
@@ -162,7 +162,7 @@ public static class ExpressionMenuParser
 
     public static string ExtractGuid(string line)
     {
-        int idx = line.IndexOf("guid:");
+        int idx = line.IndexOf("guid:", StringComparison.Ordinal);
         if (idx < 0) return null;
         string sub = line.Substring(idx + 5).Trim();
         int end = sub.IndexOfAny(new[] { ',', ' ', '}', '\r', '\n' });

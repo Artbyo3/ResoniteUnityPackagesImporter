@@ -325,7 +325,10 @@ internal static class StationTemplateLoader
                 }
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            UnityPackageImporter.Warn("Failed to configure world font fallbacks: " + ex.Message);
+        }
     }
 
     private static void StartLocaleWatcher(Slot host, StationTemplate template, string initialLocale)

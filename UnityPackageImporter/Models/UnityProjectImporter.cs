@@ -606,7 +606,8 @@ public class UnityProjectImporter
         foreach (KeyValuePair<string,string> pair in AssetIDDict)
         {
             string[] filename = pair.Value.Split('.');
-            if(new string[]{"fbx"}.Contains(filename[filename.Length-1].ToLower())){
+            if (string.Equals(filename[filename.Length - 1], "fbx", StringComparison.OrdinalIgnoreCase))
+            {
 
                 if (!SharedImportedFBXScenes.ContainsKey(pair.Key))
                 {
@@ -621,7 +622,7 @@ public class UnityProjectImporter
         foreach (KeyValuePair<string, string> pair in AssetIDDict)
         {
             string[] filename = pair.Value.Split('.');
-            if (new string[] { "fbx" }.Contains(filename[filename.Length - 1].ToLower()))
+            if (string.Equals(filename[filename.Length - 1], "fbx", StringComparison.OrdinalIgnoreCase))
             {
                 if (!SharedImportedFBXScenes.ContainsKey(pair.Key))
                 {

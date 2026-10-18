@@ -156,7 +156,10 @@ internal sealed class UnityStationHandle
                     if (allowWhileBusy) await action();
                     else using (session.Enter()) await action();
                 }
-                catch (OperationCanceledException) when (session.Token.IsCancellationRequested) { }
+                catch (OperationCanceledException) when (session.Token.IsCancellationRequested)
+                {
+                    // Action was cancelled by user; safe to ignore.
+                }
                 catch (Exception ex)
                 {
                     await default(ToWorld);
@@ -388,7 +391,10 @@ internal sealed class UnityStationHandle
             {
                 using (session.Enter()) await action();
             }
-            catch (OperationCanceledException) when (session.Token.IsCancellationRequested) { }
+            catch (OperationCanceledException) when (session.Token.IsCancellationRequested)
+            {
+                // Action was cancelled by user; safe to ignore.
+            }
             catch (Exception ex)
             {
                 await default(ToWorld);

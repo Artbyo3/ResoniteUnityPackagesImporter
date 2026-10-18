@@ -558,7 +558,7 @@ public class FileImportTaskScene
         string type = classId.ToString();
         SourceObj sourceObj = new SourceObj();
         string endingtype = "";
-        if (!type.Equals("GameObject") && !type.Equals("Mesh"))
+        if (!type.Equals("GameObject", StringComparison.Ordinal) && !type.Equals("Mesh", StringComparison.Ordinal))
         {
             endingtype = "/"+type;
         }
@@ -574,7 +574,7 @@ public class FileImportTaskScene
             string nummatch = item.Key.ToString();
 
             // The format is: "{numident}+00002" or "{numident}+00012" and so on. So removing 5 chars gives us our identifier.
-            if (thisname == item.Value && nummatch.Length > 5 && nummatch.Remove(nummatch.Length - 5).Equals(numident))
+            if (thisname == item.Value && nummatch.Length > 5 && nummatch.Remove(nummatch.Length - 5).Equals(numident, StringComparison.Ordinal))
             {
                 sourceObj.fileID = item.Key; //In case it's already defined in the metafile, because unity is weird - @989onan
             }

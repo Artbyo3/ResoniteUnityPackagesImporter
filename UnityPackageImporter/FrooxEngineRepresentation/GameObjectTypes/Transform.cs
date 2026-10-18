@@ -77,7 +77,7 @@ public class Transform: IUnityObject
                             alreadydefined.parentHashedGameObj?.m_CorrespondingSourceObject != null)
                         {
                             if (actual.m_CorrespondingSourceObject.fileID == alreadydefined.parentHashedGameObj.m_CorrespondingSourceObject.fileID
-                                && actual.m_CorrespondingSourceObject.guid.Equals(alreadydefined.parentHashedGameObj.m_CorrespondingSourceObject.guid))
+                                && string.Equals(actual.m_CorrespondingSourceObject.guid, alreadydefined.parentHashedGameObj.m_CorrespondingSourceObject.guid, StringComparison.OrdinalIgnoreCase))
                             {
                                 UnityPackageImporter.Msg("transform import stage 1.5");
                                 this.parentHashedGameObj = actual;

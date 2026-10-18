@@ -29,7 +29,11 @@ internal static class NativeAvatarCreation
         if (ik == null || ik.Solver.BoneReferences.leftHand.Target == null || ik.Solver.BoneReferences.rightHand.Target == null)
             return NativeAvatarReadiness.MissingIk;
         try { ResolveViewpoint(item, rigs[0], reportFallback: false); }
-        catch (InvalidOperationException) { return NativeAvatarReadiness.MissingViewpoint; }
+        catch (InvalidOperationException)
+        {
+            // Missing head/viewpoint indicates the avatar is not ready for native creation.
+            return NativeAvatarReadiness.MissingViewpoint;
+        }
         return NativeAvatarReadiness.Ready;
     }
 

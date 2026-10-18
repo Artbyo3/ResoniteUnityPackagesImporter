@@ -1723,7 +1723,10 @@ internal sealed class MaterialCustomizerController
                     image.Tint.Value = colorX.White;
                 });
             }
-            catch (OperationCanceledException) { }
+            catch (OperationCanceledException)
+            {
+                // Thumbnail loading was cancelled; safe to ignore.
+            }
             catch (Exception ex)
             {
                 UnityPackageImporter.Warn($"Could not load thumbnail for material {materialGuid}: {ex.Message}");

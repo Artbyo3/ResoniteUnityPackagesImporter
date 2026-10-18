@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
@@ -31,7 +32,7 @@ internal static class UniversalImporterPatch
         UnityPackageImporter.Msg("Run UnityPackageImporter patch.");
         foreach (var file in files)
         {
-            if (Path.GetExtension(file).ToLower() == UNITY_PACKAGE_EXTENSION)
+            if (string.Equals(Path.GetExtension(file), UNITY_PACKAGE_EXTENSION, StringComparison.OrdinalIgnoreCase))
                 hasUnityPackage.Add(file);
             else
                 notUnityPackage.Add(file);

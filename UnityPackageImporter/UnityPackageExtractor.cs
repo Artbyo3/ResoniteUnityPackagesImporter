@@ -93,7 +93,11 @@ public static class UnityPackageExtractor
             if (split < 1 || !long.TryParse(line[..split], out var length)) return false;
             string path;
             try { path = AssetPath(root, line[(split + 1)..]); }
-            catch (InvalidDataException) { return false; }
+            catch (InvalidDataException)
+            {
+                // Invalid asset path in marker indicates corrupted cache; safely treat as uncompleted.
+                return false;
+            }
             RejectReparsePoints(path);
             if (!File.Exists(path) || new FileInfo(path).Length != length) return false;
             files.Add(path);
@@ -174,7 +178,7 @@ public static class UnityPackageExtractor
     {
         var name = part.Split('.')[0].ToUpperInvariant();
         return name is "CON" or "PRN" or "AUX" or "NUL" ||
-            (name.Length == 4 && (name.StartsWith("COM") || name.StartsWith("LPT")) && char.IsDigit(name[3]));
+            (name.Length == 4 && (name.StartsWith("COM", StringComparison.Ordinal) || name.StartsWith("LPT", StringComparison.Ordinal)) && char.IsDigit(name[3]));
     }
 
     private static void RejectReparsePoints(string path)

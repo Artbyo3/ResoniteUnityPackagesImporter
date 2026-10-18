@@ -83,7 +83,10 @@ internal static class PoiyomiRamp
         {
             File.WriteAllBytes(temporary, bytes);
             try { File.Move(temporary, path); }
-            catch (IOException) when (File.Exists(path)) { }
+            catch (IOException) when (File.Exists(path))
+            {
+                // Another thread already generated and moved the ramp texture into place.
+            }
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
         return path;

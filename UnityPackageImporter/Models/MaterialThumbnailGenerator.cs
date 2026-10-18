@@ -75,7 +75,12 @@ internal static class MaterialThumbnailGenerator
                 return col;
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+#if !REGRESSION_TESTS
+            UnityPackageImporter.Warn($"Failed to read material base color for '{materialGuid}': {ex.Message}");
+#endif
+        }
 
         return (0.8f, 0.8f, 0.8f, 1.0f);
     }
@@ -117,8 +122,9 @@ internal static class MaterialThumbnailGenerator
 
             return (w, h, bytes);
         }
-        catch
+        catch (Exception ex)
         {
+            UnityPackageImporter.Warn($"Failed to load bitmap from '{filePath}': {ex.Message}");
             return null;
         }
     }
@@ -173,6 +179,7 @@ internal static class MaterialThumbnailGenerator
                 }
                 catch (IOException)
                 {
+                    // Concurrent thumbnail generation may lock or replace the destination; clean up temp file.
                     if (File.Exists(tempFile)) File.Delete(tempFile);
                 }
 
