@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.Collections.Generic;
 
@@ -7,10 +8,14 @@ internal static class BlendShapeDefaults
 {
     // Unity stores percentage weights; Resonite uses unit weights. Preserve
     // intentional negative weights and values beyond the normal range.
-    public static void ApplyNamed(IReadOnlyList<float> weights, IReadOnlyList<string> sourceNames,
+    public static void ApplyNamed(IReadOnlyList<float>? weights, IReadOnlyList<string>? sourceNames,
         Func<string, int> findIndex, Action<int, float> setWeight, Action<string> warn)
     {
         if (weights == null || weights.Count == 0) return;
+        ArgumentNullException.ThrowIfNull(findIndex);
+        ArgumentNullException.ThrowIfNull(setWeight);
+        ArgumentNullException.ThrowIfNull(warn);
+
         if (sourceNames == null || weights.Count > sourceNames.Count)
         {
             warn("Cannot safely map prefab blendshape defaults: original FBX shape names are unavailable or incomplete.");

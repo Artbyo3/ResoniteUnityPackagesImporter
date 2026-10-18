@@ -1,3 +1,4 @@
+#nullable enable
 using System;
 using System.IO;
 using System.Text;
@@ -10,7 +11,7 @@ public static class ModelScaleHelper
     private static readonly byte[] UnitScaleFactorBytes = Encoding.ASCII.GetBytes("UnitScaleFactor");
     private static readonly Regex AsciiUnitScaleRegex = new Regex(@"UnitScaleFactor[^\r\n]*,[^\r\n]*,[^\r\n]*,[^\r\n]*,\s*([0-9.]+)", RegexOptions.Compiled);
 
-    public static Action<string> WarnHandler { get; set; } = msg => Console.WriteLine("[WARN] " + msg);
+    public static Action<string>? WarnHandler { get; set; } = msg => Console.WriteLine("[WARN] " + msg);
 
     private static void LogWarn(string message)
     {
@@ -24,7 +25,7 @@ public static class ModelScaleHelper
     /// ASCII FBX stores it as a property line: P: "UnitScaleFactor", "double", "Number", "", 100
     /// Returns 100.0 (meters) as the standard default if not found.
     /// </summary>
-    public static float GetFbxUnitScaleFactor(string fbxPath)
+    public static float GetFbxUnitScaleFactor(string? fbxPath)
     {
         if (string.IsNullOrEmpty(fbxPath) || !File.Exists(fbxPath))
             return 100f;
@@ -102,6 +103,8 @@ public static class ModelScaleHelper
 
     private static int FindBytes(byte[] haystack, int count, byte[] needle)
     {
+        ArgumentNullException.ThrowIfNull(haystack);
+        ArgumentNullException.ThrowIfNull(needle);
         if (needle.Length == 0 || count < needle.Length) return -1;
         for (int i = 0; i <= count - needle.Length; i++)
         {

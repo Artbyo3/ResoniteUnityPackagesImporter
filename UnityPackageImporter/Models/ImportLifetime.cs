@@ -1,4 +1,6 @@
+#nullable enable
 using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -22,7 +24,7 @@ internal sealed class ImportLifetime
         }
     }
 
-    public bool TryEnter(out IDisposable? lease)
+    public bool TryEnter([NotNullWhen(true)] out IDisposable? lease)
     {
         lock (sync)
         {
@@ -39,7 +41,7 @@ internal sealed class ImportLifetime
 
     public IDisposable Enter()
     {
-        if (TryEnter(out var lease)) return lease!;
+        if (TryEnter(out var lease)) return lease;
         throw new OperationCanceledException(Token);
     }
 
@@ -62,8 +64,8 @@ internal sealed class ImportLifetime
 
     private sealed class Lease : IDisposable
     {
-        private ImportLifetime owner;
-        public Lease(ImportLifetime owner) => this.owner = owner;
+        private ImportLifetime? owner;
+        public Lease(ImportLifetime owner) => this.owner = owner ?? throw new ArgumentNullException(nameof(owner));
         public void Dispose() => Interlocked.Exchange(ref owner, null)?.Exit();
     }
 }
