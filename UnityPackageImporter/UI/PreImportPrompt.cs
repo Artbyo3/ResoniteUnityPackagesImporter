@@ -37,7 +37,6 @@ internal sealed class PreImportPrompt
     private void Bind(string key, PackageImportChoice result)
     {
         var button = template.Get<Button>(key);
-        UnityStationHandle.ReleaseFixtureActions(button);
         NativeButtonEvents.Pressed(button, (_, _) => choice.TrySetResult(result));
     }
     public static async Task<PreImportPrompt> SpawnAsync(World world, float3 position, floatQ rotation, IReadOnlyList<string> files)

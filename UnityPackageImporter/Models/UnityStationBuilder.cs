@@ -60,8 +60,8 @@ internal sealed class UnityStationHandle
         Bind("next", () => SelectAsync(items.SelectedIndex + 1));
         Bind("create", CreateAvatarAsync);
         Bind("install", InstallOutfitAsync);
-        Bind("targetChange", ChooseAvatarAsync, false);
-        Bind("targetField", ChooseAvatarAsync, false);
+        Bind("targetChange", ChooseAvatarAsync);
+        Bind("targetField", ChooseAvatarAsync);
         Bind("companionImport", () => decisionPrompt.InvokePrimaryAsync());
         Bind("companionBack", () => decisionPrompt.InvokeDismissAsync());
         Bind("companionPlaceholder", () => decisionPrompt.InvokeSecondaryAsync());
@@ -78,12 +78,6 @@ internal sealed class UnityStationHandle
         if (dragSurface != null)
         {
             previewTurntableSlider = dragSurface.GetComponent<Slider<float>>();
-            var angleMapper = dragSurface.GetComponent<LinearAngleMapper>();
-            if (angleMapper != null)
-            {
-                angleMapper.TargetMin.Value = new float3(0f, 360f, 0f);
-                angleMapper.TargetMax.Value = new float3(0f, 0f, 0f);
-            }
         }
         ResetPreviewTurntable();
         Get<ValueField<bool>>("shaderVisible").Value.Value = false;
@@ -91,12 +85,9 @@ internal sealed class UnityStationHandle
             tabletDriver.State.Value = false;
         SetCompanionState(false, false);
         // The source importer has no Shape Changer handler yet. Expose its actual availability.
-        Get<Checkbox>("bodyShape").State.Value = false;
-        Get<Checkbox>("bodyShape").Slot.GetComponent<Button>().Enabled = false;
         ui.SetLocalizedKey("bodyShapeDescription", "bodyShapeDescriptionUnsupported");
         SetActions(false);
         rowTemplate = Get<Button>("avatarRow").Slot;
-        foreach (var row in rowTemplate.Parent.Children.ToArray()) if (row != rowTemplate) row.Destroy();
         rowTemplate.ActiveSelf = false;
         materialCustomizer = new MaterialCustomizerController(
             ui,
@@ -142,10 +133,9 @@ internal sealed class UnityStationHandle
         if (previewSlot != null && !previewSlot.IsDestroyed && !previewSlot.Rotation_Field.IsDriven)
             previewSlot.LocalRotation = floatQ.Euler(0f, 180f, 0f);
     }
-    private void Bind(string key, Func<Task> action, bool replace = true, bool allowWhileBusy = false)
+    private void Bind(string key, Func<Task> action, bool allowWhileBusy = false)
     {
         Button button = Get<Button>(key);
-        if (replace) ReleaseFixtureActions(button);
         NativeButtonEvents.Pressed(button, (_, _) =>
         {
             if (!IsAlive || busy && !allowWhileBusy) return;
@@ -168,21 +158,6 @@ internal sealed class UnityStationHandle
                 }
             });
         });
-    }
-    internal static void ReleaseFixtureActions(Button button)
-    {
-        if (button?.Slot == null || button.Slot.IsDestroyed) return;
-        foreach (var component in button.Slot.Components.ToArray())
-        {
-            string typeName = component.GetType().Name;
-            if (component is ButtonDestroy || component is ButtonToggle ||
-                typeName.StartsWith("ButtonValueSet`", StringComparison.Ordinal) ||
-                typeName.StartsWith("ButtonReferenceSet`", StringComparison.Ordinal) ||
-                typeName.StartsWith("ButtonValueCycle`", StringComparison.Ordinal))
-            {
-                component.Enabled = false;
-            }
-        }
     }
     private void ResetOutcome()
     {
@@ -491,7 +466,6 @@ internal sealed class UnityStationHandle
             row.Name = "Avatar " + i;
             row.ActiveSelf = true;
             var button = row.GetComponent<Button>();
-            ReleaseFixtureActions(button);
             row.Children.Single(child => child.Name == "Labels").Children.Single(child => child.Name == "Title")
                 .GetComponent<Text>().Content.Value = "<b>" + Escape(candidate.Slot.Name) + "</b>";
             var check = row.GetComponentInChildren<ValueEqualityDriver<int>>();
@@ -754,6 +728,7 @@ internal sealed class UnityStationHandle
             try
             {
                 await default(ToWorld);
+                materialCustomizer?.Dispose();
                 if (ui.Root != null && !ui.Root.IsDestroyed)
                     ui.Root.Destroy();
                 if (ui.Host != null && !ui.Host.IsDestroyed)
