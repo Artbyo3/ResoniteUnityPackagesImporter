@@ -60,6 +60,7 @@
     "UI.Artbyo3.UnityPackageImporter.importCompanion": "<b>Importuj pakiet dodatkowy</b>",
     "UI.Artbyo3.UnityPackageImporter.importUnity": "<b>Importuj pakiet Unity</b>",
     "UI.Artbyo3.UnityPackageImporter.importedMaterial": "Zaimportowany materiał",
+    "UI.Artbyo3.UnityPackageImporter.importingHeader": "<b>Importowanie elementu…</b>",
     "UI.Artbyo3.UnityPackageImporter.initializing": "Inicjowanie potoku importu...",
     "UI.Artbyo3.UnityPackageImporter.installOutfit": "<b>Zainstaluj na wybranym awatarze</b>",
     "UI.Artbyo3.UnityPackageImporter.keepInWorld": "<b>Pozostaw w świecie</b>",

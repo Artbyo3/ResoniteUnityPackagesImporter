@@ -60,6 +60,7 @@
     "UI.Artbyo3.UnityPackageImporter.importCompanion": "<b>Impordi täiendav pakett</b>",
     "UI.Artbyo3.UnityPackageImporter.importUnity": "<b>Impordi Unity pakett</b>",
     "UI.Artbyo3.UnityPackageImporter.importedMaterial": "Imporditud materjal",
+    "UI.Artbyo3.UnityPackageImporter.importingHeader": "<b>Teie üksuse importimine…</b>",
     "UI.Artbyo3.UnityPackageImporter.initializing": "Impordikonveieri lähtestamine...",
     "UI.Artbyo3.UnityPackageImporter.installOutfit": "<b>Paigalda valitud avatarile</b>",
     "UI.Artbyo3.UnityPackageImporter.keepInWorld": "<b>Hoia maailmas</b>",

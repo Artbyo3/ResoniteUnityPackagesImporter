@@ -60,6 +60,7 @@
     "UI.Artbyo3.UnityPackageImporter.importCompanion": "<b>Kiegészítő csomag importálása</b>",
     "UI.Artbyo3.UnityPackageImporter.importUnity": "<b>Unity-csomag importálása</b>",
     "UI.Artbyo3.UnityPackageImporter.importedMaterial": "Importált anyag",
+    "UI.Artbyo3.UnityPackageImporter.importingHeader": "<b>Elem importálása…</b>",
     "UI.Artbyo3.UnityPackageImporter.initializing": "Importálási folyamat előkészítése...",
     "UI.Artbyo3.UnityPackageImporter.installOutfit": "<b>Telepítés a kiválasztott avatárra</b>",
     "UI.Artbyo3.UnityPackageImporter.keepInWorld": "<b>Megtartás a világban</b>",

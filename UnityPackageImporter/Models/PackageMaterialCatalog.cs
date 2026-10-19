@@ -117,8 +117,53 @@ internal sealed class PackageMaterialCatalog
         return slash < 0 ? "" : packagePath[..slash];
     }
 
+    /// <summary>
+    /// Orders material picker choices so the slot's current material is always the first card,
+    /// deduplicating catalog entries. If the current material is not in the catalog (e.g. runtime/missing),
+    /// a runtime-material choice without a GUID is placed first.
+    /// </summary>
+    public static IReadOnlyList<PackageMaterialChoice> OrderPickerChoices(
+        string? currentGuid,
+        string currentName,
+        (float r, float g, float b, float a) currentColor,
+        IEnumerable<PackageMaterialChoice> catalogChoices,
+        IEnumerable<PackageMaterialChoice>? allCatalogChoices = null)
+    {
+        var result = new List<PackageMaterialChoice>();
+        var seenGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        PackageMaterialChoice? matching = null;
+        if (!string.IsNullOrEmpty(currentGuid))
+        {
+            matching = catalogChoices.FirstOrDefault(c => c.Guid.Equals(currentGuid, StringComparison.OrdinalIgnoreCase))
+                ?? allCatalogChoices?.FirstOrDefault(c => c.Guid.Equals(currentGuid, StringComparison.OrdinalIgnoreCase));
+        }
+
+        if (matching != null)
+        {
+            result.Add(matching);
+            seenGuids.Add(matching.Guid);
+        }
+        else
+        {
+            // Runtime-material choice (no GUID: no thumbnail lookup)
+            result.Add(new PackageMaterialChoice("", currentName, "", "", currentColor));
+        }
+
+        foreach (var choice in catalogChoices)
+        {
+            if (string.IsNullOrEmpty(choice.Guid) || seenGuids.Add(choice.Guid))
+            {
+                result.Add(choice);
+            }
+        }
+
+        return result;
+    }
+
     private static string NormalizeFolder(string? folder)
     {
         return (folder ?? "").Replace('\\', '/').Trim('/').Replace("//", "/");
     }
 }
+

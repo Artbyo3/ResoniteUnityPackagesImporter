@@ -316,6 +316,58 @@ internal static class MaterialCustomizationTests
             cache.Clear();
             Check(cache.InFlightCount == 0 && cache.CachedUriCount == 0, "Cache clear should empty all entries.");
         });
+
+        test("Empty catalog yields exactly one card for the slot's current material", () =>
+        {
+            var emptyChoices = Array.Empty<PackageMaterialChoice>();
+            var ordered = PackageMaterialCatalog.OrderPickerChoices(
+                currentGuid: null,
+                currentName: "Missing Material",
+                currentColor: (0.75f, 0.75f, 0.75f, 1f),
+                catalogChoices: emptyChoices,
+                allCatalogChoices: emptyChoices);
+
+            Check(ordered.Count == 1, $"Empty catalog must yield exactly one card, got {ordered.Count}");
+            Check(ordered[0].Name == "Missing Material", "Card name should match current material name");
+            Check(string.IsNullOrEmpty(ordered[0].Guid), "Runtime card should have no GUID");
+            Check(ordered[0].BaseColor == (0.75f, 0.75f, 0.75f, 1f), "Runtime card should retain material color");
+        });
+
+        test("With catalog entries the current material is first and not duplicated", () =>
+        {
+            var choice1 = new PackageMaterialChoice("guid-1", "Material One", "Materials", "Assets/Materials/Material One.mat");
+            var choice2 = new PackageMaterialChoice("guid-2", "Material Two", "Materials", "Assets/Materials/Material Two.mat");
+            var choice3 = new PackageMaterialChoice("guid-3", "Material Three", "Materials", "Assets/Materials/Material Three.mat");
+            var catalog = new[] { choice1, choice2, choice3 };
+
+            // Scenario A: current material matches choice2
+            var orderedMatching = PackageMaterialCatalog.OrderPickerChoices(
+                currentGuid: "guid-2",
+                currentName: "Material Two",
+                currentColor: (1f, 1f, 1f, 1f),
+                catalogChoices: catalog,
+                allCatalogChoices: catalog);
+
+            Check(orderedMatching.Count == 3, $"Should have 3 cards, got {orderedMatching.Count}");
+            Check(orderedMatching[0].Guid == "guid-2", "Current material must be first");
+            Check(orderedMatching.Count(c => c.Guid == "guid-2") == 1, "Current material must not be duplicated");
+            Check(orderedMatching[1].Guid == "guid-1", "Remaining choices follow");
+            Check(orderedMatching[2].Guid == "guid-3", "Remaining choices follow");
+
+            // Scenario B: current material is not in catalog (runtime/missing)
+            var orderedNonMatching = PackageMaterialCatalog.OrderPickerChoices(
+                currentGuid: "unknown-guid",
+                currentName: "Custom Runtime Material",
+                currentColor: (0.5f, 0.5f, 0.5f, 1f),
+                catalogChoices: catalog,
+                allCatalogChoices: catalog);
+
+            Check(orderedNonMatching.Count == 4, $"Should have 4 cards (runtime + 3 catalog), got {orderedNonMatching.Count}");
+            Check(orderedNonMatching[0].Name == "Custom Runtime Material", "Runtime material must be first");
+            Check(string.IsNullOrEmpty(orderedNonMatching[0].Guid), "Runtime material should have empty GUID");
+            Check(orderedNonMatching.Skip(1).Select(c => c.Guid).SequenceEqual(new[] { "guid-1", "guid-2", "guid-3" }),
+                "Catalog choices follow without duplication");
+        });
     }
 
     private static void Check(bool condition, string message)

@@ -60,6 +60,7 @@
     "UI.Artbyo3.UnityPackageImporter.importCompanion": "<b>Import Companion Package</b>",
     "UI.Artbyo3.UnityPackageImporter.importUnity": "<b>Import Unity Package</b>",
     "UI.Artbyo3.UnityPackageImporter.importedMaterial": "Imported material",
+    "UI.Artbyo3.UnityPackageImporter.importingHeader": "<b>Importing your item…</b>",
     "UI.Artbyo3.UnityPackageImporter.initializing": "Initialising Import Pipeline...",
     "UI.Artbyo3.UnityPackageImporter.installOutfit": "<b>Install on Selected Avatar</b>",
     "UI.Artbyo3.UnityPackageImporter.keepInWorld": "<b>Keep in World</b>",

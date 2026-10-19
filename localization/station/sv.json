@@ -60,6 +60,7 @@
     "UI.Artbyo3.UnityPackageImporter.importCompanion": "<b>Importera tillhörande paket</b>",
     "UI.Artbyo3.UnityPackageImporter.importUnity": "<b>Importera Unity-paket</b>",
     "UI.Artbyo3.UnityPackageImporter.importedMaterial": "Importerat material",
+    "UI.Artbyo3.UnityPackageImporter.importingHeader": "<b>Importerar ditt objekt…</b>",
     "UI.Artbyo3.UnityPackageImporter.initializing": "Initierar importprocess...",
     "UI.Artbyo3.UnityPackageImporter.installOutfit": "<b>Installera på vald avatar</b>",
     "UI.Artbyo3.UnityPackageImporter.keepInWorld": "<b>Behåll i världen</b>",

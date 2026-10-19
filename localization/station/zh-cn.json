@@ -60,6 +60,7 @@
     "UI.Artbyo3.UnityPackageImporter.importCompanion": "<b>导入配套资源包</b>",
     "UI.Artbyo3.UnityPackageImporter.importUnity": "<b>导入 Unity 资源包</b>",
     "UI.Artbyo3.UnityPackageImporter.importedMaterial": "已导入材质",
+    "UI.Artbyo3.UnityPackageImporter.importingHeader": "<b>正在导入您的项目…</b>",
     "UI.Artbyo3.UnityPackageImporter.initializing": "正在初始化导入流程...",
     "UI.Artbyo3.UnityPackageImporter.installOutfit": "<b>安装到所选角色</b>",
     "UI.Artbyo3.UnityPackageImporter.keepInWorld": "<b>保留在世界中</b>",

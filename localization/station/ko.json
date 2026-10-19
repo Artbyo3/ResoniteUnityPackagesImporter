@@ -60,6 +60,7 @@
     "UI.Artbyo3.UnityPackageImporter.importCompanion": "<b>추가 패키지 임포트</b>",
     "UI.Artbyo3.UnityPackageImporter.importUnity": "<b>Unity 패키지 임포트</b>",
     "UI.Artbyo3.UnityPackageImporter.importedMaterial": "임포트된 머티리얼",
+    "UI.Artbyo3.UnityPackageImporter.importingHeader": "<b>항목을 가져오는 중…</b>",
     "UI.Artbyo3.UnityPackageImporter.initializing": "임포트 파이프라인 초기화 중...",
     "UI.Artbyo3.UnityPackageImporter.installOutfit": "<b>선택한 아바타에 착용</b>",
     "UI.Artbyo3.UnityPackageImporter.keepInWorld": "<b>월드에 배치</b>",

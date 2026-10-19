@@ -60,6 +60,7 @@
     "UI.Artbyo3.UnityPackageImporter.importCompanion": "<b>追加パッケージをインポート</b>",
     "UI.Artbyo3.UnityPackageImporter.importUnity": "<b>Unityパッケージをインポート</b>",
     "UI.Artbyo3.UnityPackageImporter.importedMaterial": "インポート済みマテリアル",
+    "UI.Artbyo3.UnityPackageImporter.importingHeader": "<b>アイテムをインポート中…</b>",
     "UI.Artbyo3.UnityPackageImporter.initializing": "インポートを準備中…",
     "UI.Artbyo3.UnityPackageImporter.installOutfit": "<b>選択したアバターに取り付け</b>",
     "UI.Artbyo3.UnityPackageImporter.keepInWorld": "<b>ワールドに配置</b>",

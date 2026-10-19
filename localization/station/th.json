@@ -60,6 +60,7 @@
     "UI.Artbyo3.UnityPackageImporter.importCompanion": "<b>นำเข้าแพ็กเกจเสริม</b>",
     "UI.Artbyo3.UnityPackageImporter.importUnity": "<b>นำเข้าแพ็กเกจ Unity</b>",
     "UI.Artbyo3.UnityPackageImporter.importedMaterial": "วัสดุที่นำเข้าแล้ว",
+    "UI.Artbyo3.UnityPackageImporter.importingHeader": "<b>กำลังนำเข้ารายการของคุณ…</b>",
     "UI.Artbyo3.UnityPackageImporter.initializing": "กำลังเริ่มต้นกระบวนการนำเข้า...",
     "UI.Artbyo3.UnityPackageImporter.installOutfit": "<b>ติดตั้งบนอวตารที่เลือก</b>",
     "UI.Artbyo3.UnityPackageImporter.keepInWorld": "<b>เก็บไว้ในโลก</b>",

@@ -60,6 +60,7 @@
     "UI.Artbyo3.UnityPackageImporter.importCompanion": "<b>Importovat doplňkový balíček</b>",
     "UI.Artbyo3.UnityPackageImporter.importUnity": "<b>Importovat balíček Unity</b>",
     "UI.Artbyo3.UnityPackageImporter.importedMaterial": "Importovaný materiál",
+    "UI.Artbyo3.UnityPackageImporter.importingHeader": "<b>Importování vaší položky…</b>",
     "UI.Artbyo3.UnityPackageImporter.initializing": "Inicializace procesu importu...",
     "UI.Artbyo3.UnityPackageImporter.installOutfit": "<b>Nainstalovat na vybraného avatara</b>",
     "UI.Artbyo3.UnityPackageImporter.keepInWorld": "<b>Ponechat ve světě</b>",

@@ -85,6 +85,7 @@ internal sealed class UnityStationHandle
         if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletDriver))
             tabletDriver.State.Value = true;
         Get<Slot>("nameCard").ActiveSelf = false;
+        SetImportingPanel(true);
         SetCompanionState(false, false);
         // The source importer has no Shape Changer handler yet. Expose its actual availability.
         ui.SetLocalizedKey("bodyShapeDescription", "bodyShapeDescriptionUnsupported");
@@ -221,7 +222,15 @@ internal sealed class UnityStationHandle
         // Keep the tablet's Close action accessible when import cannot stage.
         if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletScale))
             tabletScale.State.Value = true;
+        SetImportingPanel(false);
         SaveFailureReport(error);
+    }
+    private void SetImportingPanel(bool visible)
+    {
+        if (ui.TryGet<ValueField<bool>>("importingPanelVisible", out var field))
+            field.Value.Value = visible;
+        else if (ui.TryGet<BooleanValueDriver<bool>>("importingPanelVisible", out var driver))
+            driver.State.Value = visible;
     }
     private void SaveFailureReport(Exception error)
     {
@@ -406,6 +415,7 @@ internal sealed class UnityStationHandle
             previewScaleDriver.State.Value = true;
         Get<BooleanValueDriver<bool>>("mode").State.Value = IsOutfit;
         Get<Slot>("nameCard").ActiveSelf = true;
+        SetImportingPanel(false);
         Get<ValueField<bool>>("shaderVisible").Value.Value = false;
         Get<ValueField<string>>("shaderValue").Value.Value = FormatShaderPresetDisplay(presets[Current], CurrentLocale);
         Get<Text>("name").Content.Value = names[Current];
@@ -433,6 +443,7 @@ internal sealed class UnityStationHandle
     {
         if (preview != null && !preview.IsDestroyed) preview.Destroy();
         preview = null;
+        SetImportingPanel(false);
         Get<Slot>("nameCard").ActiveSelf = false;
         Get<Checkbox>("protect").Slot.Parent.ActiveSelf = false;
         Get<ValueField<bool>>("shaderVisible").Value.Value = false;

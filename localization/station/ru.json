@@ -60,6 +60,7 @@
     "UI.Artbyo3.UnityPackageImporter.importCompanion": "<b>Импортировать дополнительный пакет</b>",
     "UI.Artbyo3.UnityPackageImporter.importUnity": "<b>Импортировать пакет Unity</b>",
     "UI.Artbyo3.UnityPackageImporter.importedMaterial": "Импортированный материал",
+    "UI.Artbyo3.UnityPackageImporter.importingHeader": "<b>Импорт вашего объекта…</b>",
     "UI.Artbyo3.UnityPackageImporter.initializing": "Инициализация конвейера импорта...",
     "UI.Artbyo3.UnityPackageImporter.installOutfit": "<b>Установить на выбранный аватар</b>",
     "UI.Artbyo3.UnityPackageImporter.keepInWorld": "<b>Оставить в мире</b>",

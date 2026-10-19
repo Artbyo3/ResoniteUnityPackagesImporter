@@ -60,6 +60,7 @@
     "UI.Artbyo3.UnityPackageImporter.importCompanion": "<b>Нэмэлт багц импортлох</b>",
     "UI.Artbyo3.UnityPackageImporter.importUnity": "<b>Unity багц импортлох</b>",
     "UI.Artbyo3.UnityPackageImporter.importedMaterial": "Импортолсон материал",
+    "UI.Artbyo3.UnityPackageImporter.importingHeader": "<b>Таны зүйлийг оруулж байна…</b>",
     "UI.Artbyo3.UnityPackageImporter.initializing": "Импортын процессыг эхлүүлж байна...",
     "UI.Artbyo3.UnityPackageImporter.installOutfit": "<b>Сонгосон аватар дээр суулгах</b>",
     "UI.Artbyo3.UnityPackageImporter.keepInWorld": "<b>Ертөнцөд үлдээх</b>",

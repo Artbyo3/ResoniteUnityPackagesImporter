@@ -60,6 +60,7 @@
     "UI.Artbyo3.UnityPackageImporter.importCompanion": "<b>Aanvullend pakket importeren</b>",
     "UI.Artbyo3.UnityPackageImporter.importUnity": "<b>Unity-pakket importeren</b>",
     "UI.Artbyo3.UnityPackageImporter.importedMaterial": "Geïmporteerd materiaal",
+    "UI.Artbyo3.UnityPackageImporter.importingHeader": "<b>Je item importeren…</b>",
     "UI.Artbyo3.UnityPackageImporter.initializing": "Importpijplijn initialiseren...",
     "UI.Artbyo3.UnityPackageImporter.installOutfit": "<b>Installeren op geselecteerde avatar</b>",
     "UI.Artbyo3.UnityPackageImporter.keepInWorld": "<b>In wereld houden</b>",

@@ -1053,6 +1053,37 @@ internal sealed class MaterialCustomizerController : IDisposable
         await Task.CompletedTask;
     }
 
+    private static colorX ReadMaterialColor(IAssetProvider<Material>? material)
+    {
+        if (material == null) return new colorX(0.5f, 0.5f, 0.5f, 1f);
+        try
+        {
+            var type = material.GetType();
+            foreach (var name in new[] { "AlbedoColor", "TintColor", "Color", "BaseColor", "MainColor" })
+            {
+                var prop = type.GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (prop != null)
+                {
+                    var val = prop.GetValue(material);
+                    if (val is IField<colorX> field) return field.Value;
+                    if (val is colorX cx) return cx;
+                }
+                var fieldInfo = type.GetField(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
+                if (fieldInfo != null)
+                {
+                    var val = fieldInfo.GetValue(material);
+                    if (val is IField<colorX> field) return field.Value;
+                    if (val is colorX cx) return cx;
+                }
+            }
+        }
+        catch
+        {
+            // Fall back to neutral tint
+        }
+        return new colorX(0.5f, 0.5f, 0.5f, 1f);
+    }
+
     private void RefreshMaterialRows(string query)
     {
         if (!isAlive() || selectedSlot == null || !materialVisible.State.Value) return;
@@ -1063,34 +1094,51 @@ internal sealed class MaterialCustomizerController : IDisposable
 
         materialQuery = query ?? "";
 
-        IReadOnlyList<PackageMaterialChoice> choices;
+        IReadOnlyList<PackageMaterialChoice> catalogChoices;
         if (!string.IsNullOrWhiteSpace(materialQuery))
-            choices = materialCatalog.Search(materialQuery);
-        else
+            catalogChoices = materialCatalog != null ? materialCatalog.Search(materialQuery) : Array.Empty<PackageMaterialChoice>();
+        else if (materialCatalog != null)
         {
             var directChoices = materialCatalog.Search(folder: currentFolder)
                 .Where(choice => choice.Folder.Equals(currentFolder, StringComparison.OrdinalIgnoreCase))
                 .ToArray();
             if (directChoices.Length > 0)
             {
-                choices = directChoices;
+                catalogChoices = directChoices;
             }
             else
             {
                 var allInFolder = materialCatalog.Search(folder: currentFolder);
-                choices = allInFolder.Count > 16 ? allInFolder.Take(16).ToArray() : allInFolder;
+                catalogChoices = allInFolder.Count > 16 ? allInFolder.Take(16).ToArray() : allInFolder;
             }
         }
+        else
+        {
+            catalogChoices = Array.Empty<PackageMaterialChoice>();
+        }
+
+        var currentMaterial = selectedSlot.ReadCurrent();
+        string currentName = MaterialName(currentMaterial, getImporter(), materialCatalog);
+        string currentGuid = ResolveSlotMaterialGuid(selectedSlot);
+        colorX currentColorX = ReadMaterialColor(currentMaterial);
+        (float r, float g, float b, float a) currentColor = (currentColorX.r, currentColorX.g, currentColorX.b, currentColorX.a);
+
+        var choices = PackageMaterialCatalog.OrderPickerChoices(
+            currentGuid,
+            currentName,
+            currentColor,
+            catalogChoices,
+            materialCatalog?.Choices);
 
         if (materialCountText != null)
         {
             materialCountText.Content.Value = L("materialsCount", choices.Count);
         }
 
-        string currentGuid = ResolveSlotMaterialGuid(selectedSlot);
         for (int i = 0; i < choices.Count; i++)
         {
-            BindNativeMaterialCard(i, choices[i], currentGuid, cancellationToken);
+            bool isFirst = i == 0;
+            BindNativeMaterialCard(i, choices[i], currentGuid, cancellationToken, isExitCard: isFirst);
         }
         for (int i = choices.Count; i < pooledMaterialCards.Count; i++)
         {
@@ -1144,7 +1192,12 @@ internal sealed class MaterialCustomizerController : IDisposable
         return pooledMaterialCards[index];
     }
 
-    private void BindNativeMaterialCard(int index, PackageMaterialChoice choice, string currentGuid, CancellationToken cancellationToken)
+    private void BindNativeMaterialCard(
+        int index,
+        PackageMaterialChoice choice,
+        string currentGuid,
+        CancellationToken cancellationToken,
+        bool isExitCard = false)
     {
         PooledMaterialCard pooled = GetOrCreatePooledMaterialCard(index);
         Slot card = pooled.Card;
@@ -1157,7 +1210,7 @@ internal sealed class MaterialCustomizerController : IDisposable
 
         pooled.NameLabel?.SetText(label);
 
-        bool isCurrent = !string.IsNullOrEmpty(currentGuid) && choice.Guid.Equals(currentGuid, StringComparison.OrdinalIgnoreCase);
+        bool isCurrent = isExitCard || (!string.IsNullOrEmpty(currentGuid) && choice.Guid.Equals(currentGuid, StringComparison.OrdinalIgnoreCase));
         if (pooled.OutlineSlot != null)
         {
             pooled.OutlineSlot.ActiveSelf = isCurrent;
@@ -1166,16 +1219,30 @@ internal sealed class MaterialCustomizerController : IDisposable
         if (pooled.SphereImage != null && pooled.SphereSlot != null)
         {
             pooled.SphereImage.Sprite.Target = null;
-            var baseCol = choice.BaseColor != default
+            (float r, float g, float b, float a) baseCol = choice.BaseColor != default
                 ? choice.BaseColor
-                : MaterialThumbnailGenerator.GetMaterialBaseColor(choice.Guid, getImporter());
+                : (string.IsNullOrEmpty(choice.Guid) ? (r: 0.5f, g: 0.5f, b: 0.5f, a: 1f) : MaterialThumbnailGenerator.GetMaterialBaseColor(choice.Guid, getImporter()));
             pooled.SphereImage.Tint.Value = new colorX(baseCol.r, baseCol.g, baseCol.b, baseCol.a);
 
-            ApplyMaterialThumbnail(card, pooled.SphereSlot, pooled.SphereImage, choice.Guid, cancellationToken);
+            if (!string.IsNullOrEmpty(choice.Guid))
+            {
+                ApplyMaterialThumbnail(card, pooled.SphereSlot, pooled.SphereImage, choice.Guid, cancellationToken);
+            }
         }
 
-        var capturedChoice = choice;
-        pooled.CurrentAction = () => ApplyChoiceAsync(capturedChoice);
+        if (isExitCard)
+        {
+            pooled.CurrentAction = () =>
+            {
+                ClosePickerOnly();
+                return Task.CompletedTask;
+            };
+        }
+        else
+        {
+            var capturedChoice = choice;
+            pooled.CurrentAction = () => ApplyChoiceAsync(capturedChoice);
+        }
     }
 
     private void ApplyMaterialThumbnail(
