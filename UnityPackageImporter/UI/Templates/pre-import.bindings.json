@@ -1,12 +1,12 @@
 {
   "schemaVersion": 1,
-  "templateVersion": "1.0.5",
+  "templateVersion": "1.0.6",
   "rootName": "[UnityPackage Pre-Import Prompt - New Prototype]",
   "bindings": {
     "filenameSource": {
       "path": [],
       "type": "FrooxEngine.ValueField<string>",
-      "index": 1
+      "index": 0
     },
     "import": {
       "path": [

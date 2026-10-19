@@ -1,8 +1,32 @@
 {
   "schemaVersion": 1,
-  "templateVersion": "1.0.5",
+  "templateVersion": "1.0.6",
   "rootName": "[UnityPackage Station Prototype]",
   "bindings": {
+    "customizerMainVisible": {
+      "path": [
+        "Contextual Tablet",
+        "Material Customizer Preview"
+      ],
+      "type": "FrooxEngine.BooleanValueDriver<bool>",
+      "index": 0
+    },
+    "customizerMaterialVisible": {
+      "path": [
+        "Contextual Tablet",
+        "Material Customizer Preview"
+      ],
+      "type": "FrooxEngine.BooleanValueDriver<bool>",
+      "index": 1
+    },
+    "customizerFolderPickerVisible": {
+      "path": [
+        "Contextual Tablet",
+        "Material Customizer Preview"
+      ],
+      "type": "FrooxEngine.BooleanValueDriver<bool>",
+      "index": 2
+    },
     "mode": {
       "path": [],
       "type": "FrooxEngine.BooleanValueDriver<bool>",
