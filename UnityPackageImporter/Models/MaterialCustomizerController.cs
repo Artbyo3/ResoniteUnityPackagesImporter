@@ -41,7 +41,6 @@ internal sealed class MaterialCustomizerController : IDisposable
     private readonly Slot folderChoiceRootTemplate;
     private readonly Slot folderChoiceTemplate;
     private readonly Button folderNavUp;
-    private readonly Sync<bool>? folderCanGoUp;
     private readonly Sync<int>? folderBrowseIndex;
     private readonly Text breadcrumbPath;
     private readonly BooleanValueDriver<bool> folderPickerVisible;
@@ -66,6 +65,7 @@ internal sealed class MaterialCustomizerController : IDisposable
     private Text materialTitle;
     private string mainQuery = "";
     private string materialQuery = "";
+    private string? pendingMaterialQuery;
     private string currentFolder = "";
     private string browsedFolder = "";
     private string lastBrowsedFolder = "";
@@ -81,49 +81,30 @@ internal sealed class MaterialCustomizerController : IDisposable
 
     private sealed class FittedTextBinding
     {
-        private readonly Slot? root;
-        private readonly Text? directText;
-        private readonly Text[] childTexts;
+        private readonly Text? text;
 
         public FittedTextBinding(Slot? root)
         {
-            this.root = root;
-            if (root == null || root.IsDestroyed)
-            {
-                childTexts = Array.Empty<Text>();
-                return;
-            }
-            directText = root.GetComponent<Text>();
-            childTexts = root.GetComponentsInChildren<Text>().Where(t => t != directText).ToArray();
+            if (root == null || root.IsDestroyed) return;
+            text = root.GetComponent<Text>() ?? root.GetComponentInChildren<Text>();
         }
 
         public void SetText(string value)
         {
+            if (text == null || text.IsDestroyed) return;
+            text.ParseRichText.Value = true;
+            text.Content.Value = value;
+            text.InteractionTarget.Value = false;
+        }
+
+        public static void Set(Slot? root, string value)
+        {
             if (root == null || root.IsDestroyed) return;
-            if (childTexts.Length > 0)
-            {
-                if (directText != null && !directText.IsDestroyed)
-                {
-                    if (!directText.Content.IsDriven) directText.Content.Value = value;
-                    directText.Enabled = false;
-                    directText.InteractionTarget.Value = false;
-                }
-                foreach (var childText in childTexts)
-                {
-                    if (childText == null || childText.IsDestroyed) continue;
-                    childText.ParseRichText.Value = true;
-                    if (!childText.Content.IsDriven) childText.Content.Value = value;
-                    childText.Enabled = true;
-                    childText.InteractionTarget.Value = false;
-                }
-            }
-            else if (directText != null && !directText.IsDestroyed)
-            {
-                directText.ParseRichText.Value = true;
-                if (!directText.Content.IsDriven) directText.Content.Value = value;
-                directText.Enabled = true;
-                directText.InteractionTarget.Value = false;
-            }
+            var text = root.GetComponent<Text>() ?? root.GetComponentInChildren<Text>();
+            if (text == null || text.IsDestroyed) return;
+            text.ParseRichText.Value = true;
+            text.Content.Value = value;
+            text.InteractionTarget.Value = false;
         }
     }
 
@@ -133,13 +114,8 @@ internal sealed class MaterialCustomizerController : IDisposable
         public Slot CardSlot;
         public Slot Header;
         public ValueMultiDriver<bool> MultiDriver;
-        public BooleanValueDriver<float> HeightDriver;
-        public SmoothValue<float> Smooth;
-        public BooleanValueDriver<RectOrientation> ChevronDriver;
-        public LayoutElement RevealLayout;
         public Slot SlotsContainer;
         public Slot SlotTemplate;
-        public float TargetHeight;
         public bool IsPopulated;
         public readonly Dictionary<MaterialSlotBinding, (FittedTextBinding NameLabel, Slot? SphereSlot, Button RestoreBtn)> SlotRows = new();
     }
@@ -260,13 +236,13 @@ internal sealed class MaterialCustomizerController : IDisposable
         mainSearchText = SearchText(mainSearchField);
         if (mainSearchText != null)
         {
-            SubscribeSyncString(mainSearchText.Content, OnMainSearchChanged);
+            ((IChangeable)mainSearchText.Content).Changed += OnMainSearchChanged;
         }
 
         materialSearchText = SearchText(materialSearchField);
         if (materialSearchText != null)
         {
-            SubscribeSyncString(materialSearchText.Content, OnMaterialSearchChanged);
+            ((IChangeable)materialSearchText.Content).Changed += OnMaterialSearchChanged;
         }
 
         meshSearchClear = Descendants(mainRoot).FirstOrDefault(slot => slot.Name == "mesh-search-clear")?.GetComponent<Button>();
@@ -290,13 +266,9 @@ internal sealed class MaterialCustomizerController : IDisposable
         var browseDriver = customizerPreview.GetComponent<ValueMultiDriver<int>>();
         if (browseDriver != null)
         {
-            browseDriver.Drives.Clear();
             folderBrowseIndex = browseDriver.Value;
             folderBrowseIndex.Value = 0;
         }
-        Slot? folderNavTransition = Descendants(customizerPreview).FirstOrDefault(slot => slot.Name == "Folder Navigation Transition");
-        folderCanGoUp = folderNavTransition?.GetComponent<ValueField<bool>>()?.Value;
-        if (folderCanGoUp != null) folderCanGoUp.Value = false;
 
         foldersOpenButton = Descendants(materialRoot).FirstOrDefault(slot => slot.Name == "folders-open")?.GetComponent<Button>();
         if (foldersOpenButton != null)
@@ -366,62 +338,9 @@ internal sealed class MaterialCustomizerController : IDisposable
             folderNavUp = navUpSlot?.GetComponent<Button>();
             if (folderNavUp != null)
             {
-                navUpSlot.ActiveSelf = true;
-                var le = navUpSlot.GetComponent<LayoutElement>() ?? navUpSlot.AttachComponent<LayoutElement>();
-                if (le != null)
-                {
-                    le.MinWidth.Value = 0f;
-                    le.UseZeroMetrics.Value = true;
-                }
-                var labelSlot = FindDescendant(navUpSlot, "folder-nav-up-label");
-                var labelLe = labelSlot?.GetComponent<LayoutElement>();
-                if (labelLe != null)
-                {
-                    labelLe.FlexibleHeight.Value = -1f;
-                    labelLe.UseZeroMetrics.Value = true;
-                }
-                var labelText = labelSlot?.GetComponent<Text>();
-                if (folderNavTransition != null && folderCanGoUp != null && folderNavTransition.GetComponent<SmoothValue<float>>() == null)
-                {
-                    if (le != null)
-                    {
-                        var smoothW = folderNavTransition.AttachComponent<SmoothValue<float>>();
-                        smoothW.Speed.Value = 14f;
-                        smoothW.Value.Target = le.PreferredWidth;
-                        var bvdW = folderNavTransition.AttachComponent<BooleanValueDriver<float>>();
-                        bvdW.FalseValue.Value = 0f;
-                        bvdW.TrueValue.Value = 44f;
-                        bvdW.TargetField.Target = smoothW.TargetValue;
-                        var vcW = folderNavTransition.AttachComponent<ValueCopy<bool>>();
-                        vcW.Source.Target = folderCanGoUp;
-                        vcW.Target.Target = bvdW.State;
-                    }
-                    var smoothS = folderNavTransition.AttachComponent<SmoothValue<float3>>();
-                    smoothS.Speed.Value = 14f;
-                    smoothS.Value.Target = navUpSlot.Scale_Field;
-                    var bvdS = folderNavTransition.AttachComponent<BooleanValueDriver<float3>>();
-                    bvdS.FalseValue.Value = float3.Zero;
-                    bvdS.TrueValue.Value = float3.One;
-                    bvdS.TargetField.Target = smoothS.TargetValue;
-                    var vcS = folderNavTransition.AttachComponent<ValueCopy<bool>>();
-                    vcS.Source.Target = folderCanGoUp;
-                    vcS.Target.Target = bvdS.State;
-                    if (labelText != null)
-                    {
-                        var vcT = folderNavTransition.AttachComponent<ValueCopy<bool>>();
-                        vcT.Source.Target = folderCanGoUp;
-                        vcT.Target.Target = labelText.EnabledField;
-                    }
-                    var vcB = folderNavTransition.AttachComponent<ValueCopy<bool>>();
-                    vcB.Source.Target = folderCanGoUp;
-                    vcB.Target.Target = folderNavUp.EnabledField;
-                }
-
                 folderNavUp.RequireLockInToPress.Value = false;
                 folderNavUp.PassThroughVerticalMovement.Value = true;
                 folderNavUp.PassThroughHorizontalMovement.Value = true;
-                if (folderCanGoUp != null) folderCanGoUp.Value = false;
-                else folderNavUp.Enabled = false;
                 NativeButtonEvents.Pressed(folderNavUp, (_, _) =>
                 {
                     if (!isAlive() || isBusy()) return;
@@ -477,36 +396,36 @@ internal sealed class MaterialCustomizerController : IDisposable
         if (foldersOpenButton?.Slot != null && !foldersOpenButton.Slot.IsDestroyed)
         {
             Slot? labelSlot = FindDescendant(foldersOpenButton.Slot, "folders-open-label");
-            if (labelSlot != null) SetFittedText(labelSlot, L("folders"));
+            if (labelSlot != null) FittedTextBinding.Set(labelSlot, L("folders"));
         }
         if (folderRootButton?.Slot != null && !folderRootButton.Slot.IsDestroyed)
         {
-            SetFittedText(folderRootButton.Slot, L("allFolders"));
+            FittedTextBinding.Set(folderRootButton.Slot, L("allFolders"));
         }
         if (folderNavUp?.Slot != null && !folderNavUp.Slot.IsDestroyed)
         {
             Slot? upLabelSlot = FindDescendant(folderNavUp.Slot, "folder-nav-up-label");
-            if (upLabelSlot != null) SetFittedText(upLabelSlot, L("up"));
+            if (upLabelSlot != null) FittedTextBinding.Set(upLabelSlot, L("up"));
         }
         if (mainDismissButton != null && !mainDismissButton.IsDestroyed)
         {
             Slot? closeLabelSlot = FindDescendant(mainDismissButton, "mesh-panel-close-label");
-            if (closeLabelSlot != null) SetFittedText(closeLabelSlot, L("closeBold"));
+            if (closeLabelSlot != null) FittedTextBinding.Set(closeLabelSlot, L("closeBold"));
         }
         Slot? meshPlaceholder = Descendants(mainRoot).FirstOrDefault(slot => slot.Name == "mesh-search-placeholder");
         if (meshPlaceholder != null && !meshPlaceholder.IsDestroyed)
         {
-            SetFittedText(meshPlaceholder, L("searchMeshes"));
+            FittedTextBinding.Set(meshPlaceholder, L("searchMeshes"));
         }
         Slot? matPlaceholder = Descendants(materialRoot).FirstOrDefault(slot => slot.Name == "material-search-placeholder");
         if (matPlaceholder != null && !matPlaceholder.IsDestroyed)
         {
-            SetFittedText(matPlaceholder, L("searchMaterials"));
+            FittedTextBinding.Set(matPlaceholder, L("searchMaterials"));
         }
         if (mainRowTemplate != null && !mainRowTemplate.IsDestroyed)
         {
             Slot? changeLabelSlot = FindDescendant(mainRowTemplate, "slot-0-0-change-label");
-            if (changeLabelSlot != null) SetFittedText(changeLabelSlot, L("changeBold"));
+            if (changeLabelSlot != null) FittedTextBinding.Set(changeLabelSlot, L("changeBold"));
         }
     }
 
@@ -520,14 +439,14 @@ internal sealed class MaterialCustomizerController : IDisposable
         {
             if (holder.CardSlot == null || holder.CardSlot.IsDestroyed) continue;
             Slot? countSlot = FindDescendant(holder.CardSlot, "mesh-0-slot-count");
-            if (countSlot != null) SetFittedText(countSlot, L("slotsCount", holder.Renderer.Slots.Count));
+            if (countSlot != null) FittedTextBinding.Set(countSlot, L("slotsCount", holder.Renderer.Slots.Count));
             if (holder.IsPopulated && holder.SlotsContainer != null && !holder.SlotsContainer.IsDestroyed)
             {
                 foreach (Slot slotRow in holder.SlotsContainer.Children)
                 {
                     if (slotRow == holder.SlotTemplate || slotRow.IsDestroyed) continue;
                     Slot? changeLabelSlot = FindDescendant(slotRow, "slot-0-0-change-label");
-                    if (changeLabelSlot != null) SetFittedText(changeLabelSlot, L("changeBold"));
+                    if (changeLabelSlot != null) FittedTextBinding.Set(changeLabelSlot, L("changeBold"));
                 }
                 foreach (var pair in holder.SlotRows)
                 {
@@ -542,7 +461,7 @@ internal sealed class MaterialCustomizerController : IDisposable
                     if (idx < holder.Renderer.Slots.Count)
                     {
                         Slot? slotLabel = FindDescendant(slotRow, "slot-0-0-slot-label");
-                        if (slotLabel != null) SetFittedText(slotLabel, L("slotPrefix", holder.Renderer.Slots[idx].Index + 1));
+                        if (slotLabel != null) FittedTextBinding.Set(slotLabel, L("slotPrefix", holder.Renderer.Slots[idx].Index + 1));
                         idx++;
                     }
                 }
@@ -626,7 +545,6 @@ internal sealed class MaterialCustomizerController : IDisposable
         SetText(mainTitle, "customizeMaterials");
         if (meshCountText != null)
         {
-            meshCountText.Slot.ActiveSelf = true;
             meshCountText.Content.Value = L("meshesCount", renderers.Count);
         }
         ClosePickerOnly();
@@ -836,7 +754,6 @@ internal sealed class MaterialCustomizerController : IDisposable
 
         if (meshCountText != null)
         {
-            meshCountText.Slot.ActiveSelf = true;
             meshCountText.Content.Value = string.IsNullOrWhiteSpace(mainQuery)
                 ? L("meshesCount", nativeCards.Count)
                 : L("meshesCountFiltered", visibleCount, nativeCards.Count);
@@ -850,26 +767,18 @@ internal sealed class MaterialCustomizerController : IDisposable
         card.ActiveSelf = true;
 
         Slot titleSlot = FindDescendant(card, "mesh-0-title");
-        SetFittedText(titleSlot, renderer.Name);
+        FittedTextBinding.Set(titleSlot, renderer.Name);
 
         Slot countSlot = FindDescendant(card, "mesh-0-slot-count");
-        SetFittedText(countSlot, L("slotsCount", renderer.Slots.Count));
+        FittedTextBinding.Set(countSlot, L("slotsCount", renderer.Slots.Count));
 
         Slot header = FindDescendant(card, "mesh-0-header");
-        Slot reveal = FindDescendant(card, "Material Slots Reveal");
-        var layout = reveal?.GetComponent<LayoutElement>();
 
         var multiDriver = header?.GetComponent<ValueMultiDriver<bool>>()
             ?? card.GetComponentsInChildren<ValueMultiDriver<bool>>().FirstOrDefault();
 
         var heightDriver = header?.GetComponents<BooleanValueDriver<float>>().FirstOrDefault()
             ?? card.GetComponentsInChildren<BooleanValueDriver<float>>().FirstOrDefault();
-
-        var smooth = header?.GetComponents<SmoothValue<float>>().FirstOrDefault()
-            ?? card.GetComponentsInChildren<SmoothValue<float>>().FirstOrDefault();
-
-        var chevronDriver = header?.GetComponents<BooleanValueDriver<RectOrientation>>().FirstOrDefault()
-            ?? card.GetComponentsInChildren<BooleanValueDriver<RectOrientation>>().FirstOrDefault();
 
         Slot slotsContainer = FindDescendant(card, "Material Slots");
         Slot slotTemplate = slotsContainer != null
@@ -895,29 +804,19 @@ internal sealed class MaterialCustomizerController : IDisposable
             heightDriver.FalseValue.Value = 0.05f;
         }
 
-        if (smooth != null)
-        {
-            smooth.TargetValue.Value = 0.05f;
-        }
-
         var holder = new NativeMeshCardHolder
         {
             Renderer = renderer,
             CardSlot = card,
             Header = header,
             MultiDriver = multiDriver,
-            HeightDriver = heightDriver,
-            Smooth = smooth,
-            ChevronDriver = chevronDriver,
-            RevealLayout = layout,
             SlotsContainer = slotsContainer,
             SlotTemplate = slotTemplate,
-            TargetHeight = targetHeight,
             IsPopulated = false
         };
 
         bool isExpanded = expandedRendererNames.Contains(renderer.Name);
-        SetAccordionState(holder, isExpanded, animate: false);
+        SetAccordionState(holder, isExpanded);
 
         var headerBtn = header?.GetComponent<Button>();
         if (headerBtn != null)
@@ -929,14 +828,14 @@ internal sealed class MaterialCustomizerController : IDisposable
             NativeButtonEvents.Pressed(headerBtn, (_, _) =>
             {
                 bool willExpand = !expandedRendererNames.Contains(holder.Renderer.Name);
-                SetAccordionState(holder, willExpand, animate: true);
+                SetAccordionState(holder, willExpand);
             });
         }
 
         return holder;
     }
 
-    private void SetAccordionState(NativeMeshCardHolder holder, bool expand, bool animate)
+    private void SetAccordionState(NativeMeshCardHolder holder, bool expand)
     {
         if (expand)
         {
@@ -945,7 +844,7 @@ internal sealed class MaterialCustomizerController : IDisposable
             {
                 if (!ReferenceEquals(other, holder) && expandedRendererNames.Contains(other.Renderer.Name))
                 {
-                    SetAccordionState(other, false, animate);
+                    SetAccordionState(other, false);
                 }
             }
             EnsureSlotsPopulated(holder);
@@ -959,11 +858,6 @@ internal sealed class MaterialCustomizerController : IDisposable
         if (holder.MultiDriver != null)
         {
             holder.MultiDriver.Value.Value = expand;
-        }
-        else
-        {
-            if (holder.HeightDriver != null) holder.HeightDriver.State.Value = expand;
-            if (holder.ChevronDriver != null) holder.ChevronDriver.State.Value = expand;
         }
     }
 
@@ -991,7 +885,7 @@ internal sealed class MaterialCustomizerController : IDisposable
             slotRow.ActiveSelf = true;
 
             Slot slotLabel = FindDescendant(slotRow, "slot-0-0-slot-label");
-            SetFittedText(slotLabel, L("slotPrefix", slot.Index + 1));
+            FittedTextBinding.Set(slotLabel, L("slotPrefix", slot.Index + 1));
 
             string currentName = MaterialName(slot.ReadCurrent(), getImporter(), materialCatalog);
             Slot nameSlot = FindDescendant(slotRow, "slot-0-0-name");
@@ -1003,7 +897,7 @@ internal sealed class MaterialCustomizerController : IDisposable
 
             Slot changeSlot = FindDescendant(slotRow, "slot-0-0-change");
             Slot? changeLabelSlot = FindDescendant(slotRow, "slot-0-0-change-label");
-            if (changeLabelSlot != null) SetFittedText(changeLabelSlot, L("changeBold"));
+            if (changeLabelSlot != null) FittedTextBinding.Set(changeLabelSlot, L("changeBold"));
             var changeBtn = changeSlot?.GetComponent<Button>();
             if (changeBtn != null)
             {
@@ -1190,7 +1084,6 @@ internal sealed class MaterialCustomizerController : IDisposable
 
         if (materialCountText != null)
         {
-            materialCountText.Slot.ActiveSelf = true;
             materialCountText.Content.Value = L("materialsCount", choices.Count);
         }
 
@@ -1382,7 +1275,7 @@ internal sealed class MaterialCustomizerController : IDisposable
         if (folderPickerTitle != null)
         {
             string titleText = !canGoUp
-                ? L("folderTitle")
+                ? "Assets"
                 : System.IO.Path.GetFileName(normalizedBrowsed);
             folderPickerTitle.ParseRichText.Value = true;
             folderPickerTitle.Content.Value = titleText;
@@ -1421,22 +1314,6 @@ internal sealed class MaterialCustomizerController : IDisposable
                 extra.Row.ActiveSelf = false;
                 extra.CurrentAction = null;
             }
-        }
-
-        if (folderCanGoUp != null && !folderCanGoUp.IsRemoved)
-        {
-            if (folderNavUp != null && !folderNavUp.Slot.IsDestroyed)
-            {
-                folderNavUp.Slot.ActiveSelf = true;
-            }
-            folderCanGoUp.Value = canGoUp;
-        }
-        else if (folderNavUp != null && !folderNavUp.Slot.IsDestroyed)
-        {
-            folderNavUp.Enabled = canGoUp;
-            folderNavUp.Slot.ActiveSelf = canGoUp;
-            var labelText = folderNavUp.Slot.GetComponentInChildren<Text>();
-            if (labelText != null) labelText.Enabled = canGoUp;
         }
 
         if (folderBrowseIndex != null && !folderBrowseIndex.IsRemoved)
@@ -1478,49 +1355,6 @@ internal sealed class MaterialCustomizerController : IDisposable
     {
         return (folder ?? "").Replace('\\', '/').Trim('/').Replace("//", "/");
     }
-
-    private static void SetFittedText(Slot root, string value)
-    {
-        if (root == null || root.IsDestroyed) return;
-
-        var directText = root.GetComponent<Text>();
-        var childTexts = root.GetComponentsInChildren<Text>().Where(t => t != directText).ToList();
-
-        if (childTexts.Count > 0)
-        {
-            if (directText != null)
-            {
-                if (!directText.Content.IsDriven) directText.Content.Value = value;
-                directText.Enabled = false;
-                directText.InteractionTarget.Value = false;
-            }
-            foreach (var childText in childTexts)
-            {
-                childText.ParseRichText.Value = true;
-                if (!childText.Content.IsDriven) childText.Content.Value = value;
-                childText.Enabled = true;
-                childText.InteractionTarget.Value = false;
-            }
-        }
-        else if (directText != null)
-        {
-            directText.ParseRichText.Value = true;
-            if (!directText.Content.IsDriven) directText.Content.Value = value;
-            directText.Enabled = true;
-            directText.InteractionTarget.Value = false;
-        }
-        else
-        {
-            foreach (var t in root.GetComponentsInChildren<Text>())
-            {
-                t.ParseRichText.Value = true;
-                if (!t.Content.IsDriven) t.Content.Value = value;
-                t.Enabled = true;
-                t.InteractionTarget.Value = false;
-            }
-        }
-    }
-
     private async Task ApplyChoiceAsync(PackageMaterialChoice choice)
     {
         if (!isAlive() || isBusy() || selectedSlot == null || displayedItem != getCurrent()) return;
@@ -1571,37 +1405,49 @@ internal sealed class MaterialCustomizerController : IDisposable
         }
     }
 
-    private static readonly Action<Sync<string>, SyncFieldEvent<string>> SubscribeSyncString =
-        (Action<Sync<string>, SyncFieldEvent<string>>)Delegate.CreateDelegate(
-            typeof(Action<Sync<string>, SyncFieldEvent<string>>),
-            typeof(SyncField<string>).GetEvent("OnValueChange")!.GetAddMethod()!);
-
-    private static readonly Action<Sync<string>, SyncFieldEvent<string>> UnsubscribeSyncString =
-        (Action<Sync<string>, SyncFieldEvent<string>>)Delegate.CreateDelegate(
-            typeof(Action<Sync<string>, SyncFieldEvent<string>>),
-            typeof(SyncField<string>).GetEvent("OnValueChange")!.GetRemoveMethod()!);
-
-    private void OnMainSearchChanged(SyncField<string> field)
+    private void OnMainSearchChanged(IChangeable obj)
     {
-        if (!isAlive() || isBusy()) return;
-        RefreshMainRows(field.Value);
+        if (!isAlive() || mainSearchText == null) return;
+        string query = mainSearchText.Content.Value ?? "";
+        if (string.Equals(query, mainQuery, StringComparison.Ordinal)) return;
+        RefreshMainRows(query);
     }
 
-    private void OnMaterialSearchChanged(SyncField<string> field)
+    private void OnMaterialSearchChanged(IChangeable obj)
     {
-        if (!isAlive() || isBusy()) return;
-        RefreshMaterialRows(field.Value);
+        if (!isAlive() || materialSearchText == null) return;
+        string query = materialSearchText.Content.Value ?? "";
+        if (string.Equals(query, materialQuery, StringComparison.Ordinal)) return;
+
+        if (isBusy())
+        {
+            pendingMaterialQuery = query;
+            return;
+        }
+
+        pendingMaterialQuery = null;
+        RefreshMaterialRows(query);
+    }
+
+    internal void OnBusyCleared()
+    {
+        if (pendingMaterialQuery != null && isAlive() && materialVisible != null && materialVisible.State.Value && selectedSlot != null)
+        {
+            string query = pendingMaterialQuery;
+            pendingMaterialQuery = null;
+            RefreshMaterialRows(query);
+        }
     }
 
     public void Dispose()
     {
         if (mainSearchText != null)
         {
-            UnsubscribeSyncString(mainSearchText.Content, OnMainSearchChanged);
+            ((IChangeable)mainSearchText.Content).Changed -= OnMainSearchChanged;
         }
         if (materialSearchText != null)
         {
-            UnsubscribeSyncString(materialSearchText.Content, OnMaterialSearchChanged);
+            ((IChangeable)materialSearchText.Content).Changed -= OnMaterialSearchChanged;
         }
         materialRowsCts?.Cancel();
         materialRowsCts?.Dispose();

@@ -74,6 +74,7 @@ internal sealed class UnityStationHandle
         Get<BooleanValueDriver<bool>>("avatarPicker").State.Value = false;
         Slot previewSlot = Get<Slot>("preview");
         previewScaleDriver = previewSlot.GetComponent<BooleanValueDriver<float3>>();
+        if (previewScaleDriver != null) previewScaleDriver.State.Value = false;
         Slot dragSurface = RootSlot.FindChild("Avatar Preview Drag Surface");
         if (dragSurface != null)
         {
@@ -82,7 +83,8 @@ internal sealed class UnityStationHandle
         ResetPreviewTurntable();
         Get<ValueField<bool>>("shaderVisible").Value.Value = false;
         if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletDriver))
-            tabletDriver.State.Value = false;
+            tabletDriver.State.Value = true;
+        Get<Slot>("nameCard").ActiveSelf = false;
         SetCompanionState(false, false);
         // The source importer has no Shape Changer handler yet. Expose its actual availability.
         ui.SetLocalizedKey("bodyShapeDescription", "bodyShapeDescriptionUnsupported");
@@ -351,6 +353,7 @@ internal sealed class UnityStationHandle
             if (arrow.Slot.Parent != null) arrow.Slot.Parent.ActiveSelf = canNavigate;
         }
         materialCustomizer?.SetEntryPointsEnabled(enabled && Current != null && !created.Contains(Current) && !failedCreation.Contains(Current));
+        if (enabled) materialCustomizer?.OnBusyCleared();
     }
     private void SetMaterialBusy(bool value)
     {
