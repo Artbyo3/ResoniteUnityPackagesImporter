@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "templateVersion": "1.0.7",
+  "templateVersion": "1.0.8",
   "rootName": "[UnityPackage Station Prototype]",
   "bindings": {
     "customizerMainVisible": {
@@ -1377,6 +1377,18 @@
         "Option - Xiexe Toon",
         "Labels",
         "Title"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.importingHeader.0": {
+      "path": [
+        "Contextual Tablet",
+        "Canvas",
+        "Vertical layout",
+        "Main Area",
+        "Importing Panel",
+        "Header"
       ],
       "type": "FrooxEngine.UIX.Text",
       "index": 0

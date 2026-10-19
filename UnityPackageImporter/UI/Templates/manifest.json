@@ -1,14 +1,14 @@
 {
   "schemaVersion": 1,
-  "version": "1.0.7",
+  "version": "1.0.8",
   "templates": {
     "station": {
-      "packageSha256": "b40eb738eceda16fd203c8de7872df7fe6eb03460a99ef7027153cd4293ead12",
-      "contractSha256": "d9b441e01f63f264e256d16a28a39eba0fdd78bc93c4dd8bf9b7d9ee8498be11"
+      "packageSha256": "3639ff6ee6d0e61637e50127cd19ac298f2fe956363ae6fceed39c9e7b4af3ff",
+      "contractSha256": "f3736e41bfbe7ae39adcbfcac66b26392670b42cf8fe6fb82d0c5695b645a2e6"
     },
     "pre-import": {
       "packageSha256": "15b30da810ad58371cba6457cced2e557627bfd1fe8e933deb40c062e83191cf",
-      "contractSha256": "d32be260bb4be501df8f40ebfffe3ddcac07b6216d9a3b27ae64a189bb0c95cf"
+      "contractSha256": "b76d249b17a585e08469bc2a1618ad85d8befc9ae23f610f9b561979e07c6d48"
     }
   }
 }
