@@ -539,6 +539,13 @@
       "type": "FrooxEngine.BooleanValueDriver<float3>",
       "index": 0
     },
+    "importingPanelVisible": {
+      "path": [
+        "Contextual Tablet"
+      ],
+      "type": "FrooxEngine.BooleanValueDriver<bool>",
+      "index": 0
+    },
     "locale.avatarContext.0": {
       "path": [
         "Contextual Tablet",

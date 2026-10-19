@@ -13,6 +13,7 @@
     <PackageReference Include="YamlDotNet" Version="16.3.0" />
     <Compile Include="../UnityPackageImporter/Models/UnityMaterialData.cs" Link="UnityMaterialData.cs" />
     <Compile Include="../UnityPackageImporter/Models/PackageMaterialCatalog.cs" Link="PackageMaterialCatalog.cs" />
+    <Compile Include="../UnityPackageImporter/Models/MaterialColorReader.cs" Link="MaterialColorReader.cs" />
     <Compile Include="../UnityPackageImporter/Models/MaterialThumbnailGenerator.cs" Link="MaterialThumbnailGenerator.cs" />
     <Compile Include="../UnityPackageImporter/Models/ImportFailureReport.cs" Link="ImportFailureReport.cs" />
     <Compile Include="../UnityPackageImporter/UI/ReusableDecisionPrompt.cs" Link="ReusableDecisionPrompt.cs" />

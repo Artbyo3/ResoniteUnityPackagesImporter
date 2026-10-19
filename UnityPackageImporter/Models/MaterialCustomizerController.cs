@@ -1053,36 +1053,8 @@ internal sealed class MaterialCustomizerController : IDisposable
         await Task.CompletedTask;
     }
 
-    private static colorX ReadMaterialColor(IAssetProvider<Material>? material)
-    {
-        if (material == null) return new colorX(0.5f, 0.5f, 0.5f, 1f);
-        try
-        {
-            var type = material.GetType();
-            foreach (var name in new[] { "AlbedoColor", "TintColor", "Color", "BaseColor", "MainColor" })
-            {
-                var prop = type.GetProperty(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                if (prop != null)
-                {
-                    var val = prop.GetValue(material);
-                    if (val is IField<colorX> field) return field.Value;
-                    if (val is colorX cx) return cx;
-                }
-                var fieldInfo = type.GetField(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance);
-                if (fieldInfo != null)
-                {
-                    var val = fieldInfo.GetValue(material);
-                    if (val is IField<colorX> field) return field.Value;
-                    if (val is colorX cx) return cx;
-                }
-            }
-        }
-        catch
-        {
-            // Fall back to neutral tint
-        }
-        return new colorX(0.5f, 0.5f, 0.5f, 1f);
-    }
+    private static colorX ReadMaterialColor(IAssetProvider<Material>? material) =>
+        MaterialColorReader.ReadMaterialColor(material);
 
     private void RefreshMaterialRows(string query)
     {

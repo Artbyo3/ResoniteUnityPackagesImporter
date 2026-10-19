@@ -53,6 +53,12 @@ internal static class UITemplateAudit
                 var contract = TemplateContract.Read(contractStream);
                 if (contract.TemplateVersion != manifest.Version)
                     throw new InvalidDataException("Embedded UI contract version mismatch.");
+                if (name == "station")
+                {
+                    if (!contract.Bindings.TryGetValue("importingPanelVisible", out var importingBinding) ||
+                        importingBinding.Type != "FrooxEngine.BooleanValueDriver<bool>")
+                        throw new InvalidDataException("Station template contract must declare importingPanelVisible as FrooxEngine.BooleanValueDriver<bool>.");
+                }
                 byte[] standalone = TemplateIntegrity.EnsureStandalonePackage(package, () => Get("station.ResonitePackage"));
                 using var packageStream = new MemoryStream(standalone);
                 using var zip = new ZipArchive(packageStream, ZipArchiveMode.Read);

@@ -368,6 +368,16 @@ internal static class MaterialCustomizationTests
             Check(orderedNonMatching.Skip(1).Select(c => c.Guid).SequenceEqual(new[] { "guid-1", "guid-2", "guid-3" }),
                 "Catalog choices follow without duplication");
         });
+
+        test("MaterialColorReader reads typed color from known material and falls back to neutral tint", () =>
+        {
+            var pbs = new MaterialColorReader.MockPbsMetallic { AlbedoColor = (0.2f, 0.4f, 0.6f, 1f) };
+            var readColor = MaterialColorReader.ReadMaterialColorRgba(pbs);
+            Check(readColor == (0.2f, 0.4f, 0.6f, 1f), $"Expected typed color (0.2, 0.4, 0.6, 1), got {readColor}");
+
+            var fallbackColor = MaterialColorReader.ReadMaterialColorRgba(new MaterialColorReader.MockUnknownMaterial());
+            Check(fallbackColor == MaterialColorReader.NeutralTint, $"Expected neutral tint fallback, got {fallbackColor}");
+        });
     }
 
     private static void Check(bool condition, string message)

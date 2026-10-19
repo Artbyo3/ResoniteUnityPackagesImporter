@@ -225,13 +225,8 @@ internal sealed class UnityStationHandle
         SetImportingPanel(false);
         SaveFailureReport(error);
     }
-    private void SetImportingPanel(bool visible)
-    {
-        if (ui.TryGet<ValueField<bool>>("importingPanelVisible", out var field))
-            field.Value.Value = visible;
-        else if (ui.TryGet<BooleanValueDriver<bool>>("importingPanelVisible", out var driver))
-            driver.State.Value = visible;
-    }
+    private void SetImportingPanel(bool visible) =>
+        Get<BooleanValueDriver<bool>>("importingPanelVisible").State.Value = visible;
     private void SaveFailureReport(Exception error)
     {
         try
