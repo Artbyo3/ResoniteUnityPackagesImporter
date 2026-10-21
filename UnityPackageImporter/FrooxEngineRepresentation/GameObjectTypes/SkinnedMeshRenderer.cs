@@ -22,6 +22,8 @@ public class SkinnedMeshRenderer : IUnityObject
     [YamlDotNet.Serialization.YamlIgnore]
     public string[] SourceBlendShapeNames;
     public SourceObj m_Mesh;
+    [YamlDotNet.Serialization.YamlIgnore]
+    internal bool HasMissingMeshReference { get; private set; }
     public List<Dictionary<string, ulong>> m_Bones;
     public FrooxEngine.SkinnedMeshRenderer createdMeshRenderer;
     public SourceObj m_CorrespondingSourceObject { get; set; }
@@ -122,6 +124,7 @@ public class SkinnedMeshRenderer : IUnityObject
                     if (parentobj != null)
                     {
                         UnityPackageImporter.Msg("Importing skinned mesh renderer via mesh guid. this id is: \"" + this.id + "\", parentobj = " + parentobj.ToString());
+                        var candidateMeshIds = new List<long>();
                         foreach (var pair in importedfbx2.FILEID_To_Slot_Pairs)
                         {
                             if (pair.Value.GetType() == typeof(SkinnedMeshRenderer))
@@ -129,6 +132,7 @@ public class SkinnedMeshRenderer : IUnityObject
                                 UnityPackageImporter.Msg("Importing skinned mesh renderer via mesh guid 2. this id is: \"" + this.id + "\", parentobj = " + parentobj.ToString());
 
                                 FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer newskin = (pair.Value as FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer);
+                                candidateMeshIds.Add(newskin.m_Mesh.fileID);
                                 if (newskin.m_Mesh.fileID == this.m_Mesh.fileID)
                                 {
                                     UnityPackageImporter.Msg("Assigning parent object for skinned mesh renderer: \"" + this.id + "\"");
@@ -154,6 +158,18 @@ public class SkinnedMeshRenderer : IUnityObject
                                         break;
                                     }
                                 }
+                            }
+                        }
+                        if (MeshReferenceLookup.Evaluate(true, m_Mesh.fileID, candidateMeshIds) == MeshReferenceOutcome.MissingReference)
+                        {
+                            await default(ToWorld);
+                            await parentobj.InstanciateAsync(importer);
+                            await default(ToWorld);
+                            if (parentobj.frooxEngineSlot != null && !parentobj.frooxEngineSlot.IsDestroyed)
+                            {
+                                HasMissingMeshReference = true;
+                                UnityPackageImporter.Warn($"Missing mesh reference for renderer {id}: fileID {m_Mesh.fileID}, model GUID {m_Mesh.guid}, candidate meshes {candidateMeshIds.Count}. Renderer skipped; owning object retained.");
+                                return;
                             }
                         }
                     }

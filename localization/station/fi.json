@@ -148,6 +148,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMultipleRigs": "Avatarin luominen edellyttää yhtä ihmismäistä luustoa.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Avatarin luominen edellyttää alustettua IK:ta ja viittauksia käsiin.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Avatarin luominen edellyttää kelvollista katselupistettä tai silmäluiden paria.",
-    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Tämä tulos sisältää jo avatarin natiiviasetukset."
+    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Tämä tulos sisältää jo avatarin natiiviasetukset.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Joitakin verkkoviittauksia puuttuu; kyseiset renderöijät ohitettiin."
   }
 }

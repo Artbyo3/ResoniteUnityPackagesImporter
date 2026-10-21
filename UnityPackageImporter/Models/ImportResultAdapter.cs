@@ -23,6 +23,9 @@ internal static class ImportResultAdapter
             if (scope == ImportOwnership.Owned) failed++;
             if (scope == ImportOwnership.Unknown) unresolved = true;
         }
+        int missingMeshes = item.existingIUnityObjects.Values.OfType<UnityTypes.SkinnedMeshRenderer>()
+            .Distinct().Count(skin => skin.HasMissingMeshReference && (!item.IsScopedSceneItem ||
+                Scope(item, unchecked((long)skin.id)) != ImportOwnership.Other));
         int unsupported = item.Manifest?.UnsupportedVrcFuryFeatureCount ?? 0;
         // These components are indexed, but are not executed by the structural planner.
         // An outfit's installer handles its own additional MA features at installation.
@@ -40,7 +43,7 @@ internal static class ImportResultAdapter
                 ? ImportResultScope.Operation(op, item.SourcePath, id => Scope(item, id))
                 : ImportOwnership.Owned,
             unresolved, item.OptionalControlsFailed,
-            materialWarnings);
+            materialWarnings, missingMeshes);
     }
 
     private static ImportOwnership Scope(PreparedImportItem item, long id)

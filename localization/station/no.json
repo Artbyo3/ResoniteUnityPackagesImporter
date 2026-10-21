@@ -148,6 +148,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMultipleRigs": "Oppretting av en avatar krever én enkelt humanoid rigg.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Oppretting av en avatar krever initialisert IK og håndreferanser.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Oppretting av en avatar krever et gyldig synspunkt eller et par øyebein.",
-    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Disse utdataene inneholder allerede et innebygd avataroppsett."
+    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Disse utdataene inneholder allerede et innebygd avataroppsett.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Noen meshreferanser mangler; de berørte rendererne ble hoppet over."
   }
 }

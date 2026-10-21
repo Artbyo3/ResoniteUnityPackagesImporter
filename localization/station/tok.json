@@ -148,6 +148,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMultipleRigs": "pali pi sijelo jan li wile e kulupu wan taso pi palisa sijelo jan.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "pali pi sijelo jan li wile e IK pi kama pali e nasin tawa luka.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "pali pi sijelo jan li wile e ma lukin pona anu palisa oko tu.",
-    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "ijo pana ni li jo e nasin sijelo jan pi ilo Resonite."
+    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "ijo pana ni li jo e nasin sijelo jan pi ilo Resonite.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "ilo li ken ala alasa e sijelo sitelen ale; ona li sitelen ala e ijo ni."
   }
 }
