@@ -29,6 +29,10 @@ dotnet run --project Tests/Importer.RegressionTests.csproj -c Release
 
 If Resonite is not installed in the default Steam location, set the `GAMEPATH` environment variable (e.g. `$env:GAMEPATH = "C:\Path\To\Resonite\"` or `export GAMEPATH="/path/to/Resonite/"`) or specify `-p:GamePath="<path-to-resonite>"`.
 
+Run `pwsh -File scripts/Verify-Release.ps1` to verify a release (requires the prerequisites above).
+It builds Release, runs the standalone regression tests, then audits the built DLL's UI bundle.
+Each step prints PASS/FAIL; any failed step returns a nonzero exit code. The script works from any directory.
+
 ---
 
 ## 📄 License & Credits

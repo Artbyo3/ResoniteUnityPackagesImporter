@@ -343,6 +343,7 @@ healthchecksdb
 scripts/*
 !scripts/Install-PreparedMod.ps1
 !scripts/Package-Release.ps1
+!scripts/Verify-Release.ps1
 !scripts/Prepare-StationTemplates.py
 !scripts/RunStationDemo.py
 !scripts/FindResoniteLink.py
