@@ -1,11 +1,55 @@
 using System;
 using System.IO;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using UnityPackageImporter.UI;
 
 internal static class LocalizationManagerTests
 {
     internal static void Register(Action<string, Action> test)
     {
+        test("Every locale contains all English keys with matching placeholders and bold tags", () =>
+        {
+            var assembly = typeof(LocalizationManagerTests).Assembly;
+            const string resourcePrefix = "UnityPackageImporter.Localization.";
+            using var englishStream = assembly.GetManifestResourceStream(resourcePrefix + "en.json")!;
+            using var english = JsonDocument.Parse(englishStream);
+            var reference = english.RootElement.GetProperty("messages").EnumerateObject().ToArray();
+            var errors = new List<string>();
+
+            foreach (string resource in assembly.GetManifestResourceNames()
+                         .Where(name => name.StartsWith(resourcePrefix, StringComparison.Ordinal) &&
+                                        name.EndsWith(".json", StringComparison.Ordinal)).Order())
+            {
+                using var stream = assembly.GetManifestResourceStream(resource)!;
+                using var document = JsonDocument.Parse(stream);
+                string locale = document.RootElement.GetProperty("localeCode").GetString()!;
+                var messages = document.RootElement.GetProperty("messages");
+                var missing = reference.Where(entry => !messages.TryGetProperty(entry.Name, out _))
+                    .Select(entry => entry.Name).ToArray();
+                if (missing.Length > 0)
+                    errors.Add($"{locale}: missing keys: {string.Join(", ", missing)}");
+
+                foreach (var entry in reference)
+                {
+                    if (!messages.TryGetProperty(entry.Name, out var translated)) continue;
+                    string expected = entry.Value.GetString()!;
+                    string actual = translated.GetString()!;
+                    // Sorting allows grammatical reordering while preserving each argument's multiplicity.
+                    var expectedArguments = Regex.Matches(expected, @"\{[0-9]+\}").Select(match => match.Value).Order();
+                    var actualArguments = Regex.Matches(actual, @"\{[0-9]+\}").Select(match => match.Value).Order();
+                    if (!expectedArguments.SequenceEqual(actualArguments))
+                        errors.Add($"{locale}: {entry.Name}: placeholders differ from English");
+                    var expectedTags = Regex.Matches(expected, @"</?b>").Select(match => match.Value);
+                    var actualTags = Regex.Matches(actual, @"</?b>").Select(match => match.Value);
+                    if (!expectedTags.SequenceEqual(actualTags))
+                        errors.Add($"{locale}: {entry.Name}: bold tags differ from English");
+                }
+            }
+
+            Check(errors.Count == 0, string.Join(Environment.NewLine, errors));
+        });
+
         test("LocalizationManager resolves English and Japanese", () =>
         {
             LocalizationManager.Initialize();
