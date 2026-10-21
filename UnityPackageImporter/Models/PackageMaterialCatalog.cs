@@ -51,7 +51,6 @@ internal sealed class PackageMaterialCatalog
                 string packagePath = GetPackagePath(asset.Value);
                 string folder = FolderOf(packagePath);
                 var baseCol = data.Color("_Color", data.Color("_BaseColor", (0.8f, 0.8f, 0.8f, 1.0f)));
-                MaterialThumbnailGenerator.SetCachedBaseColor(asset.Key, baseCol);
                 result.Add(new PackageMaterialChoice(asset.Key, name, folder, packagePath, baseCol));
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or

@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1220,16 +1221,22 @@ internal sealed class MaterialCustomizerController : IDisposable
                 await Task.Delay(100, cancellationToken);
                 if (cancellationToken.IsCancellationRequested) return;
 
-                Uri? url = await thumbnailCache.GetOrLoadThumbnailAsync(materialGuid, async guid =>
+                // Capture this package's immutable index. A later selection or companion
+                // package must not change the source of an already shared task.
+                var assetIndex = importer.AssetIDDict;
+                var source = await MaterialThumbnailSource.CaptureAsync(materialGuid, assetIndex, cancellationToken);
+                if (source == null) return;
+                Uri? url = await thumbnailCache.GetOrLoadThumbnailAsync(source.Key, async _ =>
                 {
-                    var currentImporter = getImporter();
-                    if (currentImporter?.world == null || currentImporter.world.IsDestroyed) return null;
+                    if (importer.world.IsDestroyed) return null;
 
-                    string? thumbPath = await MaterialThumbnailGenerator.GetOrCreateThumbnailAsync(guid, currentImporter, CancellationToken.None);
+                    string? thumbPath = await MaterialThumbnailGenerator.GetOrCreateThumbnailAsync(source, CancellationToken.None);
                     if (string.IsNullOrEmpty(thumbPath)) return null;
 
-                    if (currentImporter.world == null || currentImporter.world.IsDestroyed) return null;
-                    return await currentImporter.world.Engine.LocalDB.ImportLocalAssetAsync(thumbPath, LocalDB.ImportLocation.Copy);
+                    if (importer.world.IsDestroyed) return null;
+                    // Keep the file open without delete sharing while LocalDB copies it.
+                    using var thumbnailRead = File.OpenRead(thumbPath);
+                    return await importer.world.Engine.LocalDB.ImportLocalAssetAsync(thumbPath, LocalDB.ImportLocation.Copy);
                 }, cancellationToken);
 
                 if (url == null || cancellationToken.IsCancellationRequested) return;

@@ -1,9 +1,7 @@
 #nullable enable
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
-using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -25,8 +23,6 @@ internal static class MaterialThumbnailGenerator
     private const float OrbRadius = 54.0f;
     private const float Center = (ThumbnailSize - 1) / 2.0f; // 63.5f
 
-    private static readonly ConcurrentDictionary<string, (float r, float g, float b, float a)> BaseColorCache = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly ConcurrentDictionary<string, Uri> ImportedUriCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly SemaphoreSlim ThumbnailThrottle = new(1, 1);
 
     public delegate (int width, int height, byte[] rgba)? TextureReader(string filePath, int maxDimension);
@@ -46,39 +42,28 @@ internal static class MaterialThumbnailGenerator
     private static readonly Vec3 HalfDir = Vec3.Normalize(-0.45f, 0.65f, 1.60f);
     private static readonly Vec3 FillLight = Vec3.Normalize(0.50f, -0.40f, 0.35f);
 
-    public static string GetThumbnailCacheDirectory()
-    {
-        string dir = Path.Combine(Path.GetTempPath(), "ResoniteMaterialThumbs");
-        Directory.CreateDirectory(dir);
-        return dir;
-    }
+    public static string GetThumbnailCacheDirectory() => ThumbnailDiskCache.Directory;
 
-    public static void SetCachedBaseColor(string materialGuid, (float r, float g, float b, float a) color)
-    {
-        if (!string.IsNullOrEmpty(materialGuid))
-            BaseColorCache[materialGuid] = color;
-    }
-
-    public static (float r, float g, float b, float a) GetMaterialBaseColor(string materialGuid, IReadOnlyDictionary<string, string> assetIndex)
+    public static (float r, float g, float b, float a) GetMaterialBaseColor(string materialGuid,
+        IReadOnlyDictionary<string, string> assetIndex, MaterialThumbnailColors? colors = null)
     {
         if (string.IsNullOrEmpty(materialGuid)) return (0.8f, 0.8f, 0.8f, 1.0f);
-        if (BaseColorCache.TryGetValue(materialGuid, out var cached)) return cached;
 
         try
         {
             if (assetIndex.TryGetValue(materialGuid, out string? matPath) &&
                 !string.IsNullOrEmpty(matPath) && File.Exists(matPath))
             {
-                var data = UnityMaterialData.Parse(File.ReadAllText(matPath));
-                var col = data.Color("_Color", data.Color("_BaseColor", (0.8f, 0.8f, 0.8f, 1.0f)));
-                BaseColorCache[materialGuid] = col;
-                return col;
+                string yaml = File.ReadAllText(matPath);
+                return colors?.Get(materialGuid, yaml) ?? MaterialThumbnailColors.Read(yaml);
             }
         }
         catch (Exception ex)
         {
 #if !REGRESSION_TESTS
             UnityPackageImporter.Warn($"Failed to read material base color for '{materialGuid}': {ex.Message}");
+#else
+            System.Diagnostics.Trace.TraceWarning($"Failed to read material base color for '{materialGuid}': {ex.Message}");
 #endif
         }
 
@@ -87,7 +72,7 @@ internal static class MaterialThumbnailGenerator
 
 #if !REGRESSION_TESTS
     public static (float r, float g, float b, float a) GetMaterialBaseColor(string materialGuid, UnityProjectImporter importer) =>
-        GetMaterialBaseColor(materialGuid, importer.AssetIDDict);
+        GetMaterialBaseColor(materialGuid, importer.AssetIDDict, importer.Session?.ThumbnailColors);
 
     public static Task<string?> GetOrCreateThumbnailAsync(
         string materialGuid,
@@ -136,14 +121,19 @@ internal static class MaterialThumbnailGenerator
         CancellationToken cancellationToken = default,
         TextureReader? customTextureReader = null)
     {
-        if (string.IsNullOrEmpty(materialGuid)) return null;
-        if (!assetIndex.TryGetValue(materialGuid, out string? matPath) ||
-            string.IsNullOrEmpty(matPath) || !File.Exists(matPath))
-            return null;
+        var source = await MaterialThumbnailSource.CaptureAsync(materialGuid, assetIndex, cancellationToken);
+        return source == null ? null : await GetOrCreateThumbnailAsync(source, cancellationToken, customTextureReader);
+    }
 
+    internal static async Task<string?> GetOrCreateThumbnailAsync(MaterialThumbnailSource source,
+        CancellationToken cancellationToken = default, TextureReader? customTextureReader = null)
+    {
+        // Use one source snapshot for the task key, disk key and rendered YAML.
+        string materialGuid = source.Guid;
+        string yaml = source.Yaml;
+        var assetIndex = source.AssetIndex;
         string cacheDir = GetThumbnailCacheDirectory();
-        long lastWrite = File.GetLastWriteTimeUtc(matPath).Ticks;
-        string cacheFileName = $"v2_{materialGuid}_{lastWrite}.png";
+        string cacheFileName = $"{source.Key}.png";
         string cacheFilePath = Path.Combine(cacheDir, cacheFileName);
 
         if (File.Exists(cacheFilePath) && new FileInfo(cacheFilePath).Length > 0)
@@ -158,7 +148,9 @@ internal static class MaterialThumbnailGenerator
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                string yaml = File.ReadAllText(matPath);
+                // Another caller may have published this source while we waited.
+                if (File.Exists(cacheFilePath) && new FileInfo(cacheFilePath).Length > 0)
+                    return cacheFilePath;
                 var data = UnityMaterialData.Parse(yaml);
 
                 TextureReader? reader = customTextureReader;
@@ -168,19 +160,21 @@ internal static class MaterialThumbnailGenerator
 
                 byte[] pngBytes = RenderOrbPng(data, assetIndex, reader, cancellationToken);
                 cancellationToken.ThrowIfCancellationRequested();
+                if (source.Key != MaterialThumbnailIdentity.Create(materialGuid, yaml, assetIndex))
+                    throw new IOException("Thumbnail textures changed during rendering; no thumbnail was cached.");
 
                 string tempFile = Path.Combine(cacheDir, $"{materialGuid}_{Guid.NewGuid():N}.tmp");
-                File.WriteAllBytes(tempFile, pngBytes);
 
                 try
                 {
-                    if (File.Exists(cacheFilePath)) File.Delete(cacheFilePath);
-                    File.Move(tempFile, cacheFilePath);
+                    File.WriteAllBytes(tempFile, pngBytes);
+                    File.Move(tempFile, cacheFilePath, overwrite: true);
                 }
-                catch (IOException)
+                catch (Exception)
                 {
-                    // Concurrent thumbnail generation may lock or replace the destination; clean up temp file.
+                    // Roll back an unpublished thumbnail, preserving the I/O failure.
                     if (File.Exists(tempFile)) File.Delete(tempFile);
+                    throw;
                 }
 
                 return cacheFilePath;
