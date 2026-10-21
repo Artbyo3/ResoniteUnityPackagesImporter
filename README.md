@@ -4,6 +4,8 @@ An experimental [ResoniteModLoader](https://github.com/resonite-modding-group/Re
 
 ---
 
+Version: **0.0.5**. See the [changelog](CHANGELOG.md).
+
 ## 📖 Documentation
 
 Full documentation, installation guides, and feature compatibility details are available on the documentation site:
