@@ -40,6 +40,7 @@
     <Compile Include="../UnityPackageImporter/Models/AsyncImportCache.cs" Link="AsyncImportCache.cs" />
     <Compile Include="../UnityPackageImporter/Models/PendingAssetAssignments.cs" Link="PendingAssetAssignments.cs" />
     <Compile Include="../UnityPackageImporter/Models/InitialToggleBinding.cs" Link="InitialToggleBinding.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AccordionState.cs" Link="AccordionState.cs" />
     <Compile Include="../UnityPackageImporter/Models/ImportLifetime.cs" Link="ImportLifetime.cs" />
     <Compile Include="../UnityPackageImporter/Models/BoundedTaskScheduler.cs" Link="BoundedTaskScheduler.cs" />
     <Compile Include="../UnityPackageImporter/Models/TemporaryRigParent.cs" Link="TemporaryRigParent.cs" />

@@ -1491,6 +1491,7 @@ ImportFailureReportTests.Register(Test);
 ReusableDecisionPromptTests.Register(Test);
 LocalizationManagerTests.Register(Test);
 InitialToggleBindingTests.Register(Test);
+AccordionStateTests.Register(Test);
 
 AvatarViewpointTests.Register(Test);
 HandCalibrationTests.Register(Test);

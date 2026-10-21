@@ -71,7 +71,8 @@ internal sealed class MaterialCustomizerController : IDisposable
     private string lastBrowsedFolder = "";
     private int lastBrowseDepthIndex;
     private MaterialSlotBinding selectedSlot;
-    private readonly HashSet<string> expandedRendererNames = new(StringComparer.OrdinalIgnoreCase);
+    // Component references stay stable for this list's lifetime, including after renaming.
+    private readonly AccordionState<MeshRenderer> accordionState = new(ReferenceEqualityComparer.Instance);
     private PreparedImportItem displayedItem;
     private IReadOnlyList<MaterialRendererBinding> renderers = Array.Empty<MaterialRendererBinding>();
     private PackageMaterialCatalog materialCatalog;
@@ -538,7 +539,6 @@ internal sealed class MaterialCustomizerController : IDisposable
         displayedItem = item;
         materialCatalog = catalog;
         renderers = BuildRendererBindings(item, importer, catalog);
-        expandedRendererNames.Clear();
         mainQuery = "";
 
         if (mainSearchText != null) mainSearchText.Content.Value = "";
@@ -593,7 +593,7 @@ internal sealed class MaterialCustomizerController : IDisposable
                 slots.Add(new MaterialSlotBinding(renderer.Slot.Name, index, MaterialName(current, importer, catalog),
                     () => renderer.Materials[capturedIndex], value => renderer.Materials[capturedIndex] = value, original));
             }
-            if (slots.Count > 0) result.Add(new MaterialRendererBinding(RendererLabel(renderer.Slot), slots));
+            if (slots.Count > 0) result.Add(new MaterialRendererBinding(renderer, RendererLabel(renderer.Slot), slots));
         }
 
         var staticRenderers = root.GetComponentsInChildren<MeshRenderer>();
@@ -613,7 +613,7 @@ internal sealed class MaterialCustomizerController : IDisposable
                 slots.Add(new MaterialSlotBinding(renderer.Slot.Name, index, MaterialName(current, importer, catalog),
                     () => renderer.Materials[capturedIndex], value => renderer.Materials[capturedIndex] = value, original));
             }
-            if (slots.Count > 0) result.Add(new MaterialRendererBinding(RendererLabel(renderer.Slot), slots));
+            if (slots.Count > 0) result.Add(new MaterialRendererBinding(renderer, RendererLabel(renderer.Slot), slots));
         }
 
         // Safety fallback: if all renderers in this item hierarchy were inactive/disabled,
@@ -635,7 +635,7 @@ internal sealed class MaterialCustomizerController : IDisposable
                     slots.Add(new MaterialSlotBinding(renderer.Slot.Name, index, MaterialName(current, importer, catalog),
                         () => renderer.Materials[capturedIndex], value => renderer.Materials[capturedIndex] = value, original));
                 }
-                if (slots.Count > 0) result.Add(new MaterialRendererBinding(RendererLabel(renderer.Slot), slots));
+                if (slots.Count > 0) result.Add(new MaterialRendererBinding(renderer, RendererLabel(renderer.Slot), slots));
             }
 
             foreach (var renderer in staticRenderers)
@@ -653,7 +653,7 @@ internal sealed class MaterialCustomizerController : IDisposable
                     slots.Add(new MaterialSlotBinding(renderer.Slot.Name, index, MaterialName(current, importer, catalog),
                         () => renderer.Materials[capturedIndex], value => renderer.Materials[capturedIndex] = value, original));
                 }
-                if (slots.Count > 0) result.Add(new MaterialRendererBinding(RendererLabel(renderer.Slot), slots));
+                if (slots.Count > 0) result.Add(new MaterialRendererBinding(renderer, RendererLabel(renderer.Slot), slots));
             }
         }
 
@@ -728,6 +728,7 @@ internal sealed class MaterialCustomizerController : IDisposable
 
     private void ClearNativeMeshCards()
     {
+        accordionState.Clear();
         meshSpheresCts?.Cancel();
         foreach (var holder in nativeCards)
         {
@@ -815,8 +816,7 @@ internal sealed class MaterialCustomizerController : IDisposable
             IsPopulated = false
         };
 
-        bool isExpanded = expandedRendererNames.Contains(renderer.Name);
-        SetAccordionState(holder, isExpanded);
+        ApplyAccordionState(holder);
 
         var headerBtn = header?.GetComponent<Button>();
         if (headerBtn != null)
@@ -827,33 +827,18 @@ internal sealed class MaterialCustomizerController : IDisposable
 
             NativeButtonEvents.Pressed(headerBtn, (_, _) =>
             {
-                bool willExpand = !expandedRendererNames.Contains(holder.Renderer.Name);
-                SetAccordionState(holder, willExpand);
+                accordionState.Toggle(holder.Renderer.Identity);
+                foreach (var card in nativeCards) ApplyAccordionState(card);
             });
         }
 
         return holder;
     }
 
-    private void SetAccordionState(NativeMeshCardHolder holder, bool expand)
+    private void ApplyAccordionState(NativeMeshCardHolder holder)
     {
-        if (expand)
-        {
-            // Enforce single-card mutual exclusion so only one mesh card is expanded at a time.
-            foreach (var other in nativeCards)
-            {
-                if (!ReferenceEquals(other, holder) && expandedRendererNames.Contains(other.Renderer.Name))
-                {
-                    SetAccordionState(other, false);
-                }
-            }
-            EnsureSlotsPopulated(holder);
-            expandedRendererNames.Add(holder.Renderer.Name);
-        }
-        else
-        {
-            expandedRendererNames.Remove(holder.Renderer.Name);
-        }
+        bool expand = accordionState.IsExpanded(holder.Renderer.Identity);
+        if (expand) EnsureSlotsPopulated(holder);
 
         if (holder.MultiDriver != null)
         {
@@ -1551,9 +1536,15 @@ internal sealed class MaterialCustomizerController : IDisposable
 
     private sealed class MaterialRendererBinding
     {
+        public MeshRenderer Identity { get; }
         public string Name { get; }
         public IReadOnlyList<MaterialSlotBinding> Slots { get; }
-        public MaterialRendererBinding(string name, IReadOnlyList<MaterialSlotBinding> slots) { Name = name; Slots = slots; }
+        public MaterialRendererBinding(MeshRenderer identity, string name, IReadOnlyList<MaterialSlotBinding> slots)
+        {
+            Identity = identity;
+            Name = name;
+            Slots = slots;
+        }
     }
 
     private sealed class MaterialSlotBinding

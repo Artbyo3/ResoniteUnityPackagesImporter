@@ -82,8 +82,7 @@ internal sealed class UnityStationHandle
         }
         ResetPreviewTurntable();
         Get<ValueField<bool>>("shaderVisible").Value.Value = false;
-        if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletDriver))
-            tabletDriver.State.Value = true;
+        Get<BooleanValueDriver<float3>>("tabletScale").State.Value = true;
         Get<Slot>("nameCard").ActiveSelf = false;
         SetImportingPanel(true);
         SetCompanionState(false, false);
@@ -216,8 +215,7 @@ internal sealed class UnityStationHandle
         Get<SmoothValue<float>>("arc").TargetValue.Value = 0f;
         Get<Slot>("progressPedestal").ActiveSelf = true;
         // Keep the tablet's Close action accessible when import cannot stage.
-        if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletScale))
-            tabletScale.State.Value = true;
+        Get<BooleanValueDriver<float3>>("tabletScale").State.Value = true;
         SetImportingPanel(false);
         SaveFailureReport(error);
     }
@@ -286,8 +284,7 @@ internal sealed class UnityStationHandle
             ShowEmptyPackage(project.PackageNames.FirstOrDefault() ?? "Package", project.ListOfUnityScenes.Count > 0);
             return;
         }
-        if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletScale))
-            tabletScale.State.Value = true;
+        Get<BooleanValueDriver<float3>>("tabletScale").State.Value = true;
         // Reset already selects the first entry; its saved name must not be
         // replaced by the template's example input on this initial display.
         await SelectAsync(0, saveCurrentName: false);
@@ -301,8 +298,7 @@ internal sealed class UnityStationHandle
     {
         ready = true;
         Get<Slot>("progressCard").ActiveSelf = false;
-        if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletScale))
-            tabletScale.State.Value = true;
+        Get<BooleanValueDriver<float3>>("tabletScale").State.Value = true;
         Get<Slot>("nameCard").ActiveSelf = false;
         Get<Checkbox>("protect").Slot.Parent.ActiveSelf = false;
         Get<Text>("avatarTitle").Content.Value = "<b>" + Escape(name) + "</b>";
@@ -400,8 +396,7 @@ internal sealed class UnityStationHandle
         materialCustomizer?.CloseAll();
         items.Select(index);
         ResetPreviewTurntable();
-        if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletScale))
-            tabletScale.State.Value = true;
+        Get<BooleanValueDriver<float3>>("tabletScale").State.Value = true;
         if (previewScaleDriver != null && !previewScaleDriver.IsDestroyed)
             previewScaleDriver.State.Value = true;
         Get<BooleanValueDriver<bool>>("mode").State.Value = IsOutfit;
@@ -530,8 +525,7 @@ internal sealed class UnityStationHandle
                 UnityPackageImporter.Warn("A committed import item was not present in the station's selectable list.");
 
             materialCustomizer?.CloseAll();
-            if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletDriver))
-                tabletDriver.State.Value = false;
+            Get<BooleanValueDriver<float3>>("tabletScale").State.Value = false;
             if (previewScaleDriver != null && !previewScaleDriver.IsDestroyed)
                 previewScaleDriver.State.Value = false;
 
@@ -687,17 +681,12 @@ internal sealed class UnityStationHandle
 
                     if (IsAlive)
                     {
-                        if (ui.TryGet<SmoothValue<float>>("arc", out var arc))
-                        {
-                            arc.TargetValue.Value = 0f;
-                            arc.Speed.Value = 3f;
-                        }
-                        if (ui.TryGet<BooleanValueDriver<float3>>("cardScale", out var cardScale))
-                            cardScale.State.Value = false;
-                        if (ui.TryGet<BooleanValueDriver<float3>>("cardPosition", out var cardPosition))
-                            cardPosition.State.Value = false;
-                        if (ui.TryGet<BooleanValueDriver<float3>>("tabletScale", out var tabletScale))
-                            tabletScale.State.Value = false;
+                        var arc = Get<SmoothValue<float>>("arc");
+                        arc.TargetValue.Value = 0f;
+                        arc.Speed.Value = 3f;
+                        Get<BooleanValueDriver<float3>>("cardScale").State.Value = false;
+                        Get<BooleanValueDriver<float3>>("cardPosition").State.Value = false;
+                        Get<BooleanValueDriver<float3>>("tabletScale").State.Value = false;
                         if (previewScaleDriver != null && !previewScaleDriver.IsDestroyed)
                             previewScaleDriver.State.Value = false;
                     }
