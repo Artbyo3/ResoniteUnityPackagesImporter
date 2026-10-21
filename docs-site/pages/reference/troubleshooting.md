@@ -7,7 +7,7 @@ This reference covers common import outcomes, status diagnostics, and steps to r
 The importer assigns a structured status to each selectable output:
 
 - **Ready**: Structural checks passed and all assets were resolved. The avatar or object can be created or installed immediately.
-- **Partial compatibility**: The structure is valid and avatar creation is fully supported, but some visual shader features could not be translated natively (for example, dynamic UV animation, unbaked lilToon layers, second emission maps, or AudioLink). The limitation details are visible on the station tablet and recorded in the in-world receipt.
+- **Partial compatibility**: The import has warnings, such as approximate shader effects, missing materials or mesh references, or skipped or deferred nested prefab content. This status does not by itself guarantee avatar creation; available actions still depend on structure and avatar readiness. Review the item details on the station and in the import receipt.
 - **Blocked**: The item cannot be created automatically. Common reasons include missing humanoid rigs, multiple unmerged root rigs, or unresolved parent references.
 
 ## Common situations and solutions

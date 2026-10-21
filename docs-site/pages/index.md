@@ -13,7 +13,7 @@ hide:
 <nav class="simple-landing__options" aria-label="Choose where to go">
 <a href="documentation/">Documentation</a>
 <a href="reference/compatibility/">Compatibility</a>
-<a href="getting-started/">Getting started</a>
+<a href="https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/latest/download/UnityPackageImporter-testing-build.zip">Download ZIP</a>
 </nav>
 
 </div>

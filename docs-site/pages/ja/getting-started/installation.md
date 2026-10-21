@@ -9,13 +9,20 @@
 
 ## 新規インストール
 
-1. リリースアーカイブ（`UnityPackageImporter-x.x.x.zip`）をダウンロードします。
-2. リリースノートに記載されたチェックサムとダウンロードしたファイルを照合します。
-3. アーカイブを展開します：
-    - `UnityPackageImporter.dll` を Resonite の `rml_mods` フォルダに配置します。
-    - `YamlDotNet.dll` を Resonite の `rml_libs` フォルダに配置します（まだ存在しない場合）。
+[最新版の ZIP をダウンロード](https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/latest/download/UnityPackageImporter-testing-build.zip){ .md-button .md-button--primary }
+[リリースノートと個別の DLL](https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/latest){ .md-button }
+
+ZIP には Mod 本体と依存ライブラリの YamlDotNet が含まれています。このリンクから、常に最新の公開リリースをダウンロードできます。
+
+1. Resonite を完全に終了し、現在の Mod ファイルをバックアップします。
+2. `UnityPackageImporter-testing-build.zip` をダウンロードして展開します。
+3. 展開した `rml_mods` と `rml_libs` フォルダを Resonite のインストール先へコピーします。
+    - `rml_mods/UnityPackageImporter.dll` が Mod 本体です。
+    - `rml_libs/YamlDotNet.dll` が依存ライブラリです。更新時は同梱のファイルに置き換えてください。
 4. ResoniteModLoader を有効にして Resonite を起動します。
 5. Mod ログを確認し、`UnityPackageImporter` が起動時エラーなしで読み込まれていることを確認します。
+
+ダウンロードしたファイルを検証する場合は、展開した `UnityPackageImporter.dll` の SHA256 をリリースノートの値と照合してください。
 
 ## アップデート
 

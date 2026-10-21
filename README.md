@@ -6,6 +6,10 @@ An experimental [ResoniteModLoader](https://github.com/resonite-modding-group/Re
 
 Version: **0.0.5**. See the [changelog](CHANGELOG.md).
 
+[Download the latest ZIP](https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/latest/download/UnityPackageImporter-testing-build.zip) · [Release notes](https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/latest)
+
+With Resonite closed, extract the ZIP and copy its `rml_mods` and `rml_libs` folders into your Resonite installation. ResoniteModLoader must already be installed. See the [installation guide](https://artbyo3.github.io/ResoniteUnityPackagesImporter/getting-started/installation/) for the full steps.
+
 ## 📖 Documentation
 
 Full documentation, installation guides, and feature compatibility details are available on the documentation site:

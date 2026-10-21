@@ -13,6 +13,10 @@ Unity Package Importer は、Unity の `.unitypackage` ファイルに含まれ�
 - **[コンパニオンパッケージ](../importing/companion-packages.md)**: 分割配布されたテクスチャやマテリアルを解決するためのマルチパッケージワークフロー。
 - **[互換性リファレンス](../reference/compatibility/)**: Unity パッケージ、Modular Avatar、VRCFury、およびシェーダー変換（Standard / PBS、lilToon、Poiyomi）の詳細な対応状況。
 
+## ダウンロード
+
+[最新版の ZIP](https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/latest/download/UnityPackageImporter-testing-build.zip) をダウンロードし、[インストールガイド](installation.md) に従って導入してください。変更内容と DLL のチェックサムは、[最新のリリースノート](https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/latest) をご確認ください。
+
 ## 次のステップ
 
 - [インストールガイド](installation.md) に従って Mod を導入してください。

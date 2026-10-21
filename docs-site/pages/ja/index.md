@@ -13,7 +13,7 @@ hide:
 <nav class="simple-landing__options" aria-label="移動先を選択">
 <a href="documentation/">ドキュメント</a>
 <a href="reference/compatibility/">互換性情報</a>
-<a href="getting-started/">はじめに</a>
+<a href="https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/latest/download/UnityPackageImporter-testing-build.zip">ダウンロード</a>
 </nav>
 
 </div>
