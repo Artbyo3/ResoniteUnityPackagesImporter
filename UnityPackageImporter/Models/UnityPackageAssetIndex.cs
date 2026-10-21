@@ -284,7 +284,7 @@ internal sealed class UnityPackageAssetIndex
     public static string NormalizeGuid(string? value) =>
         (value ?? "").Trim().ToLowerInvariant();
 
-    private static string? ReadGuid(string metadataPath)
+    internal static string? ReadGuid(string metadataPath)
     {
         foreach (string line in File.ReadLines(metadataPath))
         {

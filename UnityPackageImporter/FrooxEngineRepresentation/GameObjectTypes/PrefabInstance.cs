@@ -41,6 +41,12 @@ public class PrefabInstance : IUnityObject
     public async Task InstanciateAsync(IUnityStructureImporter importer)
     {
         if (instanciated) return;
+        if (importer is UnitySceneImportTask missingScene && missingScene.NestedPrefabs.TryGetMissingSource(id, out string missingGuid))
+        {
+            UnityPackageImporter.Warn(NestedPrefabDeferrals.MissingSourceWarning(id, missingGuid));
+            instanciated = true;
+            return;
+        }
         if (importer is UnitySceneImportTask scene && scene.UnsupportedNestedPrefabInstances.Contains(id))
         {
             bool deferred = scene.NestedPrefabs.ContainsInstance(id);
@@ -495,7 +501,7 @@ public class PrefabInstance : IUnityObject
         }
         else
         {
-            UnityPackageImporter.Warn("The prefab with a file id of \"" + id.ToString() + "\" in the structure scene is malformed!!! The file source of the prefab doesn't exist in the imported package or file list set.");
+            UnityPackageImporter.Warn(NestedPrefabDeferrals.MissingSourceWarning(id, m_SourcePrefab.guid));
         }
 
 

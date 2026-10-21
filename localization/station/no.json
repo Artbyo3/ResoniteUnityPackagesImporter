@@ -150,6 +150,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Oppretting av en avatar krever et gyldig synspunkt eller et par øyebein.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Disse utdataene inneholder allerede et innebygd avataroppsett.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Noen meshreferanser mangler; de berørte rendererne ble hoppet over.",
-    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Nestede prefaber uten mesh ble ikke utvidet; innholdet og operasjonene er utsatt."
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Nestede prefaber uten mesh ble ikke utvidet; innholdet og operasjonene er utsatt.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
   }
 }

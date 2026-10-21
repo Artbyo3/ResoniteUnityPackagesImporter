@@ -150,6 +150,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "创建角色需要有效的视点或一对眼部骨骼。",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "此输出已包含原生角色设置。",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "缺少部分网格引用；已跳过受影响的渲染器。",
-    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "未展开不含网格的嵌套预制件；其内容和操作已延后处理。"
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "未展开不含网格的嵌套预制件；其内容和操作已延后处理。",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
   }
 }

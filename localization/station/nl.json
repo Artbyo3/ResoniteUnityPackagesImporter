@@ -150,6 +150,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Voor het maken van een avatar is een geldig gezichtspunt of een paar oogbotten vereist.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Deze uitvoer bevat al een native avatarconfiguratie.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Sommige meshverwijzingen ontbreken; de bijbehorende renderers zijn overgeslagen.",
-    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Geneste prefabs zonder meshes zijn niet uitgewerkt; hun inhoud en bewerkingen zijn uitgesteld."
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Geneste prefabs zonder meshes zijn niet uitgewerkt; hun inhoud en bewerkingen zijn uitgesteld.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
   }
 }

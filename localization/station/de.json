@@ -150,6 +150,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Zum Erstellen eines Avatars ist ein gültiger Blickpunkt oder ein Paar Augenknochen erforderlich.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Diese Ausgabe enthält bereits eine native Avatar-Einrichtung.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Einige Mesh-Referenzen fehlen; die betroffenen Renderer wurden übersprungen.",
-    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Verschachtelte Prefabs ohne Meshes wurden nicht erweitert; ihre Inhalte und Operationen sind zurückgestellt."
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Verschachtelte Prefabs ohne Meshes wurden nicht erweitert; ihre Inhalte und Operationen sind zurückgestellt.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
   }
 }

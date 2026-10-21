@@ -56,6 +56,12 @@ internal sealed record NestedPrefabCapabilities(bool CanDefer, IReadOnlyCollecti
 internal sealed class NestedPrefabDeferrals
 {
     private readonly HashSet<ulong> instances = new();
+    private readonly Dictionary<ulong, string> missing = new();
+    internal IEnumerable<ulong> MissingInstanceIds => missing.Keys;
+    internal void RegisterMissing(ulong instanceId, string guid) => missing.Add(instanceId, guid);
+    internal bool TryGetMissingSource(ulong instanceId, out string? guid) => missing.TryGetValue(instanceId, out guid);
+    internal static string MissingSourceWarning(ulong instanceId, string guid) =>
+        $"Referenced prefab GUID {guid} for instance {instanceId} is missing from the package; it was not imported.";
     private readonly HashSet<string> sourcePaths = new(StringComparer.OrdinalIgnoreCase);
     internal IEnumerable<ulong> InstanceIds => instances;
 
@@ -65,7 +71,7 @@ internal sealed class NestedPrefabDeferrals
         sourcePaths.UnionWith(paths);
     }
 
-    internal bool ContainsInstance(ulong id) => instances.Contains(id);
+    internal bool ContainsInstance(ulong id) => instances.Contains(id) || missing.ContainsKey(id);
     internal bool ShouldSkipObject(ulong instanceId, bool hasSourceObject) => hasSourceObject && ContainsInstance(instanceId);
     internal bool ContainsSource(string path) => sourcePaths.Contains(path);
 

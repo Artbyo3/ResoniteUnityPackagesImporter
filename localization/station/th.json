@@ -150,6 +150,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "การสร้างอวตารต้องมีจุดมองที่ถูกต้องหรือกระดูกตาหนึ่งคู่",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "ผลลัพธ์นี้มีการตั้งค่าอวตารแบบเนทีฟอยู่แล้ว",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "ไม่พบการอ้างอิงเมชบางรายการ จึงข้ามตัวเรนเดอร์ที่เกี่ยวข้อง",
-    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "ไม่ได้ขยายพรีแฟบซ้อนที่ไม่มีเมช เนื้อหาและการดำเนินการของพรีแฟบเหล่านั้นถูกเลื่อนออกไป"
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "ไม่ได้ขยายพรีแฟบซ้อนที่ไม่มีเมช เนื้อหาและการดำเนินการของพรีแฟบเหล่านั้นถูกเลื่อนออกไป",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
   }
 }

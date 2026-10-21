@@ -38,6 +38,7 @@
     <Compile Include="../UnityPackageImporter/Models/ImportResult.cs" Link="ImportResult.cs" />
     <Compile Include="../UnityPackageImporter/Models/MeshReferenceLookup.cs" Link="MeshReferenceLookup.cs" />
     <Compile Include="../UnityPackageImporter/Models/NestedPrefabCapabilities.cs" Link="NestedPrefabCapabilities.cs" />
+    <Compile Include="../UnityPackageImporter/Models/NestedPrefabSourceIndex.cs" Link="NestedPrefabSourceIndex.cs" />
     <Compile Include="../UnityPackageImporter/Models/ImportMeasurements.cs" Link="ImportMeasurements.cs" />
     <Compile Include="../UnityPackageImporter/Models/SourceImportBatch.cs" Link="SourceImportBatch.cs" />
     <Compile Include="../UnityPackageImporter/Models/SelectableImportItems.cs" Link="SelectableImportItems.cs" />
