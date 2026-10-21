@@ -29,7 +29,8 @@ public enum AvatarOperationExecutionState
     Succeeded,
     Failed,
     Cancelled,
-    AwaitingInstallation
+    AwaitingInstallation,
+    DeferredNestedPrefab
 }
 
 public sealed class AvatarOperationDiagnostic
@@ -294,7 +295,8 @@ public static class AvatarPlanExecution
     public static async Task ExecuteAsync(
         AvatarBuildPlan plan,
         Func<AvatarBuildOperation, CancellationToken, Task> executeOperation,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Func<AvatarBuildOperation, bool>? deferNestedPrefab = null)
     {
         if (plan == null) throw new ArgumentNullException(nameof(plan));
         if (executeOperation == null) throw new ArgumentNullException(nameof(executeOperation));
@@ -312,6 +314,21 @@ public static class AvatarPlanExecution
         foreach (var operation in ordered)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (deferNestedPrefab?.Invoke(operation) == true)
+            {
+                operation.ExecutionState = AvatarOperationExecutionState.DeferredNestedPrefab;
+                operation.AddDiagnostic(AvatarOperationSeverity.Warning,
+                    "Operation deferred because its mesh-free nested prefab is not expanded.", "UNSUPPORTED_NESTED_PREFAB");
+                continue;
+            }
+            if (operation.DependsOnOperationIds.Any(id => plan.Operations.Any(dependency =>
+                dependency.OperationId == id && dependency.ExecutionState == AvatarOperationExecutionState.DeferredNestedPrefab)))
+            {
+                operation.ExecutionState = AvatarOperationExecutionState.Failed;
+                operation.AddDiagnostic(AvatarOperationSeverity.Error,
+                    "A required operation belongs to a deferred nested prefab.", "DEFERRED_DEPENDENCY");
+                return;
+            }
             operation.ExecutionState = AvatarOperationExecutionState.Running;
             try
             {

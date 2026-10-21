@@ -149,6 +149,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Vytvoření avatara vyžaduje inicializované IK a odkazy na ruce.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Vytvoření avatara vyžaduje platný bod pohledu nebo párové oční kosti.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Tento výstup již obsahuje nativní nastavení avatara.",
-    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Některé odkazy na sítě chybí; dotčené renderery byly přeskočeny."
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Některé odkazy na sítě chybí; dotčené renderery byly přeskočeny.",
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Vnořené prefaby bez sítí nebyly rozbaleny; jejich obsah a operace jsou odloženy."
   }
 }

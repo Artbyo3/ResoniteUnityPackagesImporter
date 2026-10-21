@@ -35,6 +35,7 @@ public class Transform: IUnityObject
     public async Task InstanciateAsync(IUnityStructureImporter importer)
     {
         if (instanciated) return;
+        if (importer is UnitySceneImportTask scene && scene.TryDeferObject(this)) return;
 
         instanciated = true;
 

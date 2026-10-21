@@ -28,6 +28,7 @@ internal sealed class PreparedImportItem
     internal bool IsScopedSceneItem { get; }
     internal bool OptionalControlsFailed { get; private set; }
     internal string SourcePath => source.ID.Value;
+    internal NestedPrefabDeferrals NestedPrefabs => (source as UnitySceneImportTask)?.NestedPrefabs;
     internal ImportResult ReadResult() => ImportResultAdapter.Read(this, Project);
     internal IReadOnlyList<string> MaterialWarnings => ReadResult().MaterialWarnings;
     internal KeyValuePair<string, string> ID => source.ID;

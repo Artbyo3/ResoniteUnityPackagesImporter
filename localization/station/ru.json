@@ -149,6 +149,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Для создания аватара требуются инициализированная IK и ссылки на кисти рук.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Для создания аватара требуется допустимая точка обзора или пара костей глаз.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Этот результат уже содержит нативную настройку аватара.",
-    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Некоторые ссылки на сетки отсутствуют; соответствующие компоненты рендеринга пропущены."
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Некоторые ссылки на сетки отсутствуют; соответствующие компоненты рендеринга пропущены.",
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Вложенные префабы без сеток не развёрнуты; их содержимое и операции отложены."
   }
 }

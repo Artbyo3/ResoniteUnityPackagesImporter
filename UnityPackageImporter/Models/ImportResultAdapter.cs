@@ -26,6 +26,8 @@ internal static class ImportResultAdapter
         int missingMeshes = item.existingIUnityObjects.Values.OfType<UnityTypes.SkinnedMeshRenderer>()
             .Distinct().Count(skin => skin.HasMissingMeshReference && (!item.IsScopedSceneItem ||
                 Scope(item, unchecked((long)skin.id)) != ImportOwnership.Other));
+        int unsupportedNestedPrefabs = item.NestedPrefabs?.InstanceIds.Count(id =>
+            !item.IsScopedSceneItem || DeferredInstanceAffects(item, id)) ?? 0;
         int unsupported = item.Manifest?.UnsupportedVrcFuryFeatureCount ?? 0;
         // These components are indexed, but are not executed by the structural planner.
         // An outfit's installer handles its own additional MA features at installation.
@@ -43,7 +45,18 @@ internal static class ImportResultAdapter
                 ? ImportResultScope.Operation(op, item.SourcePath, id => Scope(item, id))
                 : ImportOwnership.Owned,
             unresolved, item.OptionalControlsFailed,
-            materialWarnings, missingMeshes);
+            materialWarnings, missingMeshes, unsupportedNestedPrefabs,
+            op => item.NestedPrefabs?.ContainsSource(op.Source.SourcePath) == true);
+    }
+
+    private static bool DeferredInstanceAffects(PreparedImportItem item, ulong id)
+    {
+        var instance = (UnityTypes.PrefabInstance)item.existingIUnityObjects[id];
+        Slot parent = null;
+        if (instance.m_Modification?.m_TransformParent?.TryGetValue("fileID", out ulong parentId) == true &&
+            item.existingIUnityObjects.TryGetValue(parentId, out var obj) && obj is UnityTypes.Transform transform)
+            parent = transform.parentHashedGameObj?.frooxEngineSlot ?? GameObjectSlot(item, transform.m_GameObjectID);
+        return parent == null || PreparedImportItem.Contains(item.CurrentStructureRootSlot, parent);
     }
 
     private static ImportOwnership Scope(PreparedImportItem item, long id)
