@@ -598,6 +598,7 @@ internal static class ModularAvatarAttachmentInstaller
         }
         catch
         {
+            // Roll back the outfit installation, then rethrow.
             await default(ToWorld);
             foreach (var cleanupError in transaction.RollBack(slot =>
                          { if (!slot.IsDestroyed) slot.Destroy(); }))

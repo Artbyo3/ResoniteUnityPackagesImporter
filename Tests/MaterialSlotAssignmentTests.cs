@@ -4,6 +4,15 @@ internal static class MaterialSlotAssignmentTests
 {
     internal static void Register(Action<string, Action> test, Action<bool, string> check)
     {
+        test("Material index inside the list replaces an existing slot", () =>
+            check(MaterialSlotAssignment.ReplacesExistingSlot(1, 3), "An existing slot must be replaced."));
+        test("Material index equal to Count appends", () =>
+            check(!MaterialSlotAssignment.ReplacesExistingSlot(3, 3), "An index at Count must append."));
+        test("Material index beyond Count appends", () =>
+            check(!MaterialSlotAssignment.ReplacesExistingSlot(5, 3), "An index beyond Count must append."));
+        test("Material index in an empty list appends", () =>
+            check(!MaterialSlotAssignment.ReplacesExistingSlot(0, 0), "An empty list must append."));
+
         test("Material conversion failure replaces its own slot without shifting later materials", () =>
         {
             var actual = new List<string>();

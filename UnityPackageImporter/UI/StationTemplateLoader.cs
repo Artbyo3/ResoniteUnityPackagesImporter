@@ -294,6 +294,7 @@ internal static class StationTemplateLoader
         }
         catch
         {
+            // Roll back the incomplete template host, then rethrow.
             await default(ToWorld);
             if (!host.IsDestroyed) host.Destroy();
             throw;
