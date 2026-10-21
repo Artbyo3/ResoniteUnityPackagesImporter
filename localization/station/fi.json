@@ -150,6 +150,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Avatarin luominen edellyttää kelvollista katselupistettä tai silmäluiden paria.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Tämä tulos sisältää jo avatarin natiiviasetukset.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Joitakin verkkoviittauksia puuttuu; kyseiset renderöijät ohitettiin.",
-    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Sisäkkäisiä esivalmisteita ilman verkkoja ei laajennettu; niiden sisältö ja toiminnot on lykätty."
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Sisäkkäisiä esivalmisteita ilman verkkoja ei laajennettu; niiden sisältö ja toiminnot on lykätty.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
   }
 }

@@ -150,6 +150,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Avatar creation requires a valid viewpoint or paired eye bones.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "This output already contains native avatar setup.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Some mesh references are missing; the affected renderers were skipped.",
-    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Nested prefabs without meshes were not expanded; their content and operations are deferred."
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Nested prefabs without meshes were not expanded; their content and operations are deferred.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
   }
 }

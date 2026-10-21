@@ -150,6 +150,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Avatari loomiseks on vaja kehtivat vaatepunkti või silmaluude paari.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "See väljund sisaldab juba avatari natiivset seadistust.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Mõned viited võrkudele puuduvad; vastavad renderdajad jäeti vahele.",
-    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Ilma võrkudeta pesastatud eelkooste ei laiendatud; nende sisu ja toimingud on edasi lükatud."
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Ilma võrkudeta pesastatud eelkooste ei laiendatud; nende sisu ja toimingud on edasi lükatud.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
   }
 }

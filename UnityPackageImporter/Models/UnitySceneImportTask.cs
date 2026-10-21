@@ -26,9 +26,17 @@ public class UnitySceneImportTask: IUnityStructureImporter
     private void ScanNestedPrefabs()
     {
         var prefabs = unityProjectImporter.ListOfPrefabs;
+        var sources = new NestedPrefabSourceIndex(prefabs.Keys, unityProjectImporter.AssetIDDict.Keys,
+            unityProjectImporter.files.Where(file => string.Equals(Path.GetExtension(file), ".meta", StringComparison.OrdinalIgnoreCase))
+                .Select(UnityPackageAssetIndex.ReadGuid));
         foreach (var instance in existingIUnityObjects.Values.OfType<FrooxEngineRepresentation.GameObjectTypes.PrefabInstance>())
         {
             string guid = instance.m_SourcePrefab?.guid;
+            if (sources.IsMissing(guid))
+            {
+                NestedPrefabs.RegisterMissing(instance.id, guid);
+                continue;
+            }
             if (guid == null || !prefabs.TryGetValue(guid, out string path) || !File.Exists(path) ||
                 PrefabVariantResolver.ResolveFbxGuid(guid, prefabs, unityProjectImporter.SharedImportedFBXScenes.Keys) != null)
                 continue;
@@ -49,7 +57,12 @@ public class UnitySceneImportTask: IUnityStructureImporter
     {
         if (!IsDeferredObject(obj)) return false;
         if (!obj.instanciated)
-            UnityPackageImporter.Warn($"Deferred stripped object {obj.id}: its mesh-free nested prefab instance is not expanded.");
+        {
+            ulong instanceId = obj.m_PrefabInstance["fileID"];
+            UnityPackageImporter.Warn(NestedPrefabs.TryGetMissingSource(instanceId, out string guid)
+                ? $"Skipped stripped object {obj.id}: " + NestedPrefabDeferrals.MissingSourceWarning(instanceId, guid)
+                : $"Deferred stripped object {obj.id}: its mesh-free nested prefab instance is not expanded.");
+        }
         obj.instanciated = true;
         return true;
     }

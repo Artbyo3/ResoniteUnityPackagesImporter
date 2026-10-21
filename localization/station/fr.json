@@ -150,6 +150,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "La création d’un avatar nécessite un point de vue valide ou une paire d’os des yeux.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Ce résultat contient déjà une configuration native d’avatar.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Certaines références de maillage sont manquantes ; les composants de rendu concernés ont été ignorés.",
-    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Les prefabs imbriqués sans maillage n’ont pas été développés ; leur contenu et leurs opérations sont différés."
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Les prefabs imbriqués sans maillage n’ont pas été développés ; leur contenu et leurs opérations sont différés.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
   }
 }

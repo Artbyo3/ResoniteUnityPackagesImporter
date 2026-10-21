@@ -150,6 +150,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "아바타를 만들려면 유효한 시점 또는 한 쌍의 눈 본이 필요합니다.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "이 출력에는 이미 네이티브 아바타 설정이 포함되어 있습니다.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "일부 메시 참조가 없어 해당 렌더러를 건너뛰었습니다.",
-    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "메시가 없는 중첩 프리팹은 확장되지 않았으며 해당 콘텐츠와 작업은 보류되었습니다."
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "메시가 없는 중첩 프리팹은 확장되지 않았으며 해당 콘텐츠와 작업은 보류되었습니다.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
   }
 }

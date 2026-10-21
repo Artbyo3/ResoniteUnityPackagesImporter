@@ -150,6 +150,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Для створення аватара потрібна коректна точка огляду або пара кісток очей.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Цей результат уже містить нативне налаштування аватара.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Деякі посилання на сітки відсутні; відповідні компоненти рендерингу пропущено.",
-    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Вкладені префаби без сіток не розгорнуто; їхній вміст та операції відкладено."
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Вкладені префаби без сіток не розгорнуто; їхній вміст та операції відкладено.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
   }
 }

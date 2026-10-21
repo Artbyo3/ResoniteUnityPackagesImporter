@@ -150,6 +150,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "pali pi sijelo jan li wile e ma lukin pona anu palisa oko tu.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "ijo pana ni li jo e nasin sijelo jan pi ilo Resonite.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "ilo li ken ala alasa e sijelo sitelen ale; ona li sitelen ala e ijo ni.",
-    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "ilo li pali ala e ijo insa pi sijelo sitelen ala; ona li awen e pali pi ijo ni."
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "ilo li pali ala e ijo insa pi sijelo sitelen ala; ona li awen e pali pi ijo ni.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
   }
 }

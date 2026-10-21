@@ -61,7 +61,8 @@ internal enum ImportResultIssue
     MissingViewpoint,
     AlreadyCreated,
     MissingMeshes,
-    UnsupportedNestedPrefabs
+    UnsupportedNestedPrefabs,
+    MissingNestedPrefabs
 }
 
 // Immutable snapshot; never cache it across awaits, material recovery or native creation.
@@ -74,6 +75,7 @@ internal sealed class ImportResult
     internal int MissingMaterialAssets { get; }
     internal int MissingMeshReferences { get; }
     internal int UnsupportedNestedPrefabCount { get; }
+    internal int MissingNestedPrefabCount { get; }
     internal int UnsupportedFeatureCount { get; }
     internal int FailedObjectCount { get; }
     internal int OperationCount { get; }
@@ -84,7 +86,7 @@ internal sealed class ImportResult
 
     private ImportResult(List<ImportResultIssue> issues, bool structureReady, bool requiresInstallation,
         NativeAvatarReadiness native, int missingMaterials, int unsupported, int failures, int operations, int completed,
-        IReadOnlyList<string>? materialWarnings = null, int missingMeshReferences = 0, int unsupportedNestedPrefabs = 0)
+        IReadOnlyList<string>? materialWarnings = null, int missingMeshReferences = 0, int unsupportedNestedPrefabs = 0, int missingNestedPrefabs = 0)
     {
         Issues = Array.AsReadOnly(issues.Distinct().ToArray());
         StructureReady = structureReady;
@@ -93,6 +95,7 @@ internal sealed class ImportResult
         MissingMaterialAssets = missingMaterials;
         MissingMeshReferences = missingMeshReferences;
         UnsupportedNestedPrefabCount = unsupportedNestedPrefabs;
+        MissingNestedPrefabCount = missingNestedPrefabs;
         UnsupportedFeatureCount = unsupported;
         FailedObjectCount = failures;
         OperationCount = operations;
@@ -124,7 +127,7 @@ internal sealed class ImportResult
         return new ImportResult(issues,
             StructureReady, false, NativeAvatarReadiness.NotApplicable, MissingMaterialAssets,
             UnsupportedFeatureCount, FailedObjectCount, OperationCount, OperationCount,
-            MaterialWarnings, MissingMeshReferences, UnsupportedNestedPrefabCount);
+            MaterialWarnings, MissingMeshReferences, UnsupportedNestedPrefabCount, MissingNestedPrefabCount);
     }
 
     internal static ImportResult Evaluate(bool sourceAvailable, bool requiresInstallation,
@@ -132,7 +135,7 @@ internal sealed class ImportResult
         int failedObjects, AvatarBuildPlan? plan = null,
         Func<AvatarBuildOperation, ImportOwnership>? ownership = null, bool unresolvedReconstruction = false,
         bool optionalControlsFailed = false, IEnumerable<string>? materialWarnings = null, int missingMeshReferences = 0,
-        int unsupportedNestedPrefabs = 0, Func<AvatarBuildOperation, bool>? deferredNestedPrefab = null)
+        int unsupportedNestedPrefabs = 0, Func<AvatarBuildOperation, bool>? deferredNestedPrefab = null, int missingNestedPrefabs = 0)
     {
         var issues = new List<ImportResultIssue>();
         bool ready = sourceAvailable && failedObjects == 0 && !unresolvedReconstruction;
@@ -179,6 +182,7 @@ internal sealed class ImportResult
         if (missingMaterialAssets > 0) issues.Add(ImportResultIssue.MissingMaterials);
         if (missingMeshReferences > 0) issues.Add(ImportResultIssue.MissingMeshes);
         if (unsupportedNestedPrefabs > 0) issues.Add(ImportResultIssue.UnsupportedNestedPrefabs);
+        if (missingNestedPrefabs > 0) issues.Add(ImportResultIssue.MissingNestedPrefabs);
         if (unsupportedFeatures > 0) issues.Add(ImportResultIssue.UnsupportedFeatures);
         if (optionalControlsFailed) issues.Add(ImportResultIssue.OptionalControlsFailed);
         // This snapshot feeds world-visible UI and receipts. Protect the output
@@ -196,6 +200,6 @@ internal sealed class ImportResult
                 _ => ImportResultIssue.MissingRig
             });
         return new ImportResult(issues, ready, requiresInstallation, native, missingMaterialAssets,
-            unsupportedFeatures, failedObjects, operations, completed, Array.AsReadOnly(warnings), missingMeshReferences, unsupportedNestedPrefabs);
+            unsupportedFeatures, failedObjects, operations, completed, Array.AsReadOnly(warnings), missingMeshReferences, unsupportedNestedPrefabs, missingNestedPrefabs);
     }
 }
