@@ -50,8 +50,74 @@ internal static class EngineApiCheck
             if (!found) failed++;
             Console.WriteLine($"{(found ? "PASS" : "FAIL")} {typeName}.{methodName} ({string.Join(" | ", matches)})");
         }
+        failed += CheckStartupHooks(Path.GetDirectoryName(Path.GetFullPath(assemblyPath))!);
         Console.WriteLine("Metadata checks only; execution still requires an in-game test.");
         return failed == 0 ? 0 : 1;
+    }
+
+    private static int CheckStartupHooks(string assemblyDirectory)
+    {
+        bool ImportExtensionConstructor(MetadataReader reader, TypeDefinition type) => type.GetMethods().Any(h =>
+        {
+            var method = reader.GetMethodDefinition(h);
+            return reader.GetString(method.Name) == ".ctor" &&
+                (method.Attributes & MethodAttributes.MemberAccessMask) == MethodAttributes.Public &&
+                method.DecodeSignature(new TypeNames(), (object?)null).ParameterTypes.SequenceEqual(new[] { "String", "Boolean" });
+        });
+        bool AssociatedExtensions(MetadataReader reader, TypeDefinition type) => type.GetFields().Any(h =>
+        {
+            var field = reader.GetFieldDefinition(h);
+            return reader.GetString(field.Name) == "associatedExtensions" &&
+                (field.Attributes & FieldAttributes.Static) != 0 &&
+                (field.Attributes & FieldAttributes.FieldAccessMask) != FieldAttributes.Public;
+        });
+        bool LocalPressed(MetadataReader reader, TypeDefinition type) => type.GetEvents().Any(h =>
+        {
+            var evt = reader.GetEventDefinition(h);
+            var adder = evt.GetAccessors().Adder;
+            return reader.GetString(evt.Name) == "LocalPressed" && !adder.IsNil &&
+                (reader.GetMethodDefinition(adder).Attributes & MethodAttributes.Static) == 0;
+        });
+        bool VersionNumber(MetadataReader reader, TypeDefinition type) => type.GetMethods().Any(h =>
+        {
+            var method = reader.GetMethodDefinition(h);
+            return reader.GetString(method.Name) == "get_VersionNumber" &&
+                (method.Attributes & (MethodAttributes.MemberAccessMask | MethodAttributes.Static)) == (MethodAttributes.Public | MethodAttributes.Static) &&
+                method.DecodeSignature(new TypeNames(), (object?)null).ReturnType == "String";
+        });
+        // The existing seven model-method checks above plus these checks cover the
+        // bridge's entire startup inventory and the public engine version API.
+        var expected = new (string Assembly, string Type, string Member, Func<MetadataReader, TypeDefinition, bool> Exists)[]
+        {
+            ("Elements.Assets", "Elements.Assets.AssetHelper+ImportExtension", "nonpublic nested type", (_, t) => (t.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPublic),
+            ("Elements.Assets", "Elements.Assets.AssetHelper+ImportExtension", ".ctor(string, bool)", ImportExtensionConstructor),
+            ("Elements.Assets", "Elements.Assets.AssetHelper", "associatedExtensions", AssociatedExtensions),
+            ("FrooxEngine", "FrooxEngine.UIX.Button", "LocalPressed (add accessor)", LocalPressed),
+            ("FrooxEngine", "FrooxEngine.ModelImporter+ModelImportData", "type", (_, _) => true),
+            ("FrooxEngine", "FrooxEngine.Engine", "VersionNumber (public static string getter)", VersionNumber)
+        };
+        int failed = 0;
+        foreach (var group in expected.GroupBy(e => e.Assembly))
+        {
+            using var stream = File.OpenRead(Path.Combine(assemblyDirectory, group.Key + ".dll"));
+            using var pe = new PEReader(stream);
+            var reader = pe.GetMetadataReader();
+            string FullName(TypeDefinition type)
+            {
+                var parent = type.GetDeclaringType();
+                return parent.IsNil
+                    ? reader.GetString(type.Namespace) + "." + reader.GetString(type.Name)
+                    : FullName(reader.GetTypeDefinition(parent)) + "+" + reader.GetString(type.Name);
+            }
+            foreach (var entry in group)
+            {
+                bool found = reader.TypeDefinitions.Select(reader.GetTypeDefinition)
+                    .Any(t => FullName(t) == entry.Type && entry.Exists(reader, t));
+                if (!found) failed++;
+                Console.WriteLine($"{(found ? "PASS" : "FAIL")} {entry.Type}.{entry.Member}");
+            }
+        }
+        return failed;
     }
 
     public static int DumpType(string assemblyPath, string typeName)
