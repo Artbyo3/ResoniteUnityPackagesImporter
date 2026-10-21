@@ -109,7 +109,6 @@ public class UnityPackageImporter : ResoniteMod
         catch (System.Exception ex)
         {
             Error($"Failed to add {extension} to special import formats: {ex}");
-            throw;
         }
     }
 }
