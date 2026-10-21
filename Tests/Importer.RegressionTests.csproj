@@ -7,6 +7,7 @@
     <DefineConstants>$(DefineConstants);REGRESSION_TESTS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../UnityPackageImporter/EngineCompatibilityCheck.cs" Link="EngineCompatibilityCheck.cs" />
     <Compile Remove="ModelUnits/**/*.cs" />
     <Compile Remove="Textures/**/*.cs" />
     <EmbeddedResource Include="../localization/station/*.json" LogicalName="UnityPackageImporter.Localization.%(Filename)%(Extension)" />

@@ -43,7 +43,11 @@ public class UnityPackageImporter : ResoniteMod
         new Harmony("net.dfgHiatus.UnityPackageImporter").PatchAll();
         Config = GetConfiguration();
         Directory.CreateDirectory(cachePath);
-        Engine.Current.RunPostInit(() => AssetPatch("unitypackage"));
+        Engine.Current.RunPostInit(() =>
+        {
+            EngineCompatibilityCheck.Run(Engine.VersionNumber, FrooxInternalBridge.ReflectedMembers, Msg, Warn, Error);
+            AssetPatch("unitypackage");
+        });
     }
 
     // Kept as the existing public extraction entry point.
@@ -59,28 +63,30 @@ public class UnityPackageImporter : ResoniteMod
             Debug($"Attempting to add {extension} support to import system");
 
             // Get ImportExtension type via reflection since it's now a struct inside AssetHelper
-            var assHelperType = typeof(AssetHelper);
-            var importExtType = assHelperType.GetNestedType("ImportExtension",
-                System.Reflection.BindingFlags.NonPublic);
+            var importExtType = FrooxInternalBridge.ImportExtensionType;
 
             if (importExtType == null)
             {
-                Error("ImportExtension type not found. This mod is toast.");
+                Error(EngineCompatibilityCheck.MissingMemberMessage("AssetHelper.ImportExtension"));
                 return;
             }
 
             // Create an ImportExtension instance with reflection
             // Constructor args: (string ext, bool autoImport)
-            var importExt = System.Activator.CreateInstance(importExtType,
-                new object[] { extension, true });
+            var constructor = FrooxInternalBridge.ImportExtensionConstructor;
+            if (constructor == null)
+            {
+                Error(EngineCompatibilityCheck.MissingMemberMessage("AssetHelper.ImportExtension..ctor(string, bool)"));
+                return;
+            }
+            var importExt = constructor.Invoke(new object[] { extension, true });
 
             // Get the associatedExtensions field via reflection
-            var extensionsField = assHelperType.GetField("associatedExtensions",
-                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+            var extensionsField = FrooxInternalBridge.AssociatedExtensionsField;
 
             if (extensionsField == null)
             {
-                Error("Could not find associatedExtensions field");
+                Error(EngineCompatibilityCheck.MissingMemberMessage("AssetHelper.associatedExtensions"));
                 return;
             }
 
@@ -91,7 +97,7 @@ public class UnityPackageImporter : ResoniteMod
 
             if (specialValue == null)
             {
-                Error("Couldn't get Special asset class list");
+                Error("AssetHelper.associatedExtensions has no Special asset class list. The feature will not work on this Resonite version.");
                 return;
             }
 
@@ -103,6 +109,7 @@ public class UnityPackageImporter : ResoniteMod
         catch (System.Exception ex)
         {
             Error($"Failed to add {extension} to special import formats: {ex}");
+            throw;
         }
     }
 }
