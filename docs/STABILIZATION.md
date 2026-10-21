@@ -26,7 +26,7 @@ The optional engine metadata check reads the installed DLL without executing gam
 
 ## In-game verification still required
 
-1. Build and install the two DLLs described in the README. Start Resonite and check the log for loader or patch failures.
+1. Build the Release mod DLL. With Resonite closed, put `UnityPackageImporter.dll` in `rml_mods` and the build output's `YamlDotNet.dll` in `rml_libs`. Fully restart Resonite and check the log for loader or patch failures.
 2. In a disposable local world, import a small known package with a prefab, FBX, material, and texture. Check object count, hierarchy, transforms, material assignments, and texture appearance.
 3. Import it again. Verify the cache is reused and the resulting objects match the first import.
 4. Test two different textures with the same basename and two same-name materials in separate asset folders. Verify each renderer gets its own intended asset.
@@ -37,10 +37,10 @@ The initial stabilization pass had no real-package verification. Real packages w
 
 ## Remaining work
 
-- Replace first-source-FBX prefab resolution with proper nested prefab/variant reconstruction and ordered overrides.
+- Implement full expansion of plain nested prefabs without a backing model. Mesh-free content can be deferred; mesh-bearing or unverifiable content still blocks output.
 - Normalize signed Unity file IDs throughout parsing and lookup, removing numeric conversion heuristics.
 - Add dedicated static MeshRenderer/MeshFilter conversion and report unsupported Unity components.
-- Replace material line scanning with structured YAML parsing; improve transparency, shader mapping, normal/color texture handling, and conversion diagnostics.
+- Improve transparency, shader mapping, normal/color texture handling, and conversion diagnostics beyond the existing structured material YAML parser.
 - Make humanoid/IK setup optional, preserve authored scale, and validate required bones and degenerate bounds.
-- Add bounded project import concurrency, user-facing cancellation, and a final per-asset import report.
-- Add representative real-package fixtures and in-game regression results before calling this a stable release.
+- Extend cancellation and per-asset reporting for the remaining import paths; bounded model imports and station-close cancellation already exist.
+- Add representative synthetic fixtures and record in-game regression results before calling this a stable release.
