@@ -148,6 +148,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMultipleRigs": "Avatar creation requires a single humanoid rig.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Avatar creation requires initialized IK and hand references.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Avatar creation requires a valid viewpoint or paired eye bones.",
-    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "This output already contains native avatar setup."
+    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "This output already contains native avatar setup.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Some mesh references are missing; the affected renderers were skipped."
   }
 }

@@ -1506,6 +1506,7 @@ FrameworkPlanAdapterTests.Register(Test, Check);
 PlanningBoundaryTests.Register(Test);
 AvatarImportSelectionTests.Register(Test, Check);
 ImportResultTests.Register(Test, Check);
+MeshReferenceLookupTests.Register(Test, Check);
 AssetIdentityConflictTests.Register(Test, Check);
 BoundedTaskSchedulerTests.Register(Test, Check);
 FailureIsolationAndOwnershipTests.Register(Test, Check);

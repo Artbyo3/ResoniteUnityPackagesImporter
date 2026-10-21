@@ -148,6 +148,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMultipleRigs": "Voor het maken van een avatar is precies één humanoïde rig vereist.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Voor het maken van een avatar zijn geïnitialiseerde IK en handverwijzingen vereist.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Voor het maken van een avatar is een geldig gezichtspunt of een paar oogbotten vereist.",
-    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Deze uitvoer bevat al een native avatarconfiguratie."
+    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Deze uitvoer bevat al een native avatarconfiguratie.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Sommige meshverwijzingen ontbreken; de bijbehorende renderers zijn overgeslagen."
   }
 }

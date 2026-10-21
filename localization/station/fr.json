@@ -148,6 +148,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMultipleRigs": "La création d’un avatar nécessite une seule armature humanoïde.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "La création d’un avatar nécessite une IK initialisée et des références aux mains.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "La création d’un avatar nécessite un point de vue valide ou une paire d’os des yeux.",
-    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Ce résultat contient déjà une configuration native d’avatar."
+    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Ce résultat contient déjà une configuration native d’avatar.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Certaines références de maillage sont manquantes ; les composants de rendu concernés ont été ignorés."
   }
 }

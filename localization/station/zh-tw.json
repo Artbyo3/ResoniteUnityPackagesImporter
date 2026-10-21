@@ -148,6 +148,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMultipleRigs": "建立角色需要且只能有一套人形骨架。",
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "建立角色需要已初始化的 IK 和手部參照。",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "建立角色需要有效的視點或一對眼部骨骼。",
-    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "此輸出已包含原生角色設定。"
+    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "此輸出已包含原生角色設定。",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "缺少部分網格參照；已略過受影響的算繪器。"
   }
 }

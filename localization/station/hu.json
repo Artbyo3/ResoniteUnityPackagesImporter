@@ -148,6 +148,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMultipleRigs": "Az avatár létrehozásához egyetlen humanoid csontváz szükséges.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Az avatár létrehozásához inicializált IK és kézhivatkozások szükségesek.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Az avatár létrehozásához érvényes nézőpont vagy szemcsontpár szükséges.",
-    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Ez a kimenet már tartalmaz natív avatárbeállítást."
+    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Ez a kimenet már tartalmaz natív avatárbeállítást.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Néhány hálóhivatkozás hiányzik; az érintett renderelők kimaradtak."
   }
 }

@@ -148,6 +148,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMultipleRigs": "Til að búa til avatar þarf eina mannlíka beinagrind.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Til að búa til avatar þarf frumstillt IK og tilvísanir í hendur.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Til að búa til avatar þarf gildan sjónpunkt eða par af augnbeinum.",
-    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Þetta úttak inniheldur þegar innbyggða avataruppsetningu."
+    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Þetta úttak inniheldur þegar innbyggða avataruppsetningu.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Sumar tilvísanir í möskva vantar; viðkomandi birtingarhlutum var sleppt."
   }
 }

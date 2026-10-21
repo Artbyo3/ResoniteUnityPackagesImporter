@@ -148,6 +148,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMultipleRigs": "Vytvoření avatara vyžaduje právě jednu humanoidní kostru.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Vytvoření avatara vyžaduje inicializované IK a odkazy na ruce.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Vytvoření avatara vyžaduje platný bod pohledu nebo párové oční kosti.",
-    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Tento výstup již obsahuje nativní nastavení avatara."
+    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Tento výstup již obsahuje nativní nastavení avatara.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Některé odkazy na sítě chybí; dotčené renderery byly přeskočeny."
   }
 }

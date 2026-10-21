@@ -148,6 +148,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMultipleRigs": "アバターの作成には、ヒューマノイドリグが1つだけ必要です。",
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "アバターの作成には、初期化済みの IK と手の参照が必要です。",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "アバターの作成には、有効な視点または左右の目のボーンが必要です。",
-    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "この出力には、ネイティブのアバター設定がすでに含まれています。"
+    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "この出力には、ネイティブのアバター設定がすでに含まれています。",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "一部のメッシュ参照が見つからないため、該当するレンダラーはスキップされました。"
   }
 }

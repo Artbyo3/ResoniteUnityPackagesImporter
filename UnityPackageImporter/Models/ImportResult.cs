@@ -59,7 +59,8 @@ internal enum ImportResultIssue
     MultipleRigs,
     MissingIk,
     MissingViewpoint,
-    AlreadyCreated
+    AlreadyCreated,
+    MissingMeshes
 }
 
 // Immutable snapshot; never cache it across awaits, material recovery or native creation.
@@ -70,6 +71,7 @@ internal sealed class ImportResult
     internal bool RequiresInstallation { get; }
     internal NativeAvatarReadiness NativeReadiness { get; }
     internal int MissingMaterialAssets { get; }
+    internal int MissingMeshReferences { get; }
     internal int UnsupportedFeatureCount { get; }
     internal int FailedObjectCount { get; }
     internal int OperationCount { get; }
@@ -80,13 +82,14 @@ internal sealed class ImportResult
 
     private ImportResult(List<ImportResultIssue> issues, bool structureReady, bool requiresInstallation,
         NativeAvatarReadiness native, int missingMaterials, int unsupported, int failures, int operations, int completed,
-        IReadOnlyList<string>? materialWarnings = null)
+        IReadOnlyList<string>? materialWarnings = null, int missingMeshReferences = 0)
     {
         Issues = Array.AsReadOnly(issues.Distinct().ToArray());
         StructureReady = structureReady;
         RequiresInstallation = requiresInstallation;
         NativeReadiness = native;
         MissingMaterialAssets = missingMaterials;
+        MissingMeshReferences = missingMeshReferences;
         UnsupportedFeatureCount = unsupported;
         FailedObjectCount = failures;
         OperationCount = operations;
@@ -118,14 +121,14 @@ internal sealed class ImportResult
         return new ImportResult(issues,
             StructureReady, false, NativeAvatarReadiness.NotApplicable, MissingMaterialAssets,
             UnsupportedFeatureCount, FailedObjectCount, OperationCount, OperationCount,
-            MaterialWarnings);
+            MaterialWarnings, MissingMeshReferences);
     }
 
     internal static ImportResult Evaluate(bool sourceAvailable, bool requiresInstallation,
         NativeAvatarReadiness native, int missingMaterialAssets, int unsupportedFeatures,
         int failedObjects, AvatarBuildPlan? plan = null,
         Func<AvatarBuildOperation, ImportOwnership>? ownership = null, bool unresolvedReconstruction = false,
-        bool optionalControlsFailed = false, IEnumerable<string>? materialWarnings = null)
+        bool optionalControlsFailed = false, IEnumerable<string>? materialWarnings = null, int missingMeshReferences = 0)
     {
         var issues = new List<ImportResultIssue>();
         bool ready = sourceAvailable && failedObjects == 0 && !unresolvedReconstruction;
@@ -168,6 +171,7 @@ internal sealed class ImportResult
             }
         }
         if (missingMaterialAssets > 0) issues.Add(ImportResultIssue.MissingMaterials);
+        if (missingMeshReferences > 0) issues.Add(ImportResultIssue.MissingMeshes);
         if (unsupportedFeatures > 0) issues.Add(ImportResultIssue.UnsupportedFeatures);
         if (optionalControlsFailed) issues.Add(ImportResultIssue.OptionalControlsFailed);
         // This snapshot feeds world-visible UI and receipts. Protect the output
@@ -185,6 +189,6 @@ internal sealed class ImportResult
                 _ => ImportResultIssue.MissingRig
             });
         return new ImportResult(issues, ready, requiresInstallation, native, missingMaterialAssets,
-            unsupportedFeatures, failedObjects, operations, completed, Array.AsReadOnly(warnings));
+            unsupportedFeatures, failedObjects, operations, completed, Array.AsReadOnly(warnings), missingMeshReferences);
     }
 }

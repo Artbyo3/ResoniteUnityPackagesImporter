@@ -148,6 +148,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMultipleRigs": "Utworzenie awatara wymaga dokładnie jednego szkieletu humanoidalnego.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Utworzenie awatara wymaga zainicjalizowanego IK i odwołań do dłoni.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Utworzenie awatara wymaga prawidłowego punktu widzenia lub pary kości oczu.",
-    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Ten wynik zawiera już natywną konfigurację awatara."
+    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Ten wynik zawiera już natywną konfigurację awatara.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Brakuje niektórych odwołań do siatek; pominięto odpowiednie renderery."
   }
 }

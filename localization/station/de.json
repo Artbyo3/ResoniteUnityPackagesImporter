@@ -148,6 +148,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMultipleRigs": "Zum Erstellen eines Avatars ist genau ein humanoides Rig erforderlich.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Zum Erstellen eines Avatars sind initialisierte IK und Handreferenzen erforderlich.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Zum Erstellen eines Avatars ist ein gültiger Blickpunkt oder ein Paar Augenknochen erforderlich.",
-    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Diese Ausgabe enthält bereits eine native Avatar-Einrichtung."
+    "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Diese Ausgabe enthält bereits eine native Avatar-Einrichtung.",
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Einige Mesh-Referenzen fehlen; die betroffenen Renderer wurden übersprungen."
   }
 }
