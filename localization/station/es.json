@@ -149,6 +149,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "La creación de un avatar requiere IK inicializada y referencias a las manos.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "La creación de un avatar requiere un punto de vista válido o un par de huesos de los ojos.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Este resultado ya contiene la configuración nativa del avatar.",
-    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Faltan algunas referencias a mallas; se omitieron los renderizadores afectados."
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Faltan algunas referencias a mallas; se omitieron los renderizadores afectados.",
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "No se expandieron los prefabs anidados sin mallas; su contenido y sus operaciones quedan aplazados."
   }
 }

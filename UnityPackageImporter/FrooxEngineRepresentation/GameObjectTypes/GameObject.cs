@@ -23,6 +23,7 @@ public class GameObject: IUnityObject
     public async Task InstanciateAsync(IUnityStructureImporter importer)
     {
         if (instanciated) return;
+        if (importer is UnitySceneImportTask scene && scene.TryDeferObject(this)) return;
 
         await default(ToWorld);
         importer.unityProjectImporter.Session?.Check();

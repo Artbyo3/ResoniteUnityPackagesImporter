@@ -35,6 +35,7 @@ public class SkinnedMeshRenderer : IUnityObject
     public async Task InstanciateAsync(IUnityStructureImporter importer)
     {
         if (instanciated) return;
+        if (importer is UnitySceneImportTask scene && scene.TryDeferObject(this)) return;
         bool NotFromInLinePrefab = true;
         instanciated = true;
 

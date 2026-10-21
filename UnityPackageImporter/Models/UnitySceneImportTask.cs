@@ -20,6 +20,39 @@ public class UnitySceneImportTask: IUnityStructureImporter
 
     public List<string> IncompleteComponents { get; } = new List<string>();
     internal List<ulong> FailedObjectIds { get; } = new();
+    internal NestedPrefabDeferrals NestedPrefabs { get; } = new();
+    internal HashSet<ulong> UnsupportedNestedPrefabInstances { get; } = new();
+
+    private void ScanNestedPrefabs()
+    {
+        var prefabs = unityProjectImporter.ListOfPrefabs;
+        foreach (var instance in existingIUnityObjects.Values.OfType<FrooxEngineRepresentation.GameObjectTypes.PrefabInstance>())
+        {
+            string guid = instance.m_SourcePrefab?.guid;
+            if (guid == null || !prefabs.TryGetValue(guid, out string path) || !File.Exists(path) ||
+                PrefabVariantResolver.ResolveFbxGuid(guid, prefabs, unityProjectImporter.SharedImportedFBXScenes.Keys) != null)
+                continue;
+            UnsupportedNestedPrefabInstances.Add(instance.id);
+            var capability = NestedPrefabCapabilities.Scan(guid, childGuid =>
+                prefabs.TryGetValue(childGuid, out string childPath) && File.Exists(childPath)
+                    ? File.ReadAllText(childPath) : null);
+            if (capability.CanDefer)
+                NestedPrefabs.Register(instance.id, capability.PrefabGuids.Select(childGuid => prefabs[childGuid]));
+        }
+    }
+
+    internal bool IsDeferredObject(IUnityObject obj) =>
+        obj.m_PrefabInstance != null && obj.m_PrefabInstance.TryGetValue("fileID", out ulong instanceId) &&
+        NestedPrefabs.ShouldSkipObject(instanceId, obj.m_CorrespondingSourceObject?.fileID is not null and not 0);
+
+    internal bool TryDeferObject(IUnityObject obj)
+    {
+        if (!IsDeferredObject(obj)) return false;
+        if (!obj.instanciated)
+            UnityPackageImporter.Warn($"Deferred stripped object {obj.id}: its mesh-free nested prefab instance is not expanded.");
+        obj.instanciated = true;
+        return true;
+    }
     internal AvatarPackageManifest Manifest { get; private set; }
     internal PreparedImportItem ScenePreparation { get; set; }
     internal IReadOnlyList<PreparedImportItem> PreparedItems { get; private set; } = Array.Empty<PreparedImportItem>();
@@ -68,6 +101,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
                 this.ID.Value,
                 this.unityProjectImporter?.ListOfPrefabs);
             this.existingIUnityObjects = YamlToFrooxEngine.parseYaml(this.ID.Value);
+            ScanNestedPrefabs();
             int totalProgress = 0;
 
             foreach (KeyValuePair<ulong, IUnityObject> obj in existingIUnityObjects)
@@ -99,7 +133,10 @@ public class UnitySceneImportTask: IUnityStructureImporter
                 UnityPackageImporter.Msg("loading object for scene \"" + ID.Value + "\" with an id of \"" + obj.Value.id.ToString() + "\"");
                 try
                 {
-                    await obj.Value.InstanciateAsync(this);
+                    ulong instanceId = obj.Value.m_PrefabInstance?.TryGetValue("fileID", out ulong ownerId) == true ? ownerId : 0;
+                    await NestedPrefabs.InstantiateAsync(instanceId,
+                        obj.Value.m_CorrespondingSourceObject?.fileID is not null and not 0,
+                        () => obj.Value.InstanciateAsync(this), () => TryDeferObject(obj.Value));
                 }
                 catch (Exception e) when (e is not OperationCanceledException)
                 {
@@ -126,7 +163,8 @@ public class UnitySceneImportTask: IUnityStructureImporter
                 throw new InvalidDataException($"Root slot for scene {Path.GetFileName(ID.Value)} was not created.");
             }
 
-            var authoredSkins = existingIUnityObjects.Values.OfType<FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer>().ToList();
+            var authoredSkins = existingIUnityObjects.Values.OfType<FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer>()
+                .Where(skin => !IsDeferredObject(skin)).ToList();
             int successfulSkins = authoredSkins.Count(s => s.createdMeshRenderer != null);
             if (authoredSkins.Count > 0 && !PrefabVariantResolver.EvaluateSkinnedMeshReconstruction(authoredSkins.Count, successfulSkins, Path.GetFileName(ID.Value), out string failureReason))
             {

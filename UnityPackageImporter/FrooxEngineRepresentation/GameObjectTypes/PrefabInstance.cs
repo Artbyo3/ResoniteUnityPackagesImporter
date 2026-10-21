@@ -41,6 +41,16 @@ public class PrefabInstance : IUnityObject
     public async Task InstanciateAsync(IUnityStructureImporter importer)
     {
         if (instanciated) return;
+        if (importer is UnitySceneImportTask scene && scene.UnsupportedNestedPrefabInstances.Contains(id))
+        {
+            bool deferred = scene.NestedPrefabs.ContainsInstance(id);
+            UnityPackageImporter.Warn($"Unsupported nested prefab instance {id} (GUID {m_SourcePrefab?.guid}) is not expanded. " +
+                (deferred ? "Mesh-free content and its operations are deferred." : "Mesh-bearing or unverified content cannot be deferred."));
+            if (!deferred)
+                throw new InvalidDataException($"Nested prefab instance {id} is not expanded; mesh-bearing or unverified content prevents complete reconstruction.");
+            instanciated = true;
+            return;
+        }
 
         await default(ToBackground);
 

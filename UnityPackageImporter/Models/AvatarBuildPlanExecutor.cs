@@ -51,7 +51,8 @@ public static class AvatarBuildPlanExecutor
             {
                 op.AddDiagnostic(AvatarOperationSeverity.Error, $"Operation kind '{op.Kind}' has no executor.", "UNSUPPORTED_OPERATION");
             }
-        }, cancellationToken);
+        }, cancellationToken, deferNestedPrefab: op =>
+            importer is UnitySceneImportTask scene && scene.NestedPrefabs.ContainsSource(op.Source.SourcePath));
 
         foreach (var diagnostic in plan.Diagnostics.Concat(plan.Operations.SelectMany(op => op.Diagnostics)))
             UnityPackageImporter.Warn(diagnostic.ToString());

@@ -149,6 +149,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Az avatár létrehozásához inicializált IK és kézhivatkozások szükségesek.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Az avatár létrehozásához érvényes nézőpont vagy szemcsontpár szükséges.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Ez a kimenet már tartalmaz natív avatárbeállítást.",
-    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Néhány hálóhivatkozás hiányzik; az érintett renderelők kimaradtak."
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Néhány hálóhivatkozás hiányzik; az érintett renderelők kimaradtak.",
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "A háló nélküli beágyazott prefabok nem lettek kibontva; tartalmuk és műveleteik elhalasztva maradnak."
   }
 }

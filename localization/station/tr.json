@@ -149,6 +149,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Avatar oluşturmak için başlatılmış IK ve el referansları gerekir.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Avatar oluşturmak için geçerli bir bakış noktası veya bir çift göz kemiği gerekir.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Bu çıktı zaten yerel avatar kurulumunu içeriyor.",
-    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Bazı örgü başvuruları eksik; ilgili işleyiciler atlandı."
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Bazı örgü başvuruları eksik; ilgili işleyiciler atlandı.",
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Örgü içermeyen iç içe prefablar genişletilmedi; içerikleri ve işlemleri ertelendi."
   }
 }

@@ -149,6 +149,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Kreado de avataro postulas pravalorizitan IK kaj referencojn al la manoj.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Kreado de avataro postulas validan vidpunkton aŭ paron da okulaj ostoj.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Ĉi tiu eligo jam enhavas avataran agordon propran al Resonite.",
-    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Kelkaj referencoj al maŝoj mankas; la koncernaj bildigiloj estis preterlasitaj."
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Kelkaj referencoj al maŝoj mankas; la koncernaj bildigiloj estis preterlasitaj.",
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Nestitaj prefabrikoj sen maŝoj ne estis vastigitaj; iliaj enhavo kaj operacioj estas prokrastitaj."
   }
 }

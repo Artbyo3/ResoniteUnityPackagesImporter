@@ -149,6 +149,7 @@
     "UI.Artbyo3.UnityPackageImporter.resultMissingIk": "Аватар үүсгэхэд эхлүүлсэн IK болон гарын холбоосууд шаардлагатай.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingViewpoint": "Аватар үүсгэхэд хүчинтэй харах цэг эсвэл хос нүдний яс шаардлагатай.",
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Энэ гаралтад Resonite-ийн аватарын тохиргоо аль хэдийн орсон байна.",
-    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Зарим торны холбоос олдсонгүй; холбогдох дүрслэгчдийг алгассан."
+    "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Зарим торны холбоос олдсонгүй; холбогдох дүрслэгчдийг алгассан.",
+    "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Торгүй үүрлэсэн префабуудыг задлаагүй; тэдгээрийн агуулга болон үйлдлүүдийг хойшлуулсан."
   }
 }
