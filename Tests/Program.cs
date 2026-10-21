@@ -1487,6 +1487,7 @@ NativeSkinBindingTests.Register(Test);
 ClothingFoundationTests.Register(Test);
 MaterialRecoveryTests.Register(Test);
 MaterialCustomizationTests.Register(Test);
+ThumbnailCacheTests.Register(Test);
 ImportFailureReportTests.Register(Test);
 ReusableDecisionPromptTests.Register(Test);
 LocalizationManagerTests.Register(Test);

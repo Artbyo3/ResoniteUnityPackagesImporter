@@ -23,6 +23,7 @@ internal sealed class ImportSession
     public Slot Assets { get; }
     public CancellationToken Token => lifetime.Token;
     internal ImportLifetime Lifetime => lifetime;
+    internal MaterialThumbnailColors ThumbnailColors { get; } = new();
 
     public ImportSession(Slot root)
     {
@@ -141,6 +142,7 @@ internal sealed class ImportSession
 
     private void Unsubscribe()
     {
+        ThumbnailColors.Clear();
         Sessions.Remove(Root);
         ((IDestroyable)Root).Destroyed -= OnDestroyed;
         if (uiHost != null) ((IDestroyable)uiHost).Destroyed -= OnDestroyed;
