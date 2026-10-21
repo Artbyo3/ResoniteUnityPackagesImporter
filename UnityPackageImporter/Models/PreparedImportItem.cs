@@ -200,6 +200,7 @@ internal sealed class PreparedImportItem
         }
         catch
         {
+            // Roll back the scene preparation envelopes, then rethrow.
             await default(ToWorld);
             // These wrappers were moved outside the original scene root.
             // The source-level cleanup alone cannot reach them after a failure.

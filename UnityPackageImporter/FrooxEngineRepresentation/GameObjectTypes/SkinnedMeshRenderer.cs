@@ -253,13 +253,12 @@ public class SkinnedMeshRenderer : IUnityObject
                         await default(ToWorld);
                         importer.unityProjectImporter.ClearMissingMaterial(FoundMesh, i);
                         string filemat = importer.unityProjectImporter.AssetIDDict[material.guid];
-                        try
+                        if (MaterialSlotAssignment.ReplacesExistingSlot(i, materials.Count))
                         {
-                            materials.RemoveAt(i);
-                            materials.Insert(i, new FileImportHelperTaskMaterial(material.guid, filemat, importer.unityProjectImporter));
+                            materials[i] = new FileImportHelperTaskMaterial(material.guid, filemat, importer.unityProjectImporter);
                             UnityPackageImporter.Msg("Imported a material at index \"" + i + "\" on skinnedmeshrenderer named \"" + FoundMesh.Slot.Name + "\" by replacing one of the indices");
                         }
-                        catch
+                        else
                         {
                             materials.Add(new FileImportHelperTaskMaterial(material.guid, filemat, importer.unityProjectImporter));
                             UnityPackageImporter.Msg("Imported a material at index \"" + i + "\" on skinnedmeshrenderer named \"" + FoundMesh.Slot.Name + "\" by tacking onto the end.");
@@ -272,14 +271,12 @@ public class SkinnedMeshRenderer : IUnityObject
                         await default(ToWorld);
                         importer.unityProjectImporter.ClearMissingMaterial(FoundMesh, i);
                         UnityPackageImporter.Msg("Importing a material at index \"" + i + "\" on skinnedmeshrenderer named \"" + FoundMesh.Slot.Name + "\" is a built-in Unity resource (type " + material.type + ", guid " + material.guid + "). Using fallback material without reporting missing package dependency.");
-                        try
+                        if (MaterialSlotAssignment.ReplacesExistingSlot(i, materials.Count))
                         {
-                            materials.RemoveAt(i);
-                            materials.Insert(i, new FileImportHelperTaskMaterial(importer.unityProjectImporter));
+                            materials[i] = new FileImportHelperTaskMaterial(importer.unityProjectImporter);
                         }
-                        catch (ArgumentOutOfRangeException)
+                        else
                         {
-                            // If slot index i exceeds the current materials count, append the fallback material to the end.
                             materials.Add(new FileImportHelperTaskMaterial(importer.unityProjectImporter));
                         }
                         await default(ToBackground);
@@ -289,14 +286,12 @@ public class SkinnedMeshRenderer : IUnityObject
                         await default(ToWorld);
                         UnityPackageImporter.Msg("Importing a material at index \"" + i + "\" on skinnedmeshrenderer named \"" + FoundMesh.Slot.Name + "\" has an overridden material but we can't find the material that has the override's GUID. (is it in the package?)");
                         importer.unityProjectImporter.RegisterMissingMaterial(FoundMesh, i, material.guid);
-                        try
+                        if (MaterialSlotAssignment.ReplacesExistingSlot(i, materials.Count))
                         {
-                            materials.RemoveAt(i);
-                            materials.Insert(i, new FileImportHelperTaskMaterial(importer.unityProjectImporter));
+                            materials[i] = new FileImportHelperTaskMaterial(importer.unityProjectImporter);
                         }
-                        catch (ArgumentOutOfRangeException)
+                        else
                         {
-                            // If slot index i exceeds the current materials count, append the fallback material to the end.
                             materials.Add(new FileImportHelperTaskMaterial(importer.unityProjectImporter));
                         }
                         await default(ToBackground);

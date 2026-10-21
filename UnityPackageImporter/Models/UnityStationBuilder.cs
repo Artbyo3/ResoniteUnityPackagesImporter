@@ -546,6 +546,7 @@ internal sealed class UnityStationHandle
         }
         catch
         {
+            // Roll back the failed creation preview, then rethrow.
             await default(ToWorld);
             // Native creation can have partially configured a rig. Never release or
             // finalize that same partial object a second time; cleanup still owns it.
