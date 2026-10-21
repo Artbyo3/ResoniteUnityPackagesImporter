@@ -1500,6 +1500,7 @@ SelectableImportItemsTests.Register(Test);
 TemporaryRigParentTests.Register(Test);
 UnityYamlDocumentParserTests.Register(Test, Check);
 ImportCompatibilityPhase1Tests.Register(Test, Check);
+PrefabObjectLookupTests.Register(Test, Check);
 AvatarStructuralConversionTests.Register(Test, Check);
 FrameworkPlanAdapterTests.Register(Test, Check);
 PlanningBoundaryTests.Register(Test);

@@ -123,7 +123,7 @@ public class Transform: IUnityObject
                 }
                 else
                 {
-                    throw new InvalidDataException($"Transform {id} could not resolve prefab target {m_CorrespondingSourceObject.fileID} in {m_CorrespondingSourceObject.guid}. Hierarchy integrity cannot be guaranteed.");
+                    throw PrefabObjectLookup.UnresolvedTransform(id, m_CorrespondingSourceObject);
                 }
             }
             else
