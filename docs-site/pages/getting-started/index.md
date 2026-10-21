@@ -13,6 +13,10 @@ The Unity Package Importer is a Resonite mod that brings supported humanoid avat
 - **[Companion packages](../importing/companion-packages.md)**: Multi-package workflow for resolving missing textures and materials.
 - **[Compatibility reference](../reference/compatibility/)**: Detailed status for Unity packages, Modular Avatar, VRCFury, and shader conversion (Standard, lilToon, Poiyomi).
 
+## Download
+
+[Download the latest ZIP](https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/latest/download/UnityPackageImporter-testing-build.zip) and follow the [installation guide](installation.md). See the [latest release notes](https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/latest) for changes and the DLL checksum.
+
 ## Next steps
 
 - [Follow the installation guide](installation.md) to set up the mod.

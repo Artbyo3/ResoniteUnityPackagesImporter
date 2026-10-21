@@ -28,10 +28,11 @@ The generated site is written to `site/` (with English at `/` and Japanese at `/
 ## GitHub Pages
 
 The workflow at `.github/workflows/docs-site.yml` checks builds on pull
-requests. It does not publish on pushes. Publishing is available only through
-a manual workflow run with its `publish` input explicitly set to `true`; the
-repository's Pages source must also be configured as **GitHub Actions**.
+requests. Documentation changes merged into `master` are built and published
+to GitHub Pages automatically. A manual workflow run can also publish when
+its `publish` input is `true`; the repository's Pages source must be configured
+as **GitHub Actions**.
 
-Review the onboarding content and replace remaining placeholders before the
-first publication. Pushing this source does not publish the site; production
-publication is a separate manual workflow run.
+Both landing pages and installation guides link to GitHub's latest-release ZIP.
+Keep the release asset name `UnityPackageImporter-testing-build.zip` consistent
+so these links continue to follow future releases.

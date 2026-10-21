@@ -9,7 +9,7 @@ hide:
 
 # From Unity package to Resonite.
 
-<p class="landing-summary">Learn what the importer is being built to support, how content is reconstructed, and where compatibility has limits.</p>
+<p class="landing-summary">Learn what the importer supports, how content is reconstructed, and where compatibility has limits.</p>
 
 [Compatibility guide](../reference/compatibility/){ .md-button .md-button--primary }
 
