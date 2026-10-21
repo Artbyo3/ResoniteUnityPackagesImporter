@@ -1506,6 +1506,7 @@ ImportResultTests.Register(Test, Check);
 AssetIdentityConflictTests.Register(Test, Check);
 BoundedTaskSchedulerTests.Register(Test, Check);
 FailureIsolationAndOwnershipTests.Register(Test, Check);
+TemplateBindingContractTests.Register(Test);
 
 foreach (var test in tests)
 {

@@ -111,11 +111,7 @@ internal sealed class UnityStationHandle
     private void OnLocaleChanged(string locale)
     {
         if (!IsAlive) return;
-        if (Current != null && !created.Contains(Current) && !failedCreation.Contains(Current) && importer != null)
-        {
-            ui.SetLocalizedRaw(IsOutfit ? "outfitMetricsBody" : "avatarMetricsBody", Escape(BuildReceipt(Current, locale)));
-        }
-        else if (ready && items.Count == 0 && created.Count > 0)
+        if (ready && items.Count == 0 && created.Count > 0)
         {
             string completeTitle = "<b>" + Escape(LocalizationManager.GetStringForLocale(locale, "allProcessed")) + "</b>";
             Get<Text>("avatarTitle").Content.Value = completeTitle;
@@ -420,7 +416,6 @@ internal sealed class UnityStationHandle
         ui.SetLocalizedKey("createAvatar", IsAvatar ? "createAvatar" : "keepInWorld");
         ui.SetLocalizedKey("avatarName", IsAvatar ? "avatarName" : "objectName");
         Get<Checkbox>("protect").Slot.Parent.ActiveSelf = IsAvatar;
-        ui.SetLocalizedRaw(IsOutfit ? "outfitMetricsBody" : "avatarMetricsBody", Escape(BuildReceipt(Current)));
         RebuildPreview();
         if (dependencies != null && !dependencies.IsWaiting && !dependencies.IsDismissed)
         {
@@ -622,7 +617,6 @@ internal sealed class UnityStationHandle
             presets[Current] = preset;
             Get<ValueField<string>>("shaderValue").Value.Value = FormatShaderPresetDisplay(preset, CurrentLocale);
             RebuildPreview();
-            ui.SetLocalizedRaw(IsOutfit ? "outfitMetricsBody" : "avatarMetricsBody", Escape(BuildReceipt(Current)));
         }
         finally { await default(ToWorld); busy = false; if (IsAlive) SetActions(true); }
     }
