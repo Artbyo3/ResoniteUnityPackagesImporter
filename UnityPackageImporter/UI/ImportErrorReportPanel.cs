@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+using Elements.Core;
 using FrooxEngine;
 using FrooxEngine.UIX;
 using UnityPackageImporter.Models;
@@ -48,7 +49,7 @@ internal sealed class ImportErrorReportPanel
         try
         {
             if (world.IsDestroyed || world.LocalUser == null || inbox.Current == null) return;
-            world.LocalUser.GetPointInFrontOfUser(out var position, out var rotation, null, null, 0.9f, true);
+            world.LocalUser.GetPointInFrontOfUser(out var position, out var rotation, float3.Backward, null, 0.9f, true);
             loaded = await StationTemplateLoader.LoadAsync("error-report", world, position, rotation, activate: false);
             await default(ToWorld);
             if (world.IsDestroyed || inbox.Current == null)
