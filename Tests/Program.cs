@@ -1501,6 +1501,7 @@ ThumbnailCacheTests.Register(Test);
 ImportFailureReportTests.Register(Test);
 StructuredImportReportTests.Register(Test);
 ImportReportPanelTests.Register(Test);
+PanelSpawnPlacementTests.Register(Test);
 AnonymousReportDiagnosticsTests.Register(Test);
 ReusableDecisionPromptTests.Register(Test);
 LocalizationManagerTests.Register(Test);

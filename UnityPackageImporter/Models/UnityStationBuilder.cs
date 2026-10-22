@@ -773,6 +773,14 @@ internal static class UnityStationBuilder
 {
     public static async Task<UnityStationHandle> BuildStationAsync(World world, float3 position, floatQ rotation, ImportSession session)
     {
+        var userRoot = world.LocalUser.Root;
+        var groundPosition = userRoot.GroundProjectedHeadPosition;
+        var userUp = userRoot.Slot.Up;
+        var grounded = PanelSpawnPlacement.GroundStation(
+            new System.Numerics.Vector3(position.x, position.y, position.z),
+            new System.Numerics.Vector3(groundPosition.x, groundPosition.y, groundPosition.z),
+            new System.Numerics.Vector3(userUp.x, userUp.y, userUp.z));
+        position = new float3(grounded.X, grounded.Y, grounded.Z);
         // Preserve yaw while removing gaze pitch and roll from the floor pedestal.
         float3 forward = rotation * float3.Forward;
         float yaw = forward.x * forward.x + forward.z * forward.z < 0.000001f ? 0f

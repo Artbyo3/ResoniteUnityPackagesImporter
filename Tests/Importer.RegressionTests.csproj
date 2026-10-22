@@ -31,6 +31,7 @@
     <Compile Include="../UnityPackageImporter/Models/ReportModelFacts.cs" Link="ReportModelFacts.cs" />
     <Compile Include="../UnityPackageImporter/PackageInputFormat.cs" Link="PackageInputFormat.cs" />
     <Compile Include="../UnityPackageImporter/UI/ReusableDecisionPrompt.cs" Link="ReusableDecisionPrompt.cs" />
+    <Compile Include="../UnityPackageImporter/UI/PanelSpawnPlacement.cs" Link="PanelSpawnPlacement.cs" />
     <Compile Include="../UnityPackageImporter/UI/LocalizationManager.cs" Link="LocalizationManager.cs" />
     <Compile Include="../UnityPackageImporter/Models/LilToonSettings.cs" Link="LilToonSettings.cs" />
     <Compile Include="../UnityPackageImporter/Materials/Poiyomi/PoiyomiSettings.cs" Link="PoiyomiSettings.cs" />
