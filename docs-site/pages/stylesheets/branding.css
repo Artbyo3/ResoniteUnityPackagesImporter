@@ -25,3 +25,22 @@
 }
 
 
+
+/* Status key cards (reference/compatibility) */
+.status-grid {
+  display: grid;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+
+.status-card {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: 0.75rem;
+  row-gap: 0.25rem;
+}
+
+.status-card strong {
+  min-width: 8.5rem;
+}
