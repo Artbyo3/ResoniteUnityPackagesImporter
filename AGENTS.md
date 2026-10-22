@@ -1,3 +1,26 @@
+# Workflow (read first)
+
+- Work locally. Do NOT push, open a PR, or create extra branches unless the
+  user explicitly says "ship it". One branch per task.
+- Before reporting: run Test and Build below. Never say "done" or "works";
+  say "ready for live test". Only the user's live test in Resonite confirms it.
+- Flow: change -> Test + Build -> Install -> user tests live -> user approves -> ship (one PR).
+- Never delete, skip or weaken tests to get a pass.
+- When your task ends, remove your worktree and delete your merged branch.
+- Throwaway scripts go in `scratch/` (gitignored), never in `scripts/`.
+- If you rename or change a command below, update this table in the same commit.
+
+## Commands (use these; do not search for alternatives)
+
+| Task | Command |
+|---|---|
+| Test | `dotnet run --project Tests/Importer.RegressionTests.csproj -c Release` |
+| Build | `dotnet build UnityPackageImporter/UnityPackageImporter.csproj -c Release --no-incremental` |
+| UI audit | `dotnet run --project Tests/Importer.RegressionTests.csproj -- --ui-bundle <built dll> UnityPackageImporter/UI/Templates` |
+| Install to Resonite | `scripts/Install-Mod.ps1` (then fully restart Resonite) |
+| Station demo | `python scripts/RunStationDemo.py` |
+| Bundle templates | `python scripts/Prepare-StationTemplates.py` |
+
 # Station demo shortcut
 
 When the user asks to run the station demo, run the existing
@@ -24,7 +47,7 @@ Commands:
 - UI bundle audit: dotnet run --project Tests/Importer.RegressionTests.csproj -- --ui-bundle <built dll> UnityPackageImporter/UI/Templates
 
 ## Git
-- Never push to or merge into master. Work on a branch, push the branch, and let the maintainer merge.
+- Never push to or merge into master. Only when the user says "ship it": push the branch and let the maintainer merge.
 - Commit identity: Artbyo3 <Artbyo3@users.noreply.github.com>. Short imperative commit messages.
 - Before every push, scan the diff for usernames, local paths, emails and machine names. Delete scratch files and temporary scripts you created.
 
