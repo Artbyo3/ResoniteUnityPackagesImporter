@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "templateVersion": "1.0.8",
+  "templateVersion": "1.0.10",
   "rootName": "[UnityPackage Pre-Import Prompt - New Prototype]",
   "bindings": {
     "filenameSource": {

@@ -32,6 +32,8 @@ public class FileImportTaskScene
     public Slot FinishedFileSlot = null;
     private readonly object importLock = new();
     private Task importTask;
+    private ReportModelPhase reportPhase = ReportModelPhase.Initialize;
+    private PostProcessSteps reportProcessing;
     private float3 globalPosition;
     private Dictionary<string, string[]> sourceBlendShapeNames = new(StringComparer.Ordinal);
 
@@ -74,9 +76,19 @@ public class FileImportTaskScene
         {
             if (importTask == null)
             {
-                importTask = ImportFileMeshes();
+                importTask = ImportObservedAsync();
             }
             return importTask;
+        }
+    }
+
+    private async Task ImportObservedAsync()
+    {
+        try { await ImportFileMeshes(); }
+        catch (Exception error) when (error is not OperationCanceledException || importer.Session?.Token.IsCancellationRequested != true)
+        {
+            ImportReportService.ModelFailed(importer.Session?.Reports, assetID, file, error, reportProcessing.ToString(), reportPhase);
+            throw;
         }
     }
 
@@ -100,6 +112,7 @@ public class FileImportTaskScene
         assimpContext.SetConfig(new NormalSmoothingAngleConfig(66f));
         assimpContext.SetConfig(new TangentSmoothingAngleConfig(10f));
         PostProcessSteps postProcessSteps = PostProcessSteps.JoinIdenticalVertices | PostProcessSteps.ImproveCacheLocality | PostProcessSteps.PopulateArmatureData | PostProcessSteps.GenerateUVCoords | PostProcessSteps.FindInstances | PostProcessSteps.FlipWindingOrder | PostProcessSteps.LimitBoneWeights;
+        reportProcessing = postProcessSteps;
         Assimp.Scene scene = null;
         await default(ToBackground);
 
@@ -110,6 +123,7 @@ public class FileImportTaskScene
         await default(ToBackground);
         try
         {
+            reportPhase = ReportModelPhase.Decode;
             scene = assimpContext.ImportFile(this.file, postProcessSteps);
         }
         catch (Exception arg)
@@ -128,11 +142,13 @@ public class FileImportTaskScene
         this.importDialogue?.UpdateProgress(0f, "", "Preprocessing scene for file " + Path.GetFileName(file));
         if (scene?.RootNode == null)
             throw new InvalidDataException("Model has no scene root: " + file);
+        reportPhase = ReportModelPhase.Metadata;
         var modelMetadata = ModelMetaParser.ParseFile(file + UnityPackageImporter.UNITY_META_EXTENSION);
         float unitConversion = ModelScaleHelper.CalculateEffectiveScale(modelMetadata.GlobalScale,
             modelMetadata.UseFileUnits, modelMetadata.UseFileScale, ModelScaleHelper.GetFbxUnitScaleFactor(file));
         ModelUnitConversion.Apply(scene, unitConversion);
         UnityPackageImporter.Msg($"Converted model coordinate units ({unitConversion}) for '{Path.GetFileName(file)}', including vertices, bind poses and translations.");
+        reportPhase = ReportModelPhase.Preprocess;
         FrooxInternalBridge.PreprocessScene(scene);
         RecordBlendShapeNames(scene, scene.RootNode);
         UnityPackageImporter.Msg("making model import data for file: " + file);
@@ -142,6 +158,7 @@ public class FileImportTaskScene
 
         await default(ToWorld);
         importer.Session?.Check();
+        reportPhase = ReportModelPhase.Nodes;
         await ImportNodeAsync(scene.RootNode, targetSlot, data);
         importer.Session?.Check();
 
@@ -155,6 +172,7 @@ public class FileImportTaskScene
 
         // Match native ImportModel ordering: finish hierarchy transforms, then
         // bind and finalize every skin before exposing the template to copies.
+        reportPhase = ReportModelPhase.Bindings;
         await InitializeSkinsAsync();
         await default(ToWorld);
         importer.Session?.Check();
@@ -162,6 +180,7 @@ public class FileImportTaskScene
         await default(ToBackground);
 
         this.FinishedFileSlot = this.targetSlot;
+        reportPhase = ReportModelPhase.Identifiers;
 
         this.importDialogue?.UpdateProgress(0f, "", "Hashing slot paths with XXHash64 for file: " + Path.GetFileName(file));
 

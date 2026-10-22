@@ -127,6 +127,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                     UnityPackageImporter.Warn(e.Message + e.StackTrace);
                     IncompleteComponents.Add($"{type.Name} ({obj.Value.id})");
                     FailedObjectIds.Add(obj.Value.id);
+                    ImportReportService.ObjectFailed(unityProjectImporter.Session?.Reports, obj.Value, e, ID.Value);
                 }
                 try
                 {

@@ -15,29 +15,45 @@ namespace UnityPackageImporter.Models;
 // imports handle models and materials; the mod entry point only registers hooks.
 internal static class PackageImportCoordinator
 {
-    internal static string[] ExtractPackage(string file, CancellationToken cancellationToken = default)
+    internal static string[] ExtractPackage(string file, CancellationToken cancellationToken = default, ImportReportContext reports = null)
+    {
+        bool standalone = reports == null;
+        reports ??= ImportReportService.Create(new[] { file });
+        reports.Stage = ImportReportStage.Extraction;
+        try { return ExtractPackageCore(file, cancellationToken, reports); }
+        catch (System.Exception error) when (error is not System.OperationCanceledException || !cancellationToken.IsCancellationRequested)
+        {
+            // The public extraction entry point can run without any station/session.
+            if (standalone) ImportReportService.Record(reports, error, error);
+            throw;
+        }
+    }
+
+    private static string[] ExtractPackageCore(string file, CancellationToken cancellationToken, ImportReportContext reports)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var dir = Path.Combine(cachePath, "v2", Utils.GenerateMD5(file));
         cancellationToken.ThrowIfCancellationRequested();
-        var files = UnityPackageExtractor.Unpack(file, dir, cancellationToken: cancellationToken);
+        var files = UnityPackageExtractor.Unpack(file, dir, cancellationToken: cancellationToken,
+            entriesObserved: count => reports?.EntryRead(file, count));
+        reports?.Extracted(file, files);
         UnityPackageImporter.Msg($"Extracted or reused {files.Count} files from {Path.GetFileName(file)}");
         return files.ToArray();
     }
 
-    private static List<string> ExtractPackages(IEnumerable<string> packages, CancellationToken cancellation)
+    private static List<string> ExtractPackages(IEnumerable<string> packages, CancellationToken cancellation, ImportReportContext reports)
     {
         var extractedFiles = new List<string>();
         foreach (string unitypackage in packages)
         {
             cancellation.ThrowIfCancellationRequested();
-            extractedFiles.AddRange(ExtractPackage(unitypackage, cancellation));
+            extractedFiles.AddRange(ExtractPackage(unitypackage, cancellation, reports));
         }
         cancellation.ThrowIfCancellationRequested();
         return extractedFiles;
     }
 
-    private static async Task<bool> TryImportCompanionAsync(List<string> packages, World world)
+    private static async Task<bool> TryImportCompanionAsync(List<string> packages, World world, ImportReportContext reports)
     {
         await default(ToWorld);
         var request = MaterialDependencyCoordinator.CaptureWaiting(world);
@@ -49,7 +65,8 @@ internal static class PackageImportCoordinator
             // package is offered as an unrelated ordinary import.
             using var operation = request.Enter();
             await default(ToBackground);
-            var extractedFiles = ExtractPackages(packages, request.Token);
+            reports.Stage = ImportReportStage.Extraction;
+            var extractedFiles = ExtractPackages(packages, request.Token, reports);
             var index = UnityPackageAssetIndex.Build(extractedFiles);
             foreach (string conflict in index.Conflicts) UnityPackageImporter.Warn(conflict);
             request.Token.ThrowIfCancellationRequested();
@@ -68,7 +85,8 @@ internal static class PackageImportCoordinator
     {
         List<Task> imports = new List<Task>();
         await default(ToBackground);
-        var extractedFiles = ExtractPackages(packages, session.Token);
+        session.Reports.Stage = ImportReportStage.Extraction;
+        var extractedFiles = ExtractPackages(packages, session.Token, session.Reports);
         UnityPackageImporter.Msg("CALLING FindPrefabsAndMetas for " + packages.Count + " package(s) as one dependency-aware import");
         List<string> otherFiles = (await StartProjectImportAsync(
             extractedFiles,
@@ -117,6 +135,7 @@ internal static class PackageImportCoordinator
         var fileList = files.ToList();
         foreach (var file in fileList)
             UnityPackageImporter.Msg("A file being imported is \""+file+"\"");
+        session.Reports.Stage = ImportReportStage.Indexing;
         var assetIndex = UnityPackageAssetIndex.Build(fileList);
         foreach (string conflict in assetIndex.Conflicts) UnityPackageImporter.Warn(conflict);
 
@@ -152,11 +171,14 @@ internal static class PackageImportCoordinator
         PreImportPrompt prompt = null;
         UnityStationHandle station = null;
         ImportSession session = null;
+        var reports = ImportReportService.Create(files, LocalizationManager.DetectLocaleCode());
         bool raw = false;
         try
         {
-            if (await TryImportCompanionAsync(files, world)) return;
+            ImportReportService.EnablePanel(reports);
+            if (await TryImportCompanionAsync(files, world, reports)) return;
             await default(ToWorld);
+            reports.Stage = ImportReportStage.Prompt;
             prompt = await PreImportPrompt.SpawnAsync(world, position, rotation, files);
             var choice = await prompt.WaitAsync();
             await default(ToWorld);
@@ -170,7 +192,7 @@ internal static class PackageImportCoordinator
                 raw = true;
                 return;
             }
-            session = new ImportSession(assets);
+            session = new ImportSession(assets, reports);
             station = await UnityStationBuilder.BuildStationAsync(world, position, rotation, session);
             station.UpdateProgress(0f, "extractingPackage", Path.GetFileName(files[0]), 0, files.Count);
             prompt.Close();
@@ -187,6 +209,7 @@ internal static class PackageImportCoordinator
         {
             await default(ToWorld);
             station?.CompleteFailure(ex);
+            ImportReportService.Record(reports, ex, ex);
             throw;
         }
         finally

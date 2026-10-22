@@ -24,9 +24,11 @@ internal sealed class ImportSession
     public CancellationToken Token => lifetime.Token;
     internal ImportLifetime Lifetime => lifetime;
     internal MaterialThumbnailColors ThumbnailColors { get; } = new();
+    internal ImportReportContext Reports { get; }
 
-    public ImportSession(Slot root)
+    public ImportSession(Slot root, ImportReportContext reports = null)
     {
+        Reports = reports;
         Root = root;
         world = root.World;
         root.Name = "Unity Package Import Session";

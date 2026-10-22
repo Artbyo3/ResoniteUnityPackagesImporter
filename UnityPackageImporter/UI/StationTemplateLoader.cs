@@ -187,7 +187,7 @@ internal static class StationTemplateLoader
     private const string ResourcePrefix = "UnityPackageImporter.UI.Templates.";
     private static readonly System.Threading.SemaphoreSlim CacheLock = new(1, 1);
 
-    public static async Task<StationTemplate> LoadAsync(string name, World world, float3 position, floatQ rotation)
+    public static async Task<StationTemplate> LoadAsync(string name, World world, float3 position, floatQ rotation, bool activate = true)
     {
         byte[] package, contractData;
         string packageHash;
@@ -288,7 +288,7 @@ internal static class StationTemplateLoader
 
             StartLocaleWatcher(host, template, activeLocale);
 
-            host.ActiveSelf = true;
+            host.ActiveSelf = activate;
             UnityPackageImporter.Msg("Loaded bundled " + name + " UI " + contract.TemplateVersion + " (" + contract.Bindings.Count + " bindings).");
             return template;
         }

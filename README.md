@@ -41,6 +41,9 @@ Run `pwsh -File scripts/Verify-Release.ps1` to verify a release (requires the pr
 It builds Release, runs the standalone regression tests, then audits the built DLL's UI bundle.
 Each step prints PASS/FAIL; any failed step returns a nonzero exit code. The script works from any directory.
 
+Failed imports save a bounded, privacy-filtered [local diagnostic report](docs/IMPORT_REPORTS.md).
+Names are excluded by default and reports are never uploaded automatically.
+
 ---
 
 ## 📄 License & Credits

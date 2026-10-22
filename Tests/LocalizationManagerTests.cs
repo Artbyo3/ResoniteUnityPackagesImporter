@@ -67,6 +67,16 @@ internal static class LocalizationManagerTests
             Check(jaCustom == "<b>マテリアルをカスタマイズ</b>", $"Expected '<b>マテリアルをカスタマイズ</b>', got '{jaCustom}'");
         });
 
+        test("Error report UI messages resolve for every supported locale", () =>
+        {
+            foreach (string key in new[] { "errorReportTitle", "errorReportDescription", "errorReportLogHeading",
+                         "errorReportIssueHeading", "errorReportIssueDescription", "errorReportOpenIssue",
+                         "errorReportCopy", "errorReportPrivacyHeading", "errorReportPrivacyDescription" })
+                foreach (string locale in LocalizationManager.SupportedLocales)
+                    Check(LocalizationManager.TryGetStaticStringForLocale(locale, key, out string text) && !string.IsNullOrWhiteSpace(text),
+                        $"Error-report UI must not expose missing keys or pending arguments ({locale}.{key}).");
+        });
+
         test("LocalizationManager loads embedded dictionaries outside the repository for all 26 Resonite locales", () =>
         {
             string workingDirectory = Directory.GetCurrentDirectory();

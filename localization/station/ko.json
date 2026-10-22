@@ -151,6 +151,15 @@
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "이 출력에는 이미 네이티브 아바타 설정이 포함되어 있습니다.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "일부 메시 참조가 없어 해당 렌더러를 건너뛰었습니다.",
     "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "메시가 없는 중첩 프리팹은 확장되지 않았으며 해당 콘텐츠와 작업은 보류되었습니다.",
-    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportTitle": "<b>Import Failed</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportDescription": "Review the report below for details.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportLogHeading": "<b>Full report log</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportIssueHeading": "<b>Report this issue</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportIssueDescription": "Help us investigate by sharing the report.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportOpenIssue": "<b>Open GitHub issue</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportCopy": "<b>Copy report</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportPrivacyHeading": "<b>Before you share</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportPrivacyDescription": "Check the report for personal information."
   }
 }

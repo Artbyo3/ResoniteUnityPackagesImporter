@@ -9,6 +9,16 @@ if (args.Length == 2 && args[0] == "--engine-api") return EngineApiCheck.Run(arg
 if (args.Length == 3 && args[0] == "--packages") return PackageAudit.Run(args[1], args[2]);
 if (args.Length == 3 && args[0] == "--dump-type") return EngineApiCheck.DumpType(args[1], args[2]);
 if (args.Length == 3 && args[0] == "--ui-bundle") return UITemplateAudit.Run(args[1], args[2]);
+if (args.Length == 1 && args[0] == "--sample-import-report")
+{
+    Console.Write(ImportFailureReport.Build(StructuredImportReportTests.Sample(), new ReportSanitizer()));
+    return 0;
+}
+if (args.Length == 1 && args[0] == "--sample-model-report")
+{
+    Console.Write(ImportFailureReport.Build(AnonymousReportDiagnosticsTests.Sample(), new ReportSanitizer()));
+    return 0;
+}
 
 var tests = new List<(string Name, Action Run)>();
 void Test(string name, Action run) => tests.Add((name, run));
@@ -1489,6 +1499,9 @@ MaterialRecoveryTests.Register(Test);
 MaterialCustomizationTests.Register(Test);
 ThumbnailCacheTests.Register(Test);
 ImportFailureReportTests.Register(Test);
+StructuredImportReportTests.Register(Test);
+ImportReportPanelTests.Register(Test);
+AnonymousReportDiagnosticsTests.Register(Test);
 ReusableDecisionPromptTests.Register(Test);
 LocalizationManagerTests.Register(Test);
 InitialToggleBindingTests.Register(Test);

@@ -1,0 +1,189 @@
+{
+  "schemaVersion": 1,
+  "templateVersion": "1.0.10",
+  "rootName": "Import Error Report",
+  "bindings": {
+    "actionsReady": {
+      "path": ["Report State"],
+      "type": "FrooxEngine.ValueMultiDriver<bool>",
+      "index": 0
+    },
+    "report": {
+      "path": [
+        "Canvas",
+        "Vertical layout",
+        "Body padding",
+        "Horizontal layout",
+        "ScrollRect",
+        "Content Area",
+        "Content"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "reportScroll": {
+      "path": [
+        "Canvas",
+        "Vertical layout",
+        "Body padding",
+        "Horizontal layout",
+        "ScrollRect",
+        "Content Area"
+      ],
+      "type": "FrooxEngine.UIX.ScrollRect",
+      "index": 0
+    },
+    "openIssue": {
+      "path": [
+        "Canvas",
+        "Report Actions",
+        "Report Actions Stack",
+        "Open GitHub Issue"
+      ],
+      "type": "FrooxEngine.UIX.Button",
+      "index": 0
+    },
+    "openIssueLink": {
+      "path": [
+        "Canvas",
+        "Report Actions",
+        "Report Actions Stack",
+        "Open GitHub Issue"
+      ],
+      "type": "FrooxEngine.Hyperlink",
+      "index": 0
+    },
+    "copyReport": {
+      "path": [
+        "Canvas",
+        "Report Actions",
+        "Report Actions Stack",
+        "Copy Report"
+      ],
+      "type": "FrooxEngine.UIX.Button",
+      "index": 0
+    },
+    "copyReportAction": {
+      "path": [
+        "Canvas",
+        "Report Actions",
+        "Report Actions Stack",
+        "Copy Report"
+      ],
+      "type": "FrooxEngine.ButtonClipboardCopyText",
+      "index": 0
+    },
+    "close": {
+      "path": [
+        "Canvas",
+        "Vertical layout",
+        "Header",
+        "Close Button Area",
+        "Close button"
+      ],
+      "type": "FrooxEngine.UIX.Button",
+      "index": 0
+    },
+    "locale.errorReportTitle.0": {
+      "path": [
+        "Canvas",
+        "Vertical layout",
+        "Header",
+        "Title Area",
+        "Header Title"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.errorReportDescription.0": {
+      "path": [
+        "Canvas",
+        "Vertical layout",
+        "Header",
+        "Failure Description"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.errorReportLogHeading.0": {
+      "path": [
+        "Canvas",
+        "Vertical layout",
+        "Body padding",
+        "Report Heading"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.errorReportIssueHeading.0": {
+      "path": [
+        "Canvas",
+        "Report Actions",
+        "Report Introduction",
+        "Issue Heading"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.errorReportIssueDescription.0": {
+      "path": [
+        "Canvas",
+        "Report Actions",
+        "Report Introduction",
+        "Issue Description"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.errorReportOpenIssue.0": {
+      "path": [
+        "Canvas",
+        "Report Actions",
+        "Report Actions Stack",
+        "Open GitHub Issue",
+        "Centered Icon and Label",
+        "Issue Button Label"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.errorReportCopy.0": {
+      "path": [
+        "Canvas",
+        "Report Actions",
+        "Report Actions Stack",
+        "Copy Report",
+        "Centered Icon and Label",
+        "Copy Button Label"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.errorReportPrivacyHeading.0": {
+      "path": [
+        "Canvas",
+        "Report Actions",
+        "Report Privacy Section",
+        "Privacy Note",
+        "Privacy Content Row",
+        "Privacy Labels",
+        "Privacy Heading"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    },
+    "locale.errorReportPrivacyDescription.0": {
+      "path": [
+        "Canvas",
+        "Report Actions",
+        "Report Privacy Section",
+        "Privacy Note",
+        "Privacy Content Row",
+        "Privacy Labels",
+        "Privacy Description"
+      ],
+      "type": "FrooxEngine.UIX.Text",
+      "index": 0
+    }
+  }
+}

@@ -5,6 +5,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 using System.Threading;
+using System.Buffers.Binary;
 
 namespace UnityPackageImporter.Extractor;
 
@@ -18,7 +19,7 @@ public static class UnityPackageExtractor
 
     public static List<string> Unpack(string input, string outputDir,
         long maxBytes = DefaultMaxBytes, int maxEntries = DefaultMaxEntries,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, Action<int>? entriesObserved = null)
     {
         if (maxBytes <= 0 || maxEntries <= 0) throw new ArgumentOutOfRangeException(nameof(maxBytes));
         // Serialize publication, including simultaneous imports of the same package.
@@ -39,7 +40,7 @@ public static class UnityPackageExtractor
             Directory.CreateDirectory(content);
             try
             {
-                ExtractArchive(input, raw, maxBytes, maxEntries, cancellationToken);
+                ExtractArchive(input, raw, maxBytes, maxEntries, cancellationToken, entriesObserved);
                 var relativeFiles = new List<string>();
                 var destinations = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var dir in Directory.GetDirectories(raw))
@@ -116,18 +117,20 @@ public static class UnityPackageExtractor
     }
 
     private static void ExtractArchive(string input, string raw, long maxBytes, int maxEntries,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Action<int>? entriesObserved)
     {
         using var file = File.OpenRead(input);
-        using var gzip = new GZipStream(file, CompressionMode.Decompress);
+        PackageInputFormat.RequireGzip(PackageInputFormat.ReadHeader(file));
+        using var gzip = new GZipStream(file, CompressionMode.Decompress, leaveOpen: true);
         using var bounded = new BoundedReadStream(gzip, maxBytes, cancellationToken);
         using var reader = new TarReader(bounded);
         var paths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         int count = 0;
-        while (reader.GetNextEntry() is { } entry)
+        while (ReadEntry(reader, bounded) is { } entry)
         {
             cancellationToken.ThrowIfCancellationRequested();
             if (++count > maxEntries) throw new InvalidDataException("Package has too many archive entries.");
+            entriesObserved?.Invoke(count);
             if (entry.EntryType == TarEntryType.Directory && (entry.Name == "./" || entry.Name == ".")) continue;
             var destination = SafePath(raw, entry.Name);
             if (!paths.Add(destination)) throw new InvalidDataException($"Duplicate archive entry: {entry.Name}");
@@ -147,6 +150,52 @@ public static class UnityPackageExtractor
                     throw new InvalidDataException($"Unsupported archive entry type: {entry.EntryType}");
             }
         }
+        // Tar ends before gzip's trailer. Consume it to check CRC/truncation too.
+        byte[] buffer = new byte[65536];
+        while (bounded.Read(buffer) != 0) { }
+        if (bounded.BytesRead < 512) throw PackageInputFormat.Error(PackageInputFailure.Corrupted);
+        ValidateFooter(file, bounded.BytesRead, bounded.Checksum, maxBytes, cancellationToken);
+    }
+
+    private static TarEntry? ReadEntry(TarReader reader, BoundedReadStream bounded)
+    {
+        try { return reader.GetNextEntry(); }
+        catch (Exception error) when (!bounded.LimitExceeded && (error is InvalidDataException or EndOfStreamException))
+        {
+            throw PackageInputFormat.Error(PackageInputFailure.Corrupted, error);
+        }
+    }
+
+    private static void ValidateFooter(FileStream file, long bytes, uint checksum, long limit, CancellationToken token)
+    {
+        if (file.Length < 18) throw PackageInputFormat.Error(PackageInputFailure.Corrupted);
+        Span<byte> footer = stackalloc byte[8];
+        file.Position = file.Length - 8;
+        file.ReadExactly(footer);
+        uint expectedCrc = BinaryPrimitives.ReadUInt32LittleEndian(footer);
+        uint expectedBytes = BinaryPrimitives.ReadUInt32LittleEndian(footer[4..]);
+        if (unchecked((uint)bytes) == expectedBytes && checksum == expectedCrc) return;
+        // Concatenated gzip members are valid. The final trailer describes only
+        // the final member, so validate its suffix without buffering package data.
+        for (long suffix = expectedBytes; suffix <= bytes; suffix += 1L << 32)
+        {
+            token.ThrowIfCancellationRequested();
+            file.Position = 0;
+            using var replay = new GZipStream(file, CompressionMode.Decompress, leaveOpen: true);
+            using var bounded = new BoundedReadStream(replay, limit, token);
+            var crc = new Crc32();
+            byte[] buffer = new byte[65536];
+            long position = 0;
+            int count;
+            while ((count = bounded.Read(buffer)) > 0)
+            {
+                int start = (int)Math.Clamp(bytes - suffix - position, 0, count);
+                crc.Add(buffer.AsSpan(start, count - start));
+                position += count;
+            }
+            if (position == bytes && crc.Value == expectedCrc) return;
+        }
+        throw PackageInputFormat.Error(PackageInputFailure.Corrupted);
     }
 
     private static string AssetPath(string root, string relative)
@@ -193,13 +242,24 @@ public static class UnityPackageExtractor
     private sealed class BoundedReadStream(Stream inner, long limit, CancellationToken cancellationToken) : Stream
     {
         private long read;
+        private readonly Crc32 crc = new();
+        internal long BytesRead => read;
+        internal uint Checksum => crc.Value;
+        internal bool LimitExceeded { get; private set; }
         public override int Read(byte[] buffer, int offset, int count) => Read(buffer.AsSpan(offset, count));
         public override int Read(Span<byte> buffer)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            int count = inner.Read(buffer[..(int)Math.Min(buffer.Length, Math.Max(1, limit - read))]);
+            int count;
+            try { count = inner.Read(buffer[..(int)Math.Min(buffer.Length, Math.Max(1, limit - read))]); }
+            catch (InvalidDataException error) { throw PackageInputFormat.Error(PackageInputFailure.Corrupted, error); }
             read += count;
-            if (read > limit) throw new InvalidDataException("Package exceeds the decompressed size limit.");
+            if (read > limit)
+            {
+                LimitExceeded = true;
+                throw new InvalidDataException("Package exceeds the decompressed size limit.");
+            }
+            crc.Add(buffer[..count]);
             return count;
         }
         public override bool CanRead => true;
@@ -211,5 +271,24 @@ public static class UnityPackageExtractor
         public override long Seek(long offset, SeekOrigin origin) => throw new NotSupportedException();
         public override void SetLength(long value) => throw new NotSupportedException();
         public override void Write(byte[] buffer, int offset, int count) => throw new NotSupportedException();
+    }
+
+    private sealed class Crc32
+    {
+        private static readonly uint[] Table = MakeTable();
+        private uint state = uint.MaxValue;
+        internal uint Value => ~state;
+        internal void Add(ReadOnlySpan<byte> bytes) { foreach (byte value in bytes) state = Table[(state ^ value) & 255] ^ (state >> 8); }
+        private static uint[] MakeTable()
+        {
+            var table = new uint[256];
+            for (uint i = 0; i < table.Length; i++)
+            {
+                uint value = i;
+                for (int bit = 0; bit < 8; bit++) value = (value & 1) == 0 ? value >> 1 : 0xedb88320U ^ (value >> 1);
+                table[i] = value;
+            }
+            return table;
+        }
     }
 }

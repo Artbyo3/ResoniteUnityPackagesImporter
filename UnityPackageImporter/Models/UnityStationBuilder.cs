@@ -110,6 +110,7 @@ internal sealed class UnityStationHandle
     private void OnLocaleChanged(string locale)
     {
         if (!IsAlive) return;
+        session.Reports?.SetLocale(locale);
         if (ready && items.Count == 0 && created.Count > 0)
         {
             string completeTitle = "<b>" + Escape(LocalizationManager.GetStringForLocale(locale, "allProcessed")) + "</b>";
@@ -164,6 +165,7 @@ internal sealed class UnityStationHandle
     }
     public void UpdateProgress(float value, string stageKey, string file, int current = 0, int total = 0)
     {
+        if (session.Reports != null) session.Reports.Stage = ImportFailureReport.Stage(stageKey);
         if (!IsAlive) return;
         operationStageKey = stageKey;
         operationStage = LocalizationManager.GetEnglish(stageKey);
@@ -191,6 +193,9 @@ internal sealed class UnityStationHandle
     }
     public void CompleteFailure(Exception error)
     {
+        var actionStage = ImportFailureReport.Stage(operationStage);
+        ImportReportService.Record(session.Reports, error, error, Current, importer,
+            actionStage != ImportReportStage.Unknown ? actionStage : session.Reports?.Stage);
         if (!IsAlive) return;
         lifecycle++;
         materialCustomizer?.CloseAll();
@@ -217,26 +222,9 @@ internal sealed class UnityStationHandle
         // Keep the tablet's Close action accessible when import cannot stage.
         Get<BooleanValueDriver<float3>>("tabletScale").State.Value = true;
         SetImportingPanel(false);
-        SaveFailureReport(error);
     }
     private void SetImportingPanel(bool visible) =>
         Get<BooleanValueDriver<bool>>("importingPanelVisible").State.Value = visible;
-    private void SaveFailureReport(Exception error)
-    {
-        try
-        {
-            Slot reports = RootSlot.World.RootSlot.FindChildOrAdd("Unity Import Failure Reports");
-            reports.PersistentSelf = true;
-            string suffix = DateTime.UtcNow.ToString("yyyyMMdd-HHmmss");
-            Slot report = reports.AddSlot("Failure " + suffix);
-            report.PersistentSelf = true;
-            report.AttachComponent<ValueField<string>>().Value.Value = ImportFailureReport.Build(operationStage, error);
-        }
-        catch (Exception reportError)
-        {
-            UnityPackageImporter.Warn("Could not save the sanitized import failure report: " + reportError.GetType().Name);
-        }
-    }
     public async Task CompleteSuccessAsync(bool isPartial = false)
     {
         if (!IsAlive) return;
@@ -322,6 +310,8 @@ internal sealed class UnityStationHandle
     private void SetActions(bool enabled)
     {
         var result = Current?.ReadResult();
+        if (enabled && ready && Current != null && result?.StructureReady == false)
+            ImportReportService.Record(session.Reports, Current, item: Current, project: importer, stage: ImportReportStage.Validation);
         bool canCreateAvatar = IsAvatar && result?.CanPerform(ImportOutputAction.CreateAvatar) == true;
         bool canKeepObject = !IsOutfit && result?.CanPerform(ImportOutputAction.KeepObject) == true;
         bool canPerformMainAction = canCreateAvatar || canKeepObject;

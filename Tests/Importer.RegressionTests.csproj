@@ -20,6 +20,16 @@
     <Compile Include="../UnityPackageImporter/Models/MaterialThumbnailColors.cs" Link="MaterialThumbnailColors.cs" />
     <Compile Include="../UnityPackageImporter/Models/ThumbnailDiskCache.cs" Link="ThumbnailDiskCache.cs" />
     <Compile Include="../UnityPackageImporter/Models/ImportFailureReport.cs" Link="ImportFailureReport.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ImportReportData.cs" Link="ImportReportData.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ReportSanitizer.cs" Link="ReportSanitizer.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ImportReportContext.cs" Link="ImportReportContext.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ImportReportStore.cs" Link="ImportReportStore.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ImportIssueDraft.cs" Link="ImportIssueDraft.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ImportReportInbox.cs" Link="ImportReportInbox.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ReportFailureDetails.cs" Link="ReportFailureDetails.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ReportAliases.cs" Link="ReportAliases.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ReportModelFacts.cs" Link="ReportModelFacts.cs" />
+    <Compile Include="../UnityPackageImporter/PackageInputFormat.cs" Link="PackageInputFormat.cs" />
     <Compile Include="../UnityPackageImporter/UI/ReusableDecisionPrompt.cs" Link="ReusableDecisionPrompt.cs" />
     <Compile Include="../UnityPackageImporter/UI/LocalizationManager.cs" Link="LocalizationManager.cs" />
     <Compile Include="../UnityPackageImporter/Models/LilToonSettings.cs" Link="LilToonSettings.cs" />

@@ -151,6 +151,15 @@
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "ijo pana ni li jo e nasin sijelo jan pi ilo Resonite.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "ilo li ken ala alasa e sijelo sitelen ale; ona li sitelen ala e ijo ni.",
     "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "ilo li pali ala e ijo insa pi sijelo sitelen ala; ona li awen e pali pi ijo ni.",
-    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportTitle": "<b>Import Failed</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportDescription": "Review the report below for details.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportLogHeading": "<b>Full report log</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportIssueHeading": "<b>Report this issue</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportIssueDescription": "Help us investigate by sharing the report.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportOpenIssue": "<b>Open GitHub issue</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportCopy": "<b>Copy report</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportPrivacyHeading": "<b>Before you share</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportPrivacyDescription": "Check the report for personal information."
   }
 }
