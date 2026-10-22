@@ -1,5 +1,7 @@
 # UnityPackageImporter
 
+![AI-generated content disclosure](docs/images/ai-disclosure.png)
+
 An experimental [ResoniteModLoader](https://github.com/resonite-modding-group/ResoniteModLoader) mod for importing Unity packages (`.unitypackage`) directly into [Resonite](https://resonite.com/).
 
 ---
