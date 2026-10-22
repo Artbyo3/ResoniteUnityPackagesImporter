@@ -1,12 +1,14 @@
 # Bundled station integration
 
-The approved native station and pre-import prompt are the visual source of truth. The mod loads exported Resonite packages, validates a versioned binding contract, and supplies runtime data. It no longer looks for a prototype in the world, caches its raw BSON once, or generates a procedural showroom fallback.
+The approved native station, pre-import prompt and error-report panel are the visual source of truth. The mod loads exported Resonite packages, validates a versioned binding contract, and supplies runtime data. It no longer looks for a prototype in the world, caches its raw BSON once, or generates a procedural showroom fallback.
 
 ## Current checkpoint
 
 The C# loader and controllers have been implemented. The baseline source is recoverable at local commit `0387424`. Compile checks and regression checks are separate from native runtime validation.
 
-The current bundle is template version `1.0.8`, built from fresh native **Resonite Package (+variants)** exports of both prototypes. All native object, asset, and variant payloads are byte-identical to the supplied exports; preparation changed only record account metadata. Original exports are hash-verified and backed up under the ignored `private/ui-export-originals/` directory. All station and prompt bindings resolve, and the Release build and embedded bundle audit pass.
+The current bundle is template version `1.0.10`. It retains the station and prompt exports and uses the maintainer-supplied error-report export from the current UI session. All native object, asset, and variant payloads remain byte-identical to the supplied exports; preparation strips record account metadata and removes secondary copies of shared assets. Original exports are hash-verified and backed up under the ignored `private/ui-export-originals/` directory.
+
+The error-report panel is bundled with 17 named bindings, including nine localized UI labels and the native `actionsReady` driver input. Its report starts empty and its report-dependent actions start disabled. The controller supplies the private structured report and report-specific issue URL, then sets `actionsReady.Value`; the template owns the driven button and hyperlink Enabled fields. The UI messages currently use English fallback text in all locale resources; the generated diagnostic report stays separate from localization. Runtime integration retains the advanced error-report implementation described in `IMPORT_REPORTS.md`, rather than the earlier world-slot report prototype.
 
 The loader imports into an inactive wrapper and validates the imported child itself. Native import failures are captured through `IProgressIndicator`. Runtime controllers supply state for native panel and folder transitions, orient avatar previews and created avatars facing the user, reset failure cards across item navigation while preserving the floor pedestal, and drain active operations before destroying the station root and host on close.
 
@@ -16,14 +18,14 @@ The C# regression suite and native-bundle preparation checks cover import logic 
 
 ## Finish the bundle
 
-1. Save the approved station and the approved new pre-import prompt in Resonite.
+1. Save the approved station, pre-import prompt and error-report panel in Resonite.
 2. Use Resonite Files to export each as **Resonite Package (+variants)**, collecting assets. Export only the UI items, without avatar or clothing content.
-3. Put the exports in `UnityPackageImporter/UI/Templates/`, named `station.ResonitePackage` and `pre-import.ResonitePackage`.
+3. Put the exports in `UnityPackageImporter/UI/Templates/`, named `station.ResonitePackage`, `pre-import.ResonitePackage` and `error-report.ResonitePackage`.
 4. Run `python scripts/Prepare-StationTemplates.py`. This single automated script handles the entire preparation and size-optimization pipeline:
-   - Automatically rehydrates any previously deduplicated shared `Assets/<sha256>` entries into a temporary archive before validation, so re-exporting **only** `station.ResonitePackage` or **only** `pre-import.ResonitePackage` works with zero extra steps.
+   - Automatically rehydrates any previously deduplicated shared `Assets/<sha256>` entries into a temporary archive before validation, so re-exporting only one of the three templates works with zero extra steps.
    - Validates native reference closure against the installed engine and verifies all ZIP entries and SHA-256 asset hashes.
-   - Backs up original exports under the ignored `private/ui-export-originals/` directory, strips account metadata from `.record` files, compresses entries with `ZIP_DEFLATED`, deduplicates secondary `Assets/<sha256>` entries from `pre-import.ResonitePackage` that are already bundled in `station.ResonitePackage`, and atomically writes `manifest.json`.
-5. Build normally, with no validation bypass. The DLL embeds both packages, both contracts, and the manifest, and `StationTemplateLoader` automatically reconstructs the standalone `pre-import.ResonitePackage` in the disk cache at load time.
+   - Backs up original exports under the ignored `private/ui-export-originals/` directory, strips account metadata from `.record` files, compresses entries with `ZIP_DEFLATED`, deduplicates secondary `Assets/<sha256>` entries from the prompt and error-report packages that are already bundled in `station.ResonitePackage`, and atomically writes `manifest.json`.
+5. Build normally, with no validation bypass. The DLL embeds all three packages and contracts with the manifest. `StationTemplateLoader` reconstructs a standalone secondary package in the disk cache when that template is loaded.
 6. Test a fresh world without either prototype present. Verify import/raw/cancel, multiple prefabs, created-avatar persistence, clothing installation ownership checks, companion-package matching, both languages, scroll/drag behavior, shader reset, and the approved lifecycle.
 
 Run the offline bundle checks with:
@@ -35,7 +37,7 @@ dotnet run --project Tests/Importer.RegressionTests.csproj
 dotnet run --project Tests/Importer.RegressionTests.csproj -- --ui-bundle UnityPackageImporter/bin/Release/UnityPackageImporter.dll UnityPackageImporter/UI/Templates
 ```
 
-The default build fails if either export or the manifest is missing. A compile-only build using `SkipUITemplateValidation=true` must never be installed. Build paths in the assembly's debug metadata are mapped to `/_/` so the DLL does not disclose the developer's local account path.
+The default build fails if any required export or the manifest is missing. A compile-only build using `SkipUITemplateValidation=true` must never be installed. Build paths in the assembly's debug metadata are mapped to `/_/` so the DLL does not disclose the developer's local account path.
 
 If a template or required control is missing, loading fails explicitly. A differently styled fallback is not substituted.
 
@@ -43,11 +45,11 @@ If a template or required control is missing, loading fails explicitly. A differ
 
 Keep a saved editable master and a backup before each UI revision. Use Resonite's native save/export so fonts, sprites, materials, localization, and ProtoFlux remain intact. JSON hierarchy snapshots are diagnostic evidence, not object backups.
 
-The `uiTemplateDevelopmentDirectory` configuration key is an explicit development override. Point it to a directory containing both native packages and their contracts. Each new import reads the current export and gets a fresh instance. Existing stations retain their own template and state; changing the template does not alter an import already in progress. Loading a changed DLL still requires a game restart.
+The `uiTemplateDevelopmentDirectory` configuration key is an explicit development override. Point it to a directory containing all three native packages and their contracts. Each new import reads the current export and gets a fresh instance. Existing stations retain their own template and state; changing the template does not alter an import already in progress. Loading a changed DLL still requires a game restart.
 
 Loaded templates receive an `Importer UI Bindings` child containing native `ReferenceField<IWorldElement>` entries. These references remap during duplication/export and allow referenced controls to move while keeping their roles. The loader first uses valid internal references, then falls back to the exact versioned path/type/ordinal contract. Ambiguous paths and missing controls fail validation. Never rename role entries casually or remove the metadata from an authoring copy derived from a loaded template.
 
-When promoting a UI revision, give both binding contracts the same new `templateVersion`, re-export, prepare the hashes, test, and create a local Git checkpoint. GitHub publication remains a separate user decision.
+When promoting a UI revision, give all binding contracts the same new `templateVersion`, re-export changed items, prepare the hashes, test, and create a local Git checkpoint. GitHub publication remains a separate user decision.
 
 ## Runtime behavior
 

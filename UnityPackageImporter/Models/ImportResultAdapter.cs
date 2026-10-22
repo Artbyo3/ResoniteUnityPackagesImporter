@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using FrooxEngine;
+using FrooxEngine.CommonAvatar;
+using FrooxEngine.FinalIK;
+using Renderite.Shared;
 using UnityPackageImporter.FrooxEngineRepresentation;
 using UnityTypes = UnityPackageImporter.FrooxEngineRepresentation.GameObjectTypes;
 
@@ -11,6 +14,48 @@ namespace UnityPackageImporter.Models;
 // Called only on the world context, including again immediately before an output action.
 internal static class ImportResultAdapter
 {
+    internal static ReportResult CaptureReport(PreparedImportItem item, UnityProjectImporter project, bool includeNames)
+    {
+        ImportResult result = Read(item, project);
+        var native = new ReportNativeReadiness();
+        if (item.CurrentStructureRootSlot is { IsDestroyed: false } root)
+        {
+            var allRigs = root.GetComponentsInChildren<BipedRig>().ToArray();
+            var rigs = allRigs.Where(rig => rig.IsBiped).ToArray();
+            var rig = rigs.Length == 1 ? rigs[0] : null;
+            var ik = rig?.Slot.GetComponent<VRIK>();
+            native = new(allRigs.Length, rig != null ? ik != null : null,
+                ik != null ? ik.Solver.BoneReferences.leftHand.Target != null : null,
+                ik != null ? ik.Solver.BoneReferences.rightHand.Target != null : null,
+                rig != null ? rig.TryGetBone(BodyNode.LeftEye) != null : null,
+                rig != null ? rig.TryGetBone(BodyNode.RightEye) != null : null,
+                result.NativeReadiness == NativeAvatarReadiness.Ready ? true : result.NativeReadiness == NativeAvatarReadiness.MissingViewpoint ? false : null,
+                ik?.Solver.Initiated, rigs.Length);
+        }
+        var objects = item.FailedObjectIds.Distinct().Select(id =>
+        {
+            var ownership = item.IsScopedSceneItem ? Scope(item, unchecked((long)id)) : ImportOwnership.Owned;
+            return (Id: id, Ownership: ownership);
+        }).Where(value => value.Ownership != ImportOwnership.Other).Take(32).Select(value =>
+            item.existingIUnityObjects.TryGetValue(value.Id, out var obj)
+                ? ImportReportService.Object(obj, value.Ownership, includeNames: includeNames, sourceKey: item.SourcePath)
+                : new ReportObjectFailure(ReportObjectType.Other, null, unchecked((long)value.Id), Ownership: value.Ownership, SourceKey: item.SourcePath)).ToArray();
+        var operations = item.ConversionPlan?.Operations.Where(op => !item.IsScopedSceneItem ||
+            ImportResultScope.Operation(op, item.SourcePath, id => Scope(item, id)) != ImportOwnership.Other)
+            .Take(24).Select(op => new ReportOperation(op.Kind, op.ExecutionState,
+                item.IsScopedSceneItem ? ImportResultScope.Operation(op, item.SourcePath, id => Scope(item, id)) : ImportOwnership.Owned,
+                op.Source.ComponentFileId, op.Source.GameObjectFileId, op.Diagnostics.Select(d => d.Code).Distinct().Take(8).ToArray(),
+                includeNames ? op.Source.GameObjectName : null,
+                op.ExecutionState == AvatarOperationExecutionState.DeferredNestedPrefab && item.NestedPrefabs?.ContainsSource(op.Source.SourcePath) == true,
+                op.Source.SourcePath))
+            .ToArray() ?? Array.Empty<ReportOperation>();
+        return new(result.StructureReady, result.NativeReadiness, result.Issues.ToArray(), result.FailedObjectCount,
+            result.OperationCount, result.CompletedOperationCount, result.MissingMaterialAssets, result.MissingMeshReferences,
+            result.UnsupportedNestedPrefabCount, result.MissingNestedPrefabCount, native, objects, operations,
+            item.ConversionPlan?.Diagnostics.Count ?? 0, item.ConversionPlan?.Diagnostics.Select(d => d.Code).Distinct().Take(24).ToArray(),
+            includeNames ? item.DisplayName : null, result.UnsupportedFeatureCount, result.MaterialWarningCount, result.RequiresInstallation);
+    }
+
     internal static ImportResult Read(PreparedImportItem item, UnityProjectImporter project)
     {
         bool available = item.CurrentStructureRootSlot != null && !item.CurrentStructureRootSlot.IsDestroyed;

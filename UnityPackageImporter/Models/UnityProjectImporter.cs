@@ -97,7 +97,10 @@ public class UnityProjectImporter
                 materialWarningsByGuid[materialGuid] = list;
             }
             if (!list.Contains(warning))
+            {
                 list.Add(warning);
+                Session?.Reports?.Warning(ReportWarningCategory.Materials, ReportDiagnosticCode.MaterialEffectsLimited);
+            }
         }
     }
 
@@ -539,6 +542,7 @@ public class UnityProjectImporter
 
         await default(ToWorld);
         stationHandle?.RegisterPrefabs(unityImportTasks.OfType<UnityPrefabImportTask>());
+        if (Session?.Reports != null) Session.Reports.Stage = ImportReportStage.Reconstruction;
         SourceImportBatchResult<IUnityStructureImporter> outcomes;
         using (Measurements.Measure(ImportStage.SourceReconstruction, unityImportTasks.Count))
         {
@@ -547,6 +551,8 @@ public class UnityProjectImporter
             {
                 await default(ToWorld);
                 UnityPackageImporter.Warn($"Source reconstruction failed for '{task.ID.Value}': {ex.Message}");
+                Session?.Reports?.Warning(ReportWarningCategory.Reconstruction, ReportDiagnosticCode.SourceReconstructionFailed);
+                ImportReportService.Record(Session?.Reports, ex, ex, project: this, stage: ImportReportStage.Reconstruction);
                 try
                 {
                     if (task.CurrentStructureRootSlot != null && !task.CurrentStructureRootSlot.IsDestroyed)
@@ -574,6 +580,10 @@ public class UnityProjectImporter
             var preparedItems = sceneTasks.SelectMany(scene => scene.PreparedItems ?? Enumerable.Empty<PreparedImportItem>())
                 .Concat(prefabTasks.Select(prefab => prefab.PreparedItem))
                 .Where(item => item?.CurrentStructureRootSlot is { IsDestroyed: false }).ToList();
+            // Report every blocked item, including those the maintainer never selects.
+            foreach (var item in preparedItems)
+                if (!item.ReadResult().StructureReady)
+                    ImportReportService.Record(Session?.Reports, item, item: item, project: this, stage: ImportReportStage.Validation);
             isPartial |= preparedItems.Any(item => item.ReadResult().IsPartial) ||
                 sceneTasks.Any(scene => scene.ScenePreparation?.ReadResult().IsPartial == true);
             bool hasAvatarDefinitions = prefabTasks.Any(task => task.Manifest?.IsAvatarPrefab == true) ||
@@ -586,7 +596,12 @@ public class UnityProjectImporter
                 // Validate the entire automatic publication batch before releasing any scene.
                 var autoScenes = sceneTasks.Where(s => s.ScenePreparation != null).ToList();
                 foreach (var scene in autoScenes)
+                {
+                    if (!scene.ScenePreparation.ReadResult().StructureReady)
+                        ImportReportService.Record(Session?.Reports, scene.ScenePreparation, item: scene.ScenePreparation,
+                            project: this, stage: ImportReportStage.Validation);
                     scene.ScenePreparation.ReadResult().Require(ImportOutputAction.KeepObject);
+                }
                 foreach (var scene in autoScenes)
                     Session?.Commit(scene.ScenePreparation);
             }

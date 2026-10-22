@@ -151,6 +151,15 @@
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Цей результат уже містить нативне налаштування аватара.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Деякі посилання на сітки відсутні; відповідні компоненти рендерингу пропущено.",
     "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Вкладені префаби без сіток не розгорнуто; їхній вміст та операції відкладено.",
-    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportTitle": "<b>Import Failed</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportDescription": "Review the report below for details.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportLogHeading": "<b>Full report log</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportIssueHeading": "<b>Report this issue</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportIssueDescription": "Help us investigate by sharing the report.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportOpenIssue": "<b>Open GitHub issue</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportCopy": "<b>Copy report</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportPrivacyHeading": "<b>Before you share</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportPrivacyDescription": "Check the report for personal information."
   }
 }

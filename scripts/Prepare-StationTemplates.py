@@ -7,6 +7,8 @@ import subprocess
 import zipfile
 from pathlib import Path
 
+TEMPLATE_NAMES = ('station', 'pre-import', 'error-report')
+
 
 def digest(path):
     with path.open('rb') as stream:
@@ -113,15 +115,15 @@ def rehydrate_to_temporary(package, donor_paths):
     return temporary
 
 
-def deduplicate_shared_assets(station_path, pre_import_path):
-    """Omit secondary Assets/<sha256> entries from pre-import when already bundled in station."""
+def deduplicate_shared_assets(station_path, secondary_path):
+    """Omit a secondary template's assets that are already bundled in station."""
     with zipfile.ZipFile(station_path) as station_zip:
         station_assets = {
             name: station_zip.getinfo(name).file_size
             for name in station_zip.namelist()
             if name.startswith('Assets/')
         }
-    with zipfile.ZipFile(pre_import_path) as pre_zip:
+    with zipfile.ZipFile(secondary_path) as pre_zip:
         record = json.loads(pre_zip.read('R-Main.record'))
         primary_asset = 'Assets/' + record.get('assetUri', '').removeprefix('packdb:///')
         removable = {
@@ -132,14 +134,14 @@ def deduplicate_shared_assets(station_path, pre_import_path):
         }
     if not removable:
         return
-    temporary = pre_import_path.with_suffix('.dedup.tmp')
+    temporary = secondary_path.with_suffix('.dedup.tmp')
     try:
-        with zipfile.ZipFile(pre_import_path) as original, zipfile.ZipFile(temporary, 'w') as compacted:
+        with zipfile.ZipFile(secondary_path) as original, zipfile.ZipFile(temporary, 'w') as compacted:
             for entry in original.infolist():
                 if entry.filename not in removable:
                     _write_entry(compacted, entry, original.read(entry.filename))
         validate_package(temporary, shared_from=station_path)
-        _replace_file(temporary, pre_import_path)
+        _replace_file(temporary, secondary_path)
     finally:
         temporary.unlink(missing_ok=True)
 
@@ -206,7 +208,7 @@ def prepare(directory, backup_directory, game_directory=None):
     manifest = {'schemaVersion': 1, 'version': '1.0.0', 'templates': {}}
     versions = set()
     inputs = []
-    for name in ('station', 'pre-import'):
+    for name in TEMPLATE_NAMES:
         expected = name + '.ResonitePackage'
         matches = [p for p in directory.iterdir() if p.name.lower() == expected.lower()]
         if len(matches) != 1 or not matches[0].is_file() or matches[0].stat().st_size == 0:
@@ -219,7 +221,7 @@ def prepare(directory, backup_directory, game_directory=None):
         versions.add(data['templateVersion'])
         inputs.append((package, contract, expected))
     if len(versions) != 1:
-        raise ValueError('Both UI contracts must have the same templateVersion before promotion.')
+        raise ValueError('All UI contracts must have the same templateVersion before promotion.')
     donor_paths = [package for package, _, _ in inputs]
     if backup_directory and backup_directory.exists():
         donor_paths.extend(
@@ -252,7 +254,8 @@ def prepare(directory, backup_directory, game_directory=None):
         if package.name != expected:
             package = package.rename(directory / expected)
         prepared_inputs.append((package, contract))
-    deduplicate_shared_assets(directory / 'station.ResonitePackage', directory / 'pre-import.ResonitePackage')
+    for name in TEMPLATE_NAMES[1:]:
+        deduplicate_shared_assets(directory / 'station.ResonitePackage', directory / (name + '.ResonitePackage'))
     for package, contract in prepared_inputs:
         # Match the repository's LF attributes before hashing. A checkout must
         # not change contract bytes and invalidate the embedded manifest.
@@ -280,4 +283,4 @@ if __name__ == '__main__':
         manifest = prepare(args.directory, args.backup_directory, args.game_directory)
     except (ValueError, OSError, zipfile.BadZipFile) as error:
         raise SystemExit(str(error))
-    print('Prepared station and pre-import UI bundle ' + manifest['version'])
+    print('Prepared station, pre-import and error-report UI bundle ' + manifest['version'])

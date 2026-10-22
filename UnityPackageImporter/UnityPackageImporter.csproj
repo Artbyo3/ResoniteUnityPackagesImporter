@@ -69,6 +69,6 @@
     <Error Condition="!Exists('$(GamePath)Libraries/ResoniteModLoader.dll')" Text="ResoniteModLoader.dll was not found under GamePath/Libraries. Install ResoniteModLoader before building." />
   </Target>
   <Target Name="ValidateStationTemplates" BeforeTargets="BeforeBuild" Condition="'$(SkipUITemplateValidation)' != 'true'">
-    <Error Condition="!Exists('UI/Templates/station.ResonitePackage') Or !Exists('UI/Templates/pre-import.ResonitePackage') Or !Exists('UI/Templates/manifest.json')" Text="Export both approved native UI packages and run python scripts/Prepare-StationTemplates.py before building. SkipUITemplateValidation=true is for compile checks only; that DLL cannot be installed." />
+    <Error Condition="!Exists('UI/Templates/station.ResonitePackage') Or !Exists('UI/Templates/pre-import.ResonitePackage') Or !Exists('UI/Templates/error-report.ResonitePackage') Or !Exists('UI/Templates/manifest.json')" Text="Export all three approved native UI packages and run python scripts/Prepare-StationTemplates.py before building. SkipUITemplateValidation=true is for compile checks only; that DLL cannot be installed." />
   </Target>
 </Project>

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 using System.Globalization;
 using System.IO;
 using YamlDotNet.Core;
@@ -10,7 +11,7 @@ namespace UnityPackageImporter.Models;
 /// <summary>Reads each Unity document's identity from its own root anchor.</summary>
 public static class UnityYamlDocumentParser
 {
-    public static Dictionary<ulong, T> Parse<T>(string yaml, IDeserializer deserializer)
+    public static Dictionary<ulong, T> Parse<T>(string yaml, IDeserializer deserializer, Action<ulong, int?>? documentClass = null)
     {
         using var reader = new StringReader(yaml);
         var parser = new Parser(reader);
@@ -37,10 +38,14 @@ public static class UnityYamlDocumentParser
             }
 
             // Deserialization errors must fail the import, rather than publish a partial object graph.
+            string tag = root.Tag.IsEmpty ? "" : root.Tag.Value;
+            int delimiter = Math.Max(tag.LastIndexOf(':'), tag.LastIndexOf('!'));
+            int? classId = int.TryParse(tag[(delimiter + 1)..], NumberStyles.None, CultureInfo.InvariantCulture, out int parsedClass) ? parsedClass : null;
             T document = deserializer.Deserialize<T>(parser);
             parser.Consume<DocumentEnd>();
             if (document != null && !documents.TryAdd(id, document))
                 throw new InvalidDataException("Unity YAML contains a duplicate document anchor: " + id + ".");
+            documentClass?.Invoke(id, classId);
         }
         parser.Consume<StreamEnd>();
         return documents;

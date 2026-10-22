@@ -16,6 +16,7 @@ internal static class TemplateBindingContractTests
         ["Models/MaterialCustomizerController.cs"] = "station",
         ["UI/ReusableDecisionPrompt.cs"] = "station",
         [Prompt] = "pre-import",
+        ["UI/ImportErrorReportPanel.cs"] = "error-report",
         [Loader] = "both"
     };
 
@@ -176,7 +177,7 @@ internal static class TemplateBindingContractTests
 
     private static void Audit(string root, TextWriter output)
     {
-        var bindings = new[] { "station", "pre-import" }.ToDictionary(name => name,
+        var bindings = new[] { "station", "pre-import", "error-report" }.ToDictionary(name => name,
             name => ReadBindings(Path.Combine(root, "UnityPackageImporter", "UI", "Templates", name + ".bindings.json")),
             StringComparer.Ordinal);
         var used = bindings.ToDictionary(pair => pair.Key, _ => new HashSet<string>(StringComparer.Ordinal));
@@ -275,7 +276,7 @@ internal static class TemplateBindingContractTests
             {
                 // Copy the real consumers and contracts; exercise the same Audit as CI.
                 foreach (string file in Contracts.Keys.Concat(new[]
-                    { "UI/Templates/station.bindings.json", "UI/Templates/pre-import.bindings.json" }))
+                    { "UI/Templates/station.bindings.json", "UI/Templates/pre-import.bindings.json", "UI/Templates/error-report.bindings.json" }))
                 {
                     string destination = Path.Combine(copy, "UnityPackageImporter", file);
                     Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
@@ -288,6 +289,13 @@ internal static class TemplateBindingContractTests
                 Check(failure.Contains("missing binding 'progressFile' in station.bindings.json", StringComparison.Ordinal), failure);
                 Console.WriteLine("Expected FAIL against renamed JSON copy:\n" + failure);
                 File.WriteAllText(contract, original);
+                Audit(copy, TextWriter.Null);
+                string reportContract = Path.Combine(copy, "UnityPackageImporter", "UI", "Templates", "error-report.bindings.json");
+                string reportOriginal = File.ReadAllText(reportContract);
+                File.WriteAllText(reportContract, reportOriginal.Replace("\"copyReportAction\":", "\"copyReportAction_RENAMED\":"));
+                Check(AuditFailure(copy).Contains("missing binding 'copyReportAction' in error-report.bindings.json", StringComparison.Ordinal),
+                    "Error report controller did not use its own binding contract.");
+                File.WriteAllText(reportContract, reportOriginal);
                 Audit(copy, TextWriter.Null);
                 Console.WriteLine("PASS against restored JSON copy: full source contract audit");
             }
@@ -311,7 +319,7 @@ internal static class TemplateBindingContractTests
             {
                 string templates = Path.Combine(root, "UnityPackageImporter", "UI", "Templates");
                 Directory.CreateDirectory(templates);
-                foreach (string name in new[] { "station", "pre-import" })
+                foreach (string name in new[] { "station", "pre-import", "error-report" })
                     File.WriteAllText(Path.Combine(templates, name + ".bindings.json"), "{\"bindings\":{}}");
                 File.WriteAllText(Path.Combine(root, "UnityPackageImporter", "NewConsumer.cs"), "ui.Get<Text>(\"typo\");");
                 Directory.CreateDirectory(Path.Combine(root, "UnityPackageImporter", "Models"));

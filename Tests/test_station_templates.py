@@ -27,7 +27,7 @@ class StationBundleTests(unittest.TestCase):
         self.backups = self.directory / 'originals'
         self.payload = b'unchanged native object payload'
         self.signature = hashlib.sha256(self.payload).hexdigest()
-        for name in ('station', 'pre-import'):
+        for name in bundle.TEMPLATE_NAMES:
             record = {'id': 'R-Main', 'ownerId': 'private-account-id', 'ownerName': 'private-name',
                       'assetUri': 'packdb:///' + self.signature, 'path': '/private-folder',
                       'migrationMetadata': {'private': True},
@@ -51,7 +51,7 @@ class StationBundleTests(unittest.TestCase):
         manifest = bundle.prepare(self.directory, self.backups)
         self.assertEqual(manifest['version'], '1.0.0')
         self.assertEqual(sorted(bundle.digest(p) for p in self.backups.iterdir()), sorted(original_hashes))
-        for name in ('station', 'pre-import'):
+        for name in bundle.TEMPLATE_NAMES:
             path = self.directory / (name + '.ResonitePackage')
             self.assertEqual(path.name, name + '.ResonitePackage')
             with zipfile.ZipFile(path) as archive:
@@ -63,7 +63,21 @@ class StationBundleTests(unittest.TestCase):
         hashes = [bundle.digest(p) for p in self.directory.glob('*.ResonitePackage')]
         self.assertEqual(bundle.prepare(self.directory, self.backups), manifest)
         self.assertEqual([bundle.digest(p) for p in self.directory.glob('*.ResonitePackage')], hashes)
-        self.assertEqual(len(list(self.backups.iterdir())), 2)
+        self.assertEqual(len(list(self.backups.iterdir())), 3)
+
+    def test_missing_error_report_leaves_other_exports_untouched(self):
+        (self.directory / 'error-report.resonitepackage').unlink()
+        before = {p.name: p.read_bytes() for p in self.directory.iterdir()}
+        with self.assertRaisesRegex(ValueError, 'Missing native export: error-report'):
+            bundle.prepare(self.directory, self.backups)
+        self.assertEqual(before, {p.name: p.read_bytes() for p in self.directory.iterdir()})
+
+    def test_error_report_asset_tampering_does_not_publish_a_manifest(self):
+        self.write_package('error-report', self.record('error-report'), b'tampered')
+        with self.assertRaisesRegex(ValueError, 'checksum mismatch'):
+            bundle.prepare(self.directory, self.backups)
+        self.assertFalse((self.directory / 'manifest.json').exists())
+        self.assertFalse(self.backups.exists())
 
     def test_asset_tampering_does_not_publish_a_manifest(self):
         self.write_package('station', self.record(), b'tampered')
@@ -140,11 +154,17 @@ class StationBundleTests(unittest.TestCase):
 
         make_pkg('station', station_main, station_hash)
         make_pkg('pre-import', pre_main, pre_hash)
+        error_main = b'error report root bson v1'
+        error_hash = hashlib.sha256(error_main).hexdigest()
+        make_pkg('error-report', error_main, error_hash)
         bundle.prepare(self.directory, self.backups)
 
         with zipfile.ZipFile(self.directory / 'pre-import.ResonitePackage') as pre_zip:
             self.assertIn('Assets/' + pre_hash, pre_zip.namelist())
             self.assertNotIn('Assets/' + shared_hash, pre_zip.namelist())
+        with zipfile.ZipFile(self.directory / 'error-report.ResonitePackage') as error_zip:
+            self.assertEqual(error_zip.read('Assets/' + error_hash), error_main)
+            self.assertNotIn('Assets/' + shared_hash, error_zip.namelist())
 
         # Simulate re-exporting ONLY station.resonitepackage in-world while pre-import is already deduplicated.
         station_main_v2 = b'station root bson v2 after in-world UI edit'
@@ -161,9 +181,22 @@ class StationBundleTests(unittest.TestCase):
         manifest = bundle.prepare(self.directory, self.backups)
         self.assertIn('station', manifest['templates'])
         self.assertIn('pre-import', manifest['templates'])
+        self.assertIn('error-report', manifest['templates'])
         with zipfile.ZipFile(self.directory / 'pre-import.ResonitePackage') as pre_zip:
             self.assertIn('Assets/' + pre_hash, pre_zip.namelist())
             self.assertNotIn('Assets/' + shared_hash, pre_zip.namelist())
+
+        # Re-export only the third template; all three still validate standalone.
+        error_main_v2 = b'error report root bson v2 after UI edit'
+        error_hash_v2 = hashlib.sha256(error_main_v2).hexdigest()
+        (self.directory / 'error-report.ResonitePackage').unlink()
+        make_pkg('error-report', error_main_v2, error_hash_v2)
+        manifest = bundle.prepare(self.directory, self.backups)
+        with zipfile.ZipFile(self.directory / 'error-report.ResonitePackage') as error_zip:
+            self.assertEqual(error_zip.read('Assets/' + error_hash_v2), error_main_v2)
+            self.assertNotIn('Assets/' + shared_hash, error_zip.namelist())
+        self.assertEqual(len(manifest['templates']), 3)
+        self.assertEqual(bundle.prepare(self.directory, self.backups), manifest)
 
 
 if __name__ == '__main__':

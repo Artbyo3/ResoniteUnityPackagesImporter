@@ -42,9 +42,11 @@ internal static class UITemplateAudit
             if (!manifestBytes.SequenceEqual(File.ReadAllBytes(Path.Combine(templateDirectory, "manifest.json"))))
                 throw new InvalidDataException("The embedded UI manifest differs from the prepared bundle.");
             var manifest = JsonSerializer.Deserialize<TemplateManifest>(manifestBytes, TemplateContract.JsonOptions)!;
-            if (manifest.SchemaVersion != 1 || manifest.Templates.Count != 2)
+            string[] templateNames = ["station", "pre-import", "error-report"];
+            if (manifest.SchemaVersion != 1 || manifest.Templates == null ||
+                manifest.Templates.Count != templateNames.Length || templateNames.Any(name => !manifest.Templates.ContainsKey(name)))
                 throw new InvalidDataException("Invalid embedded UI bundle manifest.");
-            foreach (string name in new[] { "station", "pre-import" })
+            foreach (string name in templateNames)
             {
                 byte[] package = Get(name + ".ResonitePackage"), contractBytes = Get(name + ".bindings.json");
                 TemplateIntegrity.Verify(package, manifest.Templates[name].PackageSha256);

@@ -19,6 +19,10 @@ public class UnityPackageImporter : ResoniteMod
     internal const string UNITY_META_EXTENSION = ".meta";
 
     internal static ModConfiguration Config;
+    internal static string ReportModVersion { get; private set; } = "Unknown";
+    [AutoRegisterConfigKey]
+    internal static readonly ModConfigurationKey<bool> IncludeNamesInReports = new(
+        "IncludeNamesInReports", "Include package and object names in local import reports. Personal data is still redacted.", () => false);
     [AutoRegisterConfigKey]
     internal static readonly ModConfigurationKey<string> uiTemplateDevelopmentDirectory = new(
         "uiTemplateDevelopmentDirectory", "Development only: directory containing native UI packages and their binding contracts. Empty uses bundled UI.", () => "");
@@ -39,6 +43,7 @@ public class UnityPackageImporter : ResoniteMod
 
     public override void OnEngineInit()
     {
+        ReportModVersion = Version;
         ModelScaleHelper.WarnHandler = Warn;
         new Harmony("net.dfgHiatus.UnityPackageImporter").PatchAll();
         Config = GetConfiguration();

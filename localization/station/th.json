@@ -151,6 +151,15 @@
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "ผลลัพธ์นี้มีการตั้งค่าอวตารแบบเนทีฟอยู่แล้ว",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "ไม่พบการอ้างอิงเมชบางรายการ จึงข้ามตัวเรนเดอร์ที่เกี่ยวข้อง",
     "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "ไม่ได้ขยายพรีแฟบซ้อนที่ไม่มีเมช เนื้อหาและการดำเนินการของพรีแฟบเหล่านั้นถูกเลื่อนออกไป",
-    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportTitle": "<b>Import Failed</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportDescription": "Review the report below for details.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportLogHeading": "<b>Full report log</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportIssueHeading": "<b>Report this issue</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportIssueDescription": "Help us investigate by sharing the report.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportOpenIssue": "<b>Open GitHub issue</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportCopy": "<b>Copy report</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportPrivacyHeading": "<b>Before you share</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportPrivacyDescription": "Check the report for personal information."
   }
 }

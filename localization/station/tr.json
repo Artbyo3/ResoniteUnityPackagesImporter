@@ -151,6 +151,15 @@
     "UI.Artbyo3.UnityPackageImporter.resultAlreadyCreated": "Bu çıktı zaten yerel avatar kurulumunu içeriyor.",
     "UI.Artbyo3.UnityPackageImporter.resultMissingMeshes": "Bazı örgü başvuruları eksik; ilgili işleyiciler atlandı.",
     "UI.Artbyo3.UnityPackageImporter.resultUnsupportedNestedPrefabs": "Örgü içermeyen iç içe prefablar genişletilmedi; içerikleri ve işlemleri ertelendi.",
-    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported."
+    "UI.Artbyo3.UnityPackageImporter.resultMissingNestedPrefabs": "Some referenced prefabs are missing from the package; they were not imported.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportTitle": "<b>Import Failed</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportDescription": "Review the report below for details.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportLogHeading": "<b>Full report log</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportIssueHeading": "<b>Report this issue</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportIssueDescription": "Help us investigate by sharing the report.",
+    "UI.Artbyo3.UnityPackageImporter.errorReportOpenIssue": "<b>Open GitHub issue</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportCopy": "<b>Copy report</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportPrivacyHeading": "<b>Before you share</b>",
+    "UI.Artbyo3.UnityPackageImporter.errorReportPrivacyDescription": "Check the report for personal information."
   }
 }
