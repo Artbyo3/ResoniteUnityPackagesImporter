@@ -16,7 +16,7 @@ internal static class AvatarStructuralConversionTests
             check(first.Operations[1].OperationId == first.Operations[0].OperationId + ":2", "Expected deterministic collision suffix");
         });
 
-        foreach (var targets in new[] { "[]", "[{}]", "[{useBone: 0, bone: 0, useObj: 0, obj: {fileID: 0}}]", "[{useBone: 1}]", "[{useBone: 1, bone: garbage}]", "[{useObj: 1, obj: {fileID: 0}}]" })
+        foreach (var targets in new[] { "[]", "[invalid]", "[{useBone: 1, bone: garbage}]", "[{useBone: 0, useObj: 1, obj: {fileID: 0}}]" })
         {
             test("Structural unresolved VRCFury target: " + targets, () =>
             {
@@ -26,6 +26,21 @@ internal static class AvatarStructuralConversionTests
                 check(((ArmatureMergeOperation)plan.Operations[0]).TargetHumanoidBone == -1, "Must not invent Hips");
             });
         }
+
+        foreach (var targets in new[] { "[{}]", "[{useBone: 1}]", "[{useObj: 1, obj: {fileID: 0}}]" })
+        {
+            test("Structural VRCFury omitted fields use upstream Hips defaults: " + targets, () =>
+            {
+                var plan = AvatarBuildPlanner.CreatePlan(FuryManifest(targets));
+                check(!plan.HasErrors && ((ArmatureMergeOperation)plan.Operations.Single()).TargetHumanoidBone == 0, "Upstream LinkTo initializes useBone=true and bone=Hips");
+            });
+        }
+        test("Structural VRCFury explicit non-bone non-object target is avatar root", () =>
+        {
+            var plan = AvatarBuildPlanner.CreatePlan(FuryManifest("[{useBone: 0, bone: 0, useObj: 0, obj: {fileID: 0}}]"));
+            var operation = (ArmatureMergeOperation)plan.Operations.Single();
+            check(!plan.HasErrors && operation.TargetHumanoidBone == -1 && operation.TargetReferencePath == "$$$AVATAR_ROOT$$$", "Explicit avatar root is not an unresolved or invented target");
+        });
 
         foreach (var targets in new[] { "[{useBone: 1, bone: 0}]", "[{useBone: true, bone: 0}]", "\n        - useBone: 1\n          bone: 0" })
         {
@@ -261,12 +276,14 @@ internal static class AvatarStructuralConversionTests
         MonoBehaviour:
           m_GameObject: {fileID: 100}
           m_Script: {fileID: 11500000, guid: {{AvatarPackageIndex.VrcFuryFullScriptGuid}}, type: 3}
+          content: {rid: 300}
           references:
             version: 2
             RefIds:
             - rid: 300
               type: {class: ArmatureLink, ns: VF.Model.Feature, asm: VRCFury}
               data:
+                version: 7
                 propBone: {fileID: 100}
                 linkTo: {{targets}}
                 recursive: 1

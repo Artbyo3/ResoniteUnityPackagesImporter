@@ -312,17 +312,16 @@ internal sealed class UnityStationHandle
         var result = Current?.ReadResult();
         if (enabled && ready && Current != null && result?.StructureReady == false)
             ImportReportService.Record(session.Reports, Current, item: Current, project: importer, stage: ImportReportStage.Validation);
-        bool canCreateAvatar = IsAvatar && result?.CanPerform(ImportOutputAction.CreateAvatar) == true;
-        bool canKeepObject = !IsOutfit && result?.CanPerform(ImportOutputAction.KeepObject) == true;
-        bool canPerformMainAction = canCreateAvatar || canKeepObject;
+        bool canPerformMainAction = ImportActionPolicy.CanPerformMainAction(result, IsAvatar, IsOutfit);
 
-        ui.SetLocalizedKey("createAvatar", canCreateAvatar ? "createAvatar" : "keepInWorld");
-        ui.SetLocalizedKey("avatarName", canCreateAvatar ? "avatarName" : "objectName");
-        Get<Checkbox>("protect").Slot.Parent.ActiveSelf = canCreateAvatar;
+        var intendedAction = ImportActionPolicy.Intended(IsAvatar, IsOutfit);
+        ui.SetLocalizedKey("createAvatar", ImportActionPolicy.Label(intendedAction));
+        ui.SetLocalizedKey("avatarName", IsAvatar ? "avatarName" : "objectName");
+        Get<Checkbox>("protect").Slot.Parent.ActiveSelf = IsAvatar;
 
         if (result != null)
         {
-            var action = IsOutfit ? ImportOutputAction.InstallOutfit : canCreateAvatar ? ImportOutputAction.CreateAvatar : ImportOutputAction.KeepObject;
+            var action = intendedAction;
             ui.SetLocalizedKey("avatarContext", !result.CanPerform(action) ? "resultBlockedContext" :
                 (!IsAvatar && !IsOutfit) ? "prefabContext" : "avatarContext", items.SelectedIndex + 1, items.Count);
         }
@@ -435,8 +434,19 @@ internal sealed class UnityStationHandle
     {
         if (preview != null && !preview.IsDestroyed) preview.Destroy();
         if (Current == null || Current.CurrentStructureRootSlot.IsDestroyed || created.Contains(Current) || failedCreation.Contains(Current)) return;
-        preview = session.Envelope(Current.CurrentStructureRootSlot).Duplicate(Get<Slot>("preview"), false);
-        preview.SetIdentityTransform();
+        var envelope = session.Envelope(Current.CurrentStructureRootSlot);
+        var descriptorRoots = (Current.Manifest?.Avatars ?? Array.Empty<VrcAvatarDefinition>()).Select(avatar => Current.ResolveGameObject(avatar.GameObjectFileId))
+            .Where(slot => slot != null && !slot.IsDestroyed).Distinct().ToArray();
+        var rigs = Current.CurrentStructureRootSlot.GetComponentsInChildren<BipedRig>().Where(rig => rig.IsBiped).ToArray();
+        var anchor = descriptorRoots.Length == 1 ? descriptorRoots[0] : rigs.Length == 1 ? rigs[0].Slot : Current.CurrentStructureRootSlot;
+        var anchorPath = HierarchyIdentity.Path(envelope, anchor, slot => slot.Parent, slot => slot.Children);
+        var anchorPosition = HierarchyIdentity.PointInAncestor(envelope, anchor, float3.Zero,
+            slot => slot.Parent, (slot, point) => slot.LocalPosition + slot.LocalRotation * (point * slot.LocalScale));
+        preview = Get<Slot>("preview").AddSlot("Import Preview Placement");
+        var copy = envelope.Duplicate(preview, false);
+        copy.SetIdentityTransform();
+        HierarchyIdentity.Resolve(copy, anchorPath, slot => slot.Children);
+        preview.LocalPosition = -anchorPosition;
         preview.ActiveSelf = true;
         preview.PersistentSelf = false;
         foreach (var grab in preview.GetComponentsInChildren<Grabbable>()) grab.Enabled = false;
@@ -483,18 +493,17 @@ internal sealed class UnityStationHandle
         var item = Current;
         bool sourceConsumed = false;
         var result = item.ReadResult();
-        bool canCreateAvatar = IsAvatar && result.CanPerform(ImportOutputAction.CreateAvatar);
-        bool canKeepObject = result.CanPerform(ImportOutputAction.KeepObject);
-        if (!canCreateAvatar && !canKeepObject) return;
-        operationStage = canCreateAvatar ? "Create avatar" : "Keep prefab in world";
+        var intendedAction = ImportActionPolicy.Intended(IsAvatar, IsOutfit);
+        if (!ImportActionPolicy.CanPerformMainAction(result, IsAvatar, IsOutfit)) return;
+        operationStage = intendedAction == ImportOutputAction.CreateAvatar ? "Create avatar" : "Keep prefab in world";
         busy = true;
         SetActions(false);
         try
         {
-            item.ReadResult().Require(canCreateAvatar ? ImportOutputAction.CreateAvatar : ImportOutputAction.KeepObject);
+            item.ReadResult().Require(intendedAction);
             var source = item.CurrentStructureRootSlot;
             var envelope = session.Envelope(source);
-            bool avatar = canCreateAvatar;
+            bool avatar = intendedAction == ImportOutputAction.CreateAvatar;
             bool protect = avatar && Get<Checkbox>("protect").State.Value;
             if (Get<Checkbox>("expressions").State.Value) await item.BuildExpressionsAsync();
             await default(ToWorld);

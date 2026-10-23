@@ -45,6 +45,8 @@ internal static class ModularAvatarPlanAdapter
             }
             else if (ma.Kind == ModularAvatarComponentKind.BoneProxy)
             {
+                bool avatarPath = ma.BoneProxySubPath == "$$AVATAR" ||
+                    (ma.BoneReference == 55 && !string.IsNullOrWhiteSpace(ma.BoneProxySubPath));
                 var op = new BoneAttachmentOperation
                 {
                     Source = new AvatarBuildOperationSource
@@ -58,13 +60,16 @@ internal static class ModularAvatarPlanAdapter
                     },
                     SourceObjectFileId = ma.GameObjectFileId,
                     SourceObjectName = ma.GameObjectName,
-                    TargetHumanoidBone = ma.BoneReference,
-                    TargetOffsetPath = ma.BoneProxySubPath ?? "",
-                    AlignPosition = true,
-                    AlignRotation = true,
+                    TargetHumanoidBone = avatarPath || ma.BoneReference == 55 ? -1 : ma.BoneReference,
+                    TargetReferencePath = avatarPath ? "$$$AVATAR_ROOT$$$" : "",
+                    TargetOffsetPath = ma.BoneProxySubPath == "$$AVATAR" ? "" : ma.BoneProxySubPath ?? "",
+                    AlignPosition = ma.BoneProxyAttachmentMode is not (2 or 4),
+                    AlignRotation = ma.BoneProxyAttachmentMode is not (2 or 3),
                     AlignScale = ma.BoneProxyMatchScale,
-                    KeepOffsets = false
+                    KeepOffsets = ma.BoneProxyAttachmentMode is 2 or 3 or 4
                 };
+                if (ma.BoneProxyAttachmentMode is < 0 or > 4)
+                    op.AddDiagnostic(AvatarOperationSeverity.Error, "The Bone Proxy attachment mode is not supported.", "INVALID_ATTACHMENT_MODE");
                 plan.AddOperation(op);
             }
         }

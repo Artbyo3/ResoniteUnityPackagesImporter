@@ -36,6 +36,7 @@ public class Transform: IUnityObject
     {
         if (instanciated) return;
         if (importer is UnitySceneImportTask scene && scene.TryDeferObject(this)) return;
+        if (importer is UnityPrefabImportTask prefabTask && prefabTask.TryDeferMissingAlias(this)) return;
 
         instanciated = true;
 

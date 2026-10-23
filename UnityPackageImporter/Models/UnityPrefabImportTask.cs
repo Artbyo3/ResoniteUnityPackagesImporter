@@ -22,6 +22,16 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
     public ProgressBarInterface progressIndicator { get; set; }
     internal Func<float, Task> ReportProgress { get; set; }
     internal AvatarPackageManifest Manifest { get; private set; }
+    private readonly HashSet<ulong> deferredMissingAliases = new();
+
+    internal bool TryDeferMissingAlias(IUnityObject obj)
+    {
+        if (!deferredMissingAliases.Contains(obj.id)) return false;
+        if (!obj.instanciated)
+            UnityPackageImporter.Warn($"Missing-prefab transform alias {obj.id} has no local object and no supported references; the missing source remains reported.");
+        obj.instanciated = true;
+        return true;
+    }
     public List<string> IncompleteComponents { get; } = new();
     internal List<ulong> FailedObjectIds { get; } = new();
     public AvatarBuildPlan ConversionPlan { get; private set; }
@@ -38,6 +48,14 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
         this.GlobalIndicatorPosition = globalPosition;
         this.GlobalIndicatorRotation = globalRotation ?? floatQ.Identity;
     }
+
+    private static int ModelClassId(IUnityObject value) => value switch
+    {
+        FrooxEngineRepresentation.GameObjectTypes.GameObject => 1,
+        FrooxEngineRepresentation.GameObjectTypes.Transform => 4,
+        FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer => 137,
+        _ => 0
+    };
 
     public async Task StartImport()
     {
@@ -68,9 +86,24 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
 
 
             progressIndicator?.UpdateProgress(0f, "", "now loading unity YAML objects for Prefab.");
-            AvatarPackageManifest avatarManifest = Manifest = AvatarPackageIndex.ParseFile(
-                this.ID.Value,
-                this.unityProjectImporter?.ListOfPrefabs);
+            var modelObjects = unityProjectImporter.SharedImportedFBXScenes.ToDictionary(pair => pair.Key,
+                pair => (IReadOnlyDictionary<long, int>)pair.Value.FILEID_To_Slot_Pairs
+                    .Select(entry => (FileId: entry.Key.fileID, ClassId: ModelClassId(entry.Value)))
+                    .Concat(pair.Value.StaticRendererIdentities())
+                    .GroupBy(entry => entry.FileId).ToDictionary(group => group.Key,
+                        group => group.Select(entry => entry.ClassId).Distinct().Single()), StringComparer.OrdinalIgnoreCase);
+            foreach (var model in modelObjects.Values.Cast<Dictionary<long, int>>())
+            {
+                model.TryAdd(919132149155446097, 1);
+                model.TryAdd(-8679921383154817045, 4);
+            }
+            var compositionDiagnostics = new PrefabCompositionDiagnostics();
+            string composedYaml = UnityPrefabComposer.Compose(File.ReadAllText(ID.Value),
+                unityProjectImporter.ListOfPrefabs, modelObjects, compositionDiagnostics);
+            deferredMissingAliases.UnionWith(compositionDiagnostics.DeferredMissingAliases.Select(id => unchecked((ulong)id)));
+            if (compositionDiagnostics.MaterializedLocalObjects.Count > 0)
+                UnityPackageImporter.Warn($"Reconstructing {compositionDiagnostics.MaterializedLocalObjects.Count} fully serialized local objects whose source-prefab assets are unavailable; source warnings are retained.");
+            AvatarPackageManifest avatarManifest = Manifest = AvatarPackageIndex.ParseText(composedYaml, ID.Value);
             if (avatarManifest.HasVrcFuryComponents)
             {
                 int linkCount = avatarManifest.AllVrcFuryArmatureLinks.Count;
@@ -81,7 +114,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                     UnityPackageImporter.Warn($"{unsupportedCount} unsupported VRCFury feature(s) detected; non-structural processing is deferred.");
                 }
             }
-            this.existingIUnityObjects  = YamlToFrooxEngine.parseYaml(this.ID.Value);
+            this.existingIUnityObjects = YamlToFrooxEngine.ParseText(composedYaml);
 
             int totalProgress = 0;
             foreach (KeyValuePair<ulong, IUnityObject> obj in existingIUnityObjects)
@@ -160,6 +193,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 var trans = obj.Value as FrooxEngineRepresentation.GameObjectTypes.Transform;
                 if (trans == null)
                     continue;
+                if (deferredMissingAliases.Contains(trans.id)) continue;
 
                 if (trans.m_FatherID != 0 || trans.parentHashedGameObj != null)
                     continue;
@@ -187,7 +221,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
             UnityPackageImporter.Msg("Yaml generation done");
 
             // Milestone 1: Unified Avatar Conversion Architecture
-            if (avatarManifest != null && (avatarManifest.ModularAvatarComponents.Count > 0 || avatarManifest.VrcFuryComponents.Count > 0))
+            if (avatarManifest != null)
             {
                 ConversionPlan = AvatarBuildPlanner.CreatePlan(avatarManifest, Path.GetFileName(ID.Value));
                 if (avatarManifest.IsModularAvatarAttachment)
@@ -204,6 +238,15 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                         this.CurrentStructureRootSlot,
                         this.existingIUnityObjects,
                         this,
+                        unityProjectImporter?.Session?.Token ?? default);
+                    await ModularAvatarInitialAppearanceAdapter.ApplyAsync(
+                        composedYaml, this.existingIUnityObjects, this, ConversionPlan,
+                        unityProjectImporter?.Session?.Token ?? default);
+                    await VrcFuryInitialAppearanceAdapter.ApplyAsync(
+                        composedYaml, this.existingIUnityObjects, this, ConversionPlan,
+                        unityProjectImporter?.Session?.Token ?? default);
+                    await BlendshapeInitialAppearanceAdapter.ApplyAsync(
+                        composedYaml, this.existingIUnityObjects, this, ConversionPlan,
                         unityProjectImporter?.Session?.Token ?? default);
                     await default(ToBackground);
                 }

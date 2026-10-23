@@ -515,39 +515,24 @@ internal static class ModularAvatarAttachmentInstaller
                         : "Mesh Renderer"
                 })
                 .ToList();
-            foreach (var renderer in renderers)
+            var skinTransfer = SkinBindingTransfer.Plan(boneMap.Select(pair => (pair.Key, pair.Value)),
+                (slot, parent) => slot == parent || slot.IsChildOf(parent));
+            SkinBindingTransfer.Apply(skinTransfer, (source, target) =>
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                for (int i = 0; i < renderer.Bones.Count; i++)
+                transaction.Track(source);
+                bool activeWhenEnabled = authoredActivity[source];
+                SkinBindingTransferAdapter.Preserve(source, target);
+                source.ActiveSelf = false;
+                ownedRoots.Add(new OwnedRoot
                 {
-                    var bone = renderer.Bones[i];
-                    if (bone != null && boneMap.TryGetValue(bone, out var target))
-                        renderer.Bones[i] = target;
-                }
-
+                    Slot = source,
+                    ActiveWhenEnabled = activeWhenEnabled,
+                    Role = "Skin Binding Bone"
+                });
+            });
+            foreach (var renderer in renderers)
                 SkinnedBoundsPolicy.ApplyAfterBones(renderer, "Modular Avatar installation");
-            }
-
-            foreach (var merge in prepared)
-            {
-                foreach (var retained in merge.Plan.RetainedRoots)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var source = merge.SourceSlots[retained.SourceId];
-                    if (boneMap.ContainsKey(source)) continue;
-                    var targetParent = merge.TargetSlots[retained.TargetParentId];
-                    bool activeWhenEnabled = authoredActivity[source];
-                    transaction.Track(source);
-                    source.ActiveSelf = false;
-                    source.SetParent(targetParent, false);
-                    ownedRoots.Add(new OwnedRoot
-                    {
-                        Slot = source,
-                        ActiveWhenEnabled = activeWhenEnabled,
-                        Role = "Retained Bone Root"
-                    });
-                }
-            }
 
             foreach (var proxy in clonedBoneProxies)
             {
@@ -655,10 +640,8 @@ internal static class ModularAvatarAttachmentInstaller
         if (target == null || target.IsDestroyed) return null;
         foreach (string part in SplitPath(subPath))
         {
-            target = target.Children.FirstOrDefault(child =>
-                child.Name.Equals(part, StringComparison.Ordinal))
-                ?? target.Children.FirstOrDefault(child =>
-                child.Name.Equals(part, StringComparison.OrdinalIgnoreCase));
+            target = BoneAttachmentTarget.Resolve(target.Children, part, null,
+                child => child.Name, child => child.Name);
             if (target == null || target.IsDestroyed) return null;
         }
         if (excludedRoots.Any(root => target == root || target.IsChildOf(root, true))) return null;
@@ -805,34 +788,14 @@ internal static class ModularAvatarAttachmentInstaller
             binding.Definition.MergeTargetPath, binding.SourceSlot.Name, binding.Definition.Prefix, binding.Definition.Suffix,
             slot => slot.Name, slot => RelativePath(slot, avatarRoot));
         if (target != null) return target;
+        if (!string.IsNullOrWhiteSpace(binding.Definition.MergeTargetPath)) return null;
 
         var hipsBone = targetRig?.TryGetBone(BodyNode.Hips);
         var rigArmature = hipsBone?.Parent != null && hipsBone.Parent != avatarRoot
             ? hipsBone.Parent
             : null;
 
-        if (rigArmature != null && (excludedRoots == null || !excludedRoots.Contains(rigArmature)))
-        {
-            string targetPath = binding.Definition.MergeTargetPath?.Trim() ?? "";
-            string targetLeaf = targetPath.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
-
-            if (IsLikelyArmature(binding.SourceSlot) ||
-                string.IsNullOrEmpty(targetPath) ||
-                (targetLeaf != null && rigArmature.Name.Equals(targetLeaf, StringComparison.OrdinalIgnoreCase)) ||
-                rigArmature.Name.Equals("Armature", StringComparison.OrdinalIgnoreCase))
-            {
-                return rigArmature;
-            }
-        }
-
-        string explicitTargetLeaf = binding.Definition.MergeTargetPath?.Trim().Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries).LastOrDefault();
-        if (!string.IsNullOrEmpty(explicitTargetLeaf))
-        {
-            var matchingCandidate = candidates.Values.FirstOrDefault(c =>
-                c.Name.Equals(explicitTargetLeaf, StringComparison.OrdinalIgnoreCase) &&
-                (excludedRoots == null || !excludedRoots.Contains(c)));
-            if (matchingCandidate != null) return matchingCandidate;
-        }
+        if (rigArmature != null && candidates.Values.Contains(rigArmature)) return rigArmature;
 
         return null;
     }

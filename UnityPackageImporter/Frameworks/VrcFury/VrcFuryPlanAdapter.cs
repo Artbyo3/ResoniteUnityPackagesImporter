@@ -26,12 +26,14 @@ internal static class VrcFuryPlanAdapter
 
             foreach (var link in vf.ArmatureLinks)
             {
-                var primaryTarget = link.LinkToTargets.Count > 0 ? link.LinkToTargets[0] : null;
                 long sourceId = link.PropBoneFileId ?? link.GameObjectFileId;
-
-                int targetBone = primaryTarget?.UseBone == true ? primaryTarget.Bone : -1;
-                long? targetObj = primaryTarget?.UseObj == true && primaryTarget.ObjFileId != 0 ? primaryTarget.ObjFileId : null;
-                string offset = primaryTarget?.Offset ?? "";
+                var targets = new List<(int Bone, long? ObjectId, string Path, string Offset)>();
+                foreach (var target in link.LinkToTargets)
+                    targets.Add((target.UseBone ? target.Bone : -1,
+                        !target.UseBone && target.UseObj && target.ObjFileId != 0 ? target.ObjFileId : null,
+                        !target.UseBone && !target.UseObj ? "$$$AVATAR_ROOT$$$" : "", target.Offset));
+                var primary = targets.Count > 0 ? targets[0] : (-1, (long?)null, "", "");
+                AvatarBuildOperation operation;
 
                 if (link.Recursive)
                 {
@@ -48,9 +50,11 @@ internal static class VrcFuryPlanAdapter
                         },
                         SourceArmatureRootFileId = sourceId,
                         SourceArmatureRootName = link.GameObjectName,
-                        TargetHumanoidBone = targetBone,
-                        TargetObjectFileId = targetObj,
-                        TargetOffsetPath = offset,
+                        TargetHumanoidBone = primary.Item1,
+                        TargetObjectFileId = primary.Item2,
+                        TargetReferencePath = primary.Item3,
+                        TargetOffsetPath = primary.Item4,
+                        TargetCandidates = targets.AsReadOnly(),
                         Suffix = link.RemoveBoneSuffix ?? "",
                         RemoveBoneSuffix = link.RemoveBoneSuffix ?? "",
                         Recursive = true,
@@ -59,7 +63,7 @@ internal static class VrcFuryPlanAdapter
                         AlignScale = link.AlignScale,
                         AutoScaleFactor = link.AutoScaleFactor
                     };
-                    plan.AddOperation(op);
+                    operation = op;
                 }
                 else
                 {
@@ -76,17 +80,23 @@ internal static class VrcFuryPlanAdapter
                         },
                         SourceObjectFileId = sourceId,
                         SourceObjectName = link.GameObjectName,
-                        TargetHumanoidBone = targetBone,
-                        TargetObjectFileId = targetObj,
-                        TargetOffsetPath = offset,
+                        TargetHumanoidBone = primary.Item1,
+                        TargetObjectFileId = primary.Item2,
+                        TargetReferencePath = primary.Item3,
+                        TargetOffsetPath = primary.Item4,
+                        TargetCandidates = targets.AsReadOnly(),
                         AlignPosition = link.AlignPosition,
                         AlignRotation = link.AlignRotation,
                         AlignScale = link.AlignScale,
                         AutoScaleFactor = link.AutoScaleFactor,
                         KeepOffsets = link.KeepOffsets
                     };
-                    plan.AddOperation(op);
+                    operation = op;
                 }
+                foreach (var diagnostic in link.SemanticDiagnostics)
+                    operation.AddDiagnostic(diagnostic.IsError ? AvatarOperationSeverity.Error : AvatarOperationSeverity.Warning,
+                        diagnostic.Message, diagnostic.Code);
+                plan.AddOperation(operation);
             }
         }
     }

@@ -73,8 +73,10 @@ internal static class ImportResultAdapter
                 Scope(item, unchecked((long)skin.id)) != ImportOwnership.Other));
         int unsupportedNestedPrefabs = item.NestedPrefabs?.InstanceIds.Count(id =>
             !item.IsScopedSceneItem || DeferredInstanceAffects(item, id)) ?? 0;
-        int missingNestedPrefabs = item.NestedPrefabs?.MissingInstanceIds.Count(id =>
-            !item.IsScopedSceneItem || DeferredInstanceAffects(item, id)) ?? 0;
+        int missingNestedPrefabs = item.existingIUnityObjects.Values.OfType<UnityTypes.PrefabInstance>()
+            .Where(instance => instance.HasMissingSource).Select(instance => instance.id)
+            .Concat(item.NestedPrefabs?.MissingInstanceIds ?? Enumerable.Empty<ulong>()).Distinct()
+            .Count(id => !item.IsScopedSceneItem || DeferredInstanceAffects(item, id));
         int unsupported = item.Manifest?.UnsupportedVrcFuryFeatureCount ?? 0;
         // These components are indexed, but are not executed by the structural planner.
         // An outfit's installer handles its own additional MA features at installation.

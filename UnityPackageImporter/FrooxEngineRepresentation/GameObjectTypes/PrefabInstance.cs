@@ -24,6 +24,7 @@ public class PrefabInstance : IUnityObject
 
     public Dictionary<SourceObj, IUnityObject> PrefabHashes = new Dictionary<SourceObj, IUnityObject>(new SourceObjCompare());
     public string ResolvedFbxGuid { get; internal set; }
+    public bool HasMissingSource { get; private set; }
     public HashSet<string> LineageGuids { get; internal set; }
 
     // Retain the identity aliases already built for ancestor override replay.
@@ -43,6 +44,7 @@ public class PrefabInstance : IUnityObject
         if (instanciated) return;
         if (importer is UnitySceneImportTask missingScene && missingScene.NestedPrefabs.TryGetMissingSource(id, out string missingGuid))
         {
+            HasMissingSource = true;
             UnityPackageImporter.Warn(NestedPrefabDeferrals.MissingSourceWarning(id, missingGuid));
             instanciated = true;
             return;
@@ -501,6 +503,7 @@ public class PrefabInstance : IUnityObject
         }
         else
         {
+            HasMissingSource = true;
             UnityPackageImporter.Warn(NestedPrefabDeferrals.MissingSourceWarning(id, m_SourcePrefab.guid));
         }
 

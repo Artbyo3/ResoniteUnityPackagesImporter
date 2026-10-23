@@ -48,6 +48,7 @@
     <Compile Include="../UnityPackageImporter/Models/AvatarImportSelection.cs" Link="AvatarImportSelection.cs" />
     <Compile Include="../UnityPackageImporter/Models/ImportResult.cs" Link="ImportResult.cs" />
     <Compile Include="../UnityPackageImporter/Models/MeshReferenceLookup.cs" Link="MeshReferenceLookup.cs" />
+    <Compile Include="../UnityPackageImporter/Models/UnitySerializedMesh.cs" Link="UnitySerializedMesh.cs" />
     <Compile Include="../UnityPackageImporter/Models/NestedPrefabCapabilities.cs" Link="NestedPrefabCapabilities.cs" />
     <Compile Include="../UnityPackageImporter/Models/NestedPrefabSourceIndex.cs" Link="NestedPrefabSourceIndex.cs" />
     <Compile Include="../UnityPackageImporter/Models/ImportMeasurements.cs" Link="ImportMeasurements.cs" />
@@ -80,6 +81,20 @@
     <Compile Include="../UnityPackageImporter/Models/MaterialDependencyDiagnostics.cs" Link="MaterialDependencyDiagnostics.cs" />
     <Compile Include="../UnityPackageImporter/Models/PrefabVariantResolver.cs" Link="PrefabVariantResolver.cs" />
     <Compile Include="../UnityPackageImporter/Models/PrefabObjectLookup.cs" Link="PrefabObjectLookup.cs" />
+    <Compile Include="../UnityPackageImporter/Models/UnityPrefabComposer.cs" Link="UnityPrefabComposer.cs" />
+    <Compile Include="../UnityPackageImporter/Models/UnityPrefabSchema.cs" Link="UnityPrefabSchema.cs" />
+    <Compile Include="../UnityPackageImporter/Models/BlendshapeInitialAppearance.cs" Link="BlendshapeInitialAppearance.cs" />
+    <Compile Include="../UnityPackageImporter/Models/VrcFuryArmatureSemantics.cs" Link="VrcFuryArmatureSemantics.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs" Link="ModularAvatarInitialAppearance.cs" />
+    <Compile Include="../UnityPackageImporter/Models/UnityStaticAnimationClip.cs" Link="UnityStaticAnimationClip.cs" />
+    <Compile Include="../UnityPackageImporter/Models/VrcFuryManagedReferenceGraph.cs" Link="VrcFuryManagedReferenceGraph.cs" />
+    <Compile Include="../UnityPackageImporter/Models/VrcFuryInitialAppearance.cs" Link="VrcFuryInitialAppearance.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AvatarConversionScope.cs" Link="AvatarConversionScope.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ModelBoneIndex.cs" Link="ModelBoneIndex.cs" />
+    <Compile Include="../UnityPackageImporter/Models/SkinBindingTransfer.cs" Link="SkinBindingTransfer.cs" />
+    <Compile Include="../UnityPackageImporter/Models/HierarchyIdentity.cs" Link="HierarchyIdentity.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ImportActionPolicy.cs" Link="ImportActionPolicy.cs" />
+    <Compile Include="../UnityPackageImporter/Models/PrefabAssemblySelection.cs" Link="PrefabAssemblySelection.cs" />
     <Compile Include="../UnityPackageImporter/FrooxEngineRepresentation/SourceObj.cs" Link="SourceObj.cs" />
     <Compile Include="../UnityPackageImporter/Models/UnityPackageAssetIndex.cs" Link="UnityPackageAssetIndex.cs" />
     <Compile Include="../UnityPackageImporter/Models/UnityYamlDocumentParser.cs" Link="UnityYamlDocumentParser.cs" />

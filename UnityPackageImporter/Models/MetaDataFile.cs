@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using FrooxEngine;
 using Renderite.Shared;
@@ -85,10 +86,14 @@ public class MetaDataFile
         if (parsed.HumanBones.Count > 0 && ModelRootSlot != null)
         {
             await default(ToWorld);
+            var owned = task.FILEID_To_Slot_Pairs.Values
+                .OfType<FrooxEngineRepresentation.GameObjectTypes.GameObject>()
+                .Select(gameObject => gameObject.frooxEngineSlot).Where(slot => slot != null && !slot.IsDestroyed).Distinct().ToArray();
+            var modelObjects = owned.Length > 0 ? owned : ModelRootSlot.GetAllChildren().ToArray();
             foreach (var (boneName, humanName) in parsed.HumanBones)
             {
                 UnityPackageImporter.Msg("finding bone: " + boneName);
-                Slot boneSlot = ModelRootSlot.FindChild(boneName, false, false, -1);
+                Slot boneSlot = ModelBoneIndex<Slot>.FindOwned(modelObjects, boneName, slot => slot.Name);
                 BodyNode bodyNodeType = HumanoidNameToEnum(humanName);
 
                 if (bodyNodeType != BodyNode.NONE && boneSlot != null && !storagebones.ContainsKey(bodyNodeType))

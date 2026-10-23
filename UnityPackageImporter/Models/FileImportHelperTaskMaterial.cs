@@ -24,6 +24,7 @@ public class FileImportHelperTaskMaterial
     internal string MaterialGuid => myID;
     internal string SourceFile => file;
     private readonly bool forceToon;
+    private readonly bool retainImportedMaterial;
 
     public static string materialNameIdentifyEndingPrefab = " - Material";
     private static readonly HashSet<string> LilToonGuids = new(StringComparer.OrdinalIgnoreCase)
@@ -83,11 +84,19 @@ public class FileImportHelperTaskMaterial
         ismissing = true;
     }
 
+    internal FileImportHelperTaskMaterial(UnityProjectImporter importer, IAssetProvider<Material> importedMaterial)
+    {
+        importer.Session?.Check();
+        this.importer = importer;
+        finalMaterial = importedMaterial ?? throw new ArgumentNullException(nameof(importedMaterial));
+        retainImportedMaterial = true;
+    }
+
     public async Task<IAssetProvider<Material>> runImportFileMaterialsAsync()
     {
         await default(ToBackground);
         importer.Session?.Check();
-        if (ismissing) return finalMaterial;
+        if (ismissing || retainImportedMaterial) return finalMaterial;
         finalMaterial = await importer.MaterialImports.GetOrAdd(myID + (forceToon ? ":toon" : ":automatic"), ImportFileMaterial);
         if (finalMaterial != null && !string.IsNullOrEmpty(myID))
         {
