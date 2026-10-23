@@ -566,6 +566,7 @@ internal static class ImportCompatibilityPhase1Tests
                     - rid: 101
                       type: {class: ArmatureLink, ns: VF.Model.Feature, asm: VRCFury}
                       data:
+                        version: 7
                         propBone: {fileID: 200001}
                         linkTo:
                         - useBone: 1

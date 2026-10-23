@@ -221,7 +221,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
             UnityPackageImporter.Msg("Yaml generation done");
 
             // Milestone 1: Unified Avatar Conversion Architecture
-            if (avatarManifest != null && (avatarManifest.ModularAvatarComponents.Count > 0 || avatarManifest.VrcFuryComponents.Count > 0))
+            if (avatarManifest != null)
             {
                 ConversionPlan = AvatarBuildPlanner.CreatePlan(avatarManifest, Path.GetFileName(ID.Value));
                 if (avatarManifest.IsModularAvatarAttachment)
@@ -238,6 +238,12 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                         this.CurrentStructureRootSlot,
                         this.existingIUnityObjects,
                         this,
+                        unityProjectImporter?.Session?.Token ?? default);
+                    await ModularAvatarInitialAppearanceAdapter.ApplyAsync(
+                        composedYaml, this.existingIUnityObjects, this, ConversionPlan,
+                        unityProjectImporter?.Session?.Token ?? default);
+                    await BlendshapeInitialAppearanceAdapter.ApplyAsync(
+                        composedYaml, this.existingIUnityObjects, this, ConversionPlan,
                         unityProjectImporter?.Session?.Token ?? default);
                     await default(ToBackground);
                 }

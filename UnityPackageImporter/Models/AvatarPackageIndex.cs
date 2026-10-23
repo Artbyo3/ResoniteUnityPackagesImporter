@@ -80,7 +80,7 @@ public sealed class ModularAvatarComponentDefinition
 public sealed class VrcFuryLinkToTarget
 {
     public bool UseBone { get; init; }
-    public int Bone { get; init; } = -1; // Unresolved unless explicitly serialized (0 = Hips).
+    public int Bone { get; init; } = 0;
     public bool UseObj { get; init; }
     public long? ObjFileId { get; init; }
     public string Offset { get; init; } = "";
@@ -94,14 +94,16 @@ public sealed class VrcFuryArmatureLinkDefinition
     public string GameObjectName { get; init; } = "";
     public long? PropBoneFileId { get; init; }
     public IReadOnlyList<VrcFuryLinkToTarget> LinkToTargets { get; init; } = Array.Empty<VrcFuryLinkToTarget>();
-    public int LinkMode { get; init; } // Auto = 0, SkinRewrite = 1, MergeAsChildren = 2, ParentConstraint = 3, ReparentRoot = 4
-    public bool Recursive { get; init; } = true;
+    public int SerializedVersion { get; init; } = 7;
+    public int LinkMode { get; init; } = 4;
+    public bool Recursive { get; init; }
     public string RemoveBoneSuffix { get; init; } = "";
     public bool AlignPosition { get; init; }
     public bool AlignRotation { get; init; }
     public bool AlignScale { get; init; }
     public bool AutoScaleFactor { get; init; } = true;
     public bool KeepOffsets { get; init; }
+    public IReadOnlyList<(string Code, string Message, bool IsError)> SemanticDiagnostics { get; init; } = Array.Empty<(string, string, bool)>();
 }
 
 public sealed class VrcFuryComponentDefinition
@@ -707,132 +709,86 @@ public static class AvatarPackageIndex
     private static VrcFuryArmatureLinkDefinition ParseArmatureLinkFromLines(
         IReadOnlyList<string> lines, string sourcePath, long componentFileId, long gameObjectFileId, string gameObjectName)
     {
+        int fieldIndent = lines.Where(line => !string.IsNullOrWhiteSpace(line)).Select(CountIndent).DefaultIfEmpty(0).Min();
+        var fieldLines = lines.Where(line => !string.IsNullOrWhiteSpace(line)).Select(line => line.Substring(fieldIndent));
+        var parseDiagnostics = new List<(string Code, string Message, bool IsError)>();
+        YamlMappingNode fields = null;
+        try
+        {
+            var stream = new YamlStream();
+            stream.Load(new StringReader(string.Join("\n", fieldLines)));
+            var root = stream.Documents.FirstOrDefault()?.RootNode;
+            if (root is YamlSequenceNode entries) root = entries.Children.FirstOrDefault();
+            if (root is YamlMappingNode mapping)
+            {
+                if (mapping.Children.TryGetValue(new YamlScalarNode("data"), out var data)) fields = data as YamlMappingNode;
+                else if (mapping.Children.TryGetValue(new YamlScalarNode("MonoBehaviour"), out var behaviour)) fields = behaviour as YamlMappingNode;
+                else fields = mapping;
+            }
+            if (fields == null)
+                parseDiagnostics.Add(("VRCFURY_INVALID_ARMATURE_DATA", "ArmatureLink data must be a mapping.", true));
+        }
+        catch (YamlException exception)
+        {
+            parseDiagnostics.Add(("VRCFURY_INVALID_ARMATURE_DATA", "ArmatureLink YAML could not be decoded: " + exception.Message, true));
+        }
+        var scalars = new Dictionary<string, string>(StringComparer.Ordinal);
+        if (fields != null)
+            foreach (var field in fields.Children)
+                if (field.Key is YamlScalarNode key && field.Value is YamlScalarNode value && key.Value != null)
+                    scalars[key.Value] = value.Value ?? "";
+        var semantics = VrcFuryArmatureSemantics.Normalize(scalars);
+        parseDiagnostics.AddRange(semantics.Diagnostics);
         long? propBoneFileId = null;
-        for (int i = 0; i < lines.Count; i++)
-        {
-            string trimmed = lines[i].Trim();
-            if (trimmed.StartsWith("propBone:", StringComparison.Ordinal))
-            {
-                var refObj = ReadReferenceAt(lines, i);
-                if (refObj != null && refObj.FileId != 0) propBoneFileId = refObj.FileId;
-                break;
-            }
-        }
-
+        if (fields != null && fields.Children.TryGetValue(new YamlScalarNode("propBone"), out var propNode) &&
+            propNode is YamlMappingNode prop && long.TryParse(ReadTargetScalar(prop, "fileID"), NumberStyles.Integer,
+                CultureInfo.InvariantCulture, out long propId) && propId != 0)
+            propBoneFileId = propId;
         var linkToTargets = new List<VrcFuryLinkToTarget>();
-        int linkToIndex = -1;
-        for (int i = 0; i < lines.Count; i++)
+        if (semantics.Version < 6 && semantics.Version >= 0)
         {
-            if (lines[i].TrimStart().StartsWith("linkTo:", StringComparison.Ordinal))
+            string legacyPath = ReadTargetScalar(fields, "bonePathOnAvatar") ?? "";
+            if (!string.IsNullOrWhiteSpace(legacyPath))
+                linkToTargets.Add(new VrcFuryLinkToTarget { Offset = legacyPath });
+            else
             {
-                linkToIndex = i;
-                break;
+                string boneText = ReadTargetScalar(fields, "boneOnAvatar");
+                int bone = boneText == null ? 0 : int.TryParse(boneText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedBone) ? parsedBone : -1;
+                linkToTargets.Add(new VrcFuryLinkToTarget { UseBone = true, Bone = bone });
+                if (fields != null && fields.Children.TryGetValue(new YamlScalarNode("fallbackBones"), out var fallbackNode) && fallbackNode is YamlSequenceNode fallbacks)
+                    foreach (var fallback in fallbacks.Children)
+                        linkToTargets.Add(new VrcFuryLinkToTarget { UseBone = true,
+                            Bone = fallback is YamlScalarNode scalar && int.TryParse(scalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int fallbackBone) ? fallbackBone : -1 });
             }
         }
-
-        if (linkToIndex >= 0)
+        else if (fields != null && fields.Children.TryGetValue(new YamlScalarNode("linkTo"), out var targets))
         {
-            // Parse only this field with the existing YAML library. This supports
-            // both Unity block lists and flow lists without guessing missing values.
-            int linkIndent = CountIndent(lines[linkToIndex]);
-            var targetLines = new List<string> { lines[linkToIndex].Substring(linkIndent) };
-            for (int i = linkToIndex + 1; i < lines.Count; i++)
+            if (targets is YamlSequenceNode sequence)
             {
-                string line = lines[i];
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                int indent = CountIndent(line);
-                if (indent < linkIndent || (indent == linkIndent && !line.TrimStart().StartsWith("-", StringComparison.Ordinal)))
-                    break;
-                targetLines.Add(line.Substring(linkIndent));
-            }
-            try
-            {
-                var stream = new YamlStream();
-                stream.Load(new StringReader(string.Join("\n", targetLines)));
-                var root = stream.Documents[0].RootNode as YamlMappingNode;
-                if (root != null && root.Children.TryGetValue(new YamlScalarNode("linkTo"), out var targets) && targets is YamlSequenceNode sequence)
+                foreach (var entry in sequence.Children)
                 {
-                    foreach (var entry in sequence.Children)
+                    if (entry is not YamlMappingNode mapping ||
+                        !IsTargetBoolean(mapping, "useBone") || !IsTargetBoolean(mapping, "useObj"))
                     {
-                        var mapping = entry as YamlMappingNode;
-                        YamlMappingNode obj = null;
-                        if (mapping != null && mapping.Children.TryGetValue(new YamlScalarNode("obj"), out var objNode))
-                            obj = objNode as YamlMappingNode;
-                        linkToTargets.Add(new VrcFuryLinkToTarget
-                        {
-                            UseBone = ReadTargetBool(mapping, "useBone"),
-                            Bone = int.TryParse(ReadTargetScalar(mapping, "bone"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int bone) ? bone : -1,
-                            UseObj = ReadTargetBool(mapping, "useObj"),
-                            ObjFileId = long.TryParse(ReadTargetScalar(obj, "fileID"), NumberStyles.Integer, CultureInfo.InvariantCulture, out long id) && id != 0 ? id : null,
-                            Offset = ReadTargetScalar(mapping, "offset") ?? ""
-                        });
+                        linkToTargets.Add(new VrcFuryLinkToTarget { UseBone = true, Bone = -1 });
+                        continue;
                     }
+                    YamlMappingNode obj = null;
+                    if (mapping.Children.TryGetValue(new YamlScalarNode("obj"), out var objNode)) obj = objNode as YamlMappingNode;
+                    string boneText = ReadTargetScalar(mapping, "bone");
+                    linkToTargets.Add(new VrcFuryLinkToTarget
+                    {
+                        UseBone = ReadTargetScalar(mapping, "useBone") == null || ReadTargetBool(mapping, "useBone"),
+                        Bone = boneText == null ? 0 : int.TryParse(boneText, NumberStyles.Integer, CultureInfo.InvariantCulture, out int bone) ? bone : -1,
+                        UseObj = ReadTargetBool(mapping, "useObj"),
+                        ObjFileId = long.TryParse(ReadTargetScalar(obj, "fileID"), NumberStyles.Integer, CultureInfo.InvariantCulture, out long id) && id != 0 ? id : null,
+                        Offset = ReadTargetScalar(mapping, "offset") ?? ""
+                    });
                 }
             }
-            catch (YamlException)
-            {
-                // Leave unresolved: the planner reports TARGET_UNRESOLVED.
-                linkToTargets.Clear();
-            }
+            else parseDiagnostics.Add(("VRCFURY_INVALID_LINK_TARGETS", "ArmatureLink linkTo must be a sequence.", true));
         }
-
-        // An explicitly empty or malformed modern list must not revive stale legacy fields.
-        if (linkToIndex < 0)
-        {
-            int legacyBone = -1;
-            string legacyPath = "";
-            for (int i = 0; i < lines.Count; i++)
-            {
-                string trimmed = lines[i].Trim();
-                if (trimmed.StartsWith("boneOnAvatar:", StringComparison.Ordinal))
-                    legacyBone = int.TryParse(trimmed.Substring("boneOnAvatar:".Length).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out int bone) ? bone : -1;
-                else if (trimmed.StartsWith("bonePathOnAvatar:", StringComparison.Ordinal))
-                    legacyPath = Unquote(trimmed.Substring("bonePathOnAvatar:".Length).Trim());
-            }
-
-            if (legacyBone >= 0 || !string.IsNullOrEmpty(legacyPath))
-            {
-                linkToTargets.Add(new VrcFuryLinkToTarget
-                {
-                    UseBone = legacyBone >= 0,
-                    Bone = legacyBone,
-                    Offset = legacyPath
-                });
-            }
-        }
-
-        int linkMode = 0;
-        bool? recursive = null;
-        string removeBoneSuffix = "";
-        bool alignPosition = false;
-        bool alignRotation = false;
-        bool alignScale = false;
-        bool autoScaleFactor = true;
-        bool keepOffsets = false;
-
-        for (int i = 0; i < lines.Count; i++)
-        {
-            string trimmed = lines[i].Trim();
-            if (trimmed.StartsWith("linkMode:", StringComparison.Ordinal))
-                linkMode = ParseInt(trimmed.Substring("linkMode:".Length));
-            else if (trimmed.StartsWith("recursive:", StringComparison.Ordinal))
-                recursive = ParseInt(trimmed.Substring("recursive:".Length)) != 0;
-            else if (trimmed.StartsWith("removeBoneSuffix:", StringComparison.Ordinal))
-                removeBoneSuffix = Unquote(trimmed.Substring("removeBoneSuffix:".Length).Trim());
-            else if (trimmed.StartsWith("alignPosition:", StringComparison.Ordinal))
-                alignPosition = ParseInt(trimmed.Substring("alignPosition:".Length)) != 0;
-            else if (trimmed.StartsWith("alignRotation:", StringComparison.Ordinal))
-                alignRotation = ParseInt(trimmed.Substring("alignRotation:".Length)) != 0;
-            else if (trimmed.StartsWith("alignScale:", StringComparison.Ordinal))
-                alignScale = ParseInt(trimmed.Substring("alignScale:".Length)) != 0;
-            else if (trimmed.StartsWith("autoScaleFactor:", StringComparison.Ordinal))
-                autoScaleFactor = ParseInt(trimmed.Substring("autoScaleFactor:".Length)) != 0;
-            else if (trimmed.StartsWith("keepBoneOffsets:", StringComparison.Ordinal) || trimmed.StartsWith("keepBoneOffsets2:", StringComparison.Ordinal))
-                keepOffsets = ParseInt(trimmed.Substring(trimmed.IndexOf(':') + 1)) != 0;
-        }
-
-        bool isRecursive = recursive ?? (linkMode != 4);
-
+        else linkToTargets.Add(new VrcFuryLinkToTarget { UseBone = true });
         return new VrcFuryArmatureLinkDefinition
         {
             SourcePath = sourcePath,
@@ -841,14 +797,16 @@ public static class AvatarPackageIndex
             GameObjectName = gameObjectName,
             PropBoneFileId = propBoneFileId,
             LinkToTargets = linkToTargets.AsReadOnly(),
-            LinkMode = linkMode,
-            Recursive = isRecursive,
-            RemoveBoneSuffix = removeBoneSuffix,
-            AlignPosition = alignPosition,
-            AlignRotation = alignRotation,
-            AlignScale = alignScale,
-            AutoScaleFactor = autoScaleFactor,
-            KeepOffsets = keepOffsets
+            SerializedVersion = semantics.Version,
+            LinkMode = semantics.LinkMode,
+            Recursive = semantics.Recursive,
+            RemoveBoneSuffix = ReadTargetScalar(fields, "removeBoneSuffix") ?? "",
+            AlignPosition = semantics.AlignPosition,
+            AlignRotation = semantics.AlignRotation,
+            AlignScale = semantics.AlignScale,
+            AutoScaleFactor = semantics.AutoScaleFactor,
+            KeepOffsets = !semantics.AlignPosition || !semantics.AlignRotation || !semantics.AlignScale,
+            SemanticDiagnostics = parseDiagnostics.AsReadOnly()
         };
     }
 
@@ -860,6 +818,12 @@ public static class AvatarPackageIndex
     {
         string value = ReadTargetScalar(mapping, key);
         return value == "1" || string.Equals(value, "true", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsTargetBoolean(YamlMappingNode mapping, string key)
+    {
+        if (!mapping.Children.TryGetValue(new YamlScalarNode(key), out var node)) return true;
+        return node is YamlScalarNode scalar && (scalar.Value is "0" or "1" || bool.TryParse(scalar.Value, out _));
     }
 
     private sealed class UnityYamlDocument

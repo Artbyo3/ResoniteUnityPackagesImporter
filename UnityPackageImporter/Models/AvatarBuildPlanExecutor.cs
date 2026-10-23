@@ -120,7 +120,7 @@ public static class AvatarBuildPlanExecutor
         Slot targetSlot = AvatarTargetResolution.Resolve(merge, avatarRootSlot,
             id => ResolveObjectSlot(id, unityObjects),
             bone => FindBoneInAvatar(avatarRootSlot, ModularAvatarAttachmentInstaller.MapUnityHumanoidBone(bone), sourceSlot, modelBones),
-            ResolveRelativeSlotPath);
+            ResolveRelativeSlotPath, target => IsWithin(target, avatarRootSlot) && !IsWithin(target, sourceSlot));
         if (targetSlot == null) return;
 
         if (!ValidateResolvedSlots(merge, avatarRootSlot, sourceSlot, targetSlot)) return;
@@ -149,14 +149,17 @@ public static class AvatarBuildPlanExecutor
             }
         }
 
-        if (merge.AlignPosition) sourceSlot.GlobalPosition = targetSlot.GlobalPosition;
-        if (merge.AlignRotation) sourceSlot.GlobalRotation = targetSlot.GlobalRotation;
-        if (merge.AlignScale) sourceSlot.GlobalScale = targetSlot.GlobalScale;
-
         var transfer = SkinBindingTransfer.Plan(boneMap.Select(pair => (pair.Key, pair.Value)), IsWithin);
+        var originalTransforms = transfer.ToDictionary(pair => pair.Source,
+            pair => (Position: pair.Source.GlobalPosition, Rotation: pair.Source.GlobalRotation, Scale: pair.Source.GlobalScale));
         SkinBindingTransfer.Apply(transfer, (source, target) =>
         {
             cancellationToken.ThrowIfCancellationRequested();
+            var desired = VrcFuryArmatureSemantics.SelectWorldTransform(originalTransforms[source],
+                (target.GlobalPosition, target.GlobalRotation, target.GlobalScale), merge.AlignPosition, merge.AlignRotation, merge.AlignScale);
+            source.GlobalPosition = desired.Position;
+            source.GlobalRotation = desired.Rotation;
+            source.GlobalScale = desired.Scale;
             SkinBindingTransferAdapter.Preserve(source, target);
         });
         foreach (var renderer in avatarRootSlot.GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>())
@@ -189,33 +192,21 @@ public static class AvatarBuildPlanExecutor
         Slot targetSlot = AvatarTargetResolution.Resolve(attach, avatarRootSlot,
             id => ResolveObjectSlot(id, unityObjects),
             bone => FindBoneInAvatar(avatarRootSlot, ModularAvatarAttachmentInstaller.MapUnityHumanoidBone(bone), sourceSlot, modelBones),
-            ResolveRelativeSlotPath);
+            ResolveRelativeSlotPath, target => IsWithin(target, avatarRootSlot) && !IsWithin(target, sourceSlot));
         if (targetSlot == null) return;
 
         if (!ValidateResolvedSlots(attach, avatarRootSlot, sourceSlot, targetSlot)) return;
 
         UnityPackageImporter.Msg($"Attaching '{sourceSlot.Name}' to '{targetSlot.Name}' (Source: {attach.Source.Framework})");
 
-        float3 originalGlobalPos = sourceSlot.GlobalPosition;
-        floatQ originalGlobalRot = sourceSlot.GlobalRotation;
-        float3 originalGlobalScale = sourceSlot.GlobalScale;
-
-        sourceSlot.SetParent(targetSlot, false);
-
-        if (attach.AlignPosition)
-            sourceSlot.LocalPosition = float3.Zero;
-        else if (attach.KeepOffsets)
-            sourceSlot.GlobalPosition = originalGlobalPos;
-
-        if (attach.AlignRotation)
-            sourceSlot.LocalRotation = floatQ.Identity;
-        else if (attach.KeepOffsets)
-            sourceSlot.GlobalRotation = originalGlobalRot;
-
-        if (attach.AlignScale)
-            sourceSlot.LocalScale = float3.One;
-        else
-            sourceSlot.GlobalScale = originalGlobalScale;
+        var desired = VrcFuryArmatureSemantics.SelectWorldTransform(
+            (sourceSlot.GlobalPosition, sourceSlot.GlobalRotation, sourceSlot.GlobalScale),
+            (targetSlot.GlobalPosition, targetSlot.GlobalRotation, targetSlot.GlobalScale),
+            attach.AlignPosition, attach.AlignRotation, attach.AlignScale);
+        sourceSlot.GlobalPosition = desired.Position;
+        sourceSlot.GlobalRotation = desired.Rotation;
+        sourceSlot.GlobalScale = desired.Scale;
+        SkinBindingTransferAdapter.Preserve(sourceSlot, targetSlot);
     }
 
     private static Slot ResolveObjectSlot(long? fileId, IReadOnlyDictionary<ulong, IUnityObject> unityObjects)

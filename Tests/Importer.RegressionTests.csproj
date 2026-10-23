@@ -83,6 +83,9 @@
     <Compile Include="../UnityPackageImporter/Models/PrefabObjectLookup.cs" Link="PrefabObjectLookup.cs" />
     <Compile Include="../UnityPackageImporter/Models/UnityPrefabComposer.cs" Link="UnityPrefabComposer.cs" />
     <Compile Include="../UnityPackageImporter/Models/UnityPrefabSchema.cs" Link="UnityPrefabSchema.cs" />
+    <Compile Include="../UnityPackageImporter/Models/BlendshapeInitialAppearance.cs" Link="BlendshapeInitialAppearance.cs" />
+    <Compile Include="../UnityPackageImporter/Models/VrcFuryArmatureSemantics.cs" Link="VrcFuryArmatureSemantics.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs" Link="ModularAvatarInitialAppearance.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarConversionScope.cs" Link="AvatarConversionScope.cs" />
     <Compile Include="../UnityPackageImporter/Models/ModelBoneIndex.cs" Link="ModelBoneIndex.cs" />
     <Compile Include="../UnityPackageImporter/Models/SkinBindingTransfer.cs" Link="SkinBindingTransfer.cs" />

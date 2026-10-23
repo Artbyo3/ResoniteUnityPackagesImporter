@@ -74,6 +74,15 @@ public abstract class AvatarBuildOperation
 
     public bool IsValid => !Diagnostics.Any(d => d.Severity == AvatarOperationSeverity.Error);
 
+    public IReadOnlyList<(int Bone, long? ObjectId, string Path, string Offset)> GetTargetCandidates() => this switch
+    {
+        ArmatureMergeOperation merge when merge.TargetCandidates.Count > 0 => merge.TargetCandidates,
+        BoneAttachmentOperation attach when attach.TargetCandidates.Count > 0 => attach.TargetCandidates,
+        ArmatureMergeOperation merge => new[] { (merge.TargetHumanoidBone, merge.TargetObjectFileId, merge.TargetReferencePath, merge.TargetOffsetPath) },
+        BoneAttachmentOperation attach => new[] { (attach.TargetHumanoidBone, attach.TargetObjectFileId, attach.TargetReferencePath, attach.TargetOffsetPath) },
+        _ => Array.Empty<(int, long?, string, string)>()
+    };
+
     public void AddDiagnostic(AvatarOperationSeverity severity, string message, string code = "")
     {
         if (Diagnostics.Any(d => d.Severity == severity && d.Code == code && d.Message == message)) return;
@@ -90,35 +99,33 @@ public abstract class AvatarBuildOperation
 /// <summary>Resolves only declared targets; never invents a replacement target.</summary>
 public static class AvatarTargetResolution
 {
-    public static T? Resolve<T>(AvatarBuildOperation operation, T avatarRoot,
-        Func<long, T?> resolveObject, Func<int, T?> resolveBone, Func<T, string, T?> resolvePath) where T : class
-    {
-        var (bone, objectId, path, offset) = operation switch
-        {
-            ArmatureMergeOperation m => (m.TargetHumanoidBone, m.TargetObjectFileId, m.TargetReferencePath, m.TargetOffsetPath),
-            BoneAttachmentOperation a => (a.TargetHumanoidBone, a.TargetObjectFileId, a.TargetReferencePath, a.TargetOffsetPath),
-            _ => throw new ArgumentException("Operation does not have an attachment target.", nameof(operation))
-        };
-        if (bone < -1 || bone >= 55)
-        {
-            operation.AddDiagnostic(AvatarOperationSeverity.Error, $"Invalid humanoid bone index {bone}.", "INVALID_HUMANOID_BONE");
-            return null;
-        }
+    public static IReadOnlyList<(int Bone, long? ObjectId, string Path, string Offset)> GetCandidates(AvatarBuildOperation operation) => operation.GetTargetCandidates();
 
-        T? target = objectId is null or 0 ? null : resolveObject(objectId.Value);
-        if (target == null && bone >= 0) target = resolveBone(bone);
-        if (target == null && !string.IsNullOrWhiteSpace(path))
-            target = path == "$$$AVATAR_ROOT$$$" ? avatarRoot : resolvePath(avatarRoot, path);
-        if (target != null && !string.IsNullOrWhiteSpace(offset))
-            target = resolvePath(target, offset);
-        if (target == null)
-            operation.AddDiagnostic(AvatarOperationSeverity.Error, "The declared target or its offset path could not be resolved.", "TARGET_NOT_FOUND");
-        return target;
+    public static T? Resolve<T>(AvatarBuildOperation operation, T avatarRoot,
+        Func<long, T?> resolveObject, Func<int, T?> resolveBone, Func<T, string, T?> resolvePath,
+        Func<T, bool>? acceptTarget = null) where T : class
+    {
+        if (operation is not (ArmatureMergeOperation or BoneAttachmentOperation))
+            throw new ArgumentException("Operation does not have an attachment target.", nameof(operation));
+        foreach (var (bone, objectId, path, offset) in GetCandidates(operation))
+        {
+            if (bone < -1 || bone >= 55) continue;
+            T? target = objectId is null or 0 ? null : resolveObject(objectId.Value);
+            if (target == null && bone >= 0) target = resolveBone(bone);
+            if (target == null && !string.IsNullOrWhiteSpace(path))
+                target = path == "$$$AVATAR_ROOT$$$" ? avatarRoot : resolvePath(avatarRoot, path);
+            if (target != null && !string.IsNullOrWhiteSpace(offset))
+                target = resolvePath(target, offset);
+            if (target != null && (acceptTarget == null || acceptTarget(target))) return target;
+        }
+        operation.AddDiagnostic(AvatarOperationSeverity.Error, "None of the declared targets or their offset paths could be resolved.", "TARGET_NOT_FOUND");
+        return null;
     }
 }
 
 public sealed class ArmatureMergeOperation : AvatarBuildOperation
 {
+    public IReadOnlyList<(int Bone, long? ObjectId, string Path, string Offset)> TargetCandidates { get; init; } = Array.Empty<(int, long?, string, string)>();
     public override AvatarBuildOperationKind Kind => AvatarBuildOperationKind.ArmatureMerge;
 
     public long SourceArmatureRootFileId { get; init; }
@@ -145,6 +152,7 @@ public sealed class ArmatureMergeOperation : AvatarBuildOperation
 
 public sealed class BoneAttachmentOperation : AvatarBuildOperation
 {
+    public IReadOnlyList<(int Bone, long? ObjectId, string Path, string Offset)> TargetCandidates { get; init; } = Array.Empty<(int, long?, string, string)>();
     public override AvatarBuildOperationKind Kind => AvatarBuildOperationKind.BoneAttachment;
 
     public long SourceObjectFileId { get; init; }

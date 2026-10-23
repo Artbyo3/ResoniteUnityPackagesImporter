@@ -62,8 +62,20 @@ internal static class UnityPrefabComposer
         }
 
         var input = Read(yaml);
-        foreach (var entry in prefabPaths.OrderBy(entry => entry.Key, StringComparer.OrdinalIgnoreCase))
-            sources.Add(entry.Key, Read(File.ReadAllText(entry.Value)));
+        var paths = new Dictionary<string, string>(prefabPaths, StringComparer.OrdinalIgnoreCase);
+        var pending = new Queue<List<Document>>();
+        pending.Enqueue(input);
+        while (pending.Count > 0)
+        {
+            foreach (var instance in pending.Dequeue().Where(document => document.IsInstance))
+            {
+                string guid = Scalar(Mapping(instance.Body, "m_SourcePrefab"), "guid");
+                if (sources.ContainsKey(guid) || !paths.TryGetValue(guid, out string? path)) continue;
+                var source = Read(File.ReadAllText(path));
+                sources.Add(guid, source);
+                pending.Enqueue(source);
+            }
+        }
         long nextId = long.MaxValue;
         int expandedDocuments = 0;
         long Allocate()
