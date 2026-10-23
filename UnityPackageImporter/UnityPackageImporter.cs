@@ -11,9 +11,9 @@ namespace UnityPackageImporter;
 public class UnityPackageImporter : ResoniteMod
 {
     public override string Name => "UnityPackageImporter";
-    public override string Author => "dfgHiatus, eia485, delta, Frozenreflex, benaclejames, 989onan, Artbyo3";
-    public override string Version => "0.0.5";
-    public override string Link => "https://github.com/Artbyo3/ResoniteUnityPackagesImporter";
+    public override string Author => ModMetadata.Author;
+    public override string Version => ModMetadata.Version;
+    public override string Link => ModMetadata.Repository;
 
     internal const string UNITY_PACKAGE_EXTENSION = ".unitypackage";
     internal const string UNITY_META_EXTENSION = ".meta";
@@ -45,7 +45,7 @@ public class UnityPackageImporter : ResoniteMod
     {
         ReportModVersion = Version;
         ModelScaleHelper.WarnHandler = Warn;
-        new Harmony("net.dfgHiatus.UnityPackageImporter").PatchAll();
+        new Harmony(ModMetadata.Id).PatchAll();
         Config = GetConfiguration();
         Directory.CreateDirectory(cachePath);
         Engine.Current.RunPostInit(() =>

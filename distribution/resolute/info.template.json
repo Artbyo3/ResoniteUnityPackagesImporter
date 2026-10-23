@@ -1,0 +1,11 @@
+{
+  "name": "UnityPackageImporter",
+  "id": "Artbyo3.UnityPackageImporter",
+  "description": "Experimental importer for Unity packages: reconstructs supported prefabs, scenes, avatars and materials in Resonite.",
+  "category": "Asset Importing",
+  "sourceLocation": "https://github.com/Artbyo3/ResoniteUnityPackagesImporter",
+  "website": "https://artbyo3.github.io/ResoniteUnityPackagesImporter/",
+  "tags": ["unitypackage", "prefab", "avatar"],
+  "platforms": ["windows"],
+  "additionalAuthors": ["dfgHiatus", "eia485", "delta", "Frozenreflex", "benaclejames", "989onan"]
+}

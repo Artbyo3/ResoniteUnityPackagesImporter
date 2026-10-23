@@ -5,9 +5,9 @@ using System.Runtime.InteropServices;
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
 [assembly: AssemblyTitle("UnityPackageImporter")]
-[assembly: AssemblyDescription("")]
+[assembly: AssemblyDescription("Imports Unity packages into Resonite using ResoniteModLoader.")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("dfgHiatus")]
+[assembly: AssemblyCompany(UnityPackageImporter.ModMetadata.Maintainer)]
 [assembly: AssemblyProduct("UnityPackageImporter")]
 [assembly: AssemblyCopyright("Copyright ©  2025")]
 [assembly: AssemblyTrademark("")]
@@ -31,5 +31,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("0.0.5.0")]
-[assembly: AssemblyFileVersion("0.0.5.0")]
+[assembly: AssemblyVersion(UnityPackageImporter.ModMetadata.Version)]
+[assembly: AssemblyFileVersion(UnityPackageImporter.ModMetadata.Version)]

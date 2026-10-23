@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.6
+
+- Change the mod maintainer and Harmony identity to Artbyo3, keeping all previous contributors in the in-game author field and preserving license notices.
+- Prepare Resolute catalog metadata and pinned release artifacts, including YamlDotNet and license notices.
+- Generate checksums and a local submission folder from verified release files.
+- Keep the existing manual-install ZIP download name available alongside the versioned ZIP.
+
 ## 0.0.5
 
 - Check engine compatibility at startup and warn when engine updates may break import hooks.
