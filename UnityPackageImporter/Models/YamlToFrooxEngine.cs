@@ -12,6 +12,9 @@ public class YamlToFrooxEngine
     private static readonly ConditionalWeakTable<IUnityObject, DocumentClass> Classes = new();
     internal static int? ClassId(IUnityObject obj) => Classes.TryGetValue(obj, out var value) ? value.Value : null;
     public static Dictionary<ulong, IUnityObject> parseYaml(string FilePath)
+        => ParseText(File.ReadAllText(FilePath));
+
+    internal static Dictionary<ulong, IUnityObject> ParseText(string text)
     {
         var deserializer = new DeserializerBuilder()
             .WithNodeTypeResolver(new UnityNodeTypeResolver())
@@ -19,7 +22,7 @@ public class YamlToFrooxEngine
             .Build();
         // Unity's optional "stripped" header suffix is not part of the YAML tag.
         // Normalize it in memory so the extracted package cache remains immutable.
-        string yaml = AvatarPackageIndex.NormalizeDocumentHeaders(File.ReadAllText(FilePath));
+        string yaml = AvatarPackageIndex.NormalizeDocumentHeaders(text);
         var classes = new Dictionary<ulong, int?>();
         var documents = UnityYamlDocumentParser.Parse<UnityEngineObjectWrapper>(yaml, deserializer, (id, kind) => classes[id] = kind);
         var objects = new Dictionary<ulong, IUnityObject>();

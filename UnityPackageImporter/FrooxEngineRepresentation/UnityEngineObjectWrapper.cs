@@ -73,6 +73,8 @@ public class UnityEngineObjectWrapper
     public Transform Transform;
     public NullType NullType;
     public SkinnedMeshRenderer SkinnedMeshRenderer;
+    public SkinnedMeshRenderer MeshRenderer;
+    public MeshFilter MeshFilter;
     public PrefabInstance PrefabInstance;
     public RotationConstraint RotationConstraint;
     public MeshCollider MeshCollider;
@@ -85,12 +87,18 @@ public class UnityEngineObjectWrapper
 
     public IUnityObject Result()
     {
+        if (MeshRenderer != null)
+        {
+            MeshRenderer.IsStaticMesh = true;
+            return MeshRenderer;
+        }
         IUnityObject returned = new List<IUnityObject>(){
             PrefabInstance,
             GameObject,
             Component,
             Transform,
             SkinnedMeshRenderer,
+            MeshFilter,
             MeshCollider,
             RotationConstraint,
             MonoBehaviour,

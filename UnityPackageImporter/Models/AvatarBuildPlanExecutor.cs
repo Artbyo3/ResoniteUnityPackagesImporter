@@ -37,15 +37,48 @@ public static class AvatarBuildPlanExecutor
 
         UnityPackageImporter.Msg($"Executing avatar conversion plan with {plan.Operations.Count} operations for '{plan.AvatarName}'");
 
+        var manifest = importer switch
+        {
+            UnityPrefabImportTask prefab => prefab.Manifest,
+            UnitySceneImportTask scene => scene.Manifest,
+            _ => null
+        };
+        var avatarRoots = (manifest?.Avatars ?? Array.Empty<VrcAvatarDefinition>())
+            .Select(avatar => ResolveObjectSlot(avatar.GameObjectFileId, unityObjects)).ToArray();
+        if (avatarRoots.Any(root => root == null || !IsWithin(root, avatarRootSlot)))
+        {
+            plan.AddDiagnostic(AvatarOperationSeverity.Error, "An authored avatar root could not be reconstructed.", plan.AvatarName, "AVATAR_ROOT_NOT_FOUND");
+            return;
+        }
+        var modelBones = await ReadModelBonesAsync(unityObjects, cancellationToken);
+        var mergeRoots = plan.Operations.OfType<ArmatureMergeOperation>()
+            .Select(operation => ResolveObjectSlot(operation.SourceArmatureRootFileId, unityObjects))
+            .Where(slot => slot != null).ToHashSet();
+
         await AvatarPlanExecution.ExecuteAsync(plan, async (op, token) =>
         {
+            await default(ToWorld);
+            Slot source = ResolveObjectSlot(op.Source.GameObjectFileId, unityObjects);
+            if (source == null)
+            {
+                op.AddDiagnostic(AvatarOperationSeverity.Error,
+                    "The operation source could not be reconstructed. Check the source-object and missing-prefab diagnostics.",
+                    "SOURCE_NOT_FOUND");
+                return;
+            }
+            Slot scope = AvatarConversionScope.RootFor(source, avatarRootSlot, avatarRoots, IsWithin);
+            if (scope == null)
+            {
+                op.AddDiagnostic(AvatarOperationSeverity.Error, "The operation has no unique owning avatar root.", "AVATAR_SCOPE_UNRESOLVED");
+                return;
+            }
             if (op is ArmatureMergeOperation merge)
             {
-                await ExecuteArmatureMergeAsync(merge, avatarRootSlot, unityObjects, importer, token);
+                await ExecuteArmatureMergeAsync(merge, scope, unityObjects, importer, modelBones, mergeRoots, token);
             }
             else if (op is BoneAttachmentOperation attach)
             {
-                await ExecuteBoneAttachmentAsync(attach, avatarRootSlot, unityObjects, importer, token);
+                await ExecuteBoneAttachmentAsync(attach, scope, unityObjects, importer, modelBones, token);
             }
             else
             {
@@ -65,6 +98,8 @@ public static class AvatarBuildPlanExecutor
         Slot avatarRootSlot,
         IReadOnlyDictionary<ulong, IUnityObject> unityObjects,
         IUnityStructureImporter importer,
+        ModelBoneIndex<Slot> modelBones,
+        IReadOnlySet<Slot> mergeRoots,
         CancellationToken cancellationToken)
     {
         await default(ToWorld);
@@ -84,7 +119,7 @@ public static class AvatarBuildPlanExecutor
         // Resolve the same declared-target contract for merges and attachments.
         Slot targetSlot = AvatarTargetResolution.Resolve(merge, avatarRootSlot,
             id => ResolveObjectSlot(id, unityObjects),
-            bone => FindBoneInAvatar(avatarRootSlot, ModularAvatarAttachmentInstaller.MapUnityHumanoidBone(bone), sourceSlot),
+            bone => FindBoneInAvatar(avatarRootSlot, ModularAvatarAttachmentInstaller.MapUnityHumanoidBone(bone), sourceSlot, modelBones),
             ResolveRelativeSlotPath);
         if (targetSlot == null) return;
 
@@ -95,8 +130,11 @@ public static class AvatarBuildPlanExecutor
         // 3. Build hierarchy nodes and plan merge
         var sourceSlotMap = new Dictionary<string, Slot>(StringComparer.Ordinal);
         var targetSlotMap = new Dictionary<string, Slot>(StringComparer.Ordinal);
-        var sourceNode = BuildHierarchyTree(sourceSlot, sourceSlotMap);
-        var targetNode = BuildHierarchyTree(targetSlot, targetSlotMap, sourceSlot);
+        var sourceNode = BoneAttachmentHierarchy.Snapshot(sourceSlot, slot => slot.Children,
+            slot => (slot.ReferenceID.ToString(), (string)slot.Name), sourceSlotMap, separatePlanRoots: mergeRoots);
+        var targetNode = BoneAttachmentHierarchy.Snapshot(targetSlot, slot => slot.Children,
+            slot => (slot.ReferenceID.ToString(), (string)slot.Name), targetSlotMap,
+            excludedRoots: mergeRoots.Where(slot => slot != targetSlot).ToHashSet());
 
         AvatarBuildPlanner.PlanArmatureMerge(merge, sourceNode, targetNode);
         if (!merge.IsValid) return;
@@ -111,43 +149,18 @@ public static class AvatarBuildPlanExecutor
             }
         }
 
-        // 4. Reparent retained / unmapped bones under their target parent
-        foreach (var retained in merge.RetainedRoots)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (!sourceSlotMap.TryGetValue(retained.SourceId, out var unmappedChild)) continue;
-            if (boneMap.ContainsKey(unmappedChild)) continue;
-            if (!targetSlotMap.TryGetValue(retained.TargetParentId, out var targetParent)) continue;
-
-            unmappedChild.SetParent(targetParent, false);
-        }
-
-        // 5. Rebind all SkinnedMeshRenderers
-        var renderers = avatarRootSlot.GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>();
-        foreach (var renderer in renderers)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            bool modified = false;
-            for (int i = 0; i < renderer.Bones.Count; i++)
-            {
-                var bone = renderer.Bones[i];
-                if (bone != null && boneMap.TryGetValue(bone, out var mappedBone))
-                {
-                    renderer.Bones[i] = mappedBone;
-                    modified = true;
-                }
-            }
-
-            if (modified)
-            {
-                SkinnedBoundsPolicy.ApplyAfterBones(renderer, $"Unified Avatar Conversion ({merge.Source.Framework})");
-            }
-        }
-
-        // 6. Align transform if requested
         if (merge.AlignPosition) sourceSlot.GlobalPosition = targetSlot.GlobalPosition;
         if (merge.AlignRotation) sourceSlot.GlobalRotation = targetSlot.GlobalRotation;
         if (merge.AlignScale) sourceSlot.GlobalScale = targetSlot.GlobalScale;
+
+        var transfer = SkinBindingTransfer.Plan(boneMap.Select(pair => (pair.Key, pair.Value)), IsWithin);
+        SkinBindingTransfer.Apply(transfer, (source, target) =>
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            SkinBindingTransferAdapter.Preserve(source, target);
+        });
+        foreach (var renderer in avatarRootSlot.GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>())
+            SkinnedBoundsPolicy.ApplyAfterBones(renderer, $"Unified Avatar Conversion ({merge.Source.Framework})");
     }
 
     private static async Task ExecuteBoneAttachmentAsync(
@@ -155,6 +168,7 @@ public static class AvatarBuildPlanExecutor
         Slot avatarRootSlot,
         IReadOnlyDictionary<ulong, IUnityObject> unityObjects,
         IUnityStructureImporter importer,
+        ModelBoneIndex<Slot> modelBones,
         CancellationToken cancellationToken)
     {
         await default(ToWorld);
@@ -174,7 +188,7 @@ public static class AvatarBuildPlanExecutor
         // Resolve the same declared-target contract for merges and attachments.
         Slot targetSlot = AvatarTargetResolution.Resolve(attach, avatarRootSlot,
             id => ResolveObjectSlot(id, unityObjects),
-            bone => FindBoneInAvatar(avatarRootSlot, ModularAvatarAttachmentInstaller.MapUnityHumanoidBone(bone), sourceSlot),
+            bone => FindBoneInAvatar(avatarRootSlot, ModularAvatarAttachmentInstaller.MapUnityHumanoidBone(bone), sourceSlot, modelBones),
             ResolveRelativeSlotPath);
         if (targetSlot == null) return;
 
@@ -200,7 +214,7 @@ public static class AvatarBuildPlanExecutor
 
         if (attach.AlignScale)
             sourceSlot.LocalScale = float3.One;
-        else if (attach.KeepOffsets)
+        else
             sourceSlot.GlobalScale = originalGlobalScale;
     }
 
@@ -240,16 +254,42 @@ public static class AvatarBuildPlanExecutor
         return true;
     }
 
-    private static Slot FindBoneInAvatar(Slot avatarRoot, BodyNode node, Slot excludedSource)
+    private static async Task<ModelBoneIndex<Slot>> ReadModelBonesAsync(
+        IReadOnlyDictionary<ulong, IUnityObject> unityObjects, CancellationToken cancellationToken)
+    {
+        var result = new ModelBoneIndex<Slot>();
+        foreach (var prefab in unityObjects.Values.OfType<FrooxEngineRepresentation.GameObjectTypes.PrefabInstance>())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (prefab.importask == null || prefab.ImportRoot?.frooxEngineSlot == null) continue;
+            await default(ToBackground);
+            var metadata = ModelMetaParser.ParseFile(prefab.importask.file + UnityPackageImporter.UNITY_META_EXTENSION);
+            await default(ToWorld);
+            var owned = prefab.importask.FILEID_To_Slot_Pairs.Values
+                .OfType<FrooxEngineRepresentation.GameObjectTypes.GameObject>()
+                .Select(gameObject => gameObject.frooxEngineSlot).Where(slot => slot != null && !slot.IsDestroyed).Distinct().ToArray();
+            foreach (var (boneName, humanName) in metadata.HumanBones)
+            {
+                BodyNode node = MetaDataFile.HumanoidNameToEnum(humanName);
+                if (node == BodyNode.NONE) continue;
+                Slot bone = ModelBoneIndex<Slot>.FindOwned(owned, boneName, slot => slot.Name);
+                result.Add(prefab.ImportRoot.frooxEngineSlot, (int)node, bone);
+            }
+        }
+        return result;
+    }
+
+    private static Slot FindBoneInAvatar(Slot avatarRoot, BodyNode node, Slot excludedSource,
+        ModelBoneIndex<Slot> modelBones)
     {
         if (avatarRoot == null || avatarRoot.IsDestroyed || node == BodyNode.NONE) return null;
 
-        foreach (var rig in avatarRoot.GetComponentsInChildren<BipedRig>())
-        {
-            if (IsWithin(rig.Slot, excludedSource)) continue;
-            var bone = rig.TryGetBone(node);
-            if (bone != null && !bone.IsDestroyed && !IsWithin(bone, excludedSource)) return bone;
-        }
+        var rigBones = avatarRoot.GetComponentsInChildren<BipedRig>()
+            .Where(rig => !IsWithin(rig.Slot, excludedSource)).Select(rig => rig.TryGetBone(node))
+            .Where(bone => bone != null && !bone.IsDestroyed && IsWithin(bone, avatarRoot) && !IsWithin(bone, excludedSource)).Distinct().ToArray();
+        if (rigBones.Length > 0) return AvatarConversionScope.Unique(rigBones);
+        if (modelBones.TryResolve((int)node, avatarRoot, excludedSource, IsWithin, slot => !slot.IsDestroyed, out var mapped))
+            return mapped;
 
         string boneName = node.ToString();
         // Before humanoid setup, accept a unique named bone outside the source.
@@ -286,31 +326,12 @@ public static class AvatarBuildPlanExecutor
                 continue;
             }
 
-            var matches = current.Children.Where(c => c.Name.Equals(seg, StringComparison.OrdinalIgnoreCase)).Take(2).ToArray();
-            if (matches.Length != 1) return null;
-            current = matches[0];
+            current = BoneAttachmentTarget.Resolve(current.Children, seg, null,
+                child => child.Name, child => child.Name);
+            if (current == null || current.IsDestroyed) return null;
         }
 
         return current;
     }
 
-    private static MergeHierarchyNode BuildHierarchyTree(Slot slot, Dictionary<string, Slot> slotMap, Slot excludedSubtree = null)
-    {
-        string id = slot.ReferenceID.ToString();
-        slotMap[id] = slot;
-
-        var children = new List<MergeHierarchyNode>();
-        foreach (var child in slot.Children)
-        {
-            if (child != excludedSubtree)
-                children.Add(BuildHierarchyTree(child, slotMap, excludedSubtree));
-        }
-
-        return new MergeHierarchyNode
-        {
-            Id = id,
-            Name = slot.Name,
-            Children = children
-        };
-    }
 }

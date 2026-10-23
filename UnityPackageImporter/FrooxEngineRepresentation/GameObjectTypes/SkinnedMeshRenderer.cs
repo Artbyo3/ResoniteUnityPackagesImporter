@@ -10,7 +10,7 @@ using UnityPackageImporter.Materials;
 
 namespace UnityPackageImporter.FrooxEngineRepresentation.GameObjectTypes;
 
-public class SkinnedMeshRenderer : IUnityObject
+public partial class SkinnedMeshRenderer : IUnityObject
 {
     public ulong id { get; set; }
     public bool instanciated { get; set; }
@@ -39,7 +39,13 @@ public class SkinnedMeshRenderer : IUnityObject
         bool NotFromInLinePrefab = true;
         instanciated = true;
 
-        if (m_CorrespondingSourceObject != null)
+        if (IsStaticMesh)
+        {
+            await InstantiateStaticAsync(importer);
+            NotFromInLinePrefab = false;
+        }
+
+        if (!IsStaticMesh && m_CorrespondingSourceObject != null)
             {
                 if (m_CorrespondingSourceObject.guid != null)
                 {

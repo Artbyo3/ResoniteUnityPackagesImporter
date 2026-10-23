@@ -36,6 +36,7 @@ public class FileImportTaskScene
     private PostProcessSteps reportProcessing;
     private float3 globalPosition;
     private Dictionary<string, string[]> sourceBlendShapeNames = new(StringComparer.Ordinal);
+    private readonly UnityMeshData serializedMesh;
 
     private void RecordBlendShapeNames(Assimp.Scene scene, Assimp.Node node)
     {
@@ -66,6 +67,12 @@ public class FileImportTaskScene
     {
         this.targetSlot = targetSlot;
         this.importer = importer;
+    }
+
+    internal FileImportTaskScene(Slot targetSlot, string assetID, UnityProjectImporter importer, string file, UnityMeshData mesh)
+        : this(targetSlot, assetID, importer, file, float3.Zero)
+    {
+        serializedMesh = mesh ?? throw new ArgumentNullException(nameof(mesh));
     }
 
     // https://stackoverflow.com/a/31492250
@@ -112,7 +119,7 @@ public class FileImportTaskScene
         assimpContext.SetConfig(new NormalSmoothingAngleConfig(66f));
         assimpContext.SetConfig(new TangentSmoothingAngleConfig(10f));
         PostProcessSteps postProcessSteps = PostProcessSteps.JoinIdenticalVertices | PostProcessSteps.ImproveCacheLocality | PostProcessSteps.PopulateArmatureData | PostProcessSteps.GenerateUVCoords | PostProcessSteps.FindInstances | PostProcessSteps.FlipWindingOrder | PostProcessSteps.LimitBoneWeights;
-        reportProcessing = postProcessSteps;
+        reportProcessing = serializedMesh == null ? postProcessSteps : PostProcessSteps.None;
         Assimp.Scene scene = null;
         await default(ToBackground);
 
@@ -124,7 +131,7 @@ public class FileImportTaskScene
         try
         {
             reportPhase = ReportModelPhase.Decode;
-            scene = assimpContext.ImportFile(this.file, postProcessSteps);
+            scene = serializedMesh == null ? assimpContext.ImportFile(this.file, postProcessSteps) : UnityMeshSourceImporter.CreateScene(serializedMesh);
         }
         catch (Exception arg)
         {
@@ -144,7 +151,7 @@ public class FileImportTaskScene
             throw new InvalidDataException("Model has no scene root: " + file);
         reportPhase = ReportModelPhase.Metadata;
         var modelMetadata = ModelMetaParser.ParseFile(file + UnityPackageImporter.UNITY_META_EXTENSION);
-        float unitConversion = ModelScaleHelper.CalculateEffectiveScale(modelMetadata.GlobalScale,
+        float unitConversion = serializedMesh != null ? 1f : ModelScaleHelper.CalculateEffectiveScale(modelMetadata.GlobalScale,
             modelMetadata.UseFileUnits, modelMetadata.UseFileScale, ModelScaleHelper.GetFbxUnitScaleFactor(file));
         ModelUnitConversion.Apply(scene, unitConversion);
         UnityPackageImporter.Msg($"Converted model coordinate units ({unitConversion}) for '{Path.GetFileName(file)}', including vertices, bind poses and translations.");
@@ -570,6 +577,25 @@ public class FileImportTaskScene
         }
 
         return FILEID_into_Slot_Pairs;
+    }
+
+    internal IEnumerable<(long FileId, int ClassId)> StaticRendererIdentities() =>
+        FinishedFileSlot.GetComponentsInChildren<FrooxEngine.MeshRenderer>()
+            .Where(renderer => MeshReferenceLookup.IsExactStaticRenderer(renderer.GetType(), typeof(FrooxEngine.MeshRenderer))).Select(renderer =>
+            (FindSource(renderer.Slot.Name, UnityModelClassId.MeshRenderer, "//RootNode/root/" + renderer.Slot.Name).fileID, 23));
+
+    internal FrooxEngine.MeshRenderer ResolveStaticRendererTemplate(long rendererFileId) =>
+        MeshReferenceLookup.ResolveUnique(rendererFileId,
+            FinishedFileSlot.GetComponentsInChildren<FrooxEngine.MeshRenderer>()
+                .Where(renderer => MeshReferenceLookup.IsExactStaticRenderer(renderer.GetType(), typeof(FrooxEngine.MeshRenderer))).Select(renderer =>
+                (FindSource(renderer.Slot.Name, UnityModelClassId.MeshRenderer, "//RootNode/root/" + renderer.Slot.Name).fileID, renderer)));
+
+    internal FrooxEngine.MeshRenderer ResolveStaticMeshTemplate(long meshFileId)
+    {
+        return MeshReferenceLookup.ResolveUnique(meshFileId,
+            FinishedFileSlot.GetComponentsInChildren<FrooxEngine.MeshRenderer>()
+                .Where(renderer => MeshReferenceLookup.IsExactStaticRenderer(renderer.GetType(), typeof(FrooxEngine.MeshRenderer)))
+                .Select(renderer => (FindSource(renderer.Slot.Name, UnityModelClassId.Mesh, renderer.Slot.Name).fileID, renderer)));
     }
 
     private SourceObj FindSource(string thisname, UnityModelClassId classId, string rawpath)

@@ -28,6 +28,7 @@ public class UnityProjectImporter
     public List<FileImportHelperTaskMaterial> TasksMaterials = new List<FileImportHelperTaskMaterial>();
     internal readonly AsyncImportCache<IAssetProvider<Material>> MaterialImports = new();
     internal readonly AsyncImportCache<StaticTexture2D> TextureImports = new();
+    internal readonly AsyncImportCache<FrooxEngine.MeshRenderer> StaticMeshImports = new();
     internal readonly PendingAssetAssignments<StaticTexture2D> MissingTextureAssignments = new();
     private readonly Dictionary<SkinnedMeshRenderer, IAssetProvider<Material>[]> automaticMaterials = new();
     public Dictionary<string, FileImportTaskScene> SharedImportedFBXScenes = new Dictionary<string, FileImportTaskScene>();
@@ -359,6 +360,7 @@ public class UnityProjectImporter
         lock (materialCatalogLock) materialCatalogTask = null;
         MaterialImports.RetryUnsuccessful();
         TextureImports.RetryUnsuccessful();
+        StaticMeshImports.RetryUnsuccessful();
 
         List<MissingMaterialBinding> resolvable;
         lock (dependencyLock)
@@ -463,9 +465,10 @@ public class UnityProjectImporter
         List<IUnityStructureImporter> unityImportTasks = new List<IUnityStructureImporter>();
         // A bundled demonstration scene does not change the station's prefab
         // selection flow. Only scene-only packages publish scenes automatically.
-        bool isClothingOrAvatar = this.ListOfPrefabs.Count > 0;
+        var selectedPrefabs = PrefabAssemblySelection.Create(ListOfPrefabs);
+        bool isClothingOrAvatar = selectedPrefabs.Count > 0;
 
-        int total = this.ListOfPrefabs.Count + this.ListOfUnityScenes.Count;
+        int total = selectedPrefabs.Count + this.ListOfUnityScenes.Count;
         int rowSize = MathX.Max(1, MathX.CeilToInt(MathX.Sqrt((float)total)));
 
         float3 GlobalPosition = new float3(0,0,0);
@@ -475,7 +478,7 @@ public class UnityProjectImporter
         this.world.LocalUser.GetPointInFrontOfUser(out GlobalPosition, out GlobalRotation, null, null, 0.7f, true);
         await default(ToBackground);
         int counter = 0;
-        int prefabTotal = this.ListOfPrefabs.Count;
+        int prefabTotal = selectedPrefabs.Count;
 
         // Cardinal 90° yaw snap logic for avatars/clothing:
         // Project forward gaze onto horizontal XZ plane and snap to nearest cardinal axis (0°, 90°, 180°, 270°)
@@ -504,7 +507,7 @@ public class UnityProjectImporter
 
         UnityStationHandle stationHandle = Station;
 
-        foreach (KeyValuePair<string,string> Prefab in this.ListOfPrefabs)
+        foreach (KeyValuePair<string,string> Prefab in selectedPrefabs)
         {
             UnityPackageImporter.Msg("create prefab import task obj for prefab \"" + Prefab.Value + "\"");
             await default(ToWorld);
