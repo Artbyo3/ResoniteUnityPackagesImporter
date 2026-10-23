@@ -26,6 +26,8 @@ For optional download verification, compare the extracted `UnityPackageImporter.
 
 ## Updating
 
+Version 0.0.6 changes the Harmony identity to Artbyo3.UnityPackageImporter. Replace the existing DLL rather than installing a second renamed copy. Do not keep another UnityPackageImporter build in the mod directory. Existing settings use the same mod name and keys; back up your configuration before updating.
+
 1. Exit Resonite completely.
 2. Replace `UnityPackageImporter.dll` in `rml_mods` with the new version.
 3. If new dependencies are included in the release, update the corresponding files in `rml_libs`.

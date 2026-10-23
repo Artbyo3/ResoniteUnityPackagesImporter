@@ -6,11 +6,17 @@ An experimental [ResoniteModLoader](https://github.com/resonite-modding-group/Re
 
 ---
 
-Version: **0.0.5**. See the [changelog](CHANGELOG.md).
+Version: **0.0.6**. See the [changelog](CHANGELOG.md).
 
 [Download the latest ZIP](https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/latest/download/UnityPackageImporter-testing-build.zip) · [Release notes](https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/latest)
 
 With Resonite closed, extract the ZIP and copy its `rml_mods` and `rml_libs` folders into your Resonite installation. ResoniteModLoader must already be installed. See the [installation guide](https://artbyo3.github.io/ResoniteUnityPackagesImporter/getting-started/installation/) for the full steps.
+
+## Resolute distribution
+
+The next release uses the mod identity Artbyo3.UnityPackageImporter. Resolute catalog submission is being prepared; the mod is not listed there yet. Continue using the ZIP installation until the community manifest submission is approved.
+
+Maintainers: [release packaging and Resolute submission](docs/RESOLUTE_DISTRIBUTION.md).
 
 ## 📖 Documentation
 

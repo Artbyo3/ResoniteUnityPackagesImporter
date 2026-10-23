@@ -342,7 +342,9 @@ healthchecksdb
 # Local diagnostic dumps and session scripts
 scripts/*
 !scripts/Install-PreparedMod.ps1
+!scripts/Install-Mod.ps1
 !scripts/Package-Release.ps1
+!scripts/Prepare-ResoluteManifest.py
 !scripts/Verify-Release.ps1
 !scripts/Prepare-StationTemplates.py
 !scripts/RunStationDemo.py
