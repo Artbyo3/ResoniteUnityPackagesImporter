@@ -10,6 +10,52 @@ using YamlDotNet.RepresentationModel;
 
 namespace UnityPackageImporter.Models;
 
+internal static class InitialAppearanceTransaction
+{
+    internal static void Apply(IReadOnlyList<(Action Apply, Action Restore, Func<bool> Valid)> pending, CancellationToken token)
+    {
+        int attempted = 0;
+        try
+        {
+            foreach (var write in pending)
+            {
+                token.ThrowIfCancellationRequested();
+                if (!write.Valid()) throw new InvalidOperationException("Initial appearance destination changed after preflight.");
+                attempted++;
+                write.Apply();
+            }
+        }
+        catch (Exception failure)
+        {
+            var failures = new List<Exception> { failure };
+            for (int index = attempted - 1; index >= 0; index--)
+                try { pending[index].Restore(); }
+                catch (Exception rollbackFailure) { failures.Add(rollbackFailure); }
+            if (failures.Count > 1) throw new AggregateException(failures);
+            throw;
+        }
+    }
+}
+
+internal sealed class InitialAppearanceMaterialMetadata<T>
+{
+    private readonly T[] originalEntries;
+    internal List<T>? Original { get; }
+    internal List<T> Replacement { get; }
+
+    internal InitialAppearanceMaterialMetadata(List<T>? original, int nativeSlotCount)
+    {
+        ArgumentOutOfRangeException.ThrowIfNegative(nativeSlotCount);
+        Original = original;
+        originalEntries = original?.ToArray() ?? Array.Empty<T>();
+        Replacement = new List<T>(originalEntries);
+        while (Replacement.Count < nativeSlotCount) Replacement.Add(default!);
+    }
+
+    internal bool IsUnchanged(List<T>? current) => ReferenceEquals(current, Original) &&
+        (current == null || current.SequenceEqual(originalEntries));
+}
+
 public enum InitialAppearanceSeverity { Info, Warning, Error }
 public enum InitialAppearanceEffect { Active, Shape, Material }
 public sealed record InitialAppearanceDiagnostic(InitialAppearanceSeverity Severity, string Code, string Message, long SourceId = 0);
@@ -43,8 +89,40 @@ public static class ModularAvatarInitialAppearance
     public const string ShapeChangerGuid = "2db441f589c3407bb6fb5f02ff8ab541";
     public const string MaterialSetterGuid = "0adf335711644e34b6c635e94ae61fa7";
     public const string MenuItemGuid = "3b29d45007c5493d926d2cd45a489529";
+    public const string MergeAnimatorGuid = "1bb122659f724ebf85fe095ac02dc339";
     private static readonly Regex Header = new(@"^--- !u!(?<class>\d+) &(?<id>-?\d+)(?: stripped)?\s*$", RegexOptions.Multiline | RegexOptions.CultureInvariant);
     private sealed record Document(long Id, int ClassId, YamlMappingNode Body);
+
+    internal static bool IsExactMaterialAsset(string yaml, long fileId)
+    {
+        var headers = Header.Matches(yaml);
+        if (headers.Count != 1 || headers[0].Groups["class"].Value != "21" ||
+            !long.TryParse(headers[0].Groups["id"].Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long identity) ||
+            identity != fileId || fileId == 0) return false;
+        var stream = new YamlStream();
+        stream.Load(new StringReader(yaml));
+        return stream.Documents.Count == 1 && stream.Documents[0].RootNode is YamlMappingNode root &&
+            root.Children.Count == 1 && Get(root, "Material") is YamlMappingNode;
+    }
+
+    internal static ((int Effect, long Target, string Property) Key, string Value) InitialWriteIdentity(InitialAppearanceWrite write)
+    {
+        string property = write.Effect == InitialAppearanceEffect.Active ? "m_IsActive" : write.Property;
+        if (write.Effect == InitialAppearanceEffect.Material && int.TryParse(property, NumberStyles.None, CultureInfo.InvariantCulture, out int index))
+            property = index.ToString(CultureInfo.InvariantCulture);
+        string value = write.Effect switch
+        {
+            InitialAppearanceEffect.Active => write.Active ? "1" : "0",
+            InitialAppearanceEffect.Shape => (write.Weight == 0 ? 0f : write.Weight).ToString("R", CultureInfo.InvariantCulture),
+            InitialAppearanceEffect.Material when write.Material != null => write.Material.Guid.ToLowerInvariant() + ":" + write.Material.FileId.ToString(CultureInfo.InvariantCulture),
+            _ => throw new InvalidDataException("Invalid initial appearance write identity.")
+        };
+        return (((int)write.Effect, write.TargetId, property), value);
+    }
+
+    internal static bool InitialWriteConflicts(IReadOnlyDictionary<(int Effect, long Target, string Property), string> ledger,
+        ((int Effect, long Target, string Property) Key, string Value) identity) =>
+        ledger.TryGetValue(identity.Key, out string? previous) && previous != identity.Value;
     private sealed record Rule(long Source, long Owner, long Affected, bool Inverted, InitialAppearanceWrite Write);
 
     public static bool ContainsReactiveComponents(string composedYaml, CancellationToken token = default) =>
@@ -150,6 +228,7 @@ public static class ModularAvatarInitialAppearance
             Unsupported("MA_INITIAL_EXTERNAL_CONTEXT", "Caller has not verified absence of external animation/parameter overrides; unsafe to apply.");
         foreach (var component in components)
             if ((component.ClassId == 95 && Reference(component.Body, "m_Controller") != 0) || component.ClassId == 111 ||
+                (Script(component) == MergeAnimatorGuid && Reference(component.Body, "animator") != 0) ||
                 Sequence(component.Body, "baseAnimationLayers").Concat(Sequence(component.Body, "specialAnimationLayers"))
                     .OfType<YamlMappingNode>().Any(layer => Reference(layer, "animatorController") != 0) || Reference(component.Body, "expressionParameters") != 0)
                 Unsupported("MA_INITIAL_ANIMATION_CONTEXT", "Animation or avatar parameter context requires independent analysis.", component.Id);
@@ -220,9 +299,15 @@ public static class ModularAvatarInitialAppearance
                     Report("MA_INITIAL_ENTRIES", "Malformed reactive entry.", component.Id);
                     continue;
                 }
+                if (script == ShapeChangerGuid && Text(mapping, "ChangeType") == "0")
+                {
+                    diagnostics.Add(new(InitialAppearanceSeverity.Warning, "MA_INITIAL_DESTRUCTIVE_SKIPPED",
+                        "ShapeChanger Delete skipped by nondestructive initial-only policy; other reversible entries remain eligible.", component.Id));
+                    continue;
+                }
                 if (script == ShapeChangerGuid && Text(mapping, "ChangeType") != "1")
                 {
-                    Unsupported("MA_INITIAL_SHAPE_DELETE", "ShapeChanger Delete or unknown ChangeType is unsupported; neither Set nor mesh deletion is substituted.", component.Id);
+                    Unsupported("MA_INITIAL_SHAPE_CHANGE_TYPE", "Unknown ShapeChanger ChangeType; no operation is substituted.", component.Id);
                     continue;
                 }
                 long target = Resolve(Get(mapping, "Object") as YamlMappingNode, component.Id);
@@ -338,9 +423,8 @@ public static class ModularAvatarInitialAppearance
         foreach (var rule in rules)
             if (rule.Write.Effect != InitialAppearanceEffect.Active && Enabled(rule, active))
                 writes[(rule.Write.Effect, rule.Write.TargetId, rule.Write.Property)] = rule.Write;
-        foreach (long target in rules.Where(item => item.Write.Effect == InitialAppearanceEffect.Active).Select(item => item.Write.TargetId).Distinct())
-            if (active[target] != originalActive[target])
-                writes[(InitialAppearanceEffect.Active, target, "m_IsActive")] = new(InitialAppearanceEffect.Active, target, "m_IsActive", Active: active[target]);
+        foreach (long target in rules.Where(item => item.Write.Effect == InitialAppearanceEffect.Active && Enabled(item, active)).Select(item => item.Write.TargetId).Distinct())
+            writes[(InitialAppearanceEffect.Active, target, "m_IsActive")] = new(InitialAppearanceEffect.Active, target, "m_IsActive", Active: active[target]);
         bool safe = !unsupported && diagnostics.All(item => item.Severity != InitialAppearanceSeverity.Error);
         var finalRenderers = new Dictionary<long, InitialAppearanceRenderer>();
         foreach (var renderer in context.Renderers)

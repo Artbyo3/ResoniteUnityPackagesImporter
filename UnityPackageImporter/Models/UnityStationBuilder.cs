@@ -312,9 +312,7 @@ internal sealed class UnityStationHandle
         var result = Current?.ReadResult();
         if (enabled && ready && Current != null && result?.StructureReady == false)
             ImportReportService.Record(session.Reports, Current, item: Current, project: importer, stage: ImportReportStage.Validation);
-        bool canCreateAvatar = IsAvatar && result?.CanPerform(ImportOutputAction.CreateAvatar) == true;
-        bool canKeepObject = !IsOutfit && result?.CanPerform(ImportOutputAction.KeepObject) == true;
-        bool canPerformMainAction = canCreateAvatar || canKeepObject;
+        bool canPerformMainAction = ImportActionPolicy.CanPerformMainAction(result, IsAvatar, IsOutfit);
 
         var intendedAction = ImportActionPolicy.Intended(IsAvatar, IsOutfit);
         ui.SetLocalizedKey("createAvatar", ImportActionPolicy.Label(intendedAction));
@@ -495,18 +493,17 @@ internal sealed class UnityStationHandle
         var item = Current;
         bool sourceConsumed = false;
         var result = item.ReadResult();
-        bool canCreateAvatar = IsAvatar && result.CanPerform(ImportOutputAction.CreateAvatar);
-        bool canKeepObject = result.CanPerform(ImportOutputAction.KeepObject);
-        if (!canCreateAvatar && !canKeepObject) return;
-        operationStage = canCreateAvatar ? "Create avatar" : "Keep prefab in world";
+        var intendedAction = ImportActionPolicy.Intended(IsAvatar, IsOutfit);
+        if (!ImportActionPolicy.CanPerformMainAction(result, IsAvatar, IsOutfit)) return;
+        operationStage = intendedAction == ImportOutputAction.CreateAvatar ? "Create avatar" : "Keep prefab in world";
         busy = true;
         SetActions(false);
         try
         {
-            item.ReadResult().Require(canCreateAvatar ? ImportOutputAction.CreateAvatar : ImportOutputAction.KeepObject);
+            item.ReadResult().Require(intendedAction);
             var source = item.CurrentStructureRootSlot;
             var envelope = session.Envelope(source);
-            bool avatar = canCreateAvatar;
+            bool avatar = intendedAction == ImportOutputAction.CreateAvatar;
             bool protect = avatar && Get<Checkbox>("protect").State.Value;
             if (Get<Checkbox>("expressions").State.Value) await item.BuildExpressionsAsync();
             await default(ToWorld);

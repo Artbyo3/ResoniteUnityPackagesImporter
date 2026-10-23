@@ -637,72 +637,61 @@ public static class AvatarPackageIndex
     {
         var armatureLinks = new List<VrcFuryArmatureLinkDefinition>();
         var unsupportedFeatures = new List<string>();
-
-        // 1. Look for references.RefIds section (Unity [SerializeReference])
-        int refIdsIndex = -1;
-        for (int i = 0; i < lines.Count; i++)
+        YamlMappingNode body;
+        try
         {
-            string trimmed = lines[i].TrimStart();
-            if (trimmed.StartsWith("RefIds:", StringComparison.Ordinal))
-            {
-                refIdsIndex = i;
-                break;
-            }
+            var stream = new YamlStream();
+            stream.Load(new StringReader(string.Join("\n", lines)));
+            var root = stream.Documents.FirstOrDefault()?.RootNode as YamlMappingNode;
+            body = root != null && root.Children.TryGetValue(new YamlScalarNode("MonoBehaviour"), out var behaviour)
+                ? behaviour as YamlMappingNode : root;
         }
-
-        if (refIdsIndex >= 0)
+        catch (YamlException exception)
         {
-            int i = refIdsIndex + 1;
-            while (i < lines.Count)
+            unsupportedFeatures.Add("VRCFURY_INVALID_REFERENCE_GRAPH: " + exception.Message);
+            return (armatureLinks, unsupportedFeatures);
+        }
+        if (body == null)
+        {
+            unsupportedFeatures.Add("VRCFURY_INVALID_REFERENCE_GRAPH: MonoBehaviour must be a mapping.");
+            return (armatureLinks, unsupportedFeatures);
+        }
+        bool managed = body.Children.TryGetValue(new YamlScalarNode("references"), out var references) &&
+            (references is not YamlMappingNode referencesMapping || referencesMapping.Children.ContainsKey(new YamlScalarNode("RefIds"))) ||
+            body.Children.ContainsKey(new YamlScalarNode("content")) ||
+            body.Children.TryGetValue(new YamlScalarNode("config"), out var config) &&
+            config is YamlMappingNode configMapping && configMapping.Children.ContainsKey(new YamlScalarNode("features"));
+        if (managed)
+        {
+            var graph = VrcFuryManagedReferenceGraph.Read(body);
+            foreach (var diagnostic in graph.Diagnostics)
+                unsupportedFeatures.Add(diagnostic.Code + ": " + diagnostic.Message);
+            if (!graph.IsValid) return (armatureLinks, unsupportedFeatures);
+            foreach (var entry in graph.ReachableFeatures)
             {
-                string line = lines[i];
-                string trimmed = line.TrimStart();
-                if (trimmed.StartsWith("- rid:", StringComparison.Ordinal))
+                var type = (YamlMappingNode)entry.Children[new YamlScalarNode("type")];
+                string className = ReadTargetScalar(type, "class");
+                if (className != "ArmatureLink")
                 {
-                    int refIndent = CountIndent(line);
-                    var entryLines = new List<string> { line };
-                    i++;
-                    while (i < lines.Count)
-                    {
-                        if (lines[i].Length > 0 && CountIndent(lines[i]) <= refIndent && lines[i].TrimStart().StartsWith("- rid:", StringComparison.Ordinal))
-                            break;
-                        if (lines[i].Length > 0 && CountIndent(lines[i]) < refIndent)
-                            break;
-                        entryLines.Add(lines[i]);
-                        i++;
-                    }
-
-                    string typeLine = entryLines.FirstOrDefault(l => l.TrimStart().StartsWith("type:", StringComparison.Ordinal));
-                    if (typeLine != null)
-                    {
-                        if (typeLine.Contains("ArmatureLink", StringComparison.OrdinalIgnoreCase))
-                        {
-                            var link = ParseArmatureLinkFromLines(entryLines, sourcePath, componentFileId, gameObjectFileId, gameObjectName);
-                            if (link != null) armatureLinks.Add(link);
-                        }
-                        else
-                        {
-                            var match = Regex.Match(typeLine, @"class:\s*([^,}\s]+)", RegexOptions.CultureInvariant);
-                            string className = match.Success ? match.Groups[1].Value : "UnknownFeature";
-                            unsupportedFeatures.Add(className);
-                        }
-                    }
+                    unsupportedFeatures.Add(className);
                     continue;
                 }
-                i++;
-            }
-        }
-
-        // 2. Also check if the MonoBehaviour directly contains ArmatureLink fields (inline or legacy without RefIds)
-        if (armatureLinks.Count == 0)
-        {
-            if (FindField(lines, "propBone") >= 0 || FindField(lines, "linkTo") >= 0)
-            {
-                var link = ParseArmatureLinkFromLines(lines, sourcePath, componentFileId, gameObjectFileId, gameObjectName);
+                if (!entry.Children.TryGetValue(new YamlScalarNode("data"), out var data) || data is not YamlMappingNode fields)
+                {
+                    unsupportedFeatures.Add("VRCFURY_INVALID_ARMATURE_DATA: ArmatureLink data must be a mapping.");
+                    continue;
+                }
+                using var writer = new StringWriter(CultureInfo.InvariantCulture);
+                new YamlStream(new YamlDocument(fields)).Save(writer, false);
+                var link = ParseArmatureLinkFromLines(writer.ToString().Split('\n'), sourcePath, componentFileId, gameObjectFileId, gameObjectName);
                 if (link != null) armatureLinks.Add(link);
             }
         }
-
+        else if (FindField(lines, "propBone") >= 0 || FindField(lines, "linkTo") >= 0)
+        {
+            var link = ParseArmatureLinkFromLines(lines, sourcePath, componentFileId, gameObjectFileId, gameObjectName);
+            if (link != null) armatureLinks.Add(link);
+        }
         return (armatureLinks, unsupportedFeatures);
     }
 

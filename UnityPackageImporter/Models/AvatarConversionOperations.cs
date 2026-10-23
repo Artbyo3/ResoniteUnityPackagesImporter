@@ -184,6 +184,7 @@ public sealed class SkinRebindOperation : AvatarBuildOperation
 public sealed class AvatarBuildPlan
 {
     private readonly HashSet<string> assignedIds = new(StringComparer.Ordinal);
+    internal Dictionary<(int Effect, long Target, string Property), string> InitialAppearanceValues { get; } = new();
     public string AvatarName { get; init; } = "";
     public List<AvatarBuildOperation> Operations { get; init; } = new();
     public List<AvatarOperationDiagnostic> Diagnostics { get; init; } = new();

@@ -242,6 +242,9 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                     await ModularAvatarInitialAppearanceAdapter.ApplyAsync(
                         composedYaml, this.existingIUnityObjects, this, ConversionPlan,
                         unityProjectImporter?.Session?.Token ?? default);
+                    await VrcFuryInitialAppearanceAdapter.ApplyAsync(
+                        composedYaml, this.existingIUnityObjects, this, ConversionPlan,
+                        unityProjectImporter?.Session?.Token ?? default);
                     await BlendshapeInitialAppearanceAdapter.ApplyAsync(
                         composedYaml, this.existingIUnityObjects, this, ConversionPlan,
                         unityProjectImporter?.Session?.Token ?? default);

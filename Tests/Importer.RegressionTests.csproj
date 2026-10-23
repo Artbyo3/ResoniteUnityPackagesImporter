@@ -86,6 +86,9 @@
     <Compile Include="../UnityPackageImporter/Models/BlendshapeInitialAppearance.cs" Link="BlendshapeInitialAppearance.cs" />
     <Compile Include="../UnityPackageImporter/Models/VrcFuryArmatureSemantics.cs" Link="VrcFuryArmatureSemantics.cs" />
     <Compile Include="../UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs" Link="ModularAvatarInitialAppearance.cs" />
+    <Compile Include="../UnityPackageImporter/Models/UnityStaticAnimationClip.cs" Link="UnityStaticAnimationClip.cs" />
+    <Compile Include="../UnityPackageImporter/Models/VrcFuryManagedReferenceGraph.cs" Link="VrcFuryManagedReferenceGraph.cs" />
+    <Compile Include="../UnityPackageImporter/Models/VrcFuryInitialAppearance.cs" Link="VrcFuryInitialAppearance.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarConversionScope.cs" Link="AvatarConversionScope.cs" />
     <Compile Include="../UnityPackageImporter/Models/ModelBoneIndex.cs" Link="ModelBoneIndex.cs" />
     <Compile Include="../UnityPackageImporter/Models/SkinBindingTransfer.cs" Link="SkinBindingTransfer.cs" />

@@ -188,6 +188,24 @@ internal static class ModularAvatarRuntimeContractTests
                 ImportActionPolicy.Intended(false, false) == ImportOutputAction.KeepObject, "Outfit or prop intent changed.");
         });
 
+        test("Native-unready avatars cannot fall back to keeping an ordinary object", () =>
+        {
+            foreach (var readiness in Enum.GetValues<NativeAvatarReadiness>().Where(value => value != NativeAvatarReadiness.Ready))
+            {
+                var result = ImportResult.Evaluate(true, false, readiness, 0, 0, 0);
+                check(result.StructureReady && result.CanPerform(ImportOutputAction.KeepObject), "Fixture must isolate native readiness from structural readiness.");
+                check(!ImportActionPolicy.CanPerformMainAction(result, true, false), "Create Avatar was enabled by KeepObject readiness.");
+                bool rejected = false;
+                try { result.Require(ImportActionPolicy.Intended(true, false)); }
+                catch (InvalidOperationException) { rejected = true; }
+                check(rejected, "Execution authorized the ordinary-object fallback for an avatar.");
+                check(ImportActionPolicy.CanPerformMainAction(result, false, false), "A legitimate prop could not be kept.");
+                check(!ImportActionPolicy.CanPerformMainAction(result, false, true), "An outfit was routed to the main create action.");
+            }
+            var ready = ImportResult.Evaluate(true, false, NativeAvatarReadiness.Ready, 0, 0, 0);
+            check(ImportActionPolicy.CanPerformMainAction(ready, true, false), "A ready avatar was blocked.");
+        });
+
         foreach (int attachmentMode in Enumerable.Range(0, 5))
         {
             int mode = attachmentMode;

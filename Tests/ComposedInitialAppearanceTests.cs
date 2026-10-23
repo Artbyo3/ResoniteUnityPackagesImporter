@@ -8,9 +8,10 @@ internal static class ComposedInitialAppearanceTests
     {
         test("Composed prefab defaults flow from MA Shape Set into clothing Blendshape Sync", () => Run(check, false));
         test("Unrelated malformed library cannot change composed initial appearance", () => Run(check, true));
+        test("Composed reversible MA VRCFury and sync passes preserve destructive skips", () => Run(check, true, true));
     }
 
-    private static void Run(Action<bool, string> check, bool includeUnrelated)
+    private static void Run(Action<bool, string> check, bool includeUnrelated, bool expanded = false)
     {
         string directory = Path.Combine(Path.GetTempPath(), "importer-appearance-" + Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(directory);
@@ -23,6 +24,12 @@ internal static class ComposedInitialAppearanceTests
                 Skin(20, 2) + Skin(30, 3) +
                 $"--- !u!114 &100\nMonoBehaviour:\n  m_GameObject: {{fileID: 1}}\n  m_Script: {{fileID: 11500000, guid: {ModularAvatarInitialAppearance.ShapeChangerGuid}, type: 3}}\n  m_inverted: 0\n  m_shapes:\n  - Object:\n      referencePath: Body\n      targetObject: {{fileID: 2}}\n    ShapeName: Size\n    ChangeType: 1\n    Value: 73\n" +
                 $"--- !u!114 &101\nMonoBehaviour:\n  m_GameObject: {{fileID: 3}}\n  m_Script: {{fileID: 11500000, guid: {AvatarPackageIndex.BlendshapeSyncScriptGuid}, type: 3}}\n  Bindings:\n  - ReferenceMesh:\n      referencePath: Body\n      targetObject: {{fileID: 2}}\n    Blendshape: Size\n    LocalBlendshape: Fit\n";
+            if (expanded)
+            {
+                source = source.Replace("{component: {fileID: 100}}]", "{component: {fileID: 100}}, {component: {fileID: 102}}]");
+                source += $"--- !u!114 &102\nMonoBehaviour:\n  m_GameObject: {{fileID: 1}}\n  m_Script: {{fileID: 11500000, guid: {VrcFuryInitialAppearance.ScriptGuid}, type: 3}}\n  content: {{rid: 300}}\n  references:\n    version: 2\n    RefIds:\n    - rid: 300\n      type: {{class: ApplyDuringUpload, ns: VF.Model.Feature, asm: VRCFury}}\n      data:\n        action:\n          actions:\n          - {{rid: 301}}\n    - rid: 301\n      type: {{class: BlendShapeAction, ns: VF.Model.StateAction, asm: VRCFury}}\n      data:\n        renderer: {{fileID: 20}}\n        allRenderers: 0\n        blendShape: Extra\n        blendShapeValue: 45\n";
+                source = source.Replace("    Value: 73\n", "    Value: 73\n  - Object:\n      referencePath: Body\n      targetObject: {fileID: 2}\n    ShapeName: Size\n    ChangeType: 0\n    Value: 100\n");
+            }
             string path = Path.Combine(directory, "assembly.prefab");
             File.WriteAllText(path, source);
             var library = new Dictionary<string, string> { ["assembly"] = path };
@@ -37,7 +44,7 @@ internal static class ComposedInitialAppearanceTests
             long clothesSkin = docs.Single(pair => pair.Value.Children.ContainsKey("m_BlendShapeWeights") && Owner(pair.Value) == clothesId).Key;
             var snapshots = new Dictionary<long, InitialAppearanceRenderer>
             {
-                [bodySkin] = new(bodyId, new Dictionary<string, float> { ["Size"] = 12 }, Array.Empty<InitialAppearanceMaterial>()),
+                [bodySkin] = new(bodyId, new Dictionary<string, float> { ["Size"] = 12, ["Extra"] = 0 }, Array.Empty<InitialAppearanceMaterial>()),
                 [clothesSkin] = new(clothesId, new Dictionary<string, float> { ["Fit"] = 0 }, Array.Empty<InitialAppearanceMaterial>())
             };
             var manifest = AvatarPackageIndex.ParseText(composed, "synthetic-assembly.prefab");
@@ -53,7 +60,20 @@ internal static class ComposedInitialAppearanceTests
             {
                 [root] = new(root, root, "Avatar", ""), [bodyId] = new(bodyId, root, "Body", "Body"), [clothesId] = new(clothesId, root, "Clothes", "Clothes")
             };
-            var renderers = defaults.Renderers.ToDictionary(pair => pair.Key, pair => new BlendshapeAppearanceRenderer(pair.Key, pair.Value.GameObjectId, pair.Value.Shapes));
+            IReadOnlyDictionary<long, InitialAppearanceRenderer> evaluated = defaults.Renderers;
+            if (expanded)
+            {
+                check(defaults.Diagnostics.Any(item => item.Code == "MA_INITIAL_DESTRUCTIVE_SKIPPED"), "Composed destructive entry was not explicitly skipped.");
+                var fury = VrcFuryInitialAppearance.Evaluate(composed, new InitialAppearanceContext
+                {
+                    AvatarRootId = root, Renderers = evaluated, ExternalAnimationAndParameterContextVerifiedAbsent = true
+                });
+                check(fury.CanApply, string.Join("; ", fury.Diagnostics.Select(item => item.Code + ": " + item.Message)));
+                check(fury.Renderers[bodySkin].Shapes["Extra"] == 45 && fury.Renderers[bodySkin].Shapes["Size"] == 73,
+                    "VRCFury initial actions did not preserve the preceding MA snapshot.");
+                evaluated = fury.Renderers;
+            }
+            var renderers = evaluated.ToDictionary(pair => pair.Key, pair => new BlendshapeAppearanceRenderer(pair.Key, pair.Value.GameObjectId, pair.Value.Shapes));
             var linked = BlendshapeInitialAppearance.Evaluate(composed, objects, renderers);
             check(!linked.HasErrors && linked.Writes.Single().RendererId == clothesSkin && linked.Writes[0].Shape == "Fit" && linked.Writes[0].UnityWeight == 73,
                 "Clothing sync did not consume evaluated body appearance after composition.");

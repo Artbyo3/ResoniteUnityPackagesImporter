@@ -560,6 +560,9 @@ internal static class ImportCompatibilityPhase1Tests
                 MonoBehaviour:
                   m_GameObject: {fileID: 100000}
                   m_Script: {fileID: 11500000, guid: {{AvatarPackageIndex.VrcFuryFullScriptGuid}}, type: 3}
+                  config:
+                    features: [{rid: 102}]
+                  content: {rid: 101}
                   references:
                     version: 2
                     RefIds:

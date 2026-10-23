@@ -37,7 +37,7 @@ internal static class VrcFuryArmatureSemanticsTests
             var manifest = Parse("version: 7\nrecursive: 0\nlinkTo: [{bone: 10}]");
             var link = manifest.AllVrcFuryArmatureLinks.Single();
             check(link.SerializedVersion == 7 && !link.Recursive && link.LinkToTargets.Single().Bone == 10, "Feature version leaked from references envelope");
-            string flow = "--- !u!114 &200\nMonoBehaviour:\n  m_GameObject: {fileID: 100}\n  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VrcFuryFullScriptGuid + ", type: 3}\n  references:\n    version: 2\n    RefIds:\n    - rid: 300\n      type: {class: ArmatureLink}\n      data: {version: 7, linkTo: [{bone: 10}]}";
+            string flow = "--- !u!114 &200\nMonoBehaviour:\n  m_GameObject: {fileID: 100}\n  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VrcFuryFullScriptGuid + ", type: 3}\n  content: {rid: 300}\n  references:\n    version: 2\n    RefIds:\n    - rid: 300\n      type: {class: ArmatureLink, ns: VF.Model.Feature, asm: VRCFury}\n      data: {version: 7, linkTo: [{bone: 10}]}";
             var flowed = AvatarPackageIndex.ParseText(flow, "flow.prefab").AllVrcFuryArmatureLinks.Single();
             check(flowed.SerializedVersion == 7 && !flowed.Recursive && flowed.LinkToTargets.Single().Bone == 10, "Flow data was silently mistaken for v0");
         });
@@ -153,6 +153,6 @@ internal static class VrcFuryArmatureSemanticsTests
         VrcFuryArmatureSemantics.Normalize(fields.ToDictionary(field => field.Key, field => field.Value));
 
     private static AvatarPackageManifest Parse(string fields) => AvatarPackageIndex.ParseText(
-        "--- !u!1 &100\nGameObject:\n  m_Name: Costume\n--- !u!114 &200\nMonoBehaviour:\n  m_GameObject: {fileID: 100}\n  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VrcFuryFullScriptGuid + ", type: 3}\n  references:\n    version: 2\n    RefIds:\n    - rid: 300\n      type: {class: ArmatureLink, ns: VF.Model.Feature, asm: VRCFury}\n      data:\n" +
+        "--- !u!1 &100\nGameObject:\n  m_Name: Costume\n--- !u!114 &200\nMonoBehaviour:\n  m_GameObject: {fileID: 100}\n  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VrcFuryFullScriptGuid + ", type: 3}\n  content: {rid: 300}\n  references:\n    version: 2\n    RefIds:\n    - rid: 300\n      type: {class: ArmatureLink, ns: VF.Model.Feature, asm: VRCFury}\n      data:\n" +
         string.Join("\n", fields.Split('\n').Select(line => "        " + line)), "semantics.prefab");
 }
