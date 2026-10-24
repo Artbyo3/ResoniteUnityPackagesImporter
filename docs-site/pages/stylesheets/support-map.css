@@ -24,10 +24,12 @@
 .md-typeset details.support-row[data-status="supported"] { --support-surface: #e5f3ec; --support-ink: #176147; }
 .md-typeset details.support-row[data-status="limited"] { --support-surface: #f8f0df; --support-ink: #7b570e; }
 .md-typeset details.support-row[data-status="missing"] { --support-surface: #f6e9ed; --support-ink: #92354c; }
+.md-typeset details.support-row[data-status="re-evaluation"] { --support-surface: #edf2fa; --support-ink: #2b5282; }
 [data-md-color-scheme="slate"] .md-typeset details.support-row { --support-surface: #23292d; --support-ink: #bdc8cc; }
 [data-md-color-scheme="slate"] .md-typeset details.support-row[data-status="supported"] { --support-surface: #152e25; --support-ink: #96dfb9; }
 [data-md-color-scheme="slate"] .md-typeset details.support-row[data-status="limited"] { --support-surface: #30291c; --support-ink: #e9c47e; }
 [data-md-color-scheme="slate"] .md-typeset details.support-row[data-status="missing"] { --support-surface: #301e25; --support-ink: #eda2b3; }
+[data-md-color-scheme="slate"] .md-typeset details.support-row[data-status="re-evaluation"] { --support-surface: #1e2638; --support-ink: #9bb7e0; }
 .md-typeset details.support-row > summary { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; position: relative; margin: 0; padding: 18px; background: transparent; list-style: none; cursor: pointer; }
 .md-typeset details.support-row > summary::before, .md-typeset details.support-row > summary::after { display: none; }
 .support-row > summary::-webkit-details-marker { display: none; }
@@ -42,9 +44,7 @@
 .support-row[open] { grid-column: 1 / -1; }
 .support-row__detail { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 0 28px; padding: 0 18px 18px; }
 .support-row__explanation, .support-row__evidence { min-width: 0; }
-@media (max-width: 700px) {
-  .support-row__detail { grid-template-columns: 1fr; }
-}
+@media (max-width: 700px) {\n  .support-row__detail { grid-template-columns: 1fr; }\n}
 .md-typeset .support-row__detail p, .md-typeset .support-row__detail li { font-size: 0.7rem; }
 .md-typeset .support-row__detail code { overflow-wrap: anywhere; white-space: normal; }
 .support-row > summary:focus-visible, .support-map :is(input, select):focus-visible { outline: 2px solid var(--md-typeset-a-color); outline-offset: -3px; }

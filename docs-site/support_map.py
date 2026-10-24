@@ -8,7 +8,7 @@ from urllib.parse import quote
 from release_baseline import load_release_baseline
 
 HERE = Path(__file__).resolve().parent
-LABELS = {"supported": "Supported", "limited": "Partial support", "missing": "Not supported", "not-applicable": "Not applicable", "legacy": "Legacy"}
+LABELS = {"supported": "Supported", "limited": "Partial support", "missing": "Not supported", "re-evaluation": "Needs re-evaluation", "not-applicable": "Not applicable", "legacy": "Legacy"}
 WORK = {"unplanned": "Not scheduled", "planned": "Planned", "in-progress": "In progress", "blocked": "Blocked"}
 
 
@@ -39,7 +39,7 @@ def load_capabilities(path=HERE / "capabilities.json"):
         issue = entry.get("issue")
         if issue and not re.fullmatch(r"https://github\.com/[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/issues/[1-9][0-9]*", issue):
             raise ValueError("Invalid issue link")
-        if entry["work"] != "unplanned" and (not issue or entry["status"] in {"legacy", "not-applicable"}):
+        if entry["work"] != "unplanned" and (not issue or entry["status"] in {"legacy", "not-applicable", "re-evaluation"}):
             raise ValueError("Scheduled work requires a relevant capability and real tracking issue")
     return data
 
@@ -52,14 +52,15 @@ def render_support_map(scope="all", data=None):
     counts = Counter(entry["status"] for entry in entries if not entry["legacy"])
     escape = html.escape
     release = load_release_baseline()
-    evidence_base = "https://github.com/" + release["repository"] + "/blob/" + release["revision"] + "/"
+    evidence_base = "https://github.com/\" + release[\"repository\"] + \"/blob/\" + release[\"revision\"] + \"/"
     applicable = [entry for entry in entries if entry["status"] in {"supported", "limited", "missing"} and not entry["legacy"]]
     numbers = {entry["id"]: index for index, entry in enumerate(applicable, 1)}
-    grouped_rows = {"collection": [], "not-applicable": [], "legacy": []}
+    grouped_rows = {"collection": [], "re-evaluation": [], "not-applicable": [], "legacy": []}
     symbols = {
         "supported": '<path d="m5 8 2 2 4-4"/>',
         "limited": '<path d="M8 2a6 6 0 0 0 0 12Z" fill="currentColor" stroke="none"/>',
         "missing": '',
+        "re-evaluation": '<path d="M8 4.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7z" fill="currentColor" stroke="none"/>',
         "not-applicable": '<path d="m4 12 8-8"/>',
         "legacy": '<path d="M8 4v4l3 2"/>',
     }
@@ -72,9 +73,9 @@ def render_support_map(scope="all", data=None):
         work_badge = '<span class="support-work">' + WORK[entry["work"]] + "</span>" if entry["work"] != "unplanned" else ""
         boundary = '<span class="support-row__outcome">' + escape(entry["summary"]) + "</span>" if entry.get("summary") else ""
         framework = {"ma": "MA", "vrcfury": "VRCFury", "vrchat": "VRChat SDK"}[entry["framework"]]
-        group = "collection" if entry["id"] in numbers else "legacy" if entry["legacy"] or entry["status"] == "legacy" else "not-applicable"
+        group = "collection" if entry["id"] in numbers else "re-evaluation" if entry["status"] == "re-evaluation" else "legacy" if entry["legacy"] or entry["status"] == "legacy" else "not-applicable"
         serial = '<span class="support-row__serial">' + str(numbers[entry["id"]]).zfill(2) + '</span>' if group == "collection" else ''
-        symbol = '<svg class="support-row__symbol" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="8" cy="8" r="6"/>' + symbols[entry["status"]] + '</svg>'
+        symbol = '<svg class="support-row__symbol" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" aria-hidden="true"><circle cx="8" cy="8" r="6"/>' + symbols[entry['status']] + '</svg>'
         framework_label = '<small>' + framework + '</small>' if scope == "all" else ''
         grouped_rows[group].append(f'''<details class="support-row" name="support-components-{scope}" data-support-row data-framework="{entry['framework']}" data-status="{entry['status']}" data-work="{entry['work']}">
 <summary><span class="support-row__name">{serial}{framework_label}<strong>{escape(entry['name'])}</strong></span><span class="support-row__badges"><span class="support-state support-state--{entry['status']}">{symbol}{LABELS[entry['status']]}</span>{work_badge}</span>{boundary}</summary>
@@ -90,7 +91,8 @@ def render_support_map(scope="all", data=None):
                 '<div class="support-collection__slots" data-support-slots role="img" aria-label="' + str(counts["supported"]) + ' supported, ' + str(counts["limited"]) + ' partial, ' + str(counts["missing"]) + ' not supported" style="--support-slot-count:' + str(max(1, len(applicable))) + '">' + segments + '</div>')
     groups = '<div class="support-map__group" data-support-group="collection" role="group" aria-label="Applicable components"><div class="support-map__rows">' + ''.join(grouped_rows["collection"]) + '</div></div>'
     for group, title, description in [
-        ("not-applicable", "Not applicable in Resonite", "No direct translation. These do not count toward the collection."),
+        ("re-evaluation", "Under re-evaluation (Appearance & Behavior Review)", "Components undergoing architectural review for avatar visual fidelity and runtime behavior. Not discarded, but being evaluated for native Resonite mapping."),
+        ("not-applicable", "Not applicable in Resonite", "VRChat upload pipeline metadata, network bitfield packing, and Unity editor compiler fixes. These do not affect runtime avatar appearance."),
         ("legacy", "Legacy components", "Older upstream models. Not part of the current collection."),
     ]:
         if grouped_rows[group]:
@@ -105,7 +107,7 @@ def render_support_map(scope="all", data=None):
 <div class="support-map__tools" data-support-tools hidden>
 <label class="support-map__search"><span class="support-sr-only">Find a component</span><input type="search" data-support-search placeholder="Find a component" autocomplete="off"></label>
 {scope_control}
-<label><span class="support-sr-only">Show components</span><select data-support-status><option value="current">All current</option><option value="supported">Supported</option><option value="limited">Partial support</option><option value="missing">Not supported</option><option value="not-applicable">Not applicable</option><option value="scheduled">Scheduled work</option><option value="legacy">Legacy models</option><option value="all">Everything</option></select></label>
+<label><span class="support-sr-only">Show components</span><select data-support-status><option value="current">All current</option><option value="supported">Supported</option><option value="limited">Partial support</option><option value="missing">Not supported</option><option value="re-evaluation">Needs re-evaluation</option><option value="not-applicable">Not applicable</option><option value="scheduled">Scheduled work</option><option value="legacy">Legacy models</option><option value="all">Everything</option></select></label>
 </div>
 <p class="support-map__count" data-support-count role="status" aria-live="polite"></p>
 {groups}

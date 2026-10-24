@@ -293,7 +293,7 @@
       "framework": "ma",
       "name": "Convert Constraints",
       "type": "ModularAvatarConvertConstraints",
-      "status": "missing",
+      "status": "not-applicable",
       "outcome": "Convert Unity constraints for the target platform. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -304,14 +304,15 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarConvertConstraints.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "ma-flooradjuster",
       "framework": "ma",
       "name": "Floor Adjuster",
       "type": "ModularAvatarFloorAdjuster",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Adjust the avatar against floor height. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -322,14 +323,15 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarFloorAdjuster.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-globalcollider",
       "framework": "ma",
       "name": "Global Collider",
       "type": "ModularAvatarGlobalCollider",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Extend collider interactions across the avatar. Not translated.",
       "reason": "The importer does not recreate this collider behavior. A native Resonite equivalent needs design and validation.",
       "legacy": false,
@@ -340,14 +342,15 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarGlobalCollider.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-materialswap",
       "framework": "ma",
       "name": "Material Swap",
       "type": "ModularAvatarMaterialSwap",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Swap materials through reactive rules. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -358,7 +361,8 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ReactiveObjects/ModularAvatarMaterialSwap.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-menugroup",
@@ -389,7 +393,7 @@
       "framework": "ma",
       "name": "Menu Install Target",
       "type": "ModularAvatarMenuInstallTarget",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Choose where generated controls appear. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -400,7 +404,8 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarMenuInstallTarget.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-menuinstaller",
@@ -431,7 +436,7 @@
       "framework": "ma",
       "name": "Merge Animator",
       "type": "ModularAvatarMergeAnimator",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Merge animator-controller behavior. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -442,14 +447,15 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarMergeAnimator.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-mergeblendtree",
       "framework": "ma",
       "name": "Merge Motion (Blend Tree)",
       "type": "ModularAvatarMergeBlendTree",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Combine motion through a blend tree. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -460,7 +466,8 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarMergeBlendTree.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-meshcutter",
@@ -478,14 +485,15 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ReactiveObjects/ModularAvatarMeshCutter.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "ma-meshsettings",
       "framework": "ma",
       "name": "Mesh Settings",
       "type": "ModularAvatarMeshSettings",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Set renderer bounds and probe settings. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -496,14 +504,15 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarMeshSettings.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-moveto",
       "framework": "ma",
       "name": "Move To",
       "type": "ModularAvatarMoveTo",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Move objects during avatar assembly. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -514,14 +523,15 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarMoveTo.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-outfitroot",
       "framework": "ma",
       "name": "Outfit Root",
       "type": "ModularAvatarOutfitRoot",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Declare an outfit root for assembly. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -532,7 +542,8 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarOutfitRoot.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-parameters",
@@ -586,7 +597,7 @@
       "framework": "ma",
       "name": "Platform Filter",
       "type": "ModularAvatarPlatformFilter",
-      "status": "missing",
+      "status": "not-applicable",
       "outcome": "Choose content for a platform build. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -597,14 +608,15 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarPlatformFilter.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "ma-reactivemove",
       "framework": "ma",
       "name": "Reactive Move",
       "type": "ModularAvatarReactiveMove",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Move objects through reactive rules. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -615,14 +627,15 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ReactiveObjects/ModularAvatarReactiveMove.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-replaceobject",
       "framework": "ma",
       "name": "Replace Object",
       "type": "ModularAvatarReplaceObject",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Replace an object during assembly. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -633,14 +646,15 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarReplaceObject.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-scaleadjuster",
       "framework": "ma",
       "name": "Scale Adjuster",
       "type": "ModularAvatarScaleAdjuster",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Adjust bone scale. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -651,14 +665,15 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ScaleAdjuster/ModularAvatarScaleAdjuster.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-visibleheadaccessory",
       "framework": "ma",
       "name": "Visible Head Accessory",
       "type": "ModularAvatarVisibleHeadAccessory",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Keep head accessories visible in first person. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -669,14 +684,15 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarVisibleHeadAccessory.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-worldfixedobject",
       "framework": "ma",
       "name": "World Fixed Object",
       "type": "ModularAvatarWorldFixedObject",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Keep an object fixed in world space. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -687,14 +703,15 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarWorldFixedObject.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-worldscaleobject",
       "framework": "ma",
       "name": "World Scale Object",
       "type": "ModularAvatarWorldScaleObject",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Keep an object at world scale. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -705,14 +722,15 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarWorldScaleObject.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-advancedcollider",
       "framework": "vrcfury",
       "name": "Advanced Collider",
       "type": "AdvancedCollider",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Configure advanced avatar colliders. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -723,7 +741,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/AdvancedCollider.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-anchoroverridefix2",
@@ -741,14 +760,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/AnchorOverrideFix2.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-avatarscale2",
       "framework": "vrcfury",
       "name": "Avatar Scale2",
       "type": "AvatarScale2",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Scale the avatar and related settings. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -759,14 +779,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/AvatarScale2.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-blendshapeoptimizer",
       "framework": "vrcfury",
       "name": "Blendshape Optimizer",
       "type": "BlendshapeOptimizer",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Optimize blendshape processing. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -777,7 +798,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/BlendshapeOptimizer.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-blinking",
@@ -795,7 +817,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Blinking.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-boneconstraint",
@@ -813,7 +836,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/BoneConstraint.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-boundingboxfix2",
@@ -831,7 +855,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/BoundingBoxFix2.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-breathing",
@@ -849,14 +874,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Breathing.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-constraintretarget",
       "framework": "vrcfury",
       "name": "Constraint Retarget",
       "type": "ConstraintRetarget",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Retarget constraints. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -867,7 +893,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/ConstraintRetarget.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-crosseyefix2",
@@ -885,14 +912,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/CrossEyeFix2.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-deleteduringupload",
       "framework": "vrcfury",
       "name": "Delete During Upload",
       "type": "DeleteDuringUpload",
-      "status": "missing",
+      "status": "not-applicable",
       "outcome": "Delete objects during a build. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -903,14 +931,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/DeleteDuringUpload.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "vrcfury-fullcontroller",
       "framework": "vrcfury",
       "name": "Full Controller",
       "type": "FullController",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Install controller, menu and parameter content. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -921,7 +950,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/FullController.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-gesturedriver",
@@ -939,14 +969,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/GestureDriver.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-vrcfuryglobalcollider",
       "framework": "vrcfury",
       "name": "Global Collider",
       "type": "VRCFuryGlobalCollider",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Configure cross-avatar collider interactions. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -957,7 +988,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Component/VRCFuryGlobalCollider.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-modes",
@@ -975,14 +1007,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Modes.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-movemenuitem",
       "framework": "vrcfury",
       "name": "Move Menu Item",
       "type": "MoveMenuItem",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Move a generated menu entry. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -993,14 +1026,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/MoveMenuItem.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-ogbintegration2",
       "framework": "vrcfury",
       "name": "OGBIntegration2",
       "type": "OGBIntegration2",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Integrate avatar interaction behavior. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1011,7 +1045,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/OGBIntegration2.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-objectstate",
@@ -1029,14 +1064,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/ObjectState.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-overridemenusettings",
       "framework": "vrcfury",
       "name": "Override Menu Settings",
       "type": "OverrideMenuSettings",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Override generated menu settings. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1047,7 +1083,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/OverrideMenuSettings.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-puppet",
@@ -1065,14 +1102,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Puppet.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-removeblinking",
       "framework": "vrcfury",
       "name": "Remove Blinking",
       "type": "RemoveBlinking",
-      "status": "missing",
+      "status": "not-applicable",
       "outcome": "Remove generated blinking behavior. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1083,14 +1121,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/RemoveBlinking.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "vrcfury-reordermenuitem",
       "framework": "vrcfury",
       "name": "Reorder Menu Item",
       "type": "ReorderMenuItem",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Reorder generated menu entries. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1101,14 +1140,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/ReorderMenuItem.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-vrcfuryhapticplug",
       "framework": "vrcfury",
       "name": "SPS Plug",
       "type": "VRCFuryHapticPlug",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Configure an SPS plug. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1119,14 +1159,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Component/VRCFuryHapticPlug.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-vrcfuryhapticsocket",
       "framework": "vrcfury",
       "name": "SPS Socket",
       "type": "VRCFuryHapticSocket",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Configure an SPS socket. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1137,14 +1178,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Component/VRCFuryHapticSocket.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-vrcfuryhaptictouchreceiver",
       "framework": "vrcfury",
       "name": "SPS Touch Zone",
       "type": "VRCFuryHapticTouchReceiver",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Receive SPS touch interactions. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1155,14 +1197,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Component/VRCFuryHapticTouchReceiver.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-securitylock",
       "framework": "vrcfury",
       "name": "Security Lock",
       "type": "SecurityLock",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Add parameter-based avatar controls. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1173,14 +1216,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/SecurityLock.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-securityrestricted",
       "framework": "vrcfury",
       "name": "Security Restricted",
       "type": "SecurityRestricted",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Restrict configured avatar actions. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1191,7 +1235,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/SecurityRestricted.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-senkygesturedriver",
@@ -1209,14 +1254,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/SenkyGestureDriver.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-seticon",
       "framework": "vrcfury",
       "name": "Set Icon",
       "type": "SetIcon",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Set a generated menu icon. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1227,7 +1273,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/SetIcon.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-showinfirstperson",
@@ -1245,14 +1292,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/ShowInFirstPerson.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-spsoptions",
       "framework": "vrcfury",
       "name": "Sps Options",
       "type": "SpsOptions",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Configure SPS interactions. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1263,14 +1311,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/SpsOptions.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-tpsintegration2",
       "framework": "vrcfury",
       "name": "TPSIntegration2",
       "type": "TPSIntegration2",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Translate third-party interaction setup. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1281,7 +1330,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/TPSIntegration2.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-talking",
@@ -1299,7 +1349,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Talking.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-toes",
@@ -1317,14 +1368,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Toes.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-vrcfuryhaptictouchsender",
       "framework": "vrcfury",
       "name": "Touch Sender",
       "type": "VRCFuryHapticTouchSender",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Send SPS touch interactions. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1335,14 +1387,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Component/VRCFuryHapticTouchSender.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-tpsscalefix",
       "framework": "vrcfury",
       "name": "Tps Scale Fix",
       "type": "TpsScaleFix",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Adjust third-party interaction scaling. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1353,7 +1406,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/TpsScaleFix.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "vrcfury-visemes",
@@ -1371,7 +1425,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Visemes.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-worldconstraint",
@@ -1389,14 +1444,15 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/WorldConstraint.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
     },
     {
       "id": "vrcfury-zawoointegration",
       "framework": "vrcfury",
       "name": "Zawoo Integration",
       "type": "ZawooIntegration",
-      "status": "missing",
+      "status": "re-evaluation",
       "outcome": "Integrate third-party interaction setup. Not translated.",
       "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
       "legacy": false,
@@ -1407,7 +1463,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/ZawooIntegration.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
     },
     {
       "id": "ma-mmdlayercontrol",
@@ -1425,7 +1482,8 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarMMDLayerControl.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "ma-renamevrchatcollisiontags",
@@ -1443,7 +1501,8 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarRenameVRChatCollisionTags.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "ma-syncparametersequence",
@@ -1461,7 +1520,8 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarSyncParameterSequence.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "ma-vrchatsettings",
@@ -1479,7 +1539,8 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarVRChatSettings.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "vrcfury-descriptordebug",
@@ -1497,7 +1558,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/DescriptorDebug.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "vrcfury-directtreeoptimizer",
@@ -1515,7 +1577,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/DirectTreeOptimizer.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "vrcfury-fixwritedefaults",
@@ -1533,7 +1596,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/FixWriteDefaults.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "vrcfury-gizmo",
@@ -1551,7 +1615,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Gizmo.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "vrcfury-headchophead",
@@ -1587,7 +1652,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/MmdCompatibility.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "vrcfury-removehandgestures2",
@@ -1605,7 +1671,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/RemoveHandGestures2.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "vrcfury-slot4fix",
@@ -1623,7 +1690,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Slot4Fix.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "vrcfury-unlimitedparameters",
@@ -1641,7 +1709,8 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/UnlimitedParameters.cs"
       },
-      "evidence": []
+      "evidence": [],
+      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
     },
     {
       "id": "vrcfury-anchoroverridefix",
