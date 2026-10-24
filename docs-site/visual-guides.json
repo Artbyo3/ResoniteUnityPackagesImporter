@@ -1,0 +1,652 @@
+{
+  "guides": {
+    "first-import": {
+      "lead": "Drop a package. Preview it. Create it when ready.",
+      "media": [
+        {
+          "title": "Watch the importer",
+          "video": "landing-background.webm",
+          "fallback": "landing-background.mp4",
+          "caption": "Importer demo footage. Your result depends on the package and supported features."
+        },
+        {
+          "title": "Choose import",
+          "image": "pre-import-prompt.png",
+          "caption": "Choose Import Unity Package. Raw File bypasses the station."
+        }
+      ],
+      "steps": [
+        {
+          "title": "Drop the package",
+          "text": "Choose Import Unity Package."
+        },
+        {
+          "title": "Review the result",
+          "text": "Inspect the avatar, materials and item warnings."
+        },
+        {
+          "title": "Create when ready",
+          "text": "Use Create avatar only when the station allows it."
+        }
+      ],
+      "notice": "Private asset? Use a private or local session. Staging is still world content.",
+      "reference": "Requirements & exact import steps"
+    },
+    "install": {
+      "lead": "Two folders. One restart.",
+      "diagram": "install",
+      "steps": [
+        {
+          "title": "Close Resonite",
+          "text": "Exit fully before replacing mod files."
+        },
+        {
+          "title": "Copy both folders",
+          "text": "Extract the ZIP into your Resonite installation."
+        },
+        {
+          "title": "Restart with RML",
+          "text": "Confirm UnityPackageImporter loaded in the mod log."
+        }
+      ],
+      "notice": "Requires Resonite on Windows with ResoniteModLoader installed and enabled.",
+      "actions": [
+        {
+          "label": "Download v0.0.6",
+          "target": "https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/download/v0.0.6/UnityPackageImporter-v0.0.6.zip"
+        },
+        {
+          "label": "Get ResoniteModLoader",
+          "target": "https://github.com/resonite-modding-group/ResoniteModLoader"
+        }
+      ],
+      "reference": "Requirements, release notes & file verification"
+    },
+    "update": {
+      "lead": "Replace the build. Do not keep duplicate DLLs.",
+      "diagram": "install",
+      "steps": [
+        {
+          "title": "Back up",
+          "text": "Keep your config and previous DLL."
+        },
+        {
+          "title": "Replace",
+          "text": "Close Resonite. Replace the mod and supplied dependencies."
+        },
+        {
+          "title": "Restart",
+          "text": "Launch Resonite again with RML enabled."
+        }
+      ],
+      "pairs": [
+        {
+          "label": "Roll back",
+          "value": "Restore your previous DLL",
+          "state": "neutral"
+        },
+        {
+          "label": "Uninstall",
+          "value": "Remove the importer DLL; keep shared dependencies if other mods need them",
+          "state": "neutral"
+        }
+      ],
+      "reference": "Rollback & removal details"
+    },
+    "settings": {
+      "lead": "Keep the defaults for the station workflow.",
+      "diagram": "settings",
+      "reference": "What each setting changes"
+    },
+    "avatars": {
+      "lead": "See the avatar before you create it.",
+      "media": [
+        {
+          "title": "Watch the importer",
+          "video": "landing-background.webm",
+          "fallback": "landing-background.mp4",
+          "caption": "Importer demo footage. Your result depends on the package and supported features."
+        },
+        {
+          "title": "Choose import",
+          "image": "pre-import-prompt.png",
+          "caption": "Choose Import Unity Package. Raw File bypasses the station."
+        },
+        {
+          "title": "Preview materials",
+          "image": "material-customizer-spheres.png",
+          "caption": "Inspect the material on a preview sphere before assigning it."
+        }
+      ],
+      "steps": [
+        {
+          "title": "Drop the package",
+          "text": "Choose Import Unity Package."
+        },
+        {
+          "title": "Review the result",
+          "text": "Inspect the avatar, materials and item warnings."
+        },
+        {
+          "title": "Create when ready",
+          "text": "Use Create avatar only when the station allows it."
+        }
+      ],
+      "notice": "Private asset? Use a private or local session. Staging is still world content.",
+      "pairs": [
+        {
+          "label": "Rig & source assets",
+          "value": "Subject to structural checks",
+          "state": "partial"
+        },
+        {
+          "label": "Material appearance",
+          "value": "Inspect before creating",
+          "state": "partial"
+        },
+        {
+          "label": "Full Unity / VRChat behavior",
+          "value": "Not automatically recreated",
+          "state": "no"
+        }
+      ],
+      "reference": "Avatar setup, receipts & conversion details",
+      "composition": {
+        "kind": "avatar",
+        "kicker": "Avatar import",
+        "headline": "Your avatar.\nIn Resonite.",
+        "description": "Bring a Unity package into the world. Inspect the reconstruction before you create it.",
+        "image": "avatar-demo-study.webp",
+        "alt": "Avatar in the existing Resonite importer demo, cropped from the original recording.",
+        "caption": "Demo capture / isolated background",
+        "verdict": {
+          "title": "A reconstruction, not a Unity runtime.",
+          "text": "Supported meshes, rig and materials transfer. Full VRChat behavior does not."
+        },
+        "workflow": [
+          {
+            "title": "Drop your package",
+            "text": "Choose Import Unity Package, not Import as Raw File."
+          },
+          {
+            "title": "Inspect in the station",
+            "text": "Check the avatar, materials and item warnings before creating."
+          },
+          {
+            "title": "Create when ready",
+            "text": "Use Create avatar only when the station enables it."
+          }
+        ],
+        "detail": {
+          "title": "You decide when it enters the world.",
+          "text": "Nothing is released from staging until you create it. Review item warnings: a visual approximation is different from a structural blocker."
+        }
+      }
+    },
+    "clothing": {
+      "capture": {
+        "title": "Clothing fit",
+        "caption": "Planned capture: the same avatar before and after fitting, followed by a short movement check."
+      },
+      "lead": "Choose your avatar. Fit the outfit. Install.",
+      "media": [
+        {
+          "title": "Choose your avatar",
+          "image": "outfit-choose-avatar.png",
+          "caption": "Select an avatar you own in this session."
+        },
+        {
+          "title": "Install the outfit",
+          "image": "outfit-installation-panel.png",
+          "caption": "Check Target Avatar, then choose Install On Selected Avatar."
+        }
+      ],
+      "steps": [
+        {
+          "title": "Import the outfit",
+          "text": "Use a package with supported structural instructions."
+        },
+        {
+          "title": "Choose a target",
+          "text": "Select an avatar you own and can modify."
+        },
+        {
+          "title": "Install",
+          "text": "The station applies the supported outfit plan."
+        }
+      ],
+      "notice": "Private asset? Use a private or local session. Staging is still world content.",
+      "pairs": [
+        {
+          "label": "MA Merge Armature / Bone Proxy",
+          "value": "Selected structural translation",
+          "state": "partial"
+        },
+        {
+          "label": "VRCFury Armature Link",
+          "value": "Selected merge and attachment modes",
+          "state": "partial"
+        },
+        {
+          "label": "Other users' avatars",
+          "value": "Rejected",
+          "state": "no"
+        }
+      ],
+      "reference": "Ownership, rollback & structural limits"
+    },
+    "companions": {
+      "lead": "Missing textures? Add the package that contains them.",
+      "media": [
+        {
+          "title": "Add missing assets",
+          "image": "companion-package-prompt.png",
+          "caption": "Choose Import Companion Package if you have the missing source assets."
+        },
+        {
+          "title": "Drop the companion",
+          "image": "companion-package-waiting.png",
+          "caption": "Drop the matching companion .unitypackage while the station waits."
+        }
+      ],
+      "steps": [
+        {
+          "title": "Choose companion import",
+          "text": "Use the prompt shown by the station."
+        },
+        {
+          "title": "Drop the matching package",
+          "text": "Use dependencies from the same avatar release."
+        },
+        {
+          "title": "Review the recovered materials",
+          "text": "Conflicts are rejected, not silently overwritten."
+        }
+      ],
+      "reference": "Dependency resolution & conflict handling"
+    },
+    "compatibility": {
+      "lead": "The model can transfer. Not every behavior does.",
+      "diagram": "comparison",
+      "pairs": [
+        {
+          "label": "Meshes, rig & source content",
+          "value": "Supported data, with readiness checks",
+          "state": "yes"
+        },
+        {
+          "label": "Shaders, MA & VRCFury",
+          "value": "Selected translations, not full parity",
+          "state": "partial"
+        },
+        {
+          "label": "Unity runtime & arbitrary behavior",
+          "value": "Not executed",
+          "state": "no"
+        }
+      ],
+      "reference": "Package limits & privacy",
+      "composition": {
+        "kind": "compatibility",
+        "kicker": "Compatibility",
+        "headline": "Can your content import?",
+        "description": "Check what transfers before you bring a package into Resonite.",
+        "image": "avatar-resonite.png",
+        "alt": "Resonite conversion of the example avatar.",
+        "caption": "One example conversion. Results depend on the package.",
+        "verdict": {
+          "title": "Appearance is not behavior.",
+          "text": "A matching starting appearance does not mean a menu, toggle or animation will function."
+        },
+        "outcomes": [
+          {
+            "label": "Avatars",
+            "value": "Meshes, humanoid rigs and supported materials.",
+            "state": "yes"
+          },
+          {
+            "label": "Clothing & props",
+            "value": "Selected MA and VRCFury structural operations.",
+            "state": "partial"
+          },
+          {
+            "label": "VRChat behavior",
+            "value": "Contacts, full menus and the Unity runtime are not recreated.",
+            "state": "no"
+          }
+        ]
+      }
+    },
+    "packages": {
+      "lead": "Import the content, not the Unity runtime.",
+      "pairs": [
+        {
+          "label": "Meshes, textures & supported materials",
+          "value": "Reconstructed in Resonite",
+          "state": "yes"
+        },
+        {
+          "label": "Prefabs, scenes & nested content",
+          "value": "Depends on resolved structure",
+          "state": "partial"
+        },
+        {
+          "label": "Arbitrary scripts & Unity runtime",
+          "value": "Not executed",
+          "state": "no"
+        }
+      ],
+      "reference": "Exact package reconstruction behavior"
+    },
+    "materials": {
+      "capture": {
+        "title": "Material conversion",
+        "caption": "Planned capture: the source and converted material on the same mesh under matching lighting."
+      },
+      "lead": "Choose the look in the station preview.",
+      "media": [
+        {
+          "title": "Preview materials",
+          "image": "material-customizer-spheres.png",
+          "caption": "Inspect the material on a preview sphere before assigning it."
+        },
+        {
+          "title": "Find a mesh",
+          "image": "material-customizer-meshes.png",
+          "caption": "Select the mesh and material slot you want to change."
+        },
+        {
+          "title": "Find an asset",
+          "image": "material-customizer-folders.png",
+          "caption": "Browse the package folders to assign another material or texture."
+        }
+      ],
+      "pairs": [
+        {
+          "label": "Automatic",
+          "value": "Chooses Toon or PBS from supported inputs",
+          "state": "neutral"
+        },
+        {
+          "label": "Toon",
+          "value": "Explicit Xiexe Toon preset",
+          "state": "neutral"
+        },
+        {
+          "label": "PBS Metallic",
+          "value": "Explicit native metallic preset",
+          "state": "neutral"
+        }
+      ],
+      "notice": "Missing source textures and shader differences are different problems. Check the item warning first.",
+      "reference": "Shader families & conversion limits"
+    },
+    "standard": {
+      "capture": {
+        "title": "Standard shader comparison",
+        "caption": "Planned capture: Unity Standard beside its Resonite conversion under matching lighting."
+      },
+      "lead": "Standard metallic inputs become native PBS materials.",
+      "pairs": [
+        {
+          "label": "Base color, normals & metallic",
+          "value": "Mapped to native PBS inputs",
+          "state": "yes"
+        },
+        {
+          "label": "Smoothness, emission & occlusion",
+          "value": "Supported property mappings",
+          "state": "yes"
+        },
+        {
+          "label": "Missing source textures",
+          "value": "Need the original assets",
+          "state": "partial"
+        }
+      ],
+      "reference": "Property-by-property PBS mappings"
+    },
+    "liltoon": {
+      "capture": {
+        "title": "lilToon comparison",
+        "caption": "Planned capture: source appearance beside the conversion, with any unmapped effects identified."
+      },
+      "lead": "Keep the supported look. Expect shader differences.",
+      "pairs": [
+        {
+          "label": "Base textures & tint",
+          "value": "Mapped to native materials",
+          "state": "yes"
+        },
+        {
+          "label": "Supported static effects",
+          "value": "Approximate; inspect the preview",
+          "state": "partial"
+        },
+        {
+          "label": "Unity shader code",
+          "value": "Not executed in Resonite",
+          "state": "no"
+        }
+      ],
+      "notice": "Not a complete lilToon recreation. Unsupported layers and animated effects can differ.",
+      "reference": "lilToon emission, baking & unsupported effects"
+    },
+    "poiyomi": {
+      "capture": {
+        "title": "Poiyomi comparison",
+        "caption": "Planned capture: source appearance beside the conversion, with any unmapped effects identified."
+      },
+      "lead": "Native materials, not a running Poiyomi shader.",
+      "pairs": [
+        {
+          "label": "Base textures & tint",
+          "value": "Mapped to native materials",
+          "state": "yes"
+        },
+        {
+          "label": "Supported static effects",
+          "value": "Approximate; inspect the preview",
+          "state": "partial"
+        },
+        {
+          "label": "Unity shader code",
+          "value": "Not executed in Resonite",
+          "state": "no"
+        }
+      ],
+      "notice": "A locked or optimized material may not expose the source properties needed for translation.",
+      "reference": "Poiyomi mappings, masks & locked materials"
+    },
+    "modular-avatar": {
+      "capture": {
+        "title": "Modular Avatar in use",
+        "caption": "Planned capture: one supported operation and its actual result. The component inventory above remains the source of support status."
+      },
+      "lead": "Outfit structure and initial appearance, not full MA behavior.",
+      "notice": "Initial values are not live controls. Each component below shows its actual boundary.",
+      "reference": "How Modular Avatar is translated"
+    },
+    "vrcfury": {
+      "capture": {
+        "title": "VRCFury in use",
+        "caption": "Planned capture: one supported translation and its actual result. The component inventory above remains the source of support status."
+      },
+      "lead": "Selected features transfer. The full VRCFury runtime does not.",
+      "notice": "A resting toggle appearance is not an interactive toggle or a restored saved parameter.",
+      "reference": "How VRCFury features are translated"
+    },
+    "no-prompt": {
+      "lead": "No import prompt? Check these three things.",
+      "media": [
+        {
+          "title": "Choose import",
+          "image": "pre-import-prompt.png",
+          "caption": "Choose Import Unity Package. Raw File bypasses the station."
+        }
+      ],
+      "steps": [
+        {
+          "title": "Fully restart",
+          "text": "A running Resonite session will not load a newly copied mod."
+        },
+        {
+          "title": "Check both DLLs",
+          "text": "Importer in rml_mods; YamlDotNet in rml_libs."
+        },
+        {
+          "title": "Check RML and the log",
+          "text": "Look for UnityPackageImporter startup errors."
+        }
+      ],
+      "reference": "Installation checks & log handling"
+    },
+    "missing-materials": {
+      "lead": "Missing texture or different shading? They need different fixes.",
+      "media": [
+        {
+          "title": "Add missing assets",
+          "image": "companion-package-prompt.png",
+          "caption": "Choose Import Companion Package if you have the missing source assets."
+        },
+        {
+          "title": "Preview materials",
+          "image": "material-customizer-spheres.png",
+          "caption": "Inspect the material on a preview sphere before assigning it."
+        }
+      ],
+      "pairs": [
+        {
+          "label": "Missing textures",
+          "value": "Supply the matching companion package",
+          "state": "partial"
+        },
+        {
+          "label": "Different shading",
+          "value": "Inspect the preset and shader limitations",
+          "state": "partial"
+        },
+        {
+          "label": "Not sure",
+          "value": "Read the item warning and receipt",
+          "state": "neutral"
+        }
+      ],
+      "reference": "Material diagnosis & companion workflow",
+      "composition": {
+        "kind": "diagnostic",
+        "kicker": "Material help",
+        "headline": "Missing texture.\nOr different shader?",
+        "description": "They can look similar. The next step is different.",
+        "image": "companion-package-prompt.png",
+        "alt": "Actual importer prompt requesting a companion package for unresolved source assets.",
+        "caption": "When source assets are unresolved, the station asks for a companion package.",
+        "verdict": {
+          "title": "Check the item warning first.",
+          "text": "Use the material warning and import receipt to identify the cause before changing settings."
+        },
+        "cases": [
+          {
+            "label": "Source asset is missing",
+            "title": "Add the matching package.",
+            "text": "Supply the companion package requested by the station. Use the same release as the avatar."
+          },
+          {
+            "label": "Texture exists, appearance differs",
+            "title": "Check the conversion.",
+            "text": "Unity shader code does not run in Resonite. Compare supported mappings and visual limitations."
+          }
+        ]
+      }
+    },
+    "blocked": {
+      "capture": {
+        "title": "Blocked import: before and after",
+        "caption": "Planned capture: a real blocking warning, the corrective action and the resulting readiness state."
+      },
+      "lead": "The item status tells you what to do next.",
+      "diagram": "readiness",
+      "reference": "Structural blockers & readiness rules"
+    },
+    "target": {
+      "lead": "Install onto an avatar you own in this session.",
+      "media": [
+        {
+          "title": "Choose your avatar",
+          "image": "outfit-choose-avatar.png",
+          "caption": "Select an avatar you own in this session."
+        }
+      ],
+      "steps": [
+        {
+          "title": "Choose your own target",
+          "text": "Use an avatar you spawned or own."
+        },
+        {
+          "title": "Check who is wearing it",
+          "text": "Targets worn by another user are rejected."
+        },
+        {
+          "title": "Try the supported target",
+          "text": "Do not bypass the station ownership check."
+        }
+      ],
+      "reference": "Why an outfit target is rejected"
+    },
+    "conflicts": {
+      "lead": "Use matching dependencies. Import order will not fix a conflict.",
+      "diagram": "conflict",
+      "steps": [
+        {
+          "title": "Match the release",
+          "text": "Use companion packages from the same avatar release."
+        },
+        {
+          "title": "Remove conflicting copies",
+          "text": "Do not mix different payloads for the same asset."
+        },
+        {
+          "title": "Import the consistent set",
+          "text": "The station must resolve one unambiguous asset."
+        }
+      ],
+      "reference": "How GUID and metadata conflicts are detected"
+    },
+    "partial": {
+      "lead": "One failed item does not mean the whole package failed.",
+      "diagram": "readiness",
+      "pairs": [
+        {
+          "label": "Valid item",
+          "value": "Review its own status",
+          "state": "yes"
+        },
+        {
+          "label": "Failed item",
+          "value": "Inspect its error separately",
+          "state": "no"
+        }
+      ],
+      "reference": "Per-item failures & cleanup"
+    },
+    "reports": {
+      "lead": "Share the problem, not your private avatar files.",
+      "diagram": "report",
+      "steps": [
+        {
+          "title": "Include the failure",
+          "text": "Add the item status and steps to reproduce."
+        },
+        {
+          "title": "Include useful context",
+          "text": "Version and relevant diagnostic text."
+        },
+        {
+          "title": "Review before sharing",
+          "text": "Remove names, paths and private asset data."
+        }
+      ],
+      "reference": "Reporting & privacy instructions"
+    }
+  }
+}

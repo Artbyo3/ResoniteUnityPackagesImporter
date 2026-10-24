@@ -1,0 +1,1784 @@
+{
+  "reviewed": "2026-10-23",
+  "scope": "MA Runtime components and VRCFury feature models plus authorable runtime components at the pinned source revisions. Internal helpers and base types are excluded; legacy migration models are separate. Not a coverage claim for every upstream release.",
+  "excluded": [
+    {
+      "type": "ModularAvatarMaterialChanger",
+      "reason": "Framework interface, base class or internal editor helper; not a separately authored capability."
+    },
+    {
+      "type": "VRCFuryComponent",
+      "reason": "Framework interface, base class or internal editor helper; not a separately authored capability."
+    },
+    {
+      "type": "VRCFuryHideGizmoUnlessSelected",
+      "reason": "Framework interface, base class or internal editor helper; not a separately authored capability."
+    },
+    {
+      "type": "VRCFuryNoUpdateWhenOffscreen",
+      "reason": "Framework interface, base class or internal editor helper; not a separately authored capability."
+    },
+    {
+      "type": "VRCFuryPlayComponent",
+      "reason": "Framework interface, base class or internal editor helper; not a separately authored capability."
+    },
+    {
+      "type": "VRCFurySocketGizmo",
+      "reason": "Framework interface, base class or internal editor helper; not a separately authored capability."
+    },
+    {
+      "type": "VRCFurySpsGreenScreenFix",
+      "reason": "Framework interface, base class or internal editor helper; not a separately authored capability."
+    },
+    {
+      "type": "FeatureModel",
+      "reason": "Framework interface, base class or internal editor helper; not a separately authored capability."
+    },
+    {
+      "type": "LegacyFeatureModel",
+      "reason": "Framework interface, base class or internal editor helper; not a separately authored capability."
+    },
+    {
+      "type": "NewFeatureModel",
+      "reason": "Framework interface, base class or internal editor helper; not a separately authored capability."
+    }
+  ],
+  "entries": [
+    {
+      "id": "ma-blendshapesync",
+      "framework": "ma",
+      "name": "Blendshape Sync",
+      "type": "ModularAvatarBlendshapeSync",
+      "status": "limited",
+      "outcome": "Initial linked blendshape weights transfer; live synchronization does not.",
+      "reason": "Animator-curve propagation and runtime parameter changes are not converted.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarBlendshapeSync.cs"
+      },
+      "evidence": [
+        "UnityPackageImporter/Models/BlendshapeInitialAppearance.cs",
+        "Tests/ComposedInitialAppearanceTests.cs"
+      ],
+      "summary": "Initial weights only. No live sync."
+    },
+    {
+      "id": "ma-boneproxy",
+      "framework": "ma",
+      "name": "Bone Proxy",
+      "type": "ModularAvatarBoneProxy",
+      "status": "limited",
+      "outcome": "Supported bone/path attachment and scale behavior transfer.",
+      "reason": "Requires a resolvable target in the owning avatar.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarBoneProxy.cs"
+      },
+      "evidence": [
+        "UnityPackageImporter/Frameworks/ModularAvatar/ModularAvatarPlanAdapter.cs",
+        "Tests/AvatarStructuralConversionTests.cs"
+      ],
+      "summary": "Bone or path attachment, with supported scale behavior."
+    },
+    {
+      "id": "ma-materialsetter",
+      "framework": "ma",
+      "name": "Material Setter",
+      "type": "ModularAvatarMaterialSetter",
+      "status": "limited",
+      "outcome": "Supported initial material-slot assignments transfer; live changes do not.",
+      "reason": "Requires exact renderer and material identities; unresolved context is reported rather than guessed.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ReactiveObjects/ModularAvatarMaterialSetter.cs"
+      },
+      "evidence": [
+        "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
+        "Tests/ModularAvatarInitialAppearanceTests.cs"
+      ],
+      "summary": "Initial material slots only. No live changes."
+    },
+    {
+      "id": "ma-menuitem",
+      "framework": "ma",
+      "name": "Menu Item",
+      "type": "ModularAvatarMenuItem",
+      "status": "limited",
+      "outcome": "Some menu context informs initial appearance; no usable menu is installed.",
+      "reason": "Only safely resolvable initial reactive context is evaluated. Full menu and parameter translation remain missing.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarMenuItem.cs"
+      },
+      "evidence": [
+        "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
+        "Tests/ModularAvatarInitialAppearanceTests.cs"
+      ],
+      "summary": "Initial context only. No usable menu."
+    },
+    {
+      "id": "ma-mergearmature",
+      "framework": "ma",
+      "name": "Merge Armature",
+      "type": "ModularAvatarMergeArmature",
+      "status": "limited",
+      "outcome": "Matching outfit bones map to the target; unmatched bones stay with the outfit.",
+      "reason": "Structural merge only; this does not imply support for other outfit components.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarMergeArmature.cs"
+      },
+      "evidence": [
+        "UnityPackageImporter/Frameworks/ModularAvatar/ModularAvatarPlanAdapter.cs",
+        "Tests/AvatarStructuralConversionTests.cs"
+      ],
+      "summary": "Matching bones merge; unmatched bones stay."
+    },
+    {
+      "id": "ma-objecttoggle",
+      "framework": "ma",
+      "name": "Object Toggle",
+      "type": "ModularAvatarObjectToggle",
+      "status": "limited",
+      "outcome": "Supported initial visibility transfers; interactive toggles do not.",
+      "reason": "Reactive defaults must resolve safely; no runtime parameter system is recreated.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ReactiveObjects/ModularAvatarObjectToggle.cs"
+      },
+      "evidence": [
+        "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
+        "Tests/ModularAvatarInitialAppearanceTests.cs"
+      ],
+      "summary": "Initial visibility only. No interactive toggle."
+    },
+    {
+      "id": "ma-shapechanger",
+      "framework": "ma",
+      "name": "Shape Changer",
+      "type": "ModularAvatarShapeChanger",
+      "status": "limited",
+      "outcome": "Supported initial Set weights transfer; deletion and live control do not.",
+      "reason": "Only reversible initial appearance is evaluated; ambiguous reactive context can block application.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ReactiveObjects/ModularAvatarShapeChanger.cs"
+      },
+      "evidence": [
+        "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
+        "Tests/ModularAvatarInitialAppearanceTests.cs"
+      ],
+      "summary": "Initial Set weights only. No deletion or live control."
+    },
+    {
+      "id": "vrcfury-applyduringupload",
+      "framework": "vrcfury",
+      "name": "Apply During Upload",
+      "type": "ApplyDuringUpload",
+      "status": "limited",
+      "outcome": "Supported reversible static actions transfer into initial appearance.",
+      "reason": "Only the implemented initial-action subset is evaluated, not arbitrary actions or runtime behavior.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/ApplyDuringUpload.cs"
+      },
+      "evidence": [
+        "UnityPackageImporter/Models/VrcFuryInitialAppearance.cs",
+        "Tests/ComposedInitialAppearanceTests.cs"
+      ],
+      "summary": "Supported reversible static actions only."
+    },
+    {
+      "id": "vrcfury-armaturelink",
+      "framework": "vrcfury",
+      "name": "Armature Link",
+      "type": "ArmatureLink",
+      "status": "limited",
+      "outcome": "Supported recursive merges and single-bone attachments transfer.",
+      "reason": "Target bones, offset paths and supported transform options must resolve.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/ArmatureLink.cs"
+      },
+      "evidence": [
+        "UnityPackageImporter/Frameworks/VrcFury/VrcFuryPlanAdapter.cs",
+        "Tests/AvatarStructuralConversionTests.cs"
+      ],
+      "summary": "Supported bone merge and attachment modes."
+    },
+    {
+      "id": "vrcfury-blendshapelink",
+      "framework": "vrcfury",
+      "name": "Blend Shape Link",
+      "type": "BlendShapeLink",
+      "status": "limited",
+      "outcome": "Initial linked blendshape weights transfer; live synchronization does not.",
+      "reason": "Runtime parameter behavior and animator-curve propagation are not converted.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/BlendShapeLink.cs"
+      },
+      "evidence": [
+        "UnityPackageImporter/Models/BlendshapeInitialAppearance.cs",
+        "Tests/ComposedInitialAppearanceTests.cs"
+      ],
+      "summary": "Initial weights only. No live sync."
+    },
+    {
+      "id": "vrcfury-toggle",
+      "framework": "vrcfury",
+      "name": "Toggle",
+      "type": "Toggle",
+      "status": "limited",
+      "outcome": "Supported authored resting appearance transfers; the interactive toggle does not.",
+      "reason": "Dynamic modes and saved runtime state are not inferred. Unsupported contexts are reported.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Toggle.cs"
+      },
+      "evidence": [
+        "UnityPackageImporter/Models/VrcFuryInitialAppearance.cs",
+        "Tests/ComposedInitialAppearanceTests.cs"
+      ],
+      "summary": "Resting appearance only. No interactive toggle."
+    },
+    {
+      "id": "ma-convertconstraints",
+      "framework": "ma",
+      "name": "Convert Constraints",
+      "type": "ModularAvatarConvertConstraints",
+      "status": "missing",
+      "outcome": "Convert Unity constraints for the target platform. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarConvertConstraints.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-flooradjuster",
+      "framework": "ma",
+      "name": "Floor Adjuster",
+      "type": "ModularAvatarFloorAdjuster",
+      "status": "missing",
+      "outcome": "Adjust the avatar against floor height. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarFloorAdjuster.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-globalcollider",
+      "framework": "ma",
+      "name": "Global Collider",
+      "type": "ModularAvatarGlobalCollider",
+      "status": "missing",
+      "outcome": "Extend collider interactions across the avatar. Not translated.",
+      "reason": "The importer does not recreate this collider behavior. A native Resonite equivalent needs design and validation.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarGlobalCollider.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-materialswap",
+      "framework": "ma",
+      "name": "Material Swap",
+      "type": "ModularAvatarMaterialSwap",
+      "status": "missing",
+      "outcome": "Swap materials through reactive rules. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ReactiveObjects/ModularAvatarMaterialSwap.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-menugroup",
+      "framework": "ma",
+      "name": "Menu Group",
+      "type": "ModularAvatarMenuGroup",
+      "status": "missing",
+      "outcome": "Group avatar controls into submenus. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/Menu/ModularAvatarMenuGroup.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-menuinstalltarget",
+      "framework": "ma",
+      "name": "Menu Install Target",
+      "type": "ModularAvatarMenuInstallTarget",
+      "status": "missing",
+      "outcome": "Choose where generated controls appear. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarMenuInstallTarget.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-menuinstaller",
+      "framework": "ma",
+      "name": "Menu Installer",
+      "type": "ModularAvatarMenuInstaller",
+      "status": "missing",
+      "outcome": "Install controls into an avatar menu. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/Menu/ModularAvatarMenuInstaller.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-mergeanimator",
+      "framework": "ma",
+      "name": "Merge Animator",
+      "type": "ModularAvatarMergeAnimator",
+      "status": "missing",
+      "outcome": "Merge animator-controller behavior. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarMergeAnimator.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-mergeblendtree",
+      "framework": "ma",
+      "name": "Merge Motion (Blend Tree)",
+      "type": "ModularAvatarMergeBlendTree",
+      "status": "missing",
+      "outcome": "Combine motion through a blend tree. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarMergeBlendTree.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-meshcutter",
+      "framework": "ma",
+      "name": "Mesh Cutter",
+      "type": "ModularAvatarMeshCutter",
+      "status": "missing",
+      "outcome": "Cut mesh regions during assembly. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ReactiveObjects/ModularAvatarMeshCutter.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-meshsettings",
+      "framework": "ma",
+      "name": "Mesh Settings",
+      "type": "ModularAvatarMeshSettings",
+      "status": "missing",
+      "outcome": "Set renderer bounds and probe settings. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarMeshSettings.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-moveto",
+      "framework": "ma",
+      "name": "Move To",
+      "type": "ModularAvatarMoveTo",
+      "status": "missing",
+      "outcome": "Move objects during avatar assembly. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarMoveTo.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-outfitroot",
+      "framework": "ma",
+      "name": "Outfit Root",
+      "type": "ModularAvatarOutfitRoot",
+      "status": "missing",
+      "outcome": "Declare an outfit root for assembly. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarOutfitRoot.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-parameters",
+      "framework": "ma",
+      "name": "Parameters",
+      "type": "ModularAvatarParameters",
+      "status": "missing",
+      "outcome": "Declare and remap avatar parameters. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarParameters.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-pbblocker",
+      "framework": "ma",
+      "name": "PhysBone Blocker",
+      "type": "ModularAvatarPBBlocker",
+      "status": "missing",
+      "outcome": "Control PhysBone processing. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarPBBlocker.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-platformfilter",
+      "framework": "ma",
+      "name": "Platform Filter",
+      "type": "ModularAvatarPlatformFilter",
+      "status": "missing",
+      "outcome": "Choose content for a platform build. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarPlatformFilter.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-reactivemove",
+      "framework": "ma",
+      "name": "Reactive Move",
+      "type": "ModularAvatarReactiveMove",
+      "status": "missing",
+      "outcome": "Move objects through reactive rules. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ReactiveObjects/ModularAvatarReactiveMove.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-replaceobject",
+      "framework": "ma",
+      "name": "Replace Object",
+      "type": "ModularAvatarReplaceObject",
+      "status": "missing",
+      "outcome": "Replace an object during assembly. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarReplaceObject.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-scaleadjuster",
+      "framework": "ma",
+      "name": "Scale Adjuster",
+      "type": "ModularAvatarScaleAdjuster",
+      "status": "missing",
+      "outcome": "Adjust bone scale. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ScaleAdjuster/ModularAvatarScaleAdjuster.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-visibleheadaccessory",
+      "framework": "ma",
+      "name": "Visible Head Accessory",
+      "type": "ModularAvatarVisibleHeadAccessory",
+      "status": "missing",
+      "outcome": "Keep head accessories visible in first person. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarVisibleHeadAccessory.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-worldfixedobject",
+      "framework": "ma",
+      "name": "World Fixed Object",
+      "type": "ModularAvatarWorldFixedObject",
+      "status": "missing",
+      "outcome": "Keep an object fixed in world space. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarWorldFixedObject.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-worldscaleobject",
+      "framework": "ma",
+      "name": "World Scale Object",
+      "type": "ModularAvatarWorldScaleObject",
+      "status": "missing",
+      "outcome": "Keep an object at world scale. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarWorldScaleObject.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-advancedcollider",
+      "framework": "vrcfury",
+      "name": "Advanced Collider",
+      "type": "AdvancedCollider",
+      "status": "missing",
+      "outcome": "Configure advanced avatar colliders. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/AdvancedCollider.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-anchoroverridefix2",
+      "framework": "vrcfury",
+      "name": "Anchor Override Fix2",
+      "type": "AnchorOverrideFix2",
+      "status": "missing",
+      "outcome": "Adjust renderer anchor overrides. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/AnchorOverrideFix2.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-avatarscale2",
+      "framework": "vrcfury",
+      "name": "Avatar Scale2",
+      "type": "AvatarScale2",
+      "status": "missing",
+      "outcome": "Scale the avatar and related settings. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/AvatarScale2.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-blendshapeoptimizer",
+      "framework": "vrcfury",
+      "name": "Blendshape Optimizer",
+      "type": "BlendshapeOptimizer",
+      "status": "missing",
+      "outcome": "Optimize blendshape processing. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/BlendshapeOptimizer.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-blinking",
+      "framework": "vrcfury",
+      "name": "Blinking",
+      "type": "Blinking",
+      "status": "missing",
+      "outcome": "Generate blinking behavior. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Blinking.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-boneconstraint",
+      "framework": "vrcfury",
+      "name": "Bone Constraint",
+      "type": "BoneConstraint",
+      "status": "missing",
+      "outcome": "Constrain a bone to a target. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/BoneConstraint.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-boundingboxfix2",
+      "framework": "vrcfury",
+      "name": "Bounding Box Fix2",
+      "type": "BoundingBoxFix2",
+      "status": "missing",
+      "outcome": "Adjust mesh bounds. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/BoundingBoxFix2.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-breathing",
+      "framework": "vrcfury",
+      "name": "Breathing",
+      "type": "Breathing",
+      "status": "missing",
+      "outcome": "Generate breathing motion. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Breathing.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-constraintretarget",
+      "framework": "vrcfury",
+      "name": "Constraint Retarget",
+      "type": "ConstraintRetarget",
+      "status": "missing",
+      "outcome": "Retarget constraints. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/ConstraintRetarget.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-crosseyefix2",
+      "framework": "vrcfury",
+      "name": "Cross Eye Fix2",
+      "type": "CrossEyeFix2",
+      "status": "missing",
+      "outcome": "Adjust eye behavior. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/CrossEyeFix2.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-deleteduringupload",
+      "framework": "vrcfury",
+      "name": "Delete During Upload",
+      "type": "DeleteDuringUpload",
+      "status": "missing",
+      "outcome": "Delete objects during a build. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/DeleteDuringUpload.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-fullcontroller",
+      "framework": "vrcfury",
+      "name": "Full Controller",
+      "type": "FullController",
+      "status": "missing",
+      "outcome": "Install controller, menu and parameter content. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/FullController.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-gesturedriver",
+      "framework": "vrcfury",
+      "name": "Gesture Driver",
+      "type": "GestureDriver",
+      "status": "missing",
+      "outcome": "Drive actions with hand gestures. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/GestureDriver.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-vrcfuryglobalcollider",
+      "framework": "vrcfury",
+      "name": "Global Collider",
+      "type": "VRCFuryGlobalCollider",
+      "status": "missing",
+      "outcome": "Configure cross-avatar collider interactions. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Component/VRCFuryGlobalCollider.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-modes",
+      "framework": "vrcfury",
+      "name": "Modes",
+      "type": "Modes",
+      "status": "missing",
+      "outcome": "Switch among configured avatar modes. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Modes.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-movemenuitem",
+      "framework": "vrcfury",
+      "name": "Move Menu Item",
+      "type": "MoveMenuItem",
+      "status": "missing",
+      "outcome": "Move a generated menu entry. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/MoveMenuItem.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-ogbintegration2",
+      "framework": "vrcfury",
+      "name": "OGBIntegration2",
+      "type": "OGBIntegration2",
+      "status": "missing",
+      "outcome": "Integrate avatar interaction behavior. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/OGBIntegration2.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-objectstate",
+      "framework": "vrcfury",
+      "name": "Object State",
+      "type": "ObjectState",
+      "status": "missing",
+      "outcome": "Apply legacy object-state behavior. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/ObjectState.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-overridemenusettings",
+      "framework": "vrcfury",
+      "name": "Override Menu Settings",
+      "type": "OverrideMenuSettings",
+      "status": "missing",
+      "outcome": "Override generated menu settings. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/OverrideMenuSettings.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-puppet",
+      "framework": "vrcfury",
+      "name": "Puppet",
+      "type": "Puppet",
+      "status": "missing",
+      "outcome": "Drive actions with continuous controls. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Puppet.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-removeblinking",
+      "framework": "vrcfury",
+      "name": "Remove Blinking",
+      "type": "RemoveBlinking",
+      "status": "missing",
+      "outcome": "Remove generated blinking behavior. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/RemoveBlinking.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-reordermenuitem",
+      "framework": "vrcfury",
+      "name": "Reorder Menu Item",
+      "type": "ReorderMenuItem",
+      "status": "missing",
+      "outcome": "Reorder generated menu entries. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/ReorderMenuItem.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-vrcfuryhapticplug",
+      "framework": "vrcfury",
+      "name": "SPS Plug",
+      "type": "VRCFuryHapticPlug",
+      "status": "missing",
+      "outcome": "Configure an SPS plug. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Component/VRCFuryHapticPlug.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-vrcfuryhapticsocket",
+      "framework": "vrcfury",
+      "name": "SPS Socket",
+      "type": "VRCFuryHapticSocket",
+      "status": "missing",
+      "outcome": "Configure an SPS socket. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Component/VRCFuryHapticSocket.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-vrcfuryhaptictouchreceiver",
+      "framework": "vrcfury",
+      "name": "SPS Touch Zone",
+      "type": "VRCFuryHapticTouchReceiver",
+      "status": "missing",
+      "outcome": "Receive SPS touch interactions. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Component/VRCFuryHapticTouchReceiver.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-securitylock",
+      "framework": "vrcfury",
+      "name": "Security Lock",
+      "type": "SecurityLock",
+      "status": "missing",
+      "outcome": "Add parameter-based avatar controls. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/SecurityLock.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-securityrestricted",
+      "framework": "vrcfury",
+      "name": "Security Restricted",
+      "type": "SecurityRestricted",
+      "status": "missing",
+      "outcome": "Restrict configured avatar actions. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/SecurityRestricted.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-senkygesturedriver",
+      "framework": "vrcfury",
+      "name": "Senky Gesture Driver",
+      "type": "SenkyGestureDriver",
+      "status": "missing",
+      "outcome": "Drive gesture-dependent actions. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/SenkyGestureDriver.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-seticon",
+      "framework": "vrcfury",
+      "name": "Set Icon",
+      "type": "SetIcon",
+      "status": "missing",
+      "outcome": "Set a generated menu icon. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/SetIcon.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-showinfirstperson",
+      "framework": "vrcfury",
+      "name": "Show In First Person",
+      "type": "ShowInFirstPerson",
+      "status": "missing",
+      "outcome": "Keep selected objects visible in first person. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/ShowInFirstPerson.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-spsoptions",
+      "framework": "vrcfury",
+      "name": "Sps Options",
+      "type": "SpsOptions",
+      "status": "missing",
+      "outcome": "Configure SPS interactions. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/SpsOptions.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-tpsintegration2",
+      "framework": "vrcfury",
+      "name": "TPSIntegration2",
+      "type": "TPSIntegration2",
+      "status": "missing",
+      "outcome": "Translate third-party interaction setup. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/TPSIntegration2.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-talking",
+      "framework": "vrcfury",
+      "name": "Talking",
+      "type": "Talking",
+      "status": "missing",
+      "outcome": "Drive actions while speaking. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Talking.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-toes",
+      "framework": "vrcfury",
+      "name": "Toes",
+      "type": "Toes",
+      "status": "missing",
+      "outcome": "Configure toe-related behavior. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Toes.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-vrcfuryhaptictouchsender",
+      "framework": "vrcfury",
+      "name": "Touch Sender",
+      "type": "VRCFuryHapticTouchSender",
+      "status": "missing",
+      "outcome": "Send SPS touch interactions. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Component/VRCFuryHapticTouchSender.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-tpsscalefix",
+      "framework": "vrcfury",
+      "name": "Tps Scale Fix",
+      "type": "TpsScaleFix",
+      "status": "missing",
+      "outcome": "Adjust third-party interaction scaling. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/TpsScaleFix.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-visemes",
+      "framework": "vrcfury",
+      "name": "Visemes",
+      "type": "Visemes",
+      "status": "missing",
+      "outcome": "Configure speech shapes. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Visemes.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-worldconstraint",
+      "framework": "vrcfury",
+      "name": "World Constraint",
+      "type": "WorldConstraint",
+      "status": "missing",
+      "outcome": "Keep an object fixed in world space. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/WorldConstraint.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-zawoointegration",
+      "framework": "vrcfury",
+      "name": "Zawoo Integration",
+      "type": "ZawooIntegration",
+      "status": "missing",
+      "outcome": "Integrate third-party interaction setup. Not translated.",
+      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/ZawooIntegration.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-mmdlayercontrol",
+      "framework": "ma",
+      "name": "MMD Layer Control",
+      "type": "ModularAvatarMMDLayerControl",
+      "status": "not-applicable",
+      "outcome": "VRChat MMD animation-layer rules have no direct importer target.",
+      "reason": "VRChat MMD animation-layer rules have no direct importer target.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarMMDLayerControl.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-renamevrchatcollisiontags",
+      "framework": "ma",
+      "name": "Rename VRChat Collision Tags",
+      "type": "ModularAvatarRenameVRChatCollisionTags",
+      "status": "not-applicable",
+      "outcome": "VRChat collision-tag names do not define Resonite physics behavior.",
+      "reason": "VRChat collision-tag names do not define Resonite physics behavior.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarRenameVRChatCollisionTags.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-syncparametersequence",
+      "framework": "ma",
+      "name": "Sync Parameter Sequence",
+      "type": "ModularAvatarSyncParameterSequence",
+      "status": "not-applicable",
+      "outcome": "VRChat network parameter ordering is not a Resonite parameter contract.",
+      "reason": "VRChat network parameter ordering is not a Resonite parameter contract.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarSyncParameterSequence.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "ma-vrchatsettings",
+      "framework": "ma",
+      "name": "VRChat Settings",
+      "type": "ModularAvatarVRChatSettings",
+      "status": "not-applicable",
+      "outcome": "VRChat descriptor/build settings do not configure a Resonite avatar.",
+      "reason": "VRChat descriptor/build settings do not configure a Resonite avatar.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "bdunderscore/modular-avatar",
+        "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+        "path": "Runtime/ModularAvatarVRChatSettings.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-descriptordebug",
+      "framework": "vrcfury",
+      "name": "Descriptor Debug",
+      "type": "DescriptorDebug",
+      "status": "not-applicable",
+      "outcome": "VRChat descriptor diagnostics are not avatar content to recreate.",
+      "reason": "VRChat descriptor diagnostics are not avatar content to recreate.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/DescriptorDebug.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-directtreeoptimizer",
+      "framework": "vrcfury",
+      "name": "Direct Tree Optimizer",
+      "type": "DirectTreeOptimizer",
+      "status": "not-applicable",
+      "outcome": "This optimizes Unity animator output; Resonite does not execute that controller.",
+      "reason": "This optimizes Unity animator output; Resonite does not execute that controller.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/DirectTreeOptimizer.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-fixwritedefaults",
+      "framework": "vrcfury",
+      "name": "Fix Write Defaults",
+      "type": "FixWriteDefaults",
+      "status": "not-applicable",
+      "outcome": "Unity animator write-default rules are not a native Resonite animation system.",
+      "reason": "Unity animator write-default rules are not a native Resonite animation system.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/FixWriteDefaults.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-gizmo",
+      "framework": "vrcfury",
+      "name": "Gizmo",
+      "type": "Gizmo",
+      "status": "not-applicable",
+      "outcome": "Unity editor gizmos are editing aids, not imported avatar behavior.",
+      "reason": "Unity editor gizmos are editing aids, not imported avatar behavior.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Gizmo.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-headchophead",
+      "framework": "vrcfury",
+      "name": "Head Chop Head",
+      "type": "HeadChopHead",
+      "status": "not-applicable",
+      "outcome": "VRChat head-chop settings are not portable; first-person appearance needs a native design.",
+      "reason": "VRChat head-chop settings are not portable; first-person appearance needs a native design.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/HeadChopHead.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-mmdcompatibility",
+      "framework": "vrcfury",
+      "name": "Mmd Compatibility",
+      "type": "MmdCompatibility",
+      "status": "not-applicable",
+      "outcome": "VRChat MMD layer conventions have no direct importer target.",
+      "reason": "VRChat MMD layer conventions have no direct importer target.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/MmdCompatibility.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-removehandgestures2",
+      "framework": "vrcfury",
+      "name": "Remove Hand Gestures2",
+      "type": "RemoveHandGestures2",
+      "status": "not-applicable",
+      "outcome": "VRChat gesture-layer removal does not remove a native Resonite system.",
+      "reason": "VRChat gesture-layer removal does not remove a native Resonite system.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/RemoveHandGestures2.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-slot4fix",
+      "framework": "vrcfury",
+      "name": "Slot4Fix",
+      "type": "Slot4Fix",
+      "status": "not-applicable",
+      "outcome": "A VRChat animator-layer workaround is not applicable to the Resonite runtime.",
+      "reason": "A VRChat animator-layer workaround is not applicable to the Resonite runtime.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Slot4Fix.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-unlimitedparameters",
+      "framework": "vrcfury",
+      "name": "Unlimited Parameters",
+      "type": "UnlimitedParameters",
+      "status": "not-applicable",
+      "outcome": "VRChat expression-parameter budgets do not apply to Resonite.",
+      "reason": "VRChat expression-parameter budgets do not apply to Resonite.",
+      "legacy": false,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/UnlimitedParameters.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-anchoroverridefix",
+      "framework": "vrcfury",
+      "name": "Anchor Override Fix",
+      "type": "AnchorOverrideFix",
+      "status": "legacy",
+      "outcome": "Legacy serialized feature; not a separate new support target.",
+      "reason": "An older upstream migration model. Assess its current replacement separately; this is not counted as another missing capability.",
+      "legacy": true,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/AnchorOverrideFix.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-avatarscale",
+      "framework": "vrcfury",
+      "name": "Avatar Scale",
+      "type": "AvatarScale",
+      "status": "legacy",
+      "outcome": "Legacy serialized feature; not a separate new support target.",
+      "reason": "An older upstream migration model. Assess its current replacement separately; this is not counted as another missing capability.",
+      "legacy": true,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/AvatarScale.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-boundingboxfix",
+      "framework": "vrcfury",
+      "name": "Bounding Box Fix",
+      "type": "BoundingBoxFix",
+      "status": "legacy",
+      "outcome": "Legacy serialized feature; not a separate new support target.",
+      "reason": "An older upstream migration model. Assess its current replacement separately; this is not counted as another missing capability.",
+      "legacy": true,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/BoundingBoxFix.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-crosseyefix",
+      "framework": "vrcfury",
+      "name": "Cross Eye Fix",
+      "type": "CrossEyeFix",
+      "status": "legacy",
+      "outcome": "Legacy serialized feature; not a separate new support target.",
+      "reason": "An older upstream migration model. Assess its current replacement separately; this is not counted as another missing capability.",
+      "legacy": true,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/CrossEyeFix.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-makewritedefaultsoff",
+      "framework": "vrcfury",
+      "name": "Make Write Defaults Off",
+      "type": "MakeWriteDefaultsOff",
+      "status": "legacy",
+      "outcome": "Legacy serialized feature; not a separate new support target.",
+      "reason": "An older upstream migration model. Assess its current replacement separately; this is not counted as another missing capability.",
+      "legacy": true,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/MakeWriteDefaultsOff.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-makewritedefaultsoff2",
+      "framework": "vrcfury",
+      "name": "Make Write Defaults Off2",
+      "type": "MakeWriteDefaultsOff2",
+      "status": "legacy",
+      "outcome": "Legacy serialized feature; not a separate new support target.",
+      "reason": "An older upstream migration model. Assess its current replacement separately; this is not counted as another missing capability.",
+      "legacy": true,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/MakeWriteDefaultsOff2.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-ogbintegration",
+      "framework": "vrcfury",
+      "name": "OGBIntegration",
+      "type": "OGBIntegration",
+      "status": "legacy",
+      "outcome": "Legacy serialized feature; not a separate new support target.",
+      "reason": "An older upstream migration model. Assess its current replacement separately; this is not counted as another missing capability.",
+      "legacy": true,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/OGBIntegration.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-removehandgestures",
+      "framework": "vrcfury",
+      "name": "Remove Hand Gestures",
+      "type": "RemoveHandGestures",
+      "status": "legacy",
+      "outcome": "Legacy serialized feature; not a separate new support target.",
+      "reason": "An older upstream migration model. Assess its current replacement separately; this is not counted as another missing capability.",
+      "legacy": true,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/RemoveHandGestures.cs"
+      },
+      "evidence": []
+    },
+    {
+      "id": "vrcfury-tpsintegration",
+      "framework": "vrcfury",
+      "name": "TPSIntegration",
+      "type": "TPSIntegration",
+      "status": "legacy",
+      "outcome": "Legacy serialized feature; not a separate new support target.",
+      "reason": "An older upstream migration model. Assess its current replacement separately; this is not counted as another missing capability.",
+      "legacy": true,
+      "work": "unplanned",
+      "issue": null,
+      "source": {
+        "repo": "VRCFury/VRCFury",
+        "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+        "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/TPSIntegration.cs"
+      },
+      "evidence": []
+    }
+  ]
+}

@@ -36,7 +36,7 @@ nav = [
   ] },
 ]
 
-extra_css = ["../stylesheets/notice.css", "../stylesheets/branding.css", "../stylesheets/landing-v2.css"]
+extra_css = ["../stylesheets/notice.css", "../stylesheets/branding.css", "../stylesheets/landing-v2.css", "../stylesheets/page-transitions.css"]
 extra_javascript = ["../javascripts/avatar-comparison.js", "../javascripts/contributors-v2.js", "../javascripts/landing-video.js"]
 
 [project.markdown_extensions]

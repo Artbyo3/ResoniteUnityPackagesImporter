@@ -16,7 +16,7 @@ These warnings indicate partial compatibility and do not by themselves block ava
 
 ## Before evaluating a package
 
-Check whether required materials are included or supplied separately. If a package separates materials, the importer can request a [companion package](../../importing/companion-packages/) during import.
+Check whether required materials are included or supplied separately. If a package separates materials, the importer can request a companion package during import.
 
 Avatar creation and clothing installation have their own Resonite workflows. The framework and shader pages describe feature-specific compatibility.
 

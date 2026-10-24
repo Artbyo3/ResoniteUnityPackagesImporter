@@ -1,0 +1,288 @@
+repository = "https://github.com/Artbyo3/ResoniteUnityPackagesImporter"
+
+[[groups]]
+id = "start"
+label = "Getting started"
+short = "Start"
+default = "first-import"
+
+[[groups]]
+id = "import"
+label = "Import content"
+short = "Import"
+default = "avatars"
+
+[[groups]]
+id = "compatibility"
+label = "Compatibility"
+short = "Support"
+default = "compatibility"
+
+[[groups]]
+id = "help"
+label = "Fix a problem"
+short = "Help"
+default = "no-prompt"
+
+[[groups]]
+id = "about"
+label = "About & legal"
+short = "About"
+default = "license"
+
+[[topics]]
+id = "first-import"
+group = "start"
+label = "First import"
+title = "Your first import"
+page = "getting-started/index.md"
+route = "getting-started/"
+keywords = ""
+sources = [{ file = "getting-started/index.md", section = "Before you start" }, { file = "getting-started/installation.md", section = "Prerequisites", heading = "You need" }, { file = "getting-started/installation.md", section = "Install the mod", heading = "Install the importer" }, { file = "getting-started/index.md", section = "Import and review", heading = "Import and review" }]
+
+[[topics]]
+id = "install"
+group = "start"
+label = "Install"
+title = "Install the importer"
+page = "getting-started/installation.md"
+route = "getting-started/installation/"
+keywords = "download DLL YamlDotNet RML Windows"
+sources = [{ file = "getting-started/installation.md", section = "Prerequisites", heading = "You need" }, { file = "getting-started/installation.md", section = "Install the mod", heading = "Install the files" }]
+
+[[topics]]
+id = "update"
+group = "start"
+label = "Update & remove"
+title = "Update, roll back or uninstall"
+page = "getting-started/installation.md"
+route = "getting-started/installation/"
+keywords = ""
+anchor = "updating"
+sources = [{ file = "getting-started/installation.md", section = "Updating" }, { file = "getting-started/installation.md", section = "Rollback and uninstallation", heading = "Roll back or remove" }]
+
+[[topics]]
+id = "settings"
+group = "start"
+label = "Settings"
+title = "Importer settings"
+page = "getting-started/installation.md"
+route = "getting-started/installation/"
+keywords = "config importPrefab dumpPackageContents importAsRawFiles"
+anchor = "configuration"
+sources = [{ file = "getting-started/installation.md", section = "Configuration" }]
+
+[[topics]]
+id = "avatars"
+group = "import"
+label = "Avatars"
+title = "Import an avatar"
+page = "importing/avatars.md"
+route = "importing/avatars/"
+keywords = ""
+sources = [{ file = "importing/avatars.md" }]
+
+[[topics]]
+id = "clothing"
+group = "import"
+label = "Clothing & props"
+title = "Install clothing on an avatar"
+page = "importing/clothing.md"
+route = "importing/clothing/"
+keywords = ""
+sources = [{ file = "importing/clothing.md" }]
+
+[[topics]]
+id = "companions"
+group = "import"
+label = "Missing dependencies"
+title = "Add a companion package"
+page = "importing/companion-packages.md"
+route = "importing/companion-packages/"
+keywords = "missing textures pink white materials dependencies"
+sources = [{ file = "importing/companion-packages.md" }]
+
+[[topics]]
+id = "compatibility"
+capabilities = "vrchat"
+group = "compatibility"
+label = "Overview"
+title = "What can I import?"
+page = "reference/compatibility/index.md"
+route = "reference/compatibility/"
+keywords = ""
+sources = [{ file = "reference/compatibility/index.md" }]
+
+[[topics]]
+id = "packages"
+group = "compatibility"
+label = "Package content"
+title = "What transfers from a Unity package"
+page = "reference/compatibility/unity-packages.md"
+route = "reference/compatibility/unity-packages/"
+keywords = "mesh scene prefab nested blendshape rig"
+status = "Supported with limits"
+sources = [{ file = "reference/compatibility/unity-packages.md" }]
+
+[[topics]]
+id = "materials"
+group = "compatibility"
+label = "Materials"
+title = "How materials are converted"
+page = "reference/compatibility/shaders/index.md"
+route = "reference/compatibility/shaders/"
+keywords = "shader PBS toon automatic different appearance"
+sources = [{ file = "reference/compatibility/shaders/index.md" }]
+
+[[topics]]
+id = "standard"
+group = "compatibility"
+label = "Standard / PBS"
+title = "Standard and PBS materials"
+page = "reference/compatibility/shaders/standard.md"
+route = "reference/compatibility/shaders/standard/"
+keywords = "metallic smoothness albedo normal emission"
+status = "Supported"
+sources = [{ file = "reference/compatibility/shaders/standard.md" }]
+
+[[topics]]
+id = "liltoon"
+group = "compatibility"
+label = "lilToon"
+title = "lilToon"
+page = "reference/compatibility/shaders/liltoon.md"
+route = "reference/compatibility/shaders/liltoon/"
+keywords = ""
+status = "Supported with limits"
+sources = [{ file = "reference/compatibility/shaders/liltoon.md" }]
+
+[[topics]]
+id = "poiyomi"
+group = "compatibility"
+label = "Poiyomi"
+title = "Poiyomi"
+page = "reference/compatibility/shaders/poiyomi.md"
+route = "reference/compatibility/shaders/poiyomi/"
+keywords = "locked AudioLink MatCap mask HDR emission"
+status = "Supported with limits"
+sources = [{ file = "reference/compatibility/shaders/poiyomi.md" }]
+
+[[topics]]
+id = "modular-avatar"
+capabilities = "ma"
+group = "compatibility"
+label = "Modular Avatar"
+title = "Modular Avatar"
+page = "reference/compatibility/modular-avatar.md"
+route = "reference/compatibility/modular-avatar/"
+keywords = "merge armature bone proxy Shape Changer"
+status = "Supported with limits"
+sources = [{ file = "reference/compatibility/modular-avatar.md" }]
+
+[[topics]]
+id = "vrcfury"
+capabilities = "vrcfury"
+group = "compatibility"
+label = "VRCFury"
+title = "VRCFury"
+page = "reference/compatibility/vrcfury.md"
+route = "reference/compatibility/vrcfury/"
+keywords = "controllers menus toggles armature link"
+status = "Structural features only"
+sources = [{ file = "reference/compatibility/vrcfury.md" }]
+
+[[topics]]
+id = "no-prompt"
+group = "help"
+label = "No import prompt"
+title = "The import prompt does not appear"
+page = "reference/troubleshooting.md"
+route = "reference/troubleshooting/"
+keywords = ""
+anchor = "the-import-prompt-does-not-appear"
+sources = [{ file = "reference/troubleshooting.md", section = "The import prompt does not appear" }, { file = "getting-started/installation.md", section = "Install the mod", heading = "Check the installed files" }]
+
+[[topics]]
+id = "missing-materials"
+group = "help"
+label = "Material problems"
+title = "Textures are missing or look different"
+page = "reference/troubleshooting.md"
+route = "reference/troubleshooting/"
+keywords = ""
+anchor = "textures-are-missing-or-materials-look-different"
+sources = [{ file = "reference/troubleshooting.md", section = "Textures are missing or materials look different" }, { file = "importing/companion-packages.md" }]
+
+[[topics]]
+id = "blocked"
+group = "help"
+label = "Cannot create avatar"
+title = "The station will not create the avatar"
+page = "reference/troubleshooting.md"
+route = "reference/troubleshooting/"
+keywords = ""
+anchor = "the-station-will-not-create-the-avatar"
+sources = [{ file = "reference/troubleshooting.md", section = "The station will not create the avatar" }]
+
+[[topics]]
+id = "target"
+group = "help"
+label = "Outfit rejected"
+title = "The outfit target is rejected"
+page = "reference/troubleshooting.md"
+route = "reference/troubleshooting/"
+keywords = ""
+anchor = "an-outfit-target-is-rejected"
+sources = [{ file = "reference/troubleshooting.md", section = "An outfit target is rejected" }]
+
+[[topics]]
+id = "conflicts"
+group = "help"
+label = "Package conflict"
+title = "Companion packages conflict"
+page = "reference/troubleshooting.md"
+route = "reference/troubleshooting/"
+keywords = ""
+anchor = "companion-packages-conflict"
+sources = [{ file = "reference/troubleshooting.md", section = "Companion packages conflict" }]
+
+[[topics]]
+id = "partial"
+group = "help"
+label = "Partial import"
+title = "Some items imported, but another failed"
+page = "reference/troubleshooting.md"
+route = "reference/troubleshooting/"
+keywords = ""
+anchor = "some-items-imported-but-another-failed"
+sources = [{ file = "reference/troubleshooting.md", section = "Some items imported, but another failed" }]
+
+[[topics]]
+id = "reports"
+group = "help"
+label = "Share a report"
+title = "Report a problem without sharing your assets"
+page = "reference/sharing-reports.md"
+route = "reference/sharing-reports/"
+keywords = "privacy anonymous diagnostic logs names"
+sources = [{ file = "reference/sharing-reports.md" }]
+
+[[topics]]
+id = "license"
+group = "about"
+label = "License & content rights"
+title = "License and content rights"
+page = "legal/index.md"
+route = "legal/"
+keywords = ""
+sources = [{ file = "legal/index.md" }]
+
+[[topics]]
+id = "notices"
+group = "about"
+label = "Third-party notices"
+title = "Third-party notices"
+page = "legal/third-party-notices.md"
+route = "legal/third-party-notices/"
+keywords = ""
+sources = [{ file = "legal/third-party-notices.md" }]

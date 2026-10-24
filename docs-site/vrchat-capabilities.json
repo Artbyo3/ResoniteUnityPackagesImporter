@@ -1,0 +1,365 @@
+{
+  "reviewed": "2026-10-24",
+  "scope": "VRChat SDK components from the pinned official Allowed Avatar Components list, with VRCConstraint expanded into its six concrete types. Avatar usage only; Unity components, FinalIK, Dynamic Bone and world/Udon systems are outside this inventory. Deprecated IK Follower is separate. Statuses are based on the documented release source, not a new live import test.",
+  "excluded": [],
+  "entries": [
+    {
+      "id": "vrchat-avatar-descriptor",
+      "framework": "vrchat",
+      "name": "Avatar Descriptor",
+      "type": "VRCAvatarDescriptor",
+      "status": "limited",
+      "summary": "Avatar root and viewpoint only. Not full avatar behavior.",
+      "outcome": "The importer identifies avatar roots and reads the authored viewpoint for native avatar creation.",
+      "reason": "This is not a complete descriptor translation. SDK lip-sync configuration, eye-look settings, playable layers, expression menus and network parameters are not reproduced as a VRChat runtime.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarPackageIndex.cs",
+        "UnityPackageImporter/Models/NativeAvatarCreation.cs",
+        "Tests/AvatarViewpointTests.cs",
+        "Tests/AvatarImportSelectionTests.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/avatars/whitelisted-avatar-components/index.md"
+      }
+    },
+    {
+      "id": "vrchat-physbone",
+      "framework": "vrchat",
+      "name": "PhysBone",
+      "type": "VRCPhysBone",
+      "status": "missing",
+      "summary": "No automatic secondary-motion conversion.",
+      "outcome": "PhysBone simulation and interaction are not translated.",
+      "reason": "A visible bone chain or retained resting transform is not a physics setup. The importer has no VRCPhysBone-to-native simulation translator.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/common-components/physbones.md"
+      }
+    },
+    {
+      "id": "vrchat-physbone-collider",
+      "framework": "vrchat",
+      "name": "PhysBone Collider",
+      "type": "VRCPhysBoneCollider",
+      "status": "missing",
+      "summary": "PhysBone collision shapes are not recreated.",
+      "outcome": "PhysBone collider settings and their simulation links are not translated.",
+      "reason": "A retained object transform is not a working collider for secondary motion. Native collision setup would need its own translation.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/common-components/physbones.md"
+      }
+    },
+    {
+      "id": "vrchat-contact-sender",
+      "framework": "vrchat",
+      "name": "Contact Sender",
+      "type": "VRCContactSender",
+      "status": "missing",
+      "summary": "Contact shapes and tags do not transfer.",
+      "outcome": "The sender shape, contact tags and interaction behavior are not recreated.",
+      "reason": "Source objects may remain as ordinary transforms. That does not create native contact detection or matching tags.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/common-components/contacts/index.md"
+      }
+    },
+    {
+      "id": "vrchat-contact-receiver",
+      "framework": "vrchat",
+      "name": "Contact Receiver",
+      "type": "VRCContactReceiver",
+      "status": "missing",
+      "summary": "No contact detection or parameter output.",
+      "outcome": "The receiver volume, detection rules and parameter response are not translated.",
+      "reason": "There is no native conversion of the VRChat contact-to-parameter behavior. Static appearance is not an interactive contact system.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/common-components/contacts/index.md"
+      }
+    },
+    {
+      "id": "vrchat-aim-constraint",
+      "framework": "vrchat",
+      "name": "Aim Constraint",
+      "type": "VRCAimConstraint",
+      "status": "missing",
+      "summary": "Aiming behavior is not recreated.",
+      "outcome": "Source-driven aim rotation is not translated.",
+      "reason": "Keeping an authored transform is not a live constraint. VRChat-specific constraint settings and runtime evaluation need a dedicated translator; Unity component handling is not evidence of support for this SDK component.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/common-components/constraints/vrc-aim-constraint.mdx"
+      }
+    },
+    {
+      "id": "vrchat-look-at-constraint",
+      "framework": "vrchat",
+      "name": "Look At Constraint",
+      "type": "VRCLookAtConstraint",
+      "status": "missing",
+      "summary": "Look-at tracking is not recreated.",
+      "outcome": "Source-driven look-at tracking is not translated.",
+      "reason": "Keeping an authored transform is not a live constraint. VRChat-specific constraint settings and runtime evaluation need a dedicated translator; Unity component handling is not evidence of support for this SDK component.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/common-components/constraints/vrc-look-at-constraint.mdx"
+      }
+    },
+    {
+      "id": "vrchat-parent-constraint",
+      "framework": "vrchat",
+      "name": "Parent Constraint",
+      "type": "VRCParentConstraint",
+      "status": "missing",
+      "summary": "Source-following and world locking do not transfer.",
+      "outcome": "The VRChat parent constraint, source weights and freeze-to-world behavior are not translated.",
+      "reason": "Keeping an authored transform is not a live constraint. VRChat-specific constraint settings and runtime evaluation need a dedicated translator; Unity component handling is not evidence of support for this SDK component.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/common-components/constraints/vrc-parent-constraint.mdx"
+      }
+    },
+    {
+      "id": "vrchat-position-constraint",
+      "framework": "vrchat",
+      "name": "Position Constraint",
+      "type": "VRCPositionConstraint",
+      "status": "missing",
+      "summary": "Position following is not recreated.",
+      "outcome": "Source-weighted position following is not translated.",
+      "reason": "Keeping an authored transform is not a live constraint. VRChat-specific constraint settings and runtime evaluation need a dedicated translator; Unity component handling is not evidence of support for this SDK component.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/common-components/constraints/vrc-position-constraint.mdx"
+      }
+    },
+    {
+      "id": "vrchat-rotation-constraint",
+      "framework": "vrchat",
+      "name": "Rotation Constraint",
+      "type": "VRCRotationConstraint",
+      "status": "missing",
+      "summary": "VRChat rotation constraints are not translated.",
+      "outcome": "Source-weighted VRChat rotation following is not translated.",
+      "reason": "Keeping an authored transform is not a live constraint. VRChat-specific constraint settings and runtime evaluation need a dedicated translator; Unity component handling is not evidence of support for this SDK component.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/common-components/constraints/vrc-rotation-constraint.mdx"
+      }
+    },
+    {
+      "id": "vrchat-scale-constraint",
+      "framework": "vrchat",
+      "name": "Scale Constraint",
+      "type": "VRCScaleConstraint",
+      "status": "missing",
+      "summary": "Scale following is not recreated.",
+      "outcome": "Source-weighted scale following is not translated.",
+      "reason": "Keeping an authored transform is not a live constraint. VRChat-specific constraint settings and runtime evaluation need a dedicated translator; Unity component handling is not evidence of support for this SDK component.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/common-components/constraints/vrc-scale-constraint.mdx"
+      }
+    },
+    {
+      "id": "vrchat-head-chop",
+      "framework": "vrchat",
+      "name": "Head Chop",
+      "type": "VRCHeadChop",
+      "status": "missing",
+      "summary": "Authored first-person hiding rules do not transfer.",
+      "outcome": "VRChat Head Chop targets and first-person visibility settings are not translated.",
+      "reason": "Native avatar creation does not imply that authored SDK head-hiding rules were converted.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/avatars/avatar-components/vrc-headchop.md"
+      }
+    },
+    {
+      "id": "vrchat-raycast",
+      "framework": "vrchat",
+      "name": "Raycast",
+      "type": "VRCRaycast",
+      "status": "missing",
+      "summary": "Raycast behavior is not recreated.",
+      "outcome": "The SDK raycast component is not translated into native raycast behavior.",
+      "reason": "A retained object or bone is not a functioning raycast system.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/avatars/avatar-components/raycast.md"
+      }
+    },
+    {
+      "id": "vrchat-spatial-audio",
+      "framework": "vrchat",
+      "name": "Spatial Audio Source",
+      "type": "VRCSpatialAudioSource",
+      "status": "missing",
+      "summary": "SDK audio spatialization settings do not transfer.",
+      "outcome": "VRChat-specific spatial audio behavior is not translated.",
+      "reason": "Importing package assets is separate from recreating this SDK component and its playback or spatialization settings.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/worlds/components/vrc_spatialaudiosource.md"
+      }
+    },
+    {
+      "id": "vrchat-station",
+      "framework": "vrchat",
+      "name": "Station",
+      "type": "VRCStation",
+      "status": "missing",
+      "summary": "No automatic native seat or station setup.",
+      "outcome": "SDK station entry, exit and seating behavior are not recreated.",
+      "reason": "The station component needs a dedicated native translation; a preserved transform is not an interactive seat.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/worlds/components/vrc_station.md"
+      }
+    },
+    {
+      "id": "vrchat-pipeline-manager",
+      "framework": "vrchat",
+      "name": "Pipeline Manager",
+      "type": "VRCPipelineManager",
+      "status": "not-applicable",
+      "summary": "VRChat upload identity. Not a Resonite feature.",
+      "outcome": "VRChat blueprint and publishing identity are not carried into Resonite.",
+      "reason": "These identifiers belong to VRChat publishing. They do not establish a native runtime capability and are excluded from the progress total.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [],
+      "legacy": false,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/sdk/vrcpipelinemanager.md"
+      }
+    },
+    {
+      "id": "vrchat-ik-follower",
+      "framework": "vrchat",
+      "name": "IK Follower",
+      "type": "VRCIKFollower",
+      "status": "legacy",
+      "summary": "Deprecated SDK behavior. Not translated.",
+      "outcome": "The deprecated IK Follower component is not translated.",
+      "reason": "The upstream avatar component list marks this component deprecated in favor of VRChat constraints. It is separate from the current collection.",
+      "work": "unplanned",
+      "issue": null,
+      "evidence": [
+        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+      ],
+      "legacy": true,
+      "source": {
+        "repo": "vrchat-community/creator-docs",
+        "revision": "f437f5081c4476aaf443b507a7ec4a9d21e0e63b",
+        "path": "Docs/docs/avatars/whitelisted-avatar-components/index.md"
+      }
+    }
+  ]
+}

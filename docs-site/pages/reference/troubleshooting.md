@@ -1,31 +1,46 @@
 # Troubleshooting
 
-This reference covers common import outcomes, status diagnostics, and steps to resolve unexpected behavior.
+## The import prompt does not appear
 
-## Understanding item status
+Fully restart Resonite after installation. Check the mod log for `UnityPackageImporter` startup errors and confirm that ResoniteModLoader is enabled.
 
-The importer assigns a structured status to each selectable output:
 
-- **Ready**: Structural checks passed and all assets were resolved. The avatar or object can be created or installed immediately.
-- **Partial compatibility**: The import has warnings, such as approximate shader effects, missing materials or mesh references, or skipped or deferred nested prefab content. This status does not by itself guarantee avatar creation; available actions still depend on structure and avatar readiness. Review the item details on the station and in the import receipt.
-- **Blocked**: The item cannot be created automatically. Common reasons include missing humanoid rigs, multiple unmerged root rigs, or unresolved parent references.
 
-## Common situations and solutions
+If the mod did not load, the station's import report panel may not be available; review ordinary logs before sharing them because they can contain private paths or names.
 
-### "This avatar is not owned by the local user"
+## Textures are missing or materials look different
 
-- **Cause**: The selected target avatar has protection attached for another user, is actively worn by another user, or was allocated by someone else in a shared session.
-- **Solution**: Target an avatar that you spawned or own in the current session.
+- **Missing source assets:** supply the matching companion package if the station requests one.
+- **Different appearance:** check the source shader and its documented mappings. Supported material properties are converted to native Resonite materials; Unity shaders do not run directly.
+- **Not sure which:** review the item's material warnings and import receipt before changing settings.
 
-### Duplicate asset conflicts
 
-- **Cause**: Multiple packages define the same asset GUID with different file content or incompatible import settings.
-- **Solution**: The importer rejects ambiguous conflicts rather than silently picking one by input order. Ensure companion packages come from the same avatar release or remove conflicting duplicates.
 
-### Sibling failure isolation
+## The station will not create the avatar
 
-- **Behavior**: If a complex package contains one corrupt prefab or malformed scene alongside valid prefabs, the importer cleans up the broken item and presents the valid items on the tablet with a partial status warning.
+Read the selected item's status and details on the tablet:
 
-### Sharing diagnostic reports safely
+- **Ready:** structural checks passed and all assets were resolved. The avatar or object can be created or installed.
+- **Partial compatibility:** warnings may concern approximate shader effects, missing assets, or skipped or deferred prefab content. This does not guarantee creation; actions still depend on structure and readiness.
+- **Blocked:** a structural problem prevents automatic creation. Missing humanoid rigs, multiple unmerged root rigs, or unresolved parent references are possible causes.
 
-- **Failure reports and material warnings**: Recognized local file paths are replaced with `<local path>` before they enter the station's reports or material-warning receipts. Review diagnostics before sharing them; arbitrary exception text can contain other private information, and ordinary game logs may still include source paths.
+A visual limitation is not necessarily a structural failure. Use the actual item details to choose the next step.
+
+## An outfit target is rejected
+
+For **"This avatar is not owned by the local user"**, select an avatar you spawned or own in the current session. Targets protected for or allocated by someone else, or worn by another user, are rejected.
+
+
+
+## Companion packages conflict
+
+Use companion packages from the same avatar release. Conflicting copies of the same asset are rejected rather than silently overwritten; remove the conflicting duplicates instead of repeatedly changing the import order.
+
+### Why changing order does not help
+
+Multiple packages can define the same asset GUID with different payloads or incompatible import settings. The importer rejects that ambiguity rather than selecting a copy based on input order.
+
+
+## Some items imported, but another failed
+
+A corrupt prefab or malformed scene can fail separately from valid items in the same package. The importer cleans up the broken item and presents the valid ones with a partial-status warning. Inspect each result rather than assuming the entire package failed.

@@ -1,10 +1,15 @@
 """Build both English and Japanese documentation sites into docs-site/site."""
 
-import os
+import json
+import re
 import shutil
 import subprocess
 import sys
+import tempfile
+import tomllib
 from pathlib import Path
+
+from docs_workspace import export_workspace, prepare_workspace
 
 HERE = Path(__file__).resolve().parent
 
@@ -18,21 +23,43 @@ def get_zensical_cmd() -> list[str]:
 
 
 def run_build(config_file: str, clean: bool = False) -> None:
-    base_cmd = get_zensical_cmd()
-    cmd = [*base_cmd, "build", "-f", config_file]
-    if clean:
-        cmd.append("--clean")
-    print(f"Running: {' '.join(cmd)}")
-    res = subprocess.run(cmd, cwd=str(HERE))
-    if res.returncode != 0:
-        print(f"Build failed for {config_file} with code {res.returncode}")
-        sys.exit(res.returncode)
+    config = (HERE / config_file).read_text(encoding="utf-8")
+    project = tomllib.loads(config)["project"]
+    with tempfile.TemporaryDirectory(prefix=".inline-pages-", dir=HERE) as temporary:
+        staging = Path(temporary)
+        if config_file == "zensical.toml":
+            prepare_workspace(HERE / project["docs_dir"], staging / "pages")
+        else:
+            shutil.copytree(HERE / project["docs_dir"], staging / "pages")
+        paths = {
+            "docs_dir": (staging / "pages").relative_to(HERE).as_posix(),
+            "site_dir": project["site_dir"],
+            "custom_dir": project["theme"]["custom_dir"],
+        }
+        config = re.sub(r'^(docs_dir|site_dir|custom_dir) = "[^"]+"$',
+                        lambda match: f"{match[1]} = {json.dumps(str(paths[match[1]]))}",
+                        config, flags=re.MULTILINE)
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", suffix=".toml",
+                                         prefix=".inline-", dir=HERE, delete=False) as temporary_config:
+            temporary_config.write(config)
+            generated = Path(temporary_config.name)
+        try:
+            cmd = [*get_zensical_cmd(), "build", "-f", str(generated)]
+            if clean:
+                cmd.append("--clean")
+            print(f"Building {config_file} with the documentation workspace")
+            res = subprocess.run(cmd, cwd=str(HERE))
+            if res.returncode != 0:
+                sys.exit(res.returncode)
+        finally:
+            generated.unlink()
 
 
 def main() -> None:
     # 1. Build English site to docs-site/site
     print("\n--- [1/3] Building English documentation site ---")
     run_build("zensical.toml", clean=True)
+    export_workspace(HERE / "site")
 
     # 2. Build Japanese site to docs-site/site/ja
     print("\n--- [2/3] Building Japanese documentation site ---")
