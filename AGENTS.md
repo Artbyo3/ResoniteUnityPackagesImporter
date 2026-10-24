@@ -17,6 +17,7 @@
 | Test | `dotnet run --project Tests/Importer.RegressionTests.csproj -c Release` |
 | Build | `dotnet build UnityPackageImporter/UnityPackageImporter.csproj -c Release --no-incremental` |
 | UI audit | `dotnet run --project Tests/Importer.RegressionTests.csproj -- --ui-bundle <built dll> UnityPackageImporter/UI/Templates` |
+| Component coverage | `dotnet run --project Tests/Importer.RegressionTests.csproj -c Release -- --component-coverage docs/AVATAR_COMPONENT_COVERAGE.json` |
 | Install to Resonite | `scripts/Install-Mod.ps1` (then fully restart Resonite) |
 | Station demo | `python scripts/RunStationDemo.py` |
 | Bundle templates | `python scripts/Prepare-StationTemplates.py` |

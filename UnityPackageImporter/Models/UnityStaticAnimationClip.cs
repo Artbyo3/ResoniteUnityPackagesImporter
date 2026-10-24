@@ -21,6 +21,15 @@ internal sealed class UnityStaticClipResult
 
 internal static class UnityStaticAnimationClip
 {
+    internal static UnityStaticClipResult? Resolve(IReadOnlyDictionary<string, string> assets, string guid, long fileId,
+        CancellationToken token = default)
+    {
+        token.ThrowIfCancellationRequested();
+        if (!assets.TryGetValue(guid, out string? path) ||
+            !string.Equals(Path.GetExtension(path), ".anim", StringComparison.OrdinalIgnoreCase) || !File.Exists(path)) return null;
+        return Parse(File.ReadAllText(path), fileId, token);
+    }
+
     private static readonly Regex Header = new(@"^--- !u!(?<class>\d+) &(?<id>-?\d+)(?: stripped)?[ \t]*\r?$", RegexOptions.Multiline | RegexOptions.CultureInvariant);
     private static readonly string[] UnsupportedCurves = { "m_PositionCurves", "m_RotationCurves", "m_EulerCurves", "m_EulerEditorCurves", "m_ScaleCurves", "m_CompressedRotationCurves", "m_PPtrCurves", "m_Events" };
 

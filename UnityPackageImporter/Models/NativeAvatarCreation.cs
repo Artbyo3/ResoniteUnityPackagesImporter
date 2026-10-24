@@ -104,6 +104,11 @@ internal static class NativeAvatarCreation
             // the engine's default calibration instead of treating joints as trackers.
             // Await native completion even if cancellation arrives: aborting the await
             // could leave the engine mutating an envelope that cleanup has destroyed.
+            var previousVisemeDrivers = envelope.GetComponentsInChildren<DirectVisemeDriver>().ToHashSet();
+            var previousVisemeAnalyzers = envelope.GetComponentsInChildren<VisemeAnalyzer>().ToHashSet();
+            var previousHeadSlots = envelope.GetComponentsInChildren<IAvatarObject>().Where(node => node.Node == BodyNode.Head)
+                .Select(node => node.Slot).ToHashSet();
+            var authoredVisemeWeights = AvatarVisemeRuntime.CaptureWeights(envelope);
             await AvatarCreator.CreateBipedAvatarAsync(rig, head, left, right,
                 leftFootReference: null, rightFootReference: null, hipsReference: null,
                 setupEyes: true, setupProtection: protectAvatar,
@@ -118,6 +123,8 @@ internal static class NativeAvatarCreation
             // movement parents recorded by this prefab's import preparation,
             // preserving authored slots, world transforms and renderer references.
             item.CompleteHumanoidHierarchy(envelope);
+            AvatarVisemeRuntime.Apply(item, rig, envelope, previousVisemeDrivers, previousVisemeAnalyzers,
+                previousHeadSlots, authoredVisemeWeights, cancellationToken);
 
             // Native protection is attached to the root and renderers. Assign the
             // importing user consistently before this object can leave staging.

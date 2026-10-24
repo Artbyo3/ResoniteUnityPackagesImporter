@@ -505,7 +505,6 @@ internal sealed class UnityStationHandle
             var envelope = session.Envelope(source);
             bool avatar = intendedAction == ImportOutputAction.CreateAvatar;
             bool protect = avatar && Get<Checkbox>("protect").State.Value;
-            if (Get<Checkbox>("expressions").State.Value) await item.BuildExpressionsAsync();
             await default(ToWorld);
             session.Check();
             string name = Get<Text>("name").Content.Value;
@@ -513,6 +512,7 @@ internal sealed class UnityStationHandle
             envelope.GlobalPosition = Get<Slot>("preview").GlobalPosition;
             envelope.GlobalRotation = RootSlot.GlobalRotation * floatQ.Euler(0f, 180f, 0f);
             if (avatar) await NativeAvatarCreation.CreateAsync(item, envelope, protect, session.Token);
+            if (Get<Checkbox>("expressions").State.Value) await item.BuildExpressionsAsync();
             await default(ToWorld);
             session.Check();
             if (Get<Checkbox>("avatarReceipt").State.Value) SaveReceipt(envelope, item);

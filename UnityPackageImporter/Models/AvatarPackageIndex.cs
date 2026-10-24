@@ -35,6 +35,7 @@ public sealed class VrcAvatarDefinition
     public UnityPosition? ViewPosition { get; init; }
     public UnityAssetReference ExpressionsMenu { get; init; }
     public UnityAssetReference ExpressionParameters { get; init; }
+    public AvatarVisemeSettings Visemes { get; init; }
     public IReadOnlyList<VrcAnimationLayerReference> BaseAnimationLayers { get; init; } = Array.Empty<VrcAnimationLayerReference>();
 
     public UnityAssetReference FxController =>
@@ -312,6 +313,7 @@ public static class AvatarPackageIndex
                     ViewPosition = ReadPosition(document.Lines, "ViewPosition"),
                     ExpressionsMenu = menu,
                     ExpressionParameters = parameters,
+                    Visemes = AvatarVisemeSettings.Parse(string.Join("\n", document.Lines)),
                     BaseAnimationLayers = ReadAnimationLayers(document.Lines)
                 });
             }

@@ -10,13 +10,13 @@ namespace UnityPackageImporter.Models;
 
 public static class ContextMenuBuilder
 {
-    public static async Task BuildExpressionsMenuAsync(
+    public static async Task<bool> BuildExpressionsMenuAsync(
         Slot avatarRoot,
         VrcMenu rootMenu,
-        Dictionary<string, List<string>> paramToSlots,
+        IReadOnlyDictionary<VrcMenuControl, IField<bool>> bindings,
         UnityProjectImporter importer)
     {
-        if (avatarRoot == null || rootMenu == null || rootMenu.Controls.Count == 0) return;
+        if (avatarRoot == null || rootMenu == null || rootMenu.Controls.Count == 0) return true;
 
         UnityPackageImporter.Msg($"Building native Expressions Menu for '{avatarRoot.Name}' ({rootMenu.Controls.Count} root items)");
 
@@ -42,18 +42,19 @@ public static class ContextMenuBuilder
         rootSubmenu.ItemsRoot.Target = rootItemsSlot;
 
         // 4. Build controls recursively
-        await BuildMenuLevelAsync(rootMenu, rootItemsSlot, avatarRoot, paramToSlots, importer);
+        bool complete = await BuildMenuLevelAsync(rootMenu, rootItemsSlot, bindings, importer);
 
-        UnityPackageImporter.Msg($"Successfully built Expressions Menu on '{avatarRoot.Name}'");
+        UnityPackageImporter.Msg($"Built Expressions Menu on '{avatarRoot.Name}'; all controls bound: {complete}");
+        return complete;
     }
 
-    private static async Task BuildMenuLevelAsync(
+    private static async Task<bool> BuildMenuLevelAsync(
         VrcMenu menu,
         Slot parentItemsSlot,
-        Slot avatarRoot,
-        Dictionary<string, List<string>> paramToSlots,
+        IReadOnlyDictionary<VrcMenuControl, IField<bool>> bindings,
         UnityProjectImporter importer)
     {
+        bool complete = true;
         foreach (var control in menu.Controls)
         {
             if (control.IsSubMenu && control.SubMenu != null)
@@ -73,9 +74,9 @@ public static class ContextMenuBuilder
                 var subItemsSlot = subSlot.AddSlot("Items");
                 submenuComp.ItemsRoot.Target = subItemsSlot;
 
-                await BuildMenuLevelAsync(control.SubMenu, subItemsSlot, avatarRoot, paramToSlots, importer);
+                complete &= await BuildMenuLevelAsync(control.SubMenu, subItemsSlot, bindings, importer);
             }
-            else if (control.IsToggle || control.IsButton)
+            else
             {
                 var itemSlot = parentItemsSlot.AddSlot(control.Name);
                 var itemSource = itemSlot.AttachComponent<ContextMenuItemSource>();
@@ -88,54 +89,23 @@ public static class ContextMenuBuilder
                     await AttachMenuIconAsync(itemSlot, itemSource, control.IconGuid, importer);
                 }
 
-                // Hook up ButtonToggle if this control is a toggle
-                if (control.IsToggle && !string.IsNullOrEmpty(control.ParameterName))
+                if (control.IsToggle && bindings.TryGetValue(control, out var parameter))
                 {
-                    if (paramToSlots.TryGetValue(control.ParameterName, out var slotNames) && slotNames.Count > 0)
-                    {
-                        var targetSlots = new List<Slot>();
-                        foreach (var name in slotNames)
-                        {
-                            var s = avatarRoot.FindChild(c => c.Name.Equals(name, StringComparison.OrdinalIgnoreCase) ||
-                                                              c.Name.StartsWith(name + " [", StringComparison.OrdinalIgnoreCase), 10);
-                            if (s != null && !targetSlots.Contains(s)) targetSlots.Add(s);
-                        }
-
-                        ButtonToggle buttonToggle = null;
-                        ValueMultiDriver<bool> multiDriver = null;
-                        var result = InitialToggleBinding.Bind(targetSlots,
-                            slot => slot.ActiveSelf,
-                            slot => slot.ActiveSelf_Field.IsLinked,
-                            initial =>
-                            {
-                                buttonToggle = itemSlot.AttachComponent<ButtonToggle>();
-                                if (targetSlots.Count > 1)
-                                {
-                                    multiDriver = itemSlot.AttachComponent<ValueMultiDriver<bool>>();
-                                    // A drive writes as soon as it is linked. Seed it first.
-                                    multiDriver.Value.Value = initial;
-                                    buttonToggle.TargetValue.Target = multiDriver.Value;
-                                }
-                            },
-                            slot =>
-                            {
-                                if (multiDriver == null) buttonToggle.TargetValue.Target = slot.ActiveSelf_Field;
-                                else multiDriver.Drives.Add().ForceLink(slot.ActiveSelf_Field);
-                            });
-                        if (result != InitialToggleBindingResult.Bound)
-                        {
-                            itemSource.ButtonEnabled.Value = false;
-                            UnityPackageImporter.Warn("Expression control '" + control.Name +
-                                "' is unavailable: inferred visibility binding " + result +
-                                ". Current appearance was preserved; Unity Animator behavior was not inferred.");
-                        }
-                    }
+                    itemSlot.AttachComponent<ButtonToggle>().TargetValue.Target = parameter;
+                }
+                else
+                {
+                    itemSource.ButtonEnabled.Value = false;
+                    complete = false;
+                    UnityPackageImporter.Warn("Expression control '" + control.Name +
+                        "' is unavailable: no exact supported runtime binding. Clothing names are not used to guess Animator behavior.");
                 }
             }
         }
+        return complete;
     }
 
-    private static async Task AttachMenuIconAsync(
+    internal static async Task AttachMenuIconAsync(
         Slot itemSlot,
         ContextMenuItemSource itemSource,
         string iconGuid,

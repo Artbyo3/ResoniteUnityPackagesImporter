@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Elements.Core;
 using FrooxEngine;
+using FrooxEngine.CommonAvatar;
 using UnityPackageImporter.FrooxEngineRepresentation;
 using UnityGameObject = UnityPackageImporter.FrooxEngineRepresentation.GameObjectTypes.GameObject;
 using UnityPrefabInstance = UnityPackageImporter.FrooxEngineRepresentation.GameObjectTypes.PrefabInstance;
@@ -102,31 +103,138 @@ internal sealed class PreparedImportItem
     internal async Task BuildExpressionsAsync()
     {
         if (expressionsBuilt) return;
+        await default(ToWorld);
+        Project.Session?.Check();
+        if (Manifest.Avatars.Any(avatar =>
+            Contains(CurrentStructureRootSlot, ResolveGameObject(avatar.GameObjectFileId)) &&
+            ResolveGameObject(avatar.GameObjectFileId).GetComponentInParents<AvatarRoot>() == null))
+            return;
         expressionsBuilt = true;
-        try
+        foreach (var avatar in Manifest.Avatars)
         {
-            var clips = AvatarStateReconstructor.ParseAllAnimationClips(Project.files);
-            foreach (var avatar in Manifest.Avatars)
+            await default(ToWorld);
+            Project.Session?.Check();
+            Slot root = ResolveGameObject(avatar.GameObjectFileId);
+            if (!Contains(CurrentStructureRootSlot, root))
             {
-                await default(ToWorld);
-                Project.Session?.Check();
-                Slot root = ResolveGameObject(avatar.GameObjectFileId);
-                if (!Contains(CurrentStructureRootSlot, root))
-                {
-                    UnityPackageImporter.Warn("Skipping an unresolved avatar expression root in " + ID.Value);
-                    continue;
-                }
+                UnityPackageImporter.Warn("Skipping an unresolved avatar expression root in " + ID.Value);
+                continue;
+            }
+            bool Owns(long id) => Contains(root, ResolveGameObject(id));
+            try
+            {
                 var (menu, _) = ExpressionMenuParser.LoadMenuHierarchy(
                     avatar.ExpressionsMenu?.Guid, avatar.ExpressionParameters?.Guid, Project.AssetIDDict);
-                if (menu == null || menu.Controls.Count == 0) continue;
-                var slots = AvatarStateReconstructor.BuildParameterToSlotsMap(menu, clips, root);
-                await ContextMenuBuilder.BuildExpressionsMenuAsync(root, menu, slots, Project);
+                if (menu != null && menu.Controls.Count > 0)
+                {
+                    bool complete = await ContextMenuBuilder.BuildExpressionsMenuAsync(root, menu,
+                        new Dictionary<VrcMenuControl, IField<bool>>(), Project);
+                    OptionalControlsFailed |= !complete;
+                    if (!complete)
+                        ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Warning,
+                            "Base expression controls have no compiled Animator bindings and remain disabled. No clothing-name guesses were applied.",
+                            avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "EXPRESSION_RUNTIME_UNSUPPORTED");
+                }
             }
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException)
-        {
-            OptionalControlsFailed = true;
-            UnityPackageImporter.Warn("Failed to reconstruct expressions menu: " + ex);
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                await default(ToWorld);
+                OptionalControlsFailed = true;
+                ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Warning,
+                    "Optional expression menu reconstruction failed; no runtime parity is claimed. " + ex.Message,
+                    avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "EXPRESSION_RUNTIME_FAILED");
+                UnityPackageImporter.Warn("Failed to reconstruct expressions menu: " + ex);
+            }
+
+            if (source is not UnityPrefabImportTask prefab || string.IsNullOrWhiteSpace(prefab.ComposedYaml)) continue;
+            await default(ToWorld);
+            var token = Project.Session?.Token ?? default;
+            try
+            {
+                bool vrcfRuntimeContext = (avatar.ExpressionParameters?.HasGuid ?? false) ||
+                    avatar.BaseAnimationLayers.Any(layer => layer.AnimatorController?.HasGuid ?? false) ||
+                    Manifest.ModularAvatarComponents.Where(component => Owns(component.GameObjectFileId)).Any(component => component.Kind is not
+                        (ModularAvatarComponentKind.MergeArmature or ModularAvatarComponentKind.BoneProxy or ModularAvatarComponentKind.OutfitRoot));
+                bool maRuntimeContext = (avatar.ExpressionParameters?.HasGuid ?? false) ||
+                    avatar.BaseAnimationLayers.Any(layer => layer.AnimatorController?.HasGuid ?? false) ||
+                    Manifest.VrcFuryComponents.Where(component => Owns(component.GameObjectFileId)).Any(component => component.ArmatureLinks.Count == 0 || component.UnsupportedFeatures.Count > 0);
+                var vrcfContext = new InitialAppearanceContext
+                {
+                    AvatarRootId = avatar.GameObjectFileId,
+                    Renderers = prefab.AuthoredAppearanceRenderers,
+                    ExternalAnimationAndParameterContextVerifiedAbsent = !vrcfRuntimeContext
+                };
+                var maContext = new InitialAppearanceContext
+                {
+                    AvatarRootId = avatar.GameObjectFileId,
+                    Renderers = prefab.AuthoredAppearanceRenderers,
+                    ExternalAnimationAndParameterContextVerifiedAbsent = !maRuntimeContext
+                };
+                await default(ToBackground);
+                var wardrobe = VrcFuryInitialAppearance.CompileWardrobe(prefab.ComposedYaml, vrcfContext,
+                    (guid, fileId) => UnityStaticAnimationClip.Resolve(Project.AssetIDDict, guid, fileId, token), token);
+                var maWardrobe = ModularAvatarInitialAppearance.CompileWardrobe(prefab.ComposedYaml, maContext, token);
+                await default(ToWorld);
+                token.ThrowIfCancellationRequested();
+                foreach (var diagnostic in wardrobe.Diagnostics)
+                    ConversionPlan.AddDiagnostic(diagnostic.Severity == InitialAppearanceSeverity.Info
+                        ? AvatarOperationSeverity.Info : AvatarOperationSeverity.Warning, diagnostic.Message,
+                        diagnostic.SourceId.ToString(System.Globalization.CultureInfo.InvariantCulture), diagnostic.Code);
+                foreach (var diagnostic in maWardrobe.Diagnostics)
+                    ConversionPlan.AddDiagnostic(diagnostic.Severity == InitialAppearanceSeverity.Info
+                        ? AvatarOperationSeverity.Info : AvatarOperationSeverity.Warning, diagnostic.Message,
+                        diagnostic.SourceId.ToString(System.Globalization.CultureInfo.InvariantCulture), diagnostic.Code);
+                var selectedWardrobe = wardrobe.CanBuild ? wardrobe : (maWardrobe.CanBuild ? maWardrobe : null);
+                if (selectedWardrobe == null)
+                {
+                    OptionalControlsFailed |= wardrobe.HasUnsupportedContext || maWardrobe.HasUnsupportedContext ||
+                        wardrobe.Diagnostics.Any(diagnostic => diagnostic.Severity == InitialAppearanceSeverity.Error) ||
+                        maWardrobe.Diagnostics.Any(diagnostic => diagnostic.Severity == InitialAppearanceSeverity.Error);
+                }
+                else if (root.GetComponentInParents<AvatarRoot>() == null)
+                {
+                    OptionalControlsFailed = true;
+                    ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Warning,
+                        "Wardrobe controls require completed native avatar setup; no drivers were attached to this ordinary prefab.",
+                        code: "VRCFURY_WARDROBE_NATIVE_SETUP_REQUIRED");
+                }
+                else
+                {
+                    await AvatarWardrobeRuntime.BuildAsync(selectedWardrobe, root, existingIUnityObjects, Project, token);
+                    string code = ReferenceEquals(selectedWardrobe, maWardrobe) ? "MA_WARDROBE_BUILT" : "VRCFURY_WARDROBE_BUILT";
+                    ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Info,
+                        "Created " + selectedWardrobe.Controls.Count + " exact native wardrobe toggles. Native per-copy state is not VRChat saved-parameter restoration or re-wear reset parity.",
+                        avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), code);
+                }
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                await default(ToWorld);
+                OptionalControlsFailed = true;
+                ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Warning,
+                    "Optional wardrobe reconstruction failed; no runtime parity is claimed. " + ex.Message,
+                    avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "EXPRESSION_RUNTIME_FAILED");
+                UnityPackageImporter.Warn("Failed to reconstruct wardrobe controls: " + ex);
+            }
+
+            await default(ToWorld);
+            if (root.GetComponentInParents<AvatarRoot>() != null)
+            {
+                try
+                {
+                    await BlendshapeInitialAppearanceAdapter.BuildRuntimeLinksAsync(
+                        prefab.ComposedYaml, avatar.GameObjectFileId, root, existingIUnityObjects, source, ConversionPlan, token);
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    await default(ToWorld);
+                    OptionalControlsFailed = true;
+                    ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Warning,
+                        "Optional blendshape runtime synchronization failed; no runtime parity is claimed. " + ex.Message,
+                        avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "EXPRESSION_RUNTIME_FAILED");
+                    UnityPackageImporter.Warn("Failed to build blendshape runtime links: " + ex);
+                }
+            }
         }
     }
 

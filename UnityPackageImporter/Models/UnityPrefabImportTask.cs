@@ -39,6 +39,9 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
         IncompleteComponents.Count,
         (Manifest?.HasUnsupportedVrcFuryFeatures ?? false) || (ConversionPlan?.HasErrors ?? false));
     internal PreparedImportItem PreparedItem { get; private set; }
+    internal string ComposedYaml { get; private set; }
+    internal IReadOnlyDictionary<long, InitialAppearanceRenderer> AuthoredAppearanceRenderers { get; private set; } =
+        new Dictionary<long, InitialAppearanceRenderer>();
     public UnityProjectImporter unityProjectImporter { get; set; }
 
     public UnityPrefabImportTask(float3 globalPosition, KeyValuePair<string, string> ID, UnityProjectImporter unityProjectImporter, floatQ? globalRotation = null)
@@ -98,7 +101,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                 model.TryAdd(-8679921383154817045, 4);
             }
             var compositionDiagnostics = new PrefabCompositionDiagnostics();
-            string composedYaml = UnityPrefabComposer.Compose(File.ReadAllText(ID.Value),
+            string composedYaml = ComposedYaml = UnityPrefabComposer.Compose(File.ReadAllText(ID.Value),
                 unityProjectImporter.ListOfPrefabs, modelObjects, compositionDiagnostics);
             deferredMissingAliases.UnionWith(compositionDiagnostics.DeferredMissingAliases.Select(id => unchecked((ulong)id)));
             if (compositionDiagnostics.MaterializedLocalObjects.Count > 0)
@@ -239,6 +242,8 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
                         this.existingIUnityObjects,
                         this,
                         unityProjectImporter?.Session?.Token ?? default);
+                    AuthoredAppearanceRenderers = InitialAppearanceRuntime.CaptureRenderers(
+                        existingIUnityObjects, CurrentStructureRootSlot);
                     await ModularAvatarInitialAppearanceAdapter.ApplyAsync(
                         composedYaml, this.existingIUnityObjects, this, ConversionPlan,
                         unityProjectImporter?.Session?.Token ?? default);

@@ -13,9 +13,11 @@ namespace UnityPackageImporter.Models;
 internal sealed record BlendshapeAppearanceObject(long FileId, long AvatarRootId, string Name, string RelativePath);
 internal sealed record BlendshapeAppearanceRenderer(long FileId, long GameObjectFileId, IReadOnlyDictionary<string, float> Weights);
 internal sealed record BlendshapeAppearanceWrite(long RendererId, string Shape, float UnityWeight, long ComponentId);
+internal sealed record BlendshapeRuntimeLink(long ComponentId, long SourceRendererId, string SourceShape, long TargetRendererId, string TargetShape, bool HasRemapCurve);
 internal sealed class BlendshapeAppearanceResult
 {
     internal List<BlendshapeAppearanceWrite> Writes { get; } = new();
+    internal List<BlendshapeRuntimeLink> Links { get; } = new();
     internal List<AvatarOperationDiagnostic> Diagnostics { get; } = new();
     internal HashSet<long> Components { get; } = new();
     internal bool HasErrors => Diagnostics.Any(diagnostic => diagnostic.Severity == AvatarOperationSeverity.Error);
@@ -28,12 +30,50 @@ internal static class BlendshapeInitialAppearance
     internal static BlendshapeAppearanceResult Evaluate(string yaml,
         IReadOnlyDictionary<long, BlendshapeAppearanceObject> objects,
         IReadOnlyDictionary<long, BlendshapeAppearanceRenderer> renderers,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        long? avatarRootId = null)
     {
         cancellationToken.ThrowIfCancellationRequested();
         var result = new BlendshapeAppearanceResult();
         var rules = new List<Rule>();
         var documents = ReadDocuments(yaml);
+        var transformParentByObject = new Dictionary<long, long>();
+        if (avatarRootId.HasValue)
+        {
+            var transformOwnerById = new Dictionary<long, long>();
+            var transformFatherById = new Dictionary<long, long>();
+            foreach (var doc in documents)
+            {
+                if ((Get(doc.Value, "Transform") ?? Get(doc.Value, "RectTransform")) is not YamlMappingNode trans) continue;
+                long goId = Id(trans, "m_GameObject");
+                if (goId != 0)
+                {
+                    transformOwnerById[doc.Key] = goId;
+                    transformFatherById[doc.Key] = Id(trans, "m_Father");
+                }
+            }
+            foreach (var pair in transformOwnerById)
+            {
+                if (transformFatherById.TryGetValue(pair.Key, out long fatherId) && fatherId != 0 &&
+                    transformOwnerById.TryGetValue(fatherId, out long parentGoId))
+                    transformParentByObject[pair.Value] = parentGoId;
+            }
+        }
+        bool BelongsToCurrentAvatar(long ownerId)
+        {
+            if (!avatarRootId.HasValue) return true;
+            if (ownerId == avatarRootId.Value) return true;
+            if (objects.TryGetValue(ownerId, out var direct)) return direct.AvatarRootId == avatarRootId.Value;
+            var visited = new HashSet<long>();
+            long cursor = ownerId;
+            while (cursor != 0 && visited.Add(cursor))
+            {
+                if (cursor == avatarRootId.Value) return true;
+                if (objects.TryGetValue(cursor, out var ancestor)) return ancestor.AvatarRootId == avatarRootId.Value;
+                if (!transformParentByObject.TryGetValue(cursor, out cursor)) break;
+            }
+            return false;
+        }
         void Diagnostic(long id, string message, string code, AvatarOperationSeverity severity = AvatarOperationSeverity.Error) =>
             result.Diagnostics.Add(new AvatarOperationDiagnostic { Severity = severity, Code = code, Message = message, SourceContext = "Blendshape component " + id.ToString(CultureInfo.InvariantCulture) });
         BlendshapeAppearanceRenderer? Skin(long id, long scope, bool rendererReference)
@@ -50,12 +90,13 @@ internal static class BlendshapeInitialAppearance
             bool ma = script.Equals(AvatarPackageIndex.BlendshapeSyncScriptGuid, StringComparison.OrdinalIgnoreCase);
             bool fury = AvatarPackageIndex.RecognizedVrcFuryScriptGuids.Contains(script);
             if (!ma && !fury) continue;
+            long ownerId = Id(body, "m_GameObject");
+            if (!BelongsToCurrentAvatar(ownerId)) continue;
             var features = fury ? ReachableFeatures(body, message => Diagnostic(document.Key, message, "BLENDSHAPE_MANAGED_REFERENCES_INVALID")).Where(feature => Text(Map(feature, "type"), "class") == "BlendShapeLink" &&
                 Text(Map(feature, "type"), "ns") == "VF.Model.Feature").ToArray() : Array.Empty<YamlMappingNode>();
             if (!ma && features.Length == 0) continue;
             long componentId = document.Key;
             result.Components.Add(componentId);
-            long ownerId = Id(body, "m_GameObject");
             if (!objects.TryGetValue(ownerId, out var owner))
             {
                 Diagnostic(componentId, "The blendshape component has no reconstructed owning avatar object.", "APPEARANCE_OWNER_UNRESOLVED");
@@ -83,6 +124,15 @@ internal static class BlendshapeInitialAppearance
                         continue;
                     }
                     var reference = Map(binding, "ReferenceMesh");
+                    var targetObjNode = Get(reference, "targetObject");
+                    if (targetObjNode != null && (targetObjNode is not YamlMappingNode targetObjMap ||
+                        Get(targetObjMap, "fileID") is not YamlScalarNode targetIdScalar ||
+                        !long.TryParse(targetIdScalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _) ||
+                        Text(targetObjMap, "guid").Trim('0').Length != 0))
+                    {
+                        Diagnostic(componentId, "The declared Blendshape Sync source has a malformed or external targetObject reference.", "BLENDSHAPE_SOURCE_UNRESOLVED");
+                        continue;
+                    }
                     long sourceObject = Id(reference, "targetObject");
                     string path = Text(reference, "referencePath");
                     BlendshapeAppearanceObject? sourceOwner = null;
@@ -104,12 +154,22 @@ internal static class BlendshapeInitialAppearance
                     string to = Text(binding, "LocalBlendshape");
                     if (string.IsNullOrWhiteSpace(to)) to = from;
                     var curve = new List<(float Time, float Value)>();
-                    if (Bool(binding, "RemapCurveIsValid", false))
+                    if (!TryBool(binding, "RemapCurveIsValid", false, out bool remapValid))
+                    {
+                        Diagnostic(componentId, "Blendshape Sync RemapCurveIsValid is not a boolean.", "BLENDSHAPE_REMAP_INVALID");
+                        continue;
+                    }
+                    if (remapValid)
                     {
                         foreach (var key in Sequence(Map(binding, "RemapCurve"), "m_Curve"))
                         {
                             if (key is YamlMappingNode mapping) curve.Add((Float(mapping, "time"), Float(mapping, "value")));
                             else Diagnostic(componentId, "A remap curve key is not a mapping.", "BLENDSHAPE_REMAP_INVALID");
+                        }
+                        if (curve.Count == 0)
+                        {
+                            Diagnostic(componentId, "An enabled remap curve must contain at least one key.", "BLENDSHAPE_REMAP_INVALID");
+                            continue;
                         }
                     }
                     rules.Add(new Rule(componentId, source.FileId, from, target.FileId, to, curve));
@@ -143,8 +203,26 @@ internal static class BlendshapeInitialAppearance
                     continue;
                 }
                 var source = baseSkins[0];
-                var linked = version < 1 ? Sequence(data, "objs").OfType<YamlMappingNode>().Select(reference => Skin(Id(reference), owner.AvatarRootId, false)) :
-                    Sequence(data, "linkSkins").OfType<YamlMappingNode>().Select(reference => Skin(Id(reference, "renderer"), owner.AvatarRootId, true));
+                string linkedKey = version < 1 ? "objs" : "linkSkins";
+                if (Get(data, linkedKey) is not YamlSequenceNode linkedSequence)
+                {
+                    Diagnostic(componentId, "A linked renderer list is missing or not a sequence.", "BLENDSHAPE_TARGET_UNRESOLVED");
+                    continue;
+                }
+                var linked = version < 1
+                    ? linkedSequence.Children.Select(node =>
+                        node is YamlMappingNode reference && Get(reference, "fileID") is YamlScalarNode idScalar &&
+                        long.TryParse(idScalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long refId) &&
+                        Text(reference, "guid").Trim('0').Length == 0
+                            ? Skin(refId, owner.AvatarRootId, false)
+                            : null)
+                    : linkedSequence.Children.Select(node =>
+                        node is YamlMappingNode reference && Map(reference, "renderer") is YamlMappingNode rendererRef &&
+                        Get(rendererRef, "fileID") is YamlScalarNode idScalar &&
+                        long.TryParse(idScalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long refId) &&
+                        Text(rendererRef, "guid").Trim('0').Length == 0
+                            ? Skin(refId, owner.AvatarRootId, true)
+                            : null);
                 foreach (var target in linked)
                 {
                     if (target == null)
@@ -152,17 +230,41 @@ internal static class BlendshapeInitialAppearance
                         Diagnostic(componentId, "A linked renderer is missing, ambiguous, or outside the owning avatar.", "BLENDSHAPE_TARGET_UNRESOLVED");
                         continue;
                     }
-                    bool exact = Bool(data, "exactMatch", false);
+                    if (!TryBool(data, "exactMatch", false, out bool exact) || !TryBool(data, "includeAll", true, out bool includeAll))
+                    {
+                        Diagnostic(componentId, "BlendShapeLink boolean flag is malformed.", "BLENDSHAPE_BINDINGS_INVALID");
+                        continue;
+                    }
+                    var includesNode = Get(data, "includes");
+                    if (includesNode != null && (includesNode is not YamlSequenceNode incSeq ||
+                        incSeq.Children.Any(child => child is not YamlMappingNode incMap ||
+                            (Get(incMap, "nameOnBase") is not YamlScalarNode && Get(incMap, "nameOnLinked") is not YamlScalarNode) ||
+                            (Get(incMap, "nameOnBase") != null && Get(incMap, "nameOnBase") is not YamlScalarNode) ||
+                            (Get(incMap, "nameOnLinked") != null && Get(incMap, "nameOnLinked") is not YamlScalarNode))))
+                    {
+                        Diagnostic(componentId, "BlendShapeLink includes list is malformed.", "BLENDSHAPE_BINDINGS_INVALID");
+                        continue;
+                    }
+                    var excludesNode = Get(data, "excludes");
+                    if (excludesNode != null && (excludesNode is not YamlSequenceNode excSeq ||
+                        excSeq.Children.Any(child => child is not YamlMappingNode excMap ||
+                            Get(excMap, "name") is not YamlScalarNode)))
+                    {
+                        Diagnostic(componentId, "BlendShapeLink excludes list is malformed.", "BLENDSHAPE_BINDINGS_INVALID");
+                        continue;
+                    }
                     var pairs = new HashSet<(string From, string To)>();
                     foreach (var include in Sequence(data, "includes").OfType<YamlMappingNode>())
                     {
                         string from = Text(include, "nameOnBase"), to = Text(include, "nameOnLinked");
+                        // Unity serializes newly added inspector rows with empty scalar strings
+                        // ({nameOnBase: '', nameOnLinked: ''}); upstream VRCFury ignores blank rows as a no-op.
                         if (string.IsNullOrWhiteSpace(from) && string.IsNullOrWhiteSpace(to)) continue;
                         if (string.IsNullOrWhiteSpace(from)) from = to;
                         if (string.IsNullOrWhiteSpace(to)) to = from;
                         AddMapping(from, to, true);
                     }
-                    if (Bool(data, "includeAll", true))
+                    if (includeAll)
                     {
                         var excludes = Sequence(data, "excludes").OfType<YamlMappingNode>().Select(entry => Text(entry, "name")).ToHashSet(StringComparer.Ordinal);
                         foreach (string name in source.Weights.Keys)
@@ -191,38 +293,70 @@ internal static class BlendshapeInitialAppearance
             cancellationToken.ThrowIfCancellationRequested();
             if (targets.Contains((rule.SourceRenderer, rule.SourceShape)))
             {
-                Diagnostic(rule.ComponentId, "Chained or cyclic blendshape synchronization is not supported; no transitive mapping was invented.", "BLENDSHAPE_CHAIN_UNSUPPORTED");
+                Diagnostic(rule.ComponentId, "Chained or cyclic blendshape synchronization is unsupported.", "BLENDSHAPE_CHAIN_UNSUPPORTED");
                 continue;
             }
-            if (!renderers[rule.SourceRenderer].Weights.TryGetValue(rule.SourceShape, out float weight) ||
+            if (!renderers[rule.SourceRenderer].Weights.TryGetValue(rule.SourceShape, out float sourceWeight) ||
                 !renderers[rule.TargetRenderer].Weights.ContainsKey(rule.TargetShape))
             {
-                Diagnostic(rule.ComponentId, "A declared source or destination blendshape is unavailable.", "BLENDSHAPE_MAPPING_UNRESOLVED");
+                Diagnostic(rule.ComponentId, "A required source or target blendshape name does not exist.", "BLENDSHAPE_MAPPING_UNRESOLVED");
                 continue;
             }
-            if (!float.IsFinite(weight) || rule.Curve.Any(key => !float.IsFinite(key.Time) || !float.IsFinite(key.Value)) ||
-                rule.Curve.Zip(rule.Curve.Skip(1), (left, right) => left.Time >= right.Time).Any(invalid => invalid))
+            if (!TryRemap(sourceWeight, rule.Curve, out float value))
             {
-                Diagnostic(rule.ComponentId, "Blendshape weights and remap keys must be finite, with strictly increasing key times.", "BLENDSHAPE_REMAP_INVALID");
+                Diagnostic(rule.ComponentId, "A remap curve contains nonfinite or nonmonotonic keys.", "BLENDSHAPE_REMAP_INVALID");
                 continue;
             }
-            float mapped = Remap(weight, rule.Curve);
-            if (!float.IsFinite(mapped))
-            {
-                Diagnostic(rule.ComponentId, "Blendshape remapping produced a non-finite weight.", "BLENDSHAPE_REMAP_INVALID");
-                continue;
-            }
-            result.Writes.Add(new BlendshapeAppearanceWrite(rule.TargetRenderer, rule.TargetShape, mapped, rule.ComponentId));
+            result.Writes.Add(new BlendshapeAppearanceWrite(rule.TargetRenderer, rule.TargetShape, value, rule.ComponentId));
+            result.Links.Add(new BlendshapeRuntimeLink(rule.ComponentId, rule.SourceRenderer, rule.SourceShape, rule.TargetRenderer, rule.TargetShape, rule.Curve.Count > 0));
         }
         foreach (var group in result.Writes.GroupBy(write => (write.RendererId, write.Shape)))
-            if (group.Select(write => write.UnityWeight).Distinct().Count() > 1)
-                Diagnostic(group.First().ComponentId, "Multiple blendshape bindings produce conflicting destination weights.", "BLENDSHAPE_WRITE_CONFLICT");
-        if (result.HasErrors) result.Writes.Clear();
+        {
+            var linksForTarget = result.Links.Where(link => link.TargetRendererId == group.Key.RendererId && link.TargetShape == group.Key.Shape)
+                .Select(link => (link.SourceRendererId, link.SourceShape, link.HasRemapCurve)).Distinct().ToArray();
+            if (group.Select(write => write.UnityWeight).Distinct().Count() > 1 || linksForTarget.Length > 1)
+                Diagnostic(group.Last().ComponentId, "Conflicting blendshape synchronization writes target the same shape.", "BLENDSHAPE_WRITE_CONFLICT");
+        }
+        if (result.HasErrors)
+        {
+            result.Writes.Clear();
+            result.Links.Clear();
+            return result;
+        }
+        var collapsed = result.Writes.GroupBy(write => (write.RendererId, write.Shape)).Select(group => group.First()).ToList();
+        result.Writes.Clear();
+        result.Writes.AddRange(collapsed);
+        var collapsedLinks = result.Links.GroupBy(link => (link.TargetRendererId, link.TargetShape)).Select(group => group.First()).ToList();
+        result.Links.Clear();
+        result.Links.AddRange(collapsedLinks);
         return result;
+    }
+
+    internal static bool TryRemap(float weight, IReadOnlyList<(float Time, float Value)> curve, out float value)
+    {
+        value = weight;
+        if (!float.IsFinite(weight)) return false;
+        for (int index = 0; index < curve.Count; index++)
+        {
+            if (!float.IsFinite(curve[index].Time) || !float.IsFinite(curve[index].Value) ||
+                index > 0 && curve[index].Time <= curve[index - 1].Time) return false;
+        }
+        if (curve.Count == 1)
+        {
+            value = curve[0].Value;
+            return true;
+        }
+        if (curve.Count < 2) return true;
+        int range = 0;
+        while (range < curve.Count - 2 && weight > curve[range + 1].Time) range++;
+        var left = curve[range]; var right = curve[range + 1];
+        value = (float)(left.Value + ((double)weight - left.Time) * (right.Value - left.Value) / (right.Time - left.Time));
+        return float.IsFinite(value);
     }
 
     internal static float Remap(float weight, IReadOnlyList<(float Time, float Value)> curve)
     {
+        if (curve.Count == 1) return curve[0].Value;
         if (curve.Count < 2) return weight;
         int range = 0;
         while (range < curve.Count - 2 && weight > curve[range + 1].Time) range++;
@@ -303,6 +437,17 @@ internal static class BlendshapeInitialAppearance
     private static long Id(YamlMappingNode? body, string key) => Get(body, key) is YamlScalarNode scalar && long.TryParse(scalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long value) ? value : Id(Map(body, key));
     private static long Id(YamlMappingNode? body) => long.TryParse(Text(body, "fileID"), NumberStyles.Integer, CultureInfo.InvariantCulture, out long value) ? value : 0;
     private static IEnumerable<YamlNode> Sequence(YamlMappingNode? body, string key) => Get(body, key) is YamlSequenceNode sequence ? sequence.Children : Array.Empty<YamlNode>();
-    private static bool Bool(YamlMappingNode? body, string key, bool fallback) => Get(body, key) == null ? fallback : Text(body, key) is "1" or "true";
+    private static bool TryBool(YamlMappingNode? body, string key, bool fallback, out bool value)
+    {
+        var node = Get(body, key);
+        if (node == null) { value = fallback; return true; }
+        if (node is YamlScalarNode s && s.Value is "0" or "1" or "false" or "true")
+        {
+            value = s.Value is "1" or "true";
+            return true;
+        }
+        value = false;
+        return false;
+    }
     private static float Float(YamlMappingNode body, string key) => float.TryParse(Text(body, key), NumberStyles.Float, CultureInfo.InvariantCulture, out float value) ? value : float.NaN;
 }

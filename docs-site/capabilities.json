@@ -50,8 +50,8 @@
       "name": "Blendshape Sync",
       "type": "ModularAvatarBlendshapeSync",
       "status": "limited",
-      "outcome": "Initial linked blendshape weights transfer; live synchronization does not.",
-      "reason": "Animator-curve propagation and runtime parameter changes are not converted.",
+      "outcome": "Initial linked blendshape weights transfer and continuous live synchronization is driven via native ValueCopy<float>.",
+      "reason": "Multi-source blendshape blending and remap curves remain pending.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -64,7 +64,7 @@
         "UnityPackageImporter/Models/BlendshapeInitialAppearance.cs",
         "Tests/ComposedInitialAppearanceTests.cs"
       ],
-      "summary": "Initial weights only. No live sync."
+      "summary": "Continuous blendshape synchronization is wired under a dedicated Blendshape sync slot when AvatarRoot is present; remap curves and multi-source destinations fail closed."
     },
     {
       "id": "ma-boneproxy",
@@ -94,8 +94,8 @@
       "name": "Material Setter",
       "type": "ModularAvatarMaterialSetter",
       "status": "limited",
-      "outcome": "Supported initial material-slot assignments transfer; live changes do not.",
-      "reason": "Requires exact renderer and material identities; unresolved context is reported rather than guessed.",
+      "outcome": "Initial material slot assignments transfer and independent reactive toggles are driven with baseline restoration and m_inverted support.",
+      "reason": "Multi-state conditions and external material animation remain pending.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -108,7 +108,7 @@
         "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
         "Tests/ModularAvatarInitialAppearanceTests.cs"
       ],
-      "summary": "Initial material slots only. No live changes."
+      "summary": "Initial material assignments and independent material toggles with baseline restoration are supported; invalid material slots fail closed."
     },
     {
       "id": "ma-menuitem",
@@ -116,8 +116,8 @@
       "name": "Menu Item",
       "type": "ModularAvatarMenuItem",
       "status": "limited",
-      "outcome": "Some menu context informs initial appearance; no usable menu is installed.",
-      "reason": "Only safely resolvable initial reactive context is evaluated. Full menu and parameter translation remain missing.",
+      "outcome": "SubMenu hierarchy navigation and independent binary Toggle controls with icons and default states transfer to native controls.",
+      "reason": "Radial puppets, axis puppets, momentary buttons, and shared parameters remain pending.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -130,7 +130,7 @@
         "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
         "Tests/ModularAvatarInitialAppearanceTests.cs"
       ],
-      "summary": "Initial context only. No usable menu."
+      "summary": "Submenus and independent binary toggles with icons and defaults are compiled; puppets and momentary buttons fail closed."
     },
     {
       "id": "ma-mergearmature",
@@ -160,8 +160,8 @@
       "name": "Object Toggle",
       "type": "ModularAvatarObjectToggle",
       "status": "limited",
-      "outcome": "Supported initial visibility transfers; interactive toggles do not.",
-      "reason": "Reactive defaults must resolve safely; no runtime parameter system is recreated.",
+      "outcome": "Initial visibility transfers and independent Boolean-toggle reactive runtime is driven with authored baseline restoration.",
+      "reason": "Multi-state conditions and shared-property arbitration remain pending.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -174,7 +174,7 @@
         "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
         "Tests/ModularAvatarInitialAppearanceTests.cs"
       ],
-      "summary": "Initial visibility only. No interactive toggle."
+      "summary": "Initial active state and independent binary wardrobe toggles with baseline restoration are supported; multi-state evaluation fails closed."
     },
     {
       "id": "ma-shapechanger",
@@ -182,8 +182,8 @@
       "name": "Shape Changer",
       "type": "ModularAvatarShapeChanger",
       "status": "limited",
-      "outcome": "Supported initial Set weights transfer; deletion and live control do not.",
-      "reason": "Only reversible initial appearance is evaluated; ambiguous reactive context can block application.",
+      "outcome": "Initial blendshape weights transfer and Set mode independent reactive toggles are driven with authored baseline restoration.",
+      "reason": "Destructive Delete mode and multi-state conditions remain pending.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -196,7 +196,7 @@
         "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
         "Tests/ModularAvatarInitialAppearanceTests.cs"
       ],
-      "summary": "Initial Set weights only. No deletion or live control."
+      "summary": "Initial weights and independent Set mode blendshape toggles with baseline restoration are supported; Delete mode fails closed."
     },
     {
       "id": "vrcfury-applyduringupload",
@@ -248,8 +248,8 @@
       "name": "Blend Shape Link",
       "type": "BlendShapeLink",
       "status": "limited",
-      "outcome": "Initial linked blendshape weights transfer; live synchronization does not.",
-      "reason": "Runtime parameter behavior and animator-curve propagation are not converted.",
+      "outcome": "Initial linked blendshape weights transfer and continuous live synchronization is driven via native ValueCopy<float>.",
+      "reason": "Multi-source blendshape blending remains pending.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -262,7 +262,7 @@
         "UnityPackageImporter/Models/BlendshapeInitialAppearance.cs",
         "Tests/ComposedInitialAppearanceTests.cs"
       ],
-      "summary": "Initial weights only. No live sync."
+      "summary": "Initial exact weights and continuous runtime synchronization are applied when AvatarRoot is present; multi-source conflicts fail closed."
     },
     {
       "id": "vrcfury-toggle",
@@ -270,8 +270,8 @@
       "name": "Toggle",
       "type": "Toggle",
       "status": "limited",
-      "outcome": "Supported authored resting appearance transfers; the interactive toggle does not.",
-      "reason": "Dynamic modes and saved runtime state are not inferred. Unsupported contexts are reported.",
+      "outcome": "Independent binary wardrobe toggles with blendshape, material, and clip actions are compiled into native controls with baseline restoration.",
+      "reason": "Multi-layer animator state machines, transitions, and shared property arbitration remain pending.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -284,7 +284,7 @@
         "UnityPackageImporter/Models/VrcFuryInitialAppearance.cs",
         "Tests/ComposedInitialAppearanceTests.cs"
       ],
-      "summary": "Resting appearance only. No interactive toggle."
+      "summary": "Independent binary wardrobe toggles are compiled with baseline restoration; complex animator controllers fail closed."
     },
     {
       "id": "ma-convertconstraints",
@@ -363,9 +363,9 @@
       "framework": "ma",
       "name": "Menu Group",
       "type": "ModularAvatarMenuGroup",
-      "status": "missing",
-      "outcome": "Group avatar controls into submenus. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "Hierarchy traversal across children and otherObjectChildren for installed Modular Avatar toggle menus transfers.",
+      "reason": "External asset menu references remain pending.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -374,7 +374,11 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/Menu/ModularAvatarMenuGroup.cs"
       },
-      "evidence": []
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarPackageIndex.cs",
+        "Tests/ModularAvatarInitialAppearanceTests.cs"
+      ],
+      "summary": "Children and otherObjectChildren hierarchies are traversed during toggle menu compilation."
     },
     {
       "id": "ma-menuinstalltarget",
@@ -399,9 +403,9 @@
       "framework": "ma",
       "name": "Menu Installer",
       "type": "ModularAvatarMenuInstaller",
-      "status": "missing",
-      "outcome": "Install controls into an avatar menu. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "Default root and hierarchy-scoped menu installation for independent Modular Avatar toggle and submenu trees transfer.",
+      "reason": "External menu assets and explicit install targets remain pending.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -410,7 +414,11 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/Menu/ModularAvatarMenuInstaller.cs"
       },
-      "evidence": []
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarPackageIndex.cs",
+        "Tests/ModularAvatarInitialAppearanceTests.cs"
+      ],
+      "summary": "Menu roots and installer hierarchy scoping are parsed and compiled into native wardrobe controls."
     },
     {
       "id": "ma-mergeanimator",
@@ -525,9 +533,9 @@
       "framework": "ma",
       "name": "Parameters",
       "type": "ModularAvatarParameters",
-      "status": "missing",
-      "outcome": "Declare and remap avatar parameters. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "Scoped parameter remapping, internal parameter isolation, default values, and type preservation (Bool, Int, Float) transfer.",
+      "reason": "Saved parameter persistence across sessions and multi-writer arbitration remain pending.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -536,7 +544,11 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarParameters.cs"
       },
-      "evidence": []
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarPackageIndex.cs",
+        "Tests/ModularAvatarInitialAppearanceTests.cs"
+      ],
+      "summary": "Parameter remappings, defaults, and type preservation are compiled for wardrobe toggles; persistence fails closed."
     },
     {
       "id": "ma-pbblocker",

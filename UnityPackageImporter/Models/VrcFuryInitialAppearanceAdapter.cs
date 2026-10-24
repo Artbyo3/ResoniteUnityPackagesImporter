@@ -2,7 +2,6 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -79,13 +78,8 @@ public static class VrcFuryInitialAppearanceAdapter
                 ExternalAnimationAndParameterContextVerifiedAbsent = !hasRuntimeContext
             };
             await default(ToBackground);
-            UnityStaticClipResult? ResolveClip(string guid, long fileId)
-            {
-                token.ThrowIfCancellationRequested();
-                if (!importer.unityProjectImporter.AssetIDDict.TryGetValue(guid, out string? path) ||
-                    !string.Equals(Path.GetExtension(path), ".anim", StringComparison.OrdinalIgnoreCase) || !File.Exists(path)) return null;
-                return UnityStaticAnimationClip.Parse(File.ReadAllText(path), fileId, token);
-            }
+            UnityStaticClipResult? ResolveClip(string guid, long fileId) =>
+                UnityStaticAnimationClip.Resolve(importer.unityProjectImporter.AssetIDDict, guid, fileId, token);
             var result = VrcFuryInitialAppearance.Evaluate(yaml, context, ResolveClip, token);
             await default(ToWorld);
             token.ThrowIfCancellationRequested();

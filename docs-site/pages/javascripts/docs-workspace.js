@@ -185,7 +185,7 @@
     searchStatus.textContent = heading.textContent;
   };
 
-  fetch(new URL("assets/docs-workspace.json", base)).then(response => {
+  fetch(new URL("assets/docs-workspace.json", base), { cache: "no-store" }).then(response => {
     if (!response.ok) throw new Error(`Documentation navigation: HTTP ${response.status}`);
     return response.json();
   }).then(payload => {

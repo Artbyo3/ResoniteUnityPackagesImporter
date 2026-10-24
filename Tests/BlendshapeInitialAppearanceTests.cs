@@ -99,6 +99,16 @@ internal static class BlendshapeInitialAppearanceTests
         });
         test("Initial MA blendshape remaps interpolate and extrapolate in Unity percentage units", () =>
         {
+            string oneKey = "  RemapCurveIsValid: 1\n  RemapCurve:\n    m_Curve:\n    - time: 0\n      value: 42\n";
+            var maOneKey = BlendshapeInitialAppearance.Evaluate(Ma(remap: oneKey), Objects(), Skins());
+            check(!maOneKey.HasErrors && maOneKey.Writes.Single().UnityWeight == 42f && maOneKey.Links.Single().HasRemapCurve,
+                "One-key remap curve must produce its constant value and mark HasRemapCurve.");
+
+            string zeroKey = "  RemapCurveIsValid: 1\n  RemapCurve:\n    m_Curve: []\n";
+            var maZeroKey = BlendshapeInitialAppearance.Evaluate(Ma(remap: zeroKey), Objects(), Skins());
+            check(maZeroKey.HasErrors && maZeroKey.Writes.Count == 0 && maZeroKey.Diagnostics.Any(d => d.Code == "BLENDSHAPE_REMAP_INVALID"),
+                "Enabled empty remap curve must be rejected.");
+
             string curve = "  RemapCurveIsValid: 1\n  RemapCurve:\n    m_Curve:\n    - time: 0\n      value: 100\n    - time: 100\n      value: 0\n";
             foreach (var pair in new[] { (Input: 25f, Expected: 75f), (Input: -50f, Expected: 150f), (Input: 150f, Expected: -50f) })
             {
@@ -111,10 +121,16 @@ internal static class BlendshapeInitialAppearanceTests
             foreach (float value in new[] { -50f, 150f })
                 check(BlendshapeInitialAppearance.Evaluate(Ma(), Objects(), Skins(value)).Writes.Single().UnityWeight == value, "Identity clamped an intentional out-of-range weight.");
         });
-        test("Initial MA invalid legacy remap flag preserves identity", () =>
+        test("Initial MA invalid legacy remap flag preserves identity and rejects malformed boolean flags", () =>
         {
             string remap = "  RemapCurveIsValid: 0\n  RemapCurve:\n    m_Curve:\n    - time: 0\n      value: 100\n    - time: 100\n      value: 0\n";
             check(BlendshapeInitialAppearance.Evaluate(Ma(remap: remap), Objects(), Skins()).Writes.Single().UnityWeight == 65, "Uninitialized legacy curve was treated as active.");
+
+            string malformedFlag = "  RemapCurveIsValid: 2\n  RemapCurve:\n    m_Curve:\n    - time: 0\n      value: 100\n    - time: 100\n      value: 0\n";
+            var malformedResult = BlendshapeInitialAppearance.Evaluate(Ma(remap: malformedFlag), Objects(), Skins());
+            check(malformedResult.HasErrors && malformedResult.Writes.Count == 0 && malformedResult.Links.Count == 0 &&
+                malformedResult.Diagnostics.Any(d => d.Code == "BLENDSHAPE_REMAP_INVALID"),
+                "Malformed RemapCurveIsValid flag silently became an identity transfer.");
         });
         test("Initial MA duplicate and nonfinite curve keys reject the entire write set", () =>
         {
@@ -168,11 +184,50 @@ internal static class BlendshapeInitialAppearanceTests
             var orphan = BlendshapeInitialAppearance.Evaluate(Fury().Replace("content: {rid: 400}", "content: {rid: -2}"), Objects(), Skins());
             check(orphan.Writes.Count == 0 && orphan.Components.Count == 0, "Orphan managed-reference data was executed.");
         });
-        test("Initial VRCFury excludes and explicit includes preserve precedence", () =>
+        test("Initial VRCFury excludes and explicit includes preserve precedence and reject malformed filter lists", () =>
         {
             string extra = "includeAll: 1\nexcludes: [{name: Smile}]\nincludes: [{nameOnBase: Size, nameOnLinked: Fit}]\n";
             var result = BlendshapeInitialAppearance.Evaluate(Fury(extra), Objects(), Skins());
             check(!result.HasErrors && result.Writes.Count == 1 && result.Writes[0].Shape == "Fit", "Exclusion or explicit mapping precedence was lost.");
+
+            foreach (string badFilter in new[] { "includes: broken\n", "includes: [broken]\n", "includes: [{}]\n", "includes: [{unrelated: 1}]\n", "excludes: broken\n", "excludes: [broken]\n" })
+            {
+                var badResult = BlendshapeInitialAppearance.Evaluate(Fury(badFilter), Objects(), Skins());
+                check(badResult.HasErrors && badResult.Writes.Count == 0 && badResult.Links.Count == 0 &&
+                    badResult.Diagnostics.Any(d => d.Code == "BLENDSHAPE_BINDINGS_INVALID"),
+                    "Malformed BlendShapeLink filter failed open: " + badFilter);
+            }
+        });
+        test("Per-avatar blendshape evaluation isolates valid avatars from invalid bindings on other avatars", () =>
+        {
+            string validAvatarA = Ma(component: 100, owner: 3, sourceObject: 2, path: "Body", local: "Fit");
+            string brokenAvatarBMa = Ma(component: 101, owner: 4, sourceObject: 4, path: "Missing", local: "Missing");
+            string brokenAvatarBFury = Fury().Replace("&100", "&102").Replace("m_GameObject: {fileID: 3}", "m_GameObject: {fileID: 4}")
+                .Replace("rid: 400", "rid: broken");
+            string combined = validAvatarA + brokenAvatarBMa + brokenAvatarBFury;
+
+            var avatarAResult = BlendshapeInitialAppearance.Evaluate(combined, Objects(), Skins(), avatarRootId: 1);
+            check(!avatarAResult.HasErrors && avatarAResult.Writes.Count == 1 && avatarAResult.Links.Count == 1 &&
+                avatarAResult.Writes[0].RendererId == 30 && avatarAResult.Writes[0].Shape == "Fit" && avatarAResult.Writes[0].UnityWeight == 65,
+                "A broken blendshape component on avatar B blocked valid writes or links on avatar A.");
+
+            var avatarBResult = BlendshapeInitialAppearance.Evaluate(combined, Objects(), Skins(), avatarRootId: 10);
+            check(avatarBResult.HasErrors && avatarBResult.Writes.Count == 0 && avatarBResult.Links.Count == 0,
+                "Avatar B's invalid blendshape bindings did not fail closed for avatar B.");
+        });
+        test("Per-avatar blendshape evaluation ignores components on unrelated non-avatar branches", () =>
+        {
+            string validAvatarA = Ma(component: 100, owner: 3, sourceObject: 2, path: "Body", local: "Fit");
+            string unrelatedHierarchy =
+                "--- !u!1 &999\nGameObject:\n  m_Name: UnrelatedProp\n" +
+                "--- !u!4 &9990\nTransform:\n  m_GameObject: {fileID: 999}\n  m_Father: {fileID: 0}\n";
+            string unrelatedComp = Ma(component: 900, owner: 999, sourceObject: 998, path: "Prop", local: "Fit");
+            string combined = validAvatarA + unrelatedHierarchy + unrelatedComp;
+
+            var avatarAResult = BlendshapeInitialAppearance.Evaluate(combined, Objects(), Skins(), avatarRootId: 1);
+            check(!avatarAResult.HasErrors && avatarAResult.Writes.Count == 1 && avatarAResult.Links.Count == 1 &&
+                avatarAResult.Writes[0].RendererId == 30 && avatarAResult.Writes[0].Shape == "Fit" && avatarAResult.Writes[0].UnityWeight == 65,
+                "A blendshape component on an unrelated non-avatar branch blocked valid writes or links on avatar A.");
         });
         test("Initial VRCFury source-name matching uses exact then case-and-whitespace matching", () =>
         {
@@ -199,6 +254,20 @@ internal static class BlendshapeInitialAppearanceTests
             var result = BlendshapeInitialAppearance.Evaluate(Fury().Replace("fileID: 30", "fileID: 40"), Objects(), Skins());
             check(result.HasErrors && result.Writes.Count == 0, "A different avatar was modified.");
         });
+        test("Blendshape Sync and BlendShapeLink reject external GUID references colliding with local fileIDs", () =>
+        {
+            string maExternal = Ma().Replace("targetObject: {fileID: 2}", "targetObject: {fileID: 2, guid: 11111111111111111111111111111111}");
+            var maResult = BlendshapeInitialAppearance.Evaluate(maExternal, Objects(), Skins());
+            check(maResult.HasErrors && maResult.Writes.Count == 0 && maResult.Links.Count == 0 &&
+                maResult.Diagnostics.Any(d => d.Code == "BLENDSHAPE_SOURCE_UNRESOLVED"),
+                "External MA targetObject GUID was resolved to local object.");
+
+            string furyExternal = Fury().Replace("linkSkins: [{renderer: {fileID: 30}}]", "linkSkins: [{renderer: {fileID: 30, guid: 11111111111111111111111111111111}}]");
+            var furyResult = BlendshapeInitialAppearance.Evaluate(furyExternal, Objects(), Skins());
+            check(furyResult.HasErrors && furyResult.Writes.Count == 0 && furyResult.Links.Count == 0 &&
+                furyResult.Diagnostics.Any(d => d.Code == "BLENDSHAPE_TARGET_UNRESOLVED"),
+                "External VRCF linkSkins GUID was resolved to local renderer.");
+        });
         test("Initial VRCFury ambiguous base skins do not depend on source enumeration", () =>
         {
             var objects = Objects(); objects[5] = new(5, 1, "Body", "Copy");
@@ -220,6 +289,35 @@ internal static class BlendshapeInitialAppearanceTests
                 check(cancelled, "Cancelled evaluation produced a write set.");
             }
             finally { CultureInfo.CurrentCulture = previous; }
+        });
+        test("Runtime blendshape links emit identity and remap metadata and reject multi-source conflicts", () =>
+        {
+            var maIdentity = BlendshapeInitialAppearance.Evaluate(Ma(local: "Fit"), Objects(), Skins());
+            var link = maIdentity.Links.Single();
+            check(!maIdentity.HasErrors && link.SourceRendererId == 20 && link.SourceShape == "Size" &&
+                link.TargetRendererId == 30 && link.TargetShape == "Fit" && !link.HasRemapCurve, "Identity link metadata mismatch.");
+
+            string oneKey = "  RemapCurveIsValid: 1\n  RemapCurve:\n    m_Curve:\n    - time: 0\n      value: 42\n";
+            var maOneKey = BlendshapeInitialAppearance.Evaluate(Ma(remap: oneKey), Objects(), Skins());
+            check(!maOneKey.HasErrors && maOneKey.Writes.Single().UnityWeight == 42f && maOneKey.Links.Single().HasRemapCurve,
+                "One-key remap curve must produce its constant value and mark HasRemapCurve.");
+
+            string zeroKey = "  RemapCurveIsValid: 1\n  RemapCurve:\n    m_Curve: []\n";
+            var maZeroKey = BlendshapeInitialAppearance.Evaluate(Ma(remap: zeroKey), Objects(), Skins());
+            check(maZeroKey.HasErrors && maZeroKey.Writes.Count == 0 && maZeroKey.Diagnostics.Any(d => d.Code == "BLENDSHAPE_REMAP_INVALID"),
+                "Enabled empty remap curve must be rejected.");
+
+            string curve = "  RemapCurveIsValid: 1\n  RemapCurve:\n    m_Curve:\n    - time: 0\n      value: 100\n    - time: 100\n      value: 0\n";
+            var maRemap = BlendshapeInitialAppearance.Evaluate(Ma(remap: curve), Objects(), Skins());
+            check(!maRemap.HasErrors && maRemap.Links.Single().HasRemapCurve, "Remap curve flag was not set on runtime link.");
+
+            var skinsSameWeight = Skins(25);
+            string conflictSameInitialWeight = Ma(component: 100) +
+                Ma(component: 101).Replace("Blendshape: Size", "Blendshape: Smile").Replace("LocalBlendshape: ''", "LocalBlendshape: Size");
+            var conflictResult = BlendshapeInitialAppearance.Evaluate(conflictSameInitialWeight, Objects(), skinsSameWeight);
+            check(conflictResult.HasErrors && conflictResult.Links.Count == 0 &&
+                conflictResult.Diagnostics.Any(d => d.Code == "BLENDSHAPE_WRITE_CONFLICT"),
+                "Competing sources with equal initial weight escaped runtime link conflict check.");
         });
     }
 

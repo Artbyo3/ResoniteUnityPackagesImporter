@@ -1,0 +1,1554 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-24",
+  "groups": [
+    {
+      "id": "vrc-sdk",
+      "name": "Base VRChat SDK types",
+      "revision": "Avatar SDK3 type inventory in AVATAR_CONVERSION_SCOPE.md, 2026-10-24",
+      "boundary": "28 explicitly inventoried SDK component/behavior/asset types from scope sections 1-2. This denominator is not every SDK utility type, Unity component, controller feature or built-in signal. General Unity animation/geometry/rendering coverage is a separate dependency, not credited here.",
+      "entries": [
+        {
+          "name": "PipelineManager",
+          "status": "indexed",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: PipelineManager",
+          "reason": "Provenance/blueprint parsing only; no native VRChat ownership or upload service.",
+          "runtime": false,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarPackageIndex.cs"
+          ],
+          "tests": []
+        },
+        {
+          "name": "VRCAccessoryPerPlatformOverrides",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCAccessoryPerPlatformOverrides",
+          "reason": "Explicit target policy; preserve other variants.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCAimConstraint",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCAimConstraint",
+          "reason": "Sources, axes, offsets, activation/world-up.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCAnimatorLayerControl",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCAnimatorLayerControl",
+          "reason": "Weight blend/interruption.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCAnimatorLocomotionControl",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCAnimatorLocomotionControl",
+          "reason": "Locomotion override with consent/restoration.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCAnimatorPlayAudio",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCAnimatorPlayAudio",
+          "reason": "Native playback, clip/order and volume limits.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCAnimatorTemporaryPoseSpace",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCAnimatorTemporaryPoseSpace",
+          "reason": "Pose space, exit/interruption cleanup.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCAnimatorTrackingControl",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCAnimatorTrackingControl",
+          "reason": "Per-channel handoff, protect tracking/recovery.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCAvatarDescriptor",
+          "status": "partial",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCAvatarDescriptor",
+          "reason": "Local partial: owned root/viewpoint, native humanoid setup and exact mode-3 viseme mappings with unique destinations. Jaw/parameter-only modes, duplicate viseme mixing, playable layers and many descriptor settings pending; no live certification.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/NativeAvatarCreation.cs",
+            "UnityPackageImporter/Models/AvatarVisemeSettings.cs",
+            "UnityPackageImporter/Models/AvatarVisemeRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarViewpointTests.cs",
+            "Tests/AvatarVisemeTests.cs"
+          ]
+        },
+        {
+          "name": "VRCAvatarParameterDriver",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCAvatarParameterDriver",
+          "reason": "Ordered writes, local-only and owner-generated randomness.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCContactReceiver",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCContactReceiver",
+          "reason": "Constant/on-enter/proximity, self/others/local filters and parameter authority.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCContactSender",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCContactSender",
+          "reason": "Typed volumes/shapes/transforms/tags.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCExpressionParameters",
+          "status": "indexed",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCExpressionParameters",
+          "reason": "Exact typed AST declarations/defaults/saved/sync metadata and pure shared-state model; no installed SDK/MA shared parameter runtime or saved restoration.",
+          "runtime": false,
+          "evidence": [
+            "UnityPackageImporter/Models/ExpressionMenuParser.cs",
+            "UnityPackageImporter/Models/AvatarParameterState.cs"
+          ],
+          "tests": ["Tests/AvatarWardrobeStateTests.cs"]
+        },
+        {
+          "name": "VRCExpressionsMenu",
+          "status": "indexed",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCExpressionsMenu",
+          "reason": "Exact AST control structure, ordered puppet parameters/label names and external references; hierarchy/display subset only. Uncompiled controls remain disabled; no runtime credit.",
+          "runtime": false,
+          "evidence": [
+            "UnityPackageImporter/Models/ExpressionMenuParser.cs"
+          ],
+          "tests": ["Tests/ExpressionMenuStructureTests.cs"]
+        },
+        {
+          "name": "VRCHeadChop",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCHeadChop",
+          "reason": "Local first-person visibility/scale, preserve remote/mirror.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCIKFollower",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCIKFollower",
+          "reason": "Explicit legacy attachment migration.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCLookAtConstraint",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCLookAtConstraint",
+          "reason": "Look-at/up-vector/weights.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCParentConstraint",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCParentConstraint",
+          "reason": "Multi-source position/rotation, offsets/rest.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCPerPlatformOverrides",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCPerPlatformOverrides",
+          "reason": "Explicit target policy; preserve other variants.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCPhysBone",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCPhysBone",
+          "reason": "Roots/ignore/endpoints, forces/curves, limits, collision, stretch/squish, grab/pose and generated state; approximate until measured.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCPhysBoneCollider",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCPhysBoneCollider",
+          "reason": "Shapes/offsets/radii, inside/outside and scale; no silent cross-user interaction.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCPlayableLayerControl",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCPlayableLayerControl",
+          "reason": "Playable weights/durations.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCPositionConstraint",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCPositionConstraint",
+          "reason": "Masks, offsets/rest, freeze/activation.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCRaycast",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCRaycast",
+          "reason": "Query/result-transform, layers, misses and cost caps.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCRotationConstraint",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCRotationConstraint",
+          "reason": "Masks, weighted rotations/offsets.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCScaleConstraint",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCScaleConstraint",
+          "reason": "Weights, offsets, singular/nonuniform scale.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCSpatialAudioSource",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCSpatialAudioSource",
+          "reason": "Spatial audio/attenuation, not identical engine.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCStation",
+          "status": "missing",
+          "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCStation",
+          "reason": "Seat/pose, enter/exit authority and escape.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "ma",
+      "name": "Modular Avatar components",
+      "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
+      "boundary": "40 concrete Runtime authored types: 38 nonabstract tag-derived components plus MAMoveIndependently and the MMD state behavior. ShapeChanger Set/Delete are one component. Abstract bases and editor infrastructure are not components; excluded concrete types remain counted.",
+      "entries": [
+        {
+          "name": "MAMoveIndependently",
+          "source": "Runtime/MAMoveIndependently.cs",
+          "status": "excluded",
+          "reason": "Authoring relative-placement helper; preserve authored transforms, not editor live-lock machinery.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarBlendshapeSync",
+          "source": "Runtime/ModularAvatarBlendshapeSync.cs",
+          "status": "partial",
+          "reason": "Initial exact blendshape weights and continuous ValueCopy<float> synchronization for unique destination blendshapes; multi-source blendshape blending pending.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/BlendshapeInitialAppearance.cs",
+            "UnityPackageImporter/Models/BlendshapeInitialAppearanceAdapter.cs"
+          ],
+          "tests": [
+            "Tests/BlendshapeInitialAppearanceTests.cs"
+          ]
+        },
+        {
+          "name": "ModularAvatarBoneProxy",
+          "source": "Runtime/ModularAvatarBoneProxy.cs",
+          "status": "partial",
+          "reason": "Supported owned bone attachments/offsets; remaining modes/scale cases pending.",
+          "runtime": false,
+          "evidence": [
+            "UnityPackageImporter/Models/BoneAttachmentTarget.cs"
+          ],
+          "tests": [
+            "Tests/AvatarStructuralConversionTests.cs"
+          ]
+        },
+        {
+          "name": "ModularAvatarConvertConstraints",
+          "source": "Runtime/ModularAvatarConvertConstraints.cs",
+          "status": "missing",
+          "reason": "Interpret Unity intent directly; VRC intermediate unnecessary.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarFloorAdjuster",
+          "source": "Runtime/ModularAvatarFloorAdjuster.cs",
+          "status": "missing",
+          "reason": "Footwear/floor calibration; multiple-component conflicts.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarGlobalCollider",
+          "source": "Runtime/ModularAvatarGlobalCollider.cs",
+          "status": "missing",
+          "reason": "Native dynamics/contacts; VRChat tags not universal protocols.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarMaterialSetter",
+          "source": "Runtime/ReactiveObjects/ModularAvatarMaterialSetter.cs",
+          "status": "partial",
+          "reason": "Initial exact external material-slot replacement and independent Boolean-toggle reactive runtime with baseline restoration; multi-state/shared-parameter reactive conditions pending.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
+            "UnityPackageImporter/Models/ModularAvatarWardrobeCompiler.cs",
+            "UnityPackageImporter/Models/AvatarWardrobeRuntime.cs"
+          ],
+          "tests": [
+            "Tests/ModularAvatarInitialAppearanceTests.cs",
+            "Tests/ModularAvatarWardrobeTests.cs"
+          ]
+        },
+        {
+          "name": "ModularAvatarMaterialSwap",
+          "source": "Runtime/ReactiveObjects/ModularAvatarMaterialSwap.cs",
+          "status": "missing",
+          "reason": "Substitution/conditions, not covered by Material Setter support.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarMenuGroup",
+          "source": "Runtime/Menu/ModularAvatarMenuGroup.cs",
+          "status": "partial",
+          "reason": "MenuSource children/otherObjectChildren hierarchy traversal for installed Modular Avatar toggle menus; external asset menus pending.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/ModularAvatarWardrobeCompiler.cs"
+          ],
+          "tests": [
+            "Tests/ModularAvatarWardrobeTests.cs"
+          ]
+        },
+        {
+          "name": "ModularAvatarMenuInstaller",
+          "source": "Runtime/Menu/ModularAvatarMenuInstaller.cs",
+          "status": "partial",
+          "reason": "Default root and hierarchy-scoped menu installation for independent Modular Avatar toggle/submenu trees; external menu assets and explicit install targets pending.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarPackageIndex.cs",
+            "UnityPackageImporter/Models/ModularAvatarWardrobeCompiler.cs"
+          ],
+          "tests": [
+            "Tests/ModularAvatarWardrobeTests.cs"
+          ]
+        },
+        {
+          "name": "ModularAvatarMenuInstallTarget",
+          "source": "Runtime/ModularAvatarMenuInstallTarget.cs",
+          "status": "missing",
+          "reason": "Targeted insertion, cycle-safe resolution.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarMenuItem",
+          "source": "Runtime/ModularAvatarMenuItem.cs",
+          "status": "partial",
+          "reason": "SubMenu hierarchy and independent binary Toggle controls with reactive child/parameter bindings, icons and default state; momentary Button, RadialPuppet/TwoAxisPuppet/FourAxisPuppet and multi-value controls pending.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarPackageIndex.cs",
+            "UnityPackageImporter/Models/ModularAvatarWardrobeCompiler.cs"
+          ],
+          "tests": [
+            "Tests/ModularAvatarWardrobeTests.cs"
+          ]
+        },
+        {
+          "name": "ModularAvatarMergeAnimator",
+          "source": "Runtime/ModularAvatarMergeAnimator.cs",
+          "status": "missing",
+          "reason": "Controller merge, path remap, priority/layer semantics.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarMergeArmature",
+          "source": "Runtime/ModularAvatarMergeArmature.cs",
+          "status": "partial",
+          "reason": "Supported structural merge/skin-reference subset; unsupported merge modes remain pending.",
+          "runtime": false,
+          "evidence": [
+            "UnityPackageImporter/Models/ModularAvatarMergePlanner.cs"
+          ],
+          "tests": [
+            "Tests/AvatarStructuralConversionTests.cs"
+          ]
+        },
+        {
+          "name": "ModularAvatarMergeBlendTree",
+          "source": "Runtime/ModularAvatarMergeBlendTree.cs",
+          "status": "missing",
+          "reason": "Shared motion/tree compilation.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarMeshCutter",
+          "source": "Runtime/ReactiveObjects/ModularAvatarMeshCutter.cs",
+          "status": "missing",
+          "reason": "Pending isolated-copy geometry removal with skin/blendshape/reference remapping and source immutability; destructive outcome is not a technical exclusion.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarMeshSettings",
+          "source": "Runtime/ModularAvatarMeshSettings.cs",
+          "status": "missing",
+          "reason": "Probe/anchor/bounds intent, lighting differences disclosed.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarMMDLayerControl",
+          "source": "Runtime/ModularAvatarMMDLayerControl.cs",
+          "status": "missing",
+          "reason": "VRChat world protocol excluded; usable animation intent separately.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarMoveTo",
+          "source": "Runtime/ModularAvatarMoveTo.cs",
+          "status": "missing",
+          "reason": "Staged reparent/reference remap and cycle checks.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarObjectToggle",
+          "source": "Runtime/ReactiveObjects/ModularAvatarObjectToggle.cs",
+          "status": "partial",
+          "reason": "Deterministic initial visibility and independent Boolean-toggle reactive runtime with baseline restoration; multi-state/shared-parameter reactive conditions pending.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
+            "UnityPackageImporter/Models/ModularAvatarWardrobeCompiler.cs",
+            "UnityPackageImporter/Models/AvatarWardrobeRuntime.cs"
+          ],
+          "tests": [
+            "Tests/ModularAvatarInitialAppearanceTests.cs",
+            "Tests/ModularAvatarWardrobeTests.cs"
+          ]
+        },
+        {
+          "name": "ModularAvatarOutfitRoot",
+          "source": "Runtime/ModularAvatarOutfitRoot.cs",
+          "status": "indexed",
+          "reason": "Only indexed/default metadata is interpreted; no corresponding native runtime behavior. Identification/selection metadata, not dressing runtime by itself.",
+          "runtime": false,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarPackageIndex.cs"
+          ],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarParameters",
+          "source": "Runtime/ModularAvatarParameters.cs",
+          "status": "partial",
+          "reason": "Scoped parameter remapping, internal parameter isolation and default values for Modular Avatar initial appearance and toggle compilation; saved/synced persistence and multi-writer arbitration pending.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarPackageIndex.cs",
+            "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
+            "UnityPackageImporter/Models/ModularAvatarWardrobeCompiler.cs"
+          ],
+          "tests": [
+            "Tests/ModularAvatarInitialAppearanceTests.cs",
+            "Tests/ModularAvatarWardrobeTests.cs"
+          ]
+        },
+        {
+          "name": "ModularAvatarPBBlocker",
+          "source": "Runtime/ModularAvatarPBBlocker.cs",
+          "status": "missing",
+          "reason": "Native chain exclusion, no component deletion needed.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarPlatformFilter",
+          "source": "Runtime/ModularAvatarPlatformFilter.cs",
+          "status": "missing",
+          "reason": "Resonite target, not automatically PC/Android; explicit output exclusion, immutable source/dependency reports.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarReactiveMove",
+          "source": "Runtime/ReactiveObjects/ModularAvatarReactiveMove.cs",
+          "status": "missing",
+          "reason": "Reactive constraints, channels, world-fix and transitions.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarRemoveVertexColor",
+          "source": "Runtime/RemoveVertexColor.cs",
+          "status": "missing",
+          "reason": "Pending isolated-copy vertex-color stripping honoring DontRemove overrides; preserve source mesh channels.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarRenameVRChatCollisionTags",
+          "source": "Runtime/ModularAvatarRenameVRChatCollisionTags.cs",
+          "status": "missing",
+          "reason": "Namespaced native mapping, no VRChat interoperability claim.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarReplaceObject",
+          "source": "Runtime/ModularAvatarReplaceObject.cs",
+          "status": "missing",
+          "reason": "Pending isolated-copy hierarchy replacement and exact reference remapping; preserve original hierarchy.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarScaleAdjuster",
+          "source": "Runtime/ScaleAdjuster/ModularAvatarScaleAdjuster.cs",
+          "status": "missing",
+          "reason": "Skin-aware compensation, not plain slot scale.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarShapeChanger",
+          "source": "Runtime/ReactiveObjects/ModularAvatarShapeChanger.cs",
+          "status": "partial",
+          "reason": "Initial Set mode weights and independent Boolean-toggle reactive runtime with baseline restoration; multi-state conditions and destructive Delete mode are not supported.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
+            "UnityPackageImporter/Models/ModularAvatarWardrobeCompiler.cs",
+            "UnityPackageImporter/Models/AvatarWardrobeRuntime.cs"
+          ],
+          "tests": [
+            "Tests/ModularAvatarInitialAppearanceTests.cs",
+            "Tests/ModularAvatarWardrobeTests.cs"
+          ]
+        },
+        {
+          "name": "ModularAvatarSyncParameterSequence",
+          "source": "Runtime/ModularAvatarSyncParameterSequence.cs",
+          "status": "excluded",
+          "reason": "VRChat ordering protocol unnecessary; declarations/defaults still preserved.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarVisibleHeadAccessory",
+          "source": "Runtime/ModularAvatarVisibleHeadAccessory.cs",
+          "status": "missing",
+          "reason": "Local first-person visibility, preserve mirror/remote.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarVRChatSettings",
+          "source": "Runtime/ModularAvatarVRChatSettings.cs",
+          "status": "excluded",
+          "reason": "Current MMD support flag has no literal native contract.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarWorldFixedObject",
+          "source": "Runtime/ModularAvatarWorldFixedObject.cs",
+          "status": "missing",
+          "reason": "World anchoring, authority/cleanup/permissions.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ModularAvatarWorldScaleObject",
+          "source": "Runtime/ModularAvatarWorldScaleObject.cs",
+          "status": "missing",
+          "reason": "Effective size across avatar scale changes.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VertexFilterByAxisComponent",
+          "source": "Runtime/ReactiveObjects/VertexFilters/VertexFilterByAxisComponent.cs",
+          "status": "missing",
+          "reason": "Pending exact cutter axis-selection semantics on isolated output meshes.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VertexFilterByBoneComponent",
+          "source": "Runtime/ReactiveObjects/VertexFilters/VertexFilterByBoneComponent.cs",
+          "status": "missing",
+          "reason": "Pending exact cutter bone-weight selection on isolated output meshes.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VertexFilterByMaskComponent",
+          "source": "Runtime/ReactiveObjects/VertexFilters/VertexFilterByMaskComponent.cs",
+          "status": "missing",
+          "reason": "Pending exact cutter texture-mask selection and missing-asset diagnostics.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VertexFilterByShapeComponent",
+          "source": "Runtime/ReactiveObjects/VertexFilters/VertexFilterByShapeComponent.cs",
+          "status": "missing",
+          "reason": "Pending exact cutter blendshape-based selection and remapping.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VertexFilterByUVTileComponent",
+          "source": "Runtime/ReactiveObjects/VertexFilters/VertexFilterByUVTileComponent.cs",
+          "status": "missing",
+          "reason": "Pending exact cutter UV-tile selection and remapping.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "vrcf-features",
+      "name": "VRCFury feature models",
+      "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+      "boundary": "56 concrete top-level feature model classes from 59 feature files, excluding FeatureModel/LegacyFeatureModel/NewFeatureModel schemas. Nested Gesture payload is not an extra feature. Legacy and current types are distinct serialized inputs; actions and wrappers are separate, not double-counted.",
+      "entries": [
+        {
+          "name": "AdvancedCollider",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/AdvancedCollider.cs",
+          "reason": "Shared collider/contact adapters.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "AnchorOverrideFix",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/AnchorOverrideFix.cs",
+          "reason": "Legacy/current common lighting-anchor intent if meaningful natively.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "AnchorOverrideFix2",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/AnchorOverrideFix2.cs",
+          "reason": "Legacy/current common lighting-anchor intent if meaningful natively.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ApplyDuringUpload",
+          "status": "partial",
+          "source": "Runtime/Model/Feature/ApplyDuringUpload.cs",
+          "reason": "Reversible initial visibility/shape/material/constant-clip subset; arbitrary/destructive actions not executed.",
+          "runtime": false,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryInitialAppearance.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryInitialAppearanceTests.cs"
+          ]
+        },
+        {
+          "name": "ArmatureLink",
+          "status": "partial",
+          "source": "Runtime/Model/Feature/ArmatureLink.cs",
+          "reason": "Supported staged structural attachment/merge subset; other link/scaling modes pending.",
+          "runtime": false,
+          "evidence": [
+            "UnityPackageImporter/Frameworks/VrcFury/VrcFuryPlanAdapter.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryArmatureSemanticsTests.cs"
+          ]
+        },
+        {
+          "name": "AvatarScale",
+          "status": "excluded",
+          "source": "Runtime/Model/Feature/AvatarScale.cs",
+          "reason": "Retired upstream; native scaling belongs to base-avatar scope.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "AvatarScale2",
+          "status": "excluded",
+          "source": "Runtime/Model/Feature/AvatarScale2.cs",
+          "reason": "Retired upstream; native scaling belongs to base-avatar scope.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "BlendShapeLink",
+          "status": "partial",
+          "source": "Runtime/Model/Feature/BlendShapeLink.cs",
+          "reason": "Initial exact mapped blendshape weights and continuous ValueCopy<float> synchronization for unique destination blendshapes; multi-source blendshape blending pending.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/BlendshapeInitialAppearance.cs",
+            "UnityPackageImporter/Models/BlendshapeInitialAppearanceAdapter.cs"
+          ],
+          "tests": [
+            "Tests/BlendshapeInitialAppearanceTests.cs"
+          ]
+        },
+        {
+          "name": "BlendshapeOptimizer",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/BlendshapeOptimizer.cs",
+          "reason": "Pending equivalent built appearance and animation bindings; preserve editable source and skip optimization only when behavior equivalence is proven.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "Blinking",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/Blinking.cs",
+          "reason": "Native blink cycle and gesture suppression.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "BoneConstraint",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/BoneConstraint.cs",
+          "reason": "Authored humanoid-bone constraint/attachment.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "BoundingBoxFix",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/BoundingBoxFix.cs",
+          "reason": "Legacy/current bounds/culling, cost caps.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "BoundingBoxFix2",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/BoundingBoxFix2.cs",
+          "reason": "Legacy/current bounds/culling, cost caps.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "Breathing",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/Breathing.cs",
+          "reason": "Cyclic motion/expression.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ConstraintRetarget",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/ConstraintRetarget.cs",
+          "reason": "Reference rewrite within verified ownership.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "CrossEyeFix",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/CrossEyeFix.cs",
+          "reason": "Diagnose native eye solver; no blind compensating constraints.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "CrossEyeFix2",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/CrossEyeFix2.cs",
+          "reason": "Diagnose native eye solver; no blind compensating constraints.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "DeleteDuringUpload",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/DeleteDuringUpload.cs",
+          "reason": "Pending staged-output subtree exclusion with dependent-feature/reference analysis; never remove the source subtree.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "DescriptorDebug",
+          "status": "excluded",
+          "source": "Runtime/Model/Feature/DescriptorDebug.cs",
+          "reason": "Descriptor/inspector debugging.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "DirectTreeOptimizer",
+          "status": "excluded",
+          "source": "Runtime/Model/Feature/DirectTreeOptimizer.cs",
+          "reason": "Unity optimization unnecessary; preserve unoptimized source behavior.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "FixWriteDefaults",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/FixWriteDefaults.cs",
+          "reason": "Shared compiler default normalization.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "FullController",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/FullController.cs",
+          "reason": "Shared controller/menu/parameter merge, path/conflict rules.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "GestureDriver",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/GestureDriver.cs",
+          "reason": "Native hand triggers/weights/composition.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "Gizmo",
+          "status": "excluded",
+          "source": "Runtime/Model/Feature/Gizmo.cs",
+          "reason": "Editor marker only.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "HeadChopHead",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/HeadChopHead.cs",
+          "reason": "Native head-chop retarget.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "MakeWriteDefaultsOff",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/MakeWriteDefaultsOff.cs",
+          "reason": "Normalize while preserving effective behavior.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "MakeWriteDefaultsOff2",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/MakeWriteDefaultsOff2.cs",
+          "reason": "Normalize while preserving effective behavior.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "MmdCompatibility",
+          "status": "excluded",
+          "source": "Runtime/Model/Feature/MmdCompatibility.cs",
+          "reason": "VRChat MMD conventions excluded; preserve usable assets.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "Modes",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/Modes.cs",
+          "reason": "Legacy exclusive modes; normalize without executing migration.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "MoveMenuItem",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/MoveMenuItem.cs",
+          "reason": "Relocation/identity/cycle checks; blank destination deletes a control and requires an explicit output-removal policy. Diagnose removal intent; do not silently discard controls/references.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ObjectState",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/ObjectState.cs",
+          "reason": "Legacy ACTIVATE/DEACTIVATE reversible; DELETE destructive. No implicit migrations. Do not execute; warn/block dependent behavior as appropriate.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "OGBIntegration",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/OGBIntegration.cs",
+          "reason": "Separate specialized adapter, no auto-activation/substitution.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "OGBIntegration2",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/OGBIntegration2.cs",
+          "reason": "Separate specialized adapter, no auto-activation/substitution.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "OverrideMenuSettings",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/OverrideMenuSettings.cs",
+          "reason": "Native presentation where meaningful.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "Puppet",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/Puppet.cs",
+          "reason": "Continuous bounded native controls. Continuous 1D/2D authored stops/defaults. Down/up/splay via native menu puppet controls.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "RemoveBlinking",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/RemoveBlinking.cs",
+          "reason": "Reversible blink disable, not shape deletion.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "RemoveHandGestures",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/RemoveHandGestures.cs",
+          "reason": "Reversible gesture-layer disable, not source stripping.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "RemoveHandGestures2",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/RemoveHandGestures2.cs",
+          "reason": "Reversible gesture-layer disable, not source stripping.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ReorderMenuItem",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/ReorderMenuItem.cs",
+          "reason": "Native control order.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "SecurityLock",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/SecurityLock.cs",
+          "reason": "PIN UI is not authentication or asset-ownership protection.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "SecurityRestricted",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/SecurityRestricted.cs",
+          "reason": "Never silently unlock/reveal restricted objects; explicit policy required.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "SenkyGestureDriver",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/SenkyGestureDriver.cs",
+          "reason": "Specialized eye/mouth/ear expression states.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "SetIcon",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/SetIcon.cs",
+          "reason": "Metadata/texture import.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ShowInFirstPerson",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/ShowInFirstPerson.cs",
+          "reason": "Local visibility, not mirror/remote deletion.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "Slot4Fix",
+          "status": "excluded",
+          "source": "Runtime/Model/Feature/Slot4Fix.cs",
+          "reason": "Deprecated upstream no-op for old Unity issue.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "SpsOptions",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/SpsOptions.cs",
+          "reason": "Optional specialized interaction; settings alone not parity.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "Talking",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/Talking.cs",
+          "reason": "Voice-activity actions.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "Toes",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/Toes.cs",
+          "reason": "Down/up/splay via native menu puppet controls.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "Toggle",
+          "status": "partial",
+          "source": "Runtime/Model/Feature/Toggle.cs",
+          "reason": "Independent native Boolean visibility/blendshape/material and constant-animation-clip controls; mixed controllers, saved/exclusive/transitions/sliders pending.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs",
+            "UnityPackageImporter/Models/AvatarWardrobeRuntime.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryWardrobeTests.cs"
+          ]
+        },
+        {
+          "name": "TPSIntegration",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/TPSIntegration.cs",
+          "reason": "Legacy/current specialized intent; no literal Unity shader protocol.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "TPSIntegration2",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/TPSIntegration2.cs",
+          "reason": "Legacy/current specialized intent; no literal Unity shader protocol.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "TpsScaleFix",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/TpsScaleFix.cs",
+          "reason": "Specialized deformation/scale compensation, integration-gated.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "UnlimitedParameters",
+          "status": "excluded",
+          "source": "Runtime/Model/Feature/UnlimitedParameters.cs",
+          "reason": "VRChat multiplexing protocol excluded; native logical state can avoid encoding.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "Visemes",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/Visemes.cs",
+          "reason": "Advanced viseme action states/transitions.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "WorldConstraint",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/WorldConstraint.cs",
+          "reason": "Drop/world-anchor, reset/pickup/cleanup/authority.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ZawooIntegration",
+          "status": "missing",
+          "source": "Runtime/Model/Feature/ZawooIntegration.cs",
+          "reason": "Separate specialized adapter/fixtures.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "vrcf-actions",
+      "name": "VRCFury action models",
+      "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+      "boundary": "19 concrete Action-derived classes. Action schema and DoNotApplyRestingStateAttribute metadata are not user actions. Actions are not added to the feature-model denominator.",
+      "entries": [
+        {
+          "name": "AnimationClipAction",
+          "status": "partial",
+          "source": "Runtime/Model/StateAction/AnimationClipAction.cs",
+          "reason": "Initial and independent native-toggle constant visibility/blendshape clips, exact GUID/fileID/path binding and authored off-state restoration; time-varying curves, transforms, materials, events and Animator execution pending.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryInitialAppearance.cs",
+            "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs",
+            "UnityPackageImporter/Models/AvatarAnimationPathResolver.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryInitialAppearanceTests.cs",
+            "Tests/VrcFuryWardrobeTests.cs"
+          ]
+        },
+        {
+          "name": "BlendShapeAction",
+          "status": "partial",
+          "source": "Runtime/Model/StateAction/BlendShapeAction.cs",
+          "reason": "Initial weights and independent constant runtime values/restoration; shared-property arbitration pending.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryWardrobeTests.cs"
+          ]
+        },
+        {
+          "name": "BlockBlinkingAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/BlockBlinkingAction.cs",
+          "reason": "Scoped native blink suppression/restoration.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "BlockVisemesAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/BlockVisemesAction.cs",
+          "reason": "Scoped lip-sync suppression/restoration.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ChangeSpsTagAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/ChangeSpsTagAction.cs",
+          "reason": "Optional specialized tags, permission/namespacing.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "DisableGesturesAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/DisableGesturesAction.cs",
+          "reason": "Scoped gesture suppression/restoration.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "FlipbookAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/FlipbookAction.cs",
+          "reason": "Specific Poiyomi material frame selection; compatible native flipbook/material adapter required, not generic animation playback.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "FlipBookBuilderAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/FlipBookBuilderAction.cs",
+          "reason": "Nested pages and versioned states-to-pages normalization.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "FxFloatAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/FxFloatAction.cs",
+          "reason": "Shared parameter writes/defaults/scope.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "MaterialAction",
+          "status": "partial",
+          "source": "Runtime/Model/StateAction/MaterialAction.cs",
+          "reason": "Initial material-slot replacement and independent Boolean-toggle runtime material switching with baseline restoration; shared-slot arbitration pending.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryInitialAppearance.cs",
+            "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs",
+            "UnityPackageImporter/Models/AvatarWardrobeRuntime.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryInitialAppearanceTests.cs",
+            "Tests/VrcFuryWardrobeTests.cs"
+          ]
+        },
+        {
+          "name": "MaterialPropertyAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/MaterialPropertyAction.cs",
+          "reason": "Mapped native properties, instance ownership/restoration.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ObjectToggleAction",
+          "status": "partial",
+          "source": "Runtime/Model/StateAction/ObjectToggleAction.cs",
+          "reason": "Initial active state subset; independent runtime explicit on/off modes with inverse off state; legacy invert mode pending.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryWardrobeTests.cs"
+          ]
+        },
+        {
+          "name": "PoiyomiUVTileAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/PoiyomiUVTileAction.cs",
+          "reason": "UV-tile visibility needs compatible native rendering design; property names alone not support.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ResetPhysboneAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/ResetPhysboneAction.cs",
+          "reason": "Native chain reset, not guessed object toggling.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ScaleAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/ScaleAction.cs",
+          "reason": "Animated/compensated scale with finite bounds.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "ShaderInventoryAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/ShaderInventoryAction.cs",
+          "reason": "SCSS shader inventory needs specific material adapter.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "SmoothLoopAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/SmoothLoopAction.cs",
+          "reason": "Loop timing/composition/transitions.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "SpsOnAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/SpsOnAction.cs",
+          "reason": "Optional specialized interaction enablement.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "WorldDropAction",
+          "status": "missing",
+          "source": "Runtime/Model/StateAction/WorldDropAction.cs",
+          "reason": "Drop/reset with permissions/lifecycle.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        }
+      ]
+    },
+    {
+      "id": "vrcf-wrappers",
+      "name": "VRCFury wrapper components",
+      "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
+      "boundary": "12 concrete VRCFury-prefixed Runtime MonoBehaviour wrappers from Component/ and Model/: nine Component/ wrappers plus container/debug/test types. The two abstract lifecycle bases are excluded as schemas. Debug/editor concrete types stay in the denominator with explicit exclusion status. Container recognition is indexed-only to avoid duplicate support credit.",
+      "entries": [
+        {
+          "name": "VRCFury",
+          "status": "indexed",
+          "source": "Runtime/Model/VRCFury.cs",
+          "reason": "Feature container only; functional feature/action converters are scored separately, not credited again for their wrapper.",
+          "runtime": false,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryManagedReferenceGraph.cs"
+          ],
+          "tests": []
+        },
+        {
+          "name": "VRCFuryDebugInfo",
+          "status": "excluded",
+          "source": "Runtime/Model/VRCFuryDebugInfo.cs",
+          "reason": "Editor/debug/test/preview infrastructure; no native runtime counterpart is claimed.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCFuryGlobalCollider",
+          "status": "missing",
+          "source": "Runtime/Component/VRCFuryGlobalCollider.cs",
+          "reason": "Native shared dynamics/tag adapters.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCFuryHapticPlug",
+          "status": "missing",
+          "source": "Runtime/Component/VRCFuryHapticPlug.cs",
+          "reason": "Separate optional deformation/contact/haptic design.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCFuryHapticSocket",
+          "status": "missing",
+          "source": "Runtime/Component/VRCFuryHapticSocket.cs",
+          "reason": "Optional activation/alignment/generated controls.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCFuryHapticTouchReceiver",
+          "status": "missing",
+          "source": "Runtime/Component/VRCFuryHapticTouchReceiver.cs",
+          "reason": "Optional receiver/output; never auto-connect devices/services.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCFuryHapticTouchSender",
+          "status": "missing",
+          "source": "Runtime/Component/VRCFuryHapticTouchSender.cs",
+          "reason": "Optional contact/touch, consent and scoped tags.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCFuryHideGizmoUnlessSelected",
+          "status": "excluded",
+          "source": "Runtime/Component/VRCFuryHideGizmoUnlessSelected.cs",
+          "reason": "Selection/editor gizmos only.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCFuryNoUpdateWhenOffscreen",
+          "status": "excluded",
+          "source": "Runtime/Component/VRCFuryNoUpdateWhenOffscreen.cs",
+          "reason": "Unity preview/culling helper; native policy separate.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCFurySocketGizmo",
+          "status": "excluded",
+          "source": "Runtime/Component/VRCFurySocketGizmo.cs",
+          "reason": "Selection/editor gizmos only.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCFurySpsGreenScreenFix",
+          "status": "excluded",
+          "source": "Runtime/Component/VRCFurySpsGreenScreenFix.cs",
+          "reason": "Unity/SPS workaround not literal; native visual intent if needed.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        },
+        {
+          "name": "VRCFuryTest",
+          "status": "excluded",
+          "source": "Runtime/Model/VRCFuryTest.cs",
+          "reason": "Editor/debug/test/preview infrastructure; no native runtime counterpart is claimed.",
+          "runtime": false,
+          "evidence": [],
+          "tests": []
+        }
+      ]
+    }
+  ]
+}

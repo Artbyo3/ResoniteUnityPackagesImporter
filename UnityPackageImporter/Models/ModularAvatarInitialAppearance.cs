@@ -83,7 +83,7 @@ public sealed class InitialAppearanceResult
 }
 
 /// <summary>Static subset based on modular-avatar f21ad465bb623e841b532a66aa555dbcddf2db47.</summary>
-public static class ModularAvatarInitialAppearance
+public static partial class ModularAvatarInitialAppearance
 {
     public const string ObjectToggleGuid = "a162bb8ec7e24a5abcf457887f1df3fa";
     public const string ShapeChangerGuid = "2db441f589c3407bb6fb5f02ff8ab541";

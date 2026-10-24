@@ -2,6 +2,10 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
+using System.Threading;
+using YamlDotNet.Core;
+using YamlDotNet.RepresentationModel;
 
 namespace UnityPackageImporter.Models;
 
@@ -14,6 +18,8 @@ public class VrcMenuControl
     public float Value = 1f;
     public string SubMenuGuid = null;
     public VrcMenu SubMenu = null;
+    public IReadOnlyList<string> SubParameters = Array.Empty<string>();
+    public IReadOnlyList<string> Labels = Array.Empty<string>();
 
     public bool IsToggle => Type == 1 || Type == 102;
     public bool IsSubMenu => Type == 2 || Type == 103;
@@ -34,129 +40,160 @@ public class VrcParameter
     public int ValueType = 2; // 0: Int, 1: Float, 2: Bool
     public float DefaultValue = 0f;
     public bool Saved = true;
+    public bool Synced = true;
+    public bool HasDefaultValue;
 }
 
 public static class ExpressionMenuParser
 {
     public static Dictionary<string, VrcParameter> ParseParameters(string filePath)
     {
-        var result = new Dictionary<string, VrcParameter>(StringComparer.OrdinalIgnoreCase);
-        if (!File.Exists(filePath)) return result;
+        if (!File.Exists(filePath)) return new(StringComparer.Ordinal);
+        return ParseParameterYaml(File.ReadAllText(filePath));
+    }
 
-        var lines = File.ReadAllLines(filePath);
-        bool inParameters = false;
-        VrcParameter current = null;
-
-        for (int i = 0; i < lines.Length; i++)
+    internal static Dictionary<string, VrcParameter> ParseParameterYaml(string yaml, CancellationToken token = default)
+    {
+        var body = ParseAssetBody(yaml, token);
+        if (Get(body, "parameters") is not YamlSequenceNode entries)
+            throw new InvalidDataException("Expression parameters require one unambiguous serialized parameter asset.");
+        var result = new Dictionary<string, VrcParameter>(StringComparer.Ordinal);
+        foreach (var node in entries.Children)
         {
-            string line = lines[i].Trim();
-            if (line.StartsWith("parameters:", StringComparison.Ordinal))
+            token.ThrowIfCancellationRequested();
+            if (node is not YamlMappingNode entry || Get(entry, "name") is not YamlScalarNode name ||
+                string.IsNullOrWhiteSpace(name.Value) || name.Value.Contains('\0'))
+                throw new InvalidDataException("Expression parameter requires an exact scalar name.");
+            if (Get(entry, "valueType") is not YamlScalarNode typeNode ||
+                !int.TryParse(typeNode.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int type) || type is < 0 or > 2)
+                throw new InvalidDataException("Expression parameter requires a known value type.");
+            float value = 0;
+            var valueNode = Get(entry, "defaultValue");
+            if (valueNode != null && (valueNode is not YamlScalarNode scalar ||
+                !float.TryParse(scalar.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out value) || !float.IsFinite(value)))
+                throw new InvalidDataException("Expression parameter default must be finite.");
+            if (type == 0 && (value < 0 || value > 255 || value != MathF.Truncate(value)) ||
+                type == 1 && (value < -1 || value > 1) || type == 2 && value is not (0 or 1))
+                throw new InvalidDataException("Expression parameter default is outside its declared SDK type.");
+            var parameter = new VrcParameter
             {
-                inParameters = true;
-                continue;
-            }
-
-            if (!inParameters) continue;
-
-            if (line.StartsWith("- name:", StringComparison.Ordinal))
-            {
-                if (current != null && !string.IsNullOrEmpty(current.Name))
-                {
-                    result[current.Name] = current;
-                }
-                current = new VrcParameter
-                {
-                    Name = line.Substring(7).Trim().Trim('\'', '\"')
-                };
-            }
-            else if (current != null)
-            {
-                if (line.StartsWith("valueType:", StringComparison.Ordinal))
-                {
-                    if (int.TryParse(line.Substring(10).Trim(), out int vt)) current.ValueType = vt;
-                }
-                else if (line.StartsWith("defaultValue:", StringComparison.Ordinal))
-                {
-                    if (float.TryParse(line.Substring(13).Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float dv))
-                        current.DefaultValue = dv;
-                }
-                else if (line.StartsWith("saved:", StringComparison.Ordinal))
-                {
-                    if (int.TryParse(line.Substring(6).Trim(), out int s)) current.Saved = s != 0;
-                }
-            }
+                Name = name.Value, ValueType = type, DefaultValue = value, HasDefaultValue = valueNode != null,
+                Saved = Flag(entry, "saved", true), Synced = Flag(entry, "networkSynced", true)
+            };
+            if (!result.TryAdd(parameter.Name, parameter)) throw new InvalidDataException("Duplicate expression parameter name: " + parameter.Name);
         }
-
-        if (current != null && !string.IsNullOrEmpty(current.Name))
-        {
-            result[current.Name] = current;
-        }
-
         return result;
+    }
+
+    private static YamlNode Get(YamlMappingNode node, string key) => node.Children.TryGetValue(new YamlScalarNode(key), out var value) ? value : null;
+
+    private static bool Flag(YamlMappingNode node, string key, bool fallback)
+    {
+        var value = Get(node, key);
+        if (value == null) return fallback;
+        if (value is not YamlScalarNode scalar || scalar.Value is not ("0" or "1" or "false" or "true"))
+            throw new InvalidDataException("Expression parameter flag must be a boolean: " + key);
+        return scalar.Value is "1" or "true";
     }
 
     public static VrcMenu ParseMenu(string filePath, string guid)
     {
         if (!File.Exists(filePath)) return null;
+        return ParseMenuYaml(File.ReadAllText(filePath), filePath, guid);
+    }
 
-        var lines = File.ReadAllLines(filePath);
+    private static YamlMappingNode ParseAssetBody(string yaml, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(yaml);
+        token.ThrowIfCancellationRequested();
+        var normalized = Regex.Replace(yaml, @"^%(?:YAML|TAG)[^\r\n]*(?:\r?\n|$)", "", RegexOptions.Multiline | RegexOptions.CultureInvariant);
+        normalized = Regex.Replace(normalized, @"^--- !u!\d+ &-?\d+(?: stripped)?[ \t]*\r?$", "---", RegexOptions.Multiline | RegexOptions.CultureInvariant);
+        var stream = new YamlStream();
+        try { stream.Load(new StringReader(normalized)); }
+        catch (YamlException error) { throw new InvalidDataException("Malformed expression asset YAML.", error); }
+        token.ThrowIfCancellationRequested();
+        if (stream.Documents.Count != 1 || stream.Documents[0].RootNode is not YamlMappingNode root ||
+            Get(root, "MonoBehaviour") is not YamlMappingNode body)
+            throw new InvalidDataException("Expressions require one unambiguous serialized asset.");
+        return body;
+    }
+
+    internal static VrcMenu ParseMenuYaml(string yaml, string filePath, string guid, CancellationToken token = default)
+    {
+        var body = ParseAssetBody(yaml, token);
+        if (Get(body, "controls") is not YamlSequenceNode controls)
+            throw new InvalidDataException("Expression menu requires an explicit controls sequence.");
+        string Scalar(YamlMappingNode mapping, string key, string fallback = "")
+        {
+            var node = Get(mapping, key);
+            if (node == null) return fallback;
+            if (node is not YamlScalarNode scalar || scalar.Value?.Contains('\0') == true)
+                throw new InvalidDataException("Expression menu requires a scalar " + key + ".");
+            return scalar.Value ?? "";
+        }
+        string Parameter(YamlNode node)
+        {
+            if (node == null) return "";
+            if (node is not YamlMappingNode mapping)
+                throw new InvalidDataException("Expression menu parameter must be a named record.");
+            return Scalar(mapping, "name");
+        }
+        string Reference(YamlNode node)
+        {
+            if (node == null) return null;
+            if (node is not YamlMappingNode mapping)
+                throw new InvalidDataException("Expression menu reference must be a record.");
+            string value = Scalar(mapping, "guid");
+            if (value.Length == 0 || value == "0") return null;
+            if (value.Length != 32 || !System.Linq.Enumerable.All(value, Uri.IsHexDigit))
+                throw new InvalidDataException("Expression menu reference requires an exact asset GUID.");
+            if (!long.TryParse(Scalar(mapping, "fileID", "0"), NumberStyles.Integer, CultureInfo.InvariantCulture, out long fileId) || fileId == 0)
+                throw new InvalidDataException("Expression menu external reference requires a nonzero fileID.");
+            return value;
+        }
         var menu = new VrcMenu
         {
             Guid = guid,
             FilePath = filePath,
-            Name = Path.GetFileNameWithoutExtension(filePath)
+            Name = Scalar(body, "m_Name", Path.GetFileNameWithoutExtension(filePath))
         };
-
-        bool inControls = false;
-        VrcMenuControl current = null;
-
-        for (int i = 0; i < lines.Length; i++)
+        foreach (var node in controls.Children)
         {
-            string line = lines[i].Trim();
-            if (line.StartsWith("controls:", StringComparison.Ordinal))
+            token.ThrowIfCancellationRequested();
+            if (node is not YamlMappingNode entry ||
+                !int.TryParse(Scalar(entry, "type"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int type))
+                throw new InvalidDataException("Expression menu control requires an explicit numeric type.");
+            if (!float.TryParse(Scalar(entry, "value", "1"), NumberStyles.Float, CultureInfo.InvariantCulture, out float value) || !float.IsFinite(value))
+                throw new InvalidDataException("Expression menu control value must be finite.");
+            var subParameters = new List<string>();
+            if (Get(entry, "subParameters") is { } subNode)
             {
-                inControls = true;
-                continue;
-            }
-
-            if (!inControls) continue;
-
-            if (line.StartsWith("- name:", StringComparison.Ordinal))
-            {
-                if (current != null) menu.Controls.Add(current);
-                current = new VrcMenuControl
+                if (subNode is not YamlSequenceNode sequence) throw new InvalidDataException("Puppet parameters must be a sequence.");
+                foreach (var parameter in sequence.Children)
                 {
-                    Name = line.Substring(7).Trim().Trim('\'', '\"')
-                };
-            }
-            else if (current != null)
-            {
-                if (line.StartsWith("icon:", StringComparison.Ordinal))
-                {
-                    current.IconGuid = ExtractGuid(line);
-                }
-                else if (line.StartsWith("type:", StringComparison.Ordinal))
-                {
-                    if (int.TryParse(line.Substring(5).Trim(), out int t)) current.Type = t;
-                }
-                else if (line.StartsWith("name:", StringComparison.Ordinal) && string.IsNullOrEmpty(current.ParameterName))
-                {
-                    // under parameter:
-                    current.ParameterName = line.Substring(5).Trim().Trim('\'', '\"');
-                }
-                else if (line.StartsWith("value:", StringComparison.Ordinal))
-                {
-                    if (float.TryParse(line.Substring(6).Trim(), NumberStyles.Float, CultureInfo.InvariantCulture, out float val))
-                        current.Value = val;
-                }
-                else if (line.StartsWith("subMenu:", StringComparison.Ordinal))
-                {
-                    current.SubMenuGuid = ExtractGuid(line);
+                    token.ThrowIfCancellationRequested();
+                    subParameters.Add(Parameter(parameter));
                 }
             }
+            var labels = new List<string>();
+            if (Get(entry, "labels") is { } labelNode)
+            {
+                if (labelNode is not YamlSequenceNode sequence) throw new InvalidDataException("Puppet labels must be a sequence.");
+                foreach (var label in sequence.Children)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (label is not YamlMappingNode mapping) throw new InvalidDataException("Puppet label must be a record.");
+                    labels.Add(Scalar(mapping, "name"));
+                }
+            }
+            menu.Controls.Add(new VrcMenuControl
+            {
+                Name = Scalar(entry, "name"), Type = type, Value = value,
+                ParameterName = Parameter(Get(entry, "parameter")),
+                IconGuid = Reference(Get(entry, "icon")), SubMenuGuid = Reference(Get(entry, "subMenu")),
+                SubParameters = subParameters.AsReadOnly(), Labels = labels.AsReadOnly()
+            });
         }
-
-        if (current != null) menu.Controls.Add(current);
         return menu;
     }
 
@@ -175,7 +212,7 @@ public static class ExpressionMenuParser
         string parametersGuid,
         IDictionary<string, string> assetIdDict)
     {
-        var parameters = new Dictionary<string, VrcParameter>(StringComparer.OrdinalIgnoreCase);
+        var parameters = new Dictionary<string, VrcParameter>(StringComparer.Ordinal);
         if (TryResolveAsset(parametersGuid, assetIdDict, out string parametersPath) && File.Exists(parametersPath))
             parameters = ParseParameters(parametersPath);
 

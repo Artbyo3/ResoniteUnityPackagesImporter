@@ -12,14 +12,14 @@ using YamlDotNet.RepresentationModel;
 
 namespace UnityPackageImporter.Models;
 
-public static class VrcFuryInitialAppearance
+public static partial class VrcFuryInitialAppearance
 {
     public const string UpstreamRevision = "6bd33f4cb453df816c943a335e47f64e6a37e188";
     public const string ScriptGuid = "d9e94e501a2d4c95bff3d5601013d923";
     private static readonly Regex Header = new(@"^--- !u!(?<class>\d+) &(?<id>-?\d+)(?: stripped)?\s*$", RegexOptions.Multiline | RegexOptions.CultureInvariant);
     private sealed record Document(long Id, int ClassId, YamlMappingNode Body);
     private sealed record Managed(string Class, string Namespace, string Assembly, YamlMappingNode Data);
-    private sealed record Feature(long Source, long Owner, string Class, YamlMappingNode Data, IReadOnlyList<Managed> Actions);
+    private sealed record Feature(long Source, long Owner, string Class, YamlMappingNode Data, IReadOnlyList<Managed> Actions, long Rid = 0);
 
     public static bool ContainsComponents(string yaml, CancellationToken token = default) => Read(yaml, token).Values.Any(IsComponent);
 
@@ -82,37 +82,10 @@ public static class VrcFuryInitialAppearance
         }
         var features = new List<Feature>();
         ReadFeatures(documents, Within, features, Report, token);
-        long ResolvePath(long owner, string path, int classId)
-        {
-            bool Valid(long identity) => classId == 1 || documents.Values.Any(item => item.ClassId == classId && Reference(item.Body, "m_GameObject") == identity);
-            long Find(long start)
-            {
-                long current = start;
-                foreach (string part in path.Split('/'))
-                {
-                    if (part is "" or ".") continue;
-                    if (part == "..")
-                    {
-                        if (current == context.AvatarRootId || !parents.TryGetValue(current, out current) || !Within(current)) return 0;
-                        continue;
-                    }
-                    var matches = objects.Values.Where(item => Within(item.Id) && parents.TryGetValue(item.Id, out long parent) && parent == current && Text(item.Body, "m_Name") == part).ToArray();
-                    if (matches.Length > 1) { Report("CLIP_PATH", "Ambiguous exact animation path '" + path + "'.", owner); return 0; }
-                    if (matches.Length == 0) return 0;
-                    current = matches[0].Id;
-                }
-                return Valid(current) ? current : 0;
-            }
-            if (path.StartsWith("/", StringComparison.Ordinal)) return Find(context.AvatarRootId);
-            var visited = new HashSet<long>();
-            while (Within(owner) && visited.Add(owner))
-            {
-                long target = Find(owner);
-                if (target != 0) return target;
-                if (owner == context.AvatarRootId || !parents.TryGetValue(owner, out owner)) break;
-            }
-            return 0;
-        }
+        var animationPaths = new AvatarAnimationPathResolver(context.AvatarRootId,
+            objects.Values.Select(item => new AvatarAnimationObject(item.Id, parents.GetValueOrDefault(item.Id), Text(item.Body, "m_Name"))));
+        long ResolvePath(long owner, string path, int classId) => animationPaths.Resolve(owner, path,
+            identity => classId == 1 || documents.Values.Any(item => item.ClassId == classId && Reference(item.Body, "m_GameObject") == identity));
         return Compile(features, context, authored, Within, documents, ResolvePath, clipResolver, diagnostics, Report, token);
     }
 
@@ -370,7 +343,7 @@ public static class VrcFuryInitialAppearance
     private static long ReferenceNode(YamlNode? node) => node is YamlMappingNode mapping && long.TryParse(Text(mapping, "fileID"), NumberStyles.Integer, CultureInfo.InvariantCulture, out long identity) ? identity : 0;
 
     private static void ReadFeatures(Dictionary<long, Document> documents, Func<long, bool> within, List<Feature> features,
-        Action<string, string, long, InitialAppearanceSeverity> report, CancellationToken token)
+        Action<string, string, long, InitialAppearanceSeverity> report, CancellationToken token, bool includeAll = false)
     {
         foreach (var component in documents.Values.Where(IsComponent).Where(item => within(Reference(item.Body, "m_GameObject"))))
         {
@@ -445,9 +418,12 @@ public static class VrcFuryInitialAppearance
                 if (feature == null) continue;
                 long rootId = long.Parse(Text((YamlMappingNode)root, "rid"), CultureInfo.InvariantCulture);
                 stack.Add(rootId);
-                if (feature.Class is not ("ApplyDuringUpload" or "Toggle")) Unsupported("Feature '" + feature.Class + "' has no reversible INITIAL static conversion; structural conversion is separate.");
+                if (includeAll && feature.Class is not ("ApplyDuringUpload" or "Toggle"))
+                    features.Add(new(component.Id, Reference(component.Body, "m_GameObject"), feature.Class, feature.Data, Array.Empty<Managed>(), rootId));
+                else if (feature.Class is not ("ApplyDuringUpload" or "Toggle"))
+                    Unsupported("Feature '" + feature.Class + "' has no reversible INITIAL static conversion; structural conversion is separate.");
                 else if (Version(feature.Data, feature.Class == "Toggle" ? 3 : 0, component.Id, report))
-                    features.Add(new(component.Id, Reference(component.Body, "m_GameObject"), feature.Class, feature.Data, Actions(Get(feature.Data, feature.Class == "Toggle" ? "state" : "action"))));
+                    features.Add(new(component.Id, Reference(component.Body, "m_GameObject"), feature.Class, feature.Data, Actions(Get(feature.Data, feature.Class == "Toggle" ? "state" : "action")), rootId));
                 stack.Remove(rootId);
             }
         }

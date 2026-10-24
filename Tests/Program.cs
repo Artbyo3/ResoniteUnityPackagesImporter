@@ -9,6 +9,7 @@ if (args.Length == 2 && args[0] == "--engine-api") return EngineApiCheck.Run(arg
 if (args.Length == 3 && args[0] == "--packages") return PackageAudit.Run(args[1], args[2]);
 if (args.Length == 3 && args[0] == "--dump-type") return EngineApiCheck.DumpType(args[1], args[2]);
 if (args.Length == 3 && args[0] == "--ui-bundle") return UITemplateAudit.Run(args[1], args[2]);
+if (args.Length == 2 && args[0] == "--component-coverage") return AvatarComponentCoverageTests.Print(args[1]);
 if (args.Length == 1 && args[0] == "--sample-import-report")
 {
     Console.Write(ImportFailureReport.Build(StructuredImportReportTests.Sample(), new ReportSanitizer()));
@@ -49,7 +50,7 @@ string Archive(string root, params (string Path, string Content)[] files)
     }
     return file;
 }
-string Package(string root, string assetPath = "Assets/模型/file2.png") => Archive(root,
+string Package(string root, string assetPath = "Assets/æ¨¡åž‹/file2.png") => Archive(root,
     ("guid/asset", "payload"), ("guid/asset.meta", "fileFormatVersion: 2\nguid: guid\n"),
     ("guid/pathname", assetPath + "\n\0"));
 
@@ -1503,10 +1504,17 @@ PrefabCompositionLibraryTests.Register(Test, Check);
 BlendshapeInitialAppearanceTests.Register(Test, Check);
 VrcFuryArmatureSemanticsTests.Register(Test, Check);
 ModularAvatarInitialAppearanceTests.Register(Test, Check);
+ModularAvatarWardrobeTests.Register(Test, Check);
 ComposedInitialAppearanceTests.Register(Test, Check);
 UnityStaticAnimationClipTests.Register(Test, Check);
 VrcFuryFeatureGraphTests.Register(Test, Check);
 VrcFuryInitialAppearanceTests.Register(Test, Check);
+VrcFuryWardrobeTests.Register(Test, Check);
+AvatarWardrobeStateTests.Register(Test, Check);
+ExpressionMenuStructureTests.Register(Test, Check);
+AvatarVisemeTests.Register(Test, Check);
+AvatarComponentCoverageTests.Register(Test, Check);
+AvatarAnimationPathResolverTests.Register(Test, Check);
 PrefabLocalSnapshotTests.Register(Test, Check);
 UnitySerializedMeshTests.Register(Test, Check);
 ModularAvatarRuntimeContractTests.Register(Test, Check);
