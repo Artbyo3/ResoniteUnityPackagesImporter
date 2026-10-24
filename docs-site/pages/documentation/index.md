@@ -40,8 +40,9 @@ hide:
 <section class="project-pulse" data-project-pulse aria-labelledby="project-pulse-title">
 <div class="project-pulse__heading"><h2 id="project-pulse-title">Project status</h2><a href="../project-status/">All updates <span aria-hidden="true">&#8594;</span></a></div>
 <div class="project-pulse__lanes" data-pulse-lanes hidden></div>
-<p class="project-pulse__notice" data-pulse-notice role="status">Project activity is not connected yet. This page does not currently report live work or known issues.</p>
+<p class="project-pulse__notice" data-pulse-notice role="status">Project updates appear here when the issue feed is available.</p>
 
+<noscript><p>The update list requires JavaScript. <a href="https://github.com/Artbyo3/ResoniteUnityPackagesImporter/issues?q=is%3Aissue+is%3Aopen+label%3Aproject-status">Read published updates on GitHub.</a></p></noscript>
 </section>
 
 ## Explore the docs

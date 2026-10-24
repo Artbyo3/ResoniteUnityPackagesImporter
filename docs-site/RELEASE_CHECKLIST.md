@@ -17,7 +17,9 @@
 - MA/VRCFury rows remain partial for structural/default-value translations;
   runtime menus, contacts and full Unity behavior are not advertised as supported.
 - Public illustrative activity and the synthetic scale-test query are removed.
-  Disconnected activity is explicitly unknown, not an empty issue backlog.
+  Offline activity is explicitly unknown. The new issue adapter is locally
+  prepared; public activation requires its workflow change to be merged. A
+  connected empty feed means no approved updates, not an empty issue backlog.
 - The root video landing is unchanged. Only the documentation overview's sample
   activity block changed to the honest unavailable state.
 

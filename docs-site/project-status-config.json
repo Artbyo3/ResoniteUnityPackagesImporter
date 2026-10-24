@@ -1,0 +1,10 @@
+{
+  "repository": "Artbyo3/ResoniteUnityPackagesImporter",
+  "publish_label": "project-status",
+  "status_labels": {
+    "status:in-progress": "working",
+    "status:known-issue": "problem",
+    "status:testing": "testing",
+    "status:planned": "planned"
+  }
+}

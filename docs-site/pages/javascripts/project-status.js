@@ -9,6 +9,9 @@
     testing: "Needs testing",
     planned: "Planned",
   };
+  const repository = "Artbyo3/ResoniteUnityPackagesImporter";
+  const tracker = "https://github.com/" + repository + "/issues";
+  const validTimestamp = value => typeof value === "string" && /T.*(?:Z|[+-]\d{2}:\d{2})$/.test(value) && Number.isFinite(Date.parse(value));
   const source = new URL("../data/project-status.json", document.currentScript.src);
   const unavailableMessage = "Project activity is not connected yet. This page does not currently report live work or known issues.";
   const showUnavailable = message => {
@@ -25,6 +28,15 @@
       explorer.querySelector("[data-activity-pagination]").hidden = true;
     }
   };
+  const showMetadata = (message, url) => {
+    for (const notice of [pulse?.querySelector("[data-pulse-notice]"), explorer?.querySelector("[data-activity-notice]")].filter(Boolean)) {
+      const link = document.createElement("a");
+      link.href = url;
+      link.textContent = "GitHub";
+      notice.hidden = false;
+      notice.replaceChildren(document.createTextNode(message + " "), link);
+    }
+  };
   let issues;
   try {
     const response = await fetch(source);
@@ -36,17 +48,26 @@
       showUnavailable(unavailableMessage);
       return;
     }
-    if (!Number.isFinite(Date.parse(data.updatedAt)) || data.issues.some(item =>
+    const sourceUrl = new URL(data.source?.url || "", location.href);
+    if (data.source?.repository !== repository || sourceUrl.origin !== "https://github.com" || sourceUrl.pathname !== "/" + repository + "/issues") throw new Error("Unexpected status source");
+    if (!validTimestamp(data.updatedAt) || Date.parse(data.updatedAt) > Date.now() + 300000 || data.issues.some(item =>
       !item || !Object.hasOwn(statusNames, item.status) ||
       ![item.id, item.title, item.why, item.next].every(value => typeof value === "string" && value.trim()) ||
-      !Number.isFinite(item.priority) || !Number.isFinite(Date.parse(item.updatedAt))
+      !/^[1-9][0-9]*$/.test(item.id) || item.url !== tracker + "/" + item.id ||
+      !Number.isFinite(item.priority) || !validTimestamp(item.updatedAt)
     )) throw new Error("Invalid status data");
     if (new Set(data.issues.map(item => item.id)).size !== data.issues.length) throw new Error("Duplicate status record");
     issues = data.issues.toSorted((first, second) => first.priority - second.priority);
-    if (explorer) {
-      explorer.querySelector("[data-activity-tools]").hidden = false;
-      explorer.querySelector("[data-activity-notice]").textContent = "Last updated " + new Date(data.updatedAt).toLocaleString() + ".";
+    const synced = new Date(data.updatedAt).toLocaleString();
+    const stale = Date.now() - Date.parse(data.updatedAt) > 24 * 60 * 60 * 1000;
+    const freshness = stale ? "Updates may be out of date. Last synced " + synced + "." : "Synced " + synced + ".";
+    if (!issues.length) {
+      showUnavailable("No public updates selected yet. This is not the complete issue tracker.");
+      showMetadata("Connected to GitHub. No public updates selected yet; this is not the complete issue tracker. " + freshness, sourceUrl.href);
+      return;
     }
+    showMetadata(freshness + " Published updates only.", sourceUrl.href);
+    if (explorer) explorer.querySelector("[data-activity-tools]").hidden = false;
   } catch (error) {
     showUnavailable("Project updates could not be loaded. Current activity is unknown; please try again later.");
     console.error("Project status:", error);
@@ -94,7 +115,6 @@
     });
     pulse.querySelector("[data-pulse-lanes]").replaceChildren(...lanes);
     pulse.querySelector("[data-pulse-lanes]").hidden = false;
-    pulse.querySelector("[data-pulse-notice]").hidden = true;
     const total = Math.max(0, ...groups.map(slides => slides.length));
     if (total > 1) {
       const controls = element("div", "project-pulse__playback");
@@ -187,6 +207,13 @@
       paragraph.append(element("strong", "", `${label}: `), document.createTextNode(text));
       context.append(paragraph);
     }
+    const sourceLink = element("a", "project-activity__source", "GitHub #" + item.id);
+    sourceLink.href = item.url;
+    const updated = element("time", "project-activity__updated", "Updated " + new Date(item.updatedAt).toLocaleDateString());
+    updated.dateTime = item.updatedAt;
+    const evidence = element("p", "project-activity__evidence");
+    evidence.append(sourceLink, document.createTextNode(" ? "), updated);
+    context.append(evidence);
     details.append(summary, context);
     return details;
   };
