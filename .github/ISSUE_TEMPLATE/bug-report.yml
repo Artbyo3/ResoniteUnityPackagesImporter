@@ -1,0 +1,38 @@
+name: Report a problem
+description: Something failed or imported differently than expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Already opened a draft from the importer? Keep that draft and add what you were doing; no need to fill this form again. Otherwise, use the short form below. Review everything before posting. Never attach paid/private packages, textures, or unfiltered game logs. Submitting a report does not publish it in the docs or promise a fix.
+  - type: textarea
+    id: outcome
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead? A safe screenshot can help for visual problems.
+      placeholder: I expected ..., but ...
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How can we reproduce it?
+      description: List the actions just before the problem. If it only happened once, say so. Do not include private asset names.
+      placeholder: |
+        1. Imported an avatar package
+        2. Selected ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Importer report or warnings
+      description: Optional. Paste the reviewed Copy report output from the importer, or the relevant item warnings. Do not paste ordinary game logs.
+      render: text
+  - type: input
+    id: versions
+    attributes:
+      label: Versions, if not in the report
+      description: Optional. Mod version and Resonite version help us check whether the behavior is current.

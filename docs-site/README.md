@@ -30,23 +30,30 @@ The documentation overview and `/project-status/` share a generated snapshot of
 maintainer-approved GitHub Issues. Visitors fetch one local JSON file, not the
 GitHub API. No token or raw report body is included in the site.
 
-Maintain updates in GitHub: add `project-status` and exactly one of
-`status:in-progress`, `status:known-issue`, `status:testing`, or `status:planned`.
-The issue body must contain short plain-text `### Why it matters` and
-`### Next step` sections. The new issue form drafts those fields but deliberately
-does not grant the publication label. Existing reports remain untriaged unless
-a maintainer chooses to publish them. A closed issue leaves the activity feed;
-it never automatically changes component compatibility or promises a release.
+Users report failures with two required answers: expected/actual behavior and
+reproduction steps. The importer report and versions are optional; existing
+in-game drafts remain usable without starting over. Feature requests require
+only the desired task and current obstacle. None of these forms auto-publishes.
 
-The docs workflow refreshes on approved issue edits, status changes, closure,
+Maintain public updates by reviewing the issue title, then adding `project-status`
+and exactly one of `status:in-progress`, `status:known-issue`, `status:testing`, or
+`status:planned`. A title and status are sufficient. Short plain-text
+`### Why it matters` and `### Next step` sections are optional; raw report bodies
+are never used as a fallback. A closed issue leaves the feed without changing
+component compatibility or promising a released fix.
+
+The docs workflow rebuilds on approved issue edits, status changes, closure,
 reopening and removal of the publication label. A six-hour schedule is the
-fallback; a manual docs workflow run can also refresh it. It builds once, syncs
-`site/data/project-status.json`, then deploys that exact artifact. The sync uses
-the job's read-only `GITHUB_TOKEN` through `GH_TOKEN`; it cannot edit issues,
-commits or compatibility data. Pull-request builds do not query GitHub Issues.
-Transport, pagination or editorial errors fail the sync and prevent publication
-rather than replacing the feed with a misleading empty result. The existing
-public snapshot stays in place; its timestamp warns visitors after 24 hours.
+fallback; a manual run can also refresh it. This is an automatically refreshed
+build-time snapshot, not post-build live API polling. It builds once, syncs
+`site/data/project-status.json`, then deploys that exact artifact. CI uses the
+job's read-only `GITHUB_TOKEN` through `GH_TOKEN`; PR builds do not query issues.
+
+An incomplete public status or invalid title skips only that issue with a safe
+warning. Unsafe optional fields are omitted rather than blocking other updates.
+API, pagination and identity/integrity errors still stop publication, preserving
+the previous deployed snapshot. Its timestamp warns visitors after 24 hours.
+See `PROJECT_STATUS.md` for report triage, publication and failure handling.
 
 For a connected local preview, build first and then run:
 

@@ -52,7 +52,8 @@
     if (data.source?.repository !== repository || sourceUrl.origin !== "https://github.com" || sourceUrl.pathname !== "/" + repository + "/issues") throw new Error("Unexpected status source");
     if (!validTimestamp(data.updatedAt) || Date.parse(data.updatedAt) > Date.now() + 300000 || data.issues.some(item =>
       !item || !Object.hasOwn(statusNames, item.status) ||
-      ![item.id, item.title, item.why, item.next].every(value => typeof value === "string" && value.trim()) ||
+      ![item.id, item.title].every(value => typeof value === "string" && value.trim()) ||
+      [item.why, item.next].some(value => value != null && typeof value !== "string") ||
       !/^[1-9][0-9]*$/.test(item.id) || item.url !== tracker + "/" + item.id ||
       !Number.isFinite(item.priority) || !validTimestamp(item.updatedAt)
     )) throw new Error("Invalid status data");
@@ -62,8 +63,8 @@
     const stale = Date.now() - Date.parse(data.updatedAt) > 24 * 60 * 60 * 1000;
     const freshness = stale ? "Updates may be out of date. Last synced " + synced + "." : "Synced " + synced + ".";
     if (!issues.length) {
-      showUnavailable("No public updates selected yet. This is not the complete issue tracker.");
-      showMetadata("Connected to GitHub. No public updates selected yet; this is not the complete issue tracker. " + freshness, sourceUrl.href);
+      showUnavailable("No public updates to show. This is not the complete issue tracker.");
+      showMetadata("Connected to GitHub. No public updates to show; this is not the complete issue tracker. " + freshness, sourceUrl.href);
       return;
     }
     showMetadata(freshness + " Published updates only.", sourceUrl.href);
@@ -100,7 +101,8 @@
           slide.classList.toggle("is-active", index === 0);
           slide.inert = index !== 0;
           slide.setAttribute("aria-hidden", String(index !== 0));
-          slide.append(element("h3", "", item.title), element("p", "", item.why));
+          slide.append(element("h3", "", item.title));
+          if (item.why) slide.append(element("p", "", item.why));
           viewport.append(slide);
           return slide;
         });
@@ -203,6 +205,7 @@
     summary.append(title, badge);
     const context = element("div", "project-activity__context");
     for (const [label, text] of [["Why", item.why], ["Next", item.next]]) {
+      if (!text) continue;
       const paragraph = element("p");
       paragraph.append(element("strong", "", `${label}: `), document.createTextNode(text));
       context.append(paragraph);
@@ -212,7 +215,7 @@
     const updated = element("time", "project-activity__updated", "Updated " + new Date(item.updatedAt).toLocaleDateString());
     updated.dateTime = item.updatedAt;
     const evidence = element("p", "project-activity__evidence");
-    evidence.append(sourceLink, document.createTextNode(" ? "), updated);
+    evidence.append(sourceLink, document.createTextNode(" \u00b7 "), updated);
     context.append(evidence);
     details.append(summary, context);
     return details;
