@@ -21,6 +21,14 @@ When an import or station action fails, or an item is structurally blocked, the 
 
 The report already includes version and diagnostic context when available. Add a screenshot only if it is useful and safe to share. Do not attach private packages or textures.
 
+## Reporting without an in-game draft
+
+Use [Report a problem](https://github.com/Artbyo3/ResoniteUnityPackagesImporter/issues/new?template=bug-report.yml). Tell us what you expected, what happened, and the actions that led to it. The reviewed importer report and versions are optional; you do not need to repeat information already in the report.
+
+For a missing capability, use [Suggest an improvement](https://github.com/Artbyo3/ResoniteUnityPackagesImporter/issues/new?template=feature-request.yml). Describe what you want to do and what blocks you. You do not need to propose a technical solution.
+
+Submitting an issue does not automatically publish it in the project-status feed or promise a fix. You do not need to write a public update or select work-status labels.
+
 ## If the panel is unavailable
 
 Reports are also saved locally in `reports/UnityPackageImporter`, beside the `DecompressedUnityPrefabs` cache folder. The newest 20 are retained. The existing failure card and the local file remain available when a report panel cannot be opened.

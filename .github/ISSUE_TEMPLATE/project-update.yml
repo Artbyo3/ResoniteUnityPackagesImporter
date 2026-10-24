@@ -1,22 +1,29 @@
 name: Public project update
-description: Draft a short project-status update for the documentation.
+description: Maintainer update for the docs. Use the report forms for bugs or requests.
 labels: [documentation]
 body:
   - type: markdown
     attributes:
       value: |
-        This is a draft, not an automatically published update. After reviewing the copy, a maintainer adds `project-status` and exactly one `status:*` label. Do not paste logs, personal details or private asset names into the public fields.
+        This is a draft, not an automatically published update. After reviewing the copy, a maintainer adds `project-status` and exactly one `status:*` label. A clear title is enough; the two fields below are optional. Do not paste logs, personal details or private asset names into public copy.
   - type: textarea
     id: why
     attributes:
       label: Why it matters
       description: One or two short plain-text sentences about the user impact. No logs or markup.
     validations:
-      required: true
+      required: false
   - type: textarea
     id: next
     attributes:
       label: Next step
       description: One or two short plain-text sentences describing the actual next action, not an invented delivery date.
     validations:
-      required: true
+      required: false
+  - type: checkboxes
+    id: review
+    attributes:
+      label: Public copy review
+      options:
+        - label: I reviewed the title and optional context for public display. This does not approve publication.
+          required: true

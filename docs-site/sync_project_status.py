@@ -1,5 +1,6 @@
 import argparse
 import json
+import logging
 import os
 import re
 import sys
@@ -12,6 +13,7 @@ from urllib.request import Request, urlopen
 
 HERE = Path(__file__).resolve().parent
 PRIORITIES = {"working": 1, "problem": 2, "testing": 3, "planned": 4}
+LOGGER = logging.getLogger("project_status")
 
 
 class StatusSyncError(ValueError):
@@ -43,20 +45,46 @@ def parse_timestamp(value):
 def public_text(value, limit):
     if not isinstance(value, str) or not value.strip() or value.strip() == "_No response_":
         raise StatusSyncError("Missing public issue copy")
-    if any(marker in value for marker in ["```", "<", ">"]):
+    if any(marker in value for marker in ["```", "~~~", "<", ">"]):
         raise StatusSyncError("Public fields must be plain text, not reports or markup")
     text = " ".join(value.split())
     return text if len(text) <= limit else text[:limit - 1].rstrip() + "\u2026"
 
 
 def public_field(body, heading):
+    if body is None:
+        return None
     if not isinstance(body, str):
-        raise StatusSyncError("Missing public issue description")
-    pattern = r"^### " + re.escape(heading) + r"[ \t]*\r?$\n(.*?)(?=^#{1,6} |\Z)"
-    matches = re.findall(pattern, body, re.MULTILINE | re.DOTALL)
-    if len(matches) != 1:
-        raise StatusSyncError("Public update requires one " + heading + " section")
-    return public_text(matches[0], 280)
+        raise StatusSyncError("Invalid issue description")
+    sections = []
+    current = None
+    fence = None
+    for line in body.splitlines():
+        if fence:
+            if current is not None:
+                current.append(line)
+            if re.fullmatch(r" {0,3}" + re.escape(fence[0]) + "{" + str(len(fence)) + r",}[ \t]*", line):
+                fence = None
+            continue
+        opening = re.match(r"^ {0,3}(`{3,}|~{3,})", line)
+        if opening:
+            fence = opening.group(1)
+            if current is not None:
+                current.append(line)
+            continue
+        if re.match(r"^#{1,6} ", line):
+            current = None
+            if re.fullmatch(r"### " + re.escape(heading) + r"[ \t]*", line):
+                current = []
+                sections.append(current)
+        elif current is not None:
+            current.append(line)
+    if not sections:
+        return None
+    if len(sections) != 1:
+        raise StatusSyncError("Duplicate optional public section")
+    value = "\n".join(sections[0]).strip()
+    return None if not value or value == "_No response_" else public_text(value, 280)
 
 
 def fetch_issues(config, token=None, opener=urlopen):
@@ -97,15 +125,28 @@ def create_snapshot(items, config, now=None):
         seen.add(number)
         statuses = [status for label, status in config["status_labels"].items() if label in labels]
         if len(statuses) != 1:
-            raise StatusSyncError(f"Issue #{number} requires exactly one public status label")
+            LOGGER.warning("Issue #%s skipped: choose exactly one public status label.", number)
+            continue
         source = "https://github.com/" + config["repository"] + "/issues/" + str(number)
         if item.get("html_url") != source:
             raise StatusSyncError("Issue URL does not match the configured repository")
         parse_timestamp(item.get("updated_at"))
-        records.append({"id": str(number), "title": public_text(item.get("title"), 140),
-                        "status": statuses[0], "why": public_field(item.get("body"), "Why it matters"),
-                        "next": public_field(item["body"], "Next step"),
-                        "priority": PRIORITIES[statuses[0]], "updatedAt": item["updated_at"], "url": source})
+        try:
+            title = public_text(item.get("title"), 140)
+        except StatusSyncError:
+            LOGGER.warning("Issue #%s skipped: review its public title.", number)
+            continue
+        record = {"id": str(number), "title": title, "status": statuses[0],
+                  "priority": PRIORITIES[statuses[0]], "updatedAt": item["updated_at"], "url": source}
+        for key, heading in [("why", "Why it matters"), ("next", "Next step")]:
+            try:
+                value = public_field(item.get("body"), heading)
+            except StatusSyncError:
+                LOGGER.warning("Issue #%s: optional %s omitted; review this section.", number, key)
+                continue
+            if value:
+                record[key] = value
+        records.append(record)
     records.sort(key=lambda item: (item["priority"], -parse_timestamp(item["updatedAt"]).timestamp(), int(item["id"])))
     now = now or datetime.now(timezone.utc)
     if now.tzinfo is None:

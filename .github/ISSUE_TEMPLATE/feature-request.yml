@@ -1,0 +1,21 @@
+name: Suggest an improvement
+description: Tell us what you want to accomplish and what gets in the way.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Describe the task, not a technical solution. Please avoid private asset names. A request is not a delivery commitment and is not automatically published in the docs.
+  - type: textarea
+    id: goal
+    attributes:
+      label: What are you trying to do?
+      description: What result do you want, and what blocks you today?
+      placeholder: I want to ..., but currently ...
+    validations:
+      required: true
+  - type: textarea
+    id: suggestion
+    attributes:
+      label: What would help?
+      description: Optional. A short example, workaround, or safe screenshot is enough; you do not need to design the solution.
