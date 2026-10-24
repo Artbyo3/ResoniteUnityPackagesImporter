@@ -156,6 +156,15 @@ There is no auto-rotation or autoplay. Without JavaScript all media remain avail
 Search results and deep links reveal their containing reference automatically.
 The support inventory shows all matching components without a reveal-more button.
 
+The first-import guide opts into `walkthrough` with one real screenshot per step.
+Selecting a step updates its illustration; all instructions stay visible. Arrow
+Up/Down and Home/End also select steps. Without JavaScript the links jump to the
+screenshots, which remain visible. Its optional `demo` keeps the full video in a
+separate disclosure, with no autoplay. The example conversion is labeled as an
+example rather than a promised result.
+On narrow screens the selected screenshot sits directly below its step. Resizing
+back to desktop returns it to the adjacent visual area without resetting selection.
+
 ### Three-view art-direction prototype
 
 Only `avatars`, `compatibility`, and `missing-materials` use the optional

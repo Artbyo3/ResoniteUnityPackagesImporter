@@ -2,19 +2,34 @@
   "guides": {
     "first-import": {
       "lead": "Drop a package. Preview it. Create it when ready.",
+      "steps_first": true,
+      "walkthrough": true,
       "media": [
         {
-          "title": "Watch the importer",
-          "video": "landing-background.webm",
-          "fallback": "landing-background.mp4",
-          "caption": "Importer demo footage. Your result depends on the package and supported features."
+          "title": "Choose the importer",
+          "image": "pre-import-prompt.png",
+          "alt": "The Resonite import prompt offering Import Unity Package and Import as Raw File.",
+          "caption": "Choose Import Unity Package. Import as Raw File bypasses the station."
         },
         {
-          "title": "Choose import",
-          "image": "pre-import-prompt.png",
-          "caption": "Choose Import Unity Package. Raw File bypasses the station."
+          "title": "Look closely before creating",
+          "image": "material-customizer-spheres.png",
+          "alt": "The material selection panel with previews on spheres.",
+          "caption": "Preview material assignments and read the item warnings. Add companion packages if requested."
+        },
+        {
+          "title": "Create, then inspect",
+          "image": "avatar-resonite.png",
+          "alt": "An example avatar after conversion in Resonite.",
+          "caption": "An example Resonite conversion. Your result depends on the package and supported features."
         }
       ],
+      "demo": {
+        "title": "Watch the full import",
+        "video": "landing-background.webm",
+        "fallback": "landing-background.mp4",
+        "caption": "Importer demo footage. Your result depends on the package and supported features."
+      },
       "steps": [
         {
           "title": "Drop the package",
@@ -22,7 +37,7 @@
         },
         {
           "title": "Review the result",
-          "text": "Inspect the avatar, materials and item warnings."
+          "text": "Add companion packages if requested. Check the avatar, materials and warnings."
         },
         {
           "title": "Create when ready",

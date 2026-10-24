@@ -15,9 +15,67 @@ class VisualGuideTests(unittest.TestCase):
         self.guides = load_visual_guides()
         self.topics = {topic["id"]: topic for topic in load_workspace()["topics"]}
 
+    def test_first_import_steps_appear_before_demo_and_reference(self):
+        topic = self.topics["first-import"]
+        result = render_visual_guide(self.root, topic, self.root / topic["page"], "Full instructions", self.guides["first-import"])
+        self.assertEqual(result.count('<ol class="visual-steps">'), 1)
+        self.assertLess(result.index('class="visual-steps"'), result.index('class="visual-media"'))
+        self.assertLess(result.index('class="visual-notice"'), result.index('class="visual-reference"'))
+        self.assertIn("Add companion packages if requested.", result)
+        self.assertIn("Full instructions", result)
+
     def test_all_functional_topics_have_visual_fronts(self):
         self.assertEqual(set(self.guides), set(self.topics) - {"license", "notices"})
         self.assertEqual(len(self.guides), 22)
+
+    def test_walkthrough_links_each_visible_instruction_to_a_real_screenshot(self):
+        topic = self.topics["first-import"]
+        result = render_visual_guide(self.root, topic, self.root / topic["page"], "Reference", self.guides["first-import"])
+        self.assertIn("data-import-walkthrough", result)
+        self.assertEqual(result.count('aria-label="Views"'), 1)
+        self.assertEqual(result.count("data-visual-frame"), 3)
+        for index in range(3):
+            self.assertIn(f'href="#visual-first-import-{index}" data-visual-select="{index}"', result)
+            self.assertIn(f'id="visual-first-import-{index}" data-visual-frame', result)
+        self.assertIn("pre-import-prompt.png", result)
+        self.assertIn("material-customizer-spheres.png", result)
+        self.assertIn("avatar-resonite.png", result)
+        self.assertIn("An example Resonite conversion.", result)
+        self.assertNotIn("data-visual-paired", result)
+
+    def test_walkthrough_demo_is_optional_and_has_no_autoplay(self):
+        topic = self.topics["first-import"]
+        guide = dict(self.guides["first-import"])
+        result = render_visual_guide(self.root, topic, self.root / topic["page"], "Reference", guide)
+        demo = result.split('<details class="import-demo">', 1)[1].split('</details>', 1)[0]
+        self.assertIn("Watch the full import", demo)
+        self.assertIn("landing-background.webm", demo)
+        self.assertIn("landing-background.mp4", demo)
+        self.assertIn('preload="none"', demo)
+        self.assertNotIn("autoplay", demo)
+        guide.pop("demo")
+        self.assertNotIn("import-demo", render_visual_guide(self.root, topic, self.root / topic["page"], "Reference", guide))
+
+    def test_two_step_walkthrough_does_not_use_paired_media(self):
+        topic = self.topics["first-import"]
+        guide = {**self.guides["first-import"], "steps": self.guides["first-import"]["steps"][:2], "media": self.guides["first-import"]["media"][:2]}
+        result = render_visual_guide(self.root, topic, self.root / topic["page"], "Reference", guide)
+        self.assertNotIn("data-visual-paired", result)
+        self.assertEqual(result.count("data-visual-frame"), 2)
+
+    def test_invalid_walkthroughs_and_demo_assets_are_rejected(self):
+        for change in [
+            {"walkthrough": True},
+            {"walkthrough": True, "steps": [{"title": "Test", "text": "Test"}], "media": []},
+            {"walkthrough": True, "steps": [{"title": "Test", "text": "Test"}], "media": [{"video": "landing-background.webm"}]},
+            {"demo": {}},
+            {"demo": {"title": "Test", "caption": "Test", "video": "missing.webm", "fallback": "landing-background.mp4"}},
+        ]:
+            with self.subTest(change=change), tempfile.TemporaryDirectory() as temporary:
+                path = Path(temporary) / "guides.json"
+                path.write_text(json.dumps({"guides": {"test": {"lead": "Test", **change}}}), encoding="utf-8")
+                with self.assertRaises(ValueError):
+                    load_visual_guides(path)
 
     def test_essential_content_precedes_complete_reference(self):
         for identifier, guide in self.guides.items():

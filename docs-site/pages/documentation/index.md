@@ -44,21 +44,3 @@ hide:
 
 <noscript><p>The update list requires JavaScript. <a href="https://github.com/Artbyo3/ResoniteUnityPackagesImporter/issues?q=is%3Aissue+is%3Aopen+label%3Aproject-status">Read published updates on GitHub.</a></p></noscript>
 </section>
-
-## Explore the docs
-
-<div class="grid cards landing-paths" markdown>
-
-- [**Importing concepts**](../importing/avatars/)
-
-    Avatar prefabs, clothing, and companion package workflows.
-
-- [**Getting started**](../getting-started/)
-
-    Installation, prerequisites, and configuration.
-
-- [**Troubleshooting**](../reference/troubleshooting/)
-
-    Common import results and known issues.
-
-</div>
