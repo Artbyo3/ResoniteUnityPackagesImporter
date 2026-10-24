@@ -1,13 +1,7 @@
 # VRCFury
 
-**Status: Partial.** The importer translates supported structural VRCFury features into shared avatar operations during import. Other VRCFury features are deferred or unsupported, and their underlying assets are imported without those behaviors.
+**Supported Armature Link operations and selected initial appearance transfer. The full VRCFury runtime does not.**
 
-### Supported features
+Recursive armature merges and single-bone attachments preserve supported bone targets, offset paths and transform options. Supported reversible Apply During Upload actions, Toggle resting appearance and initial BlendShape Link values can also be evaluated. Interactive toggles, saved parameters, full controllers, menus and contacts are not recreated by those initial-state translations.
 
-- **Armature Link (`VRCFuryArmatureLink`):**
-  - **Recursive merge:** translated into structural armature merge operations (`ArmatureMergeOperation`), preserving target bone/offset resolution and link transforms (position, rotation, scale, auto-scale).
-  - **Single bone attachment:** translated into bone attachment operations (`BoneAttachmentOperation`), maintaining bone targeting and offset paths.
-
-### Deferred / Unsupported features
-
-- **Non-structural features:** Toggles, blendshape drivers, props, menus, contact receivers, and animation controllers are not yet executed. When detected, they produce diagnostic warnings in the import plan and the base meshes, materials, and textures are imported without those behaviors.
+VRCFury stores many features inside one serialized component. The support map lists those features separately so that Armature Link support cannot be mistaken for support for the whole package.

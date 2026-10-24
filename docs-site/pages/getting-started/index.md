@@ -1,24 +1,24 @@
-# Getting started
+# Your first import
 
-The Unity Package Importer is a Resonite mod that brings supported humanoid avatars, clothing, props, and materials from Unity `.unitypackage` files directly into Resonite.
+## Before you start
 
-!!! info "Active development"
-    The importer is actively developed and maintained. Because Unity packages use a wide range of custom shaders and editor scripts, package conversion results vary. Review the [compatibility reference](../reference/compatibility/) to check currently supported features and known limits.
+Bring a `.unitypackage` with its required assets. Import into a private or local session if the content is private: the station's inactive staging hierarchy is still world content, not a local-only sandbox.
 
-## Overview
+Keep the original files. Reconstruction can differ from Unity or VRChat, especially materials and build-time components.
 
-- **[Installation](installation.md)**: Prerequisites, step-by-step setup with ResoniteModLoader, updates, and configuration options.
-- **[Importing avatars](../importing/avatars.md)**: Drag-and-drop intake, interactive staging station, 3D turntable preview, material customization, and native avatar creation.
-- **[Importing clothing](../importing/clothing.md)**: Modular Avatar and VRCFury outfit installation, target avatar selection, and context menu toggles.
-- **[Companion packages](../importing/companion-packages.md)**: Multi-package workflow for resolving missing textures and materials.
-- **[Compatibility reference](../reference/compatibility/)**: Detailed status for Unity packages, Modular Avatar, VRCFury, and shader conversion (Standard, lilToon, Poiyomi).
+## Import and review
 
-## Download
+1. **Drop your package into Resonite.** Choose **Import Unity Package**. The station prepares it for review; it does not immediately release a finished avatar.
+2. **Supply missing dependencies if requested.** Choose **Import Companion Package** and drop the matching material package into the session. You can continue with placeholders instead, but the missing source data is not recovered that way.
+3. **Select the avatar on the station tablet.** Rotate its preview, inspect the materials, and read its warnings before changing settings.
+4. **Create it when the action is available.** Choose **Create avatar** and inspect the result in the world. Keep its import receipt: it records material assignments and limitations.
 
-[Download the latest ZIP](https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/latest/download/UnityPackageImporter-testing-build.zip) and follow the [installation guide](installation.md). See the [latest release notes](https://github.com/Artbyo3/ResoniteUnityPackagesImporter/releases/latest) for changes and the DLL checksum.
+### What the status means
 
-## Next steps
+- **Ready:** structural checks passed and the assets were resolved.
+- **Partial compatibility:** read the item details. A visual approximation alone does not block creation, but missing assets or structural problems can still prevent it.
+- **Blocked:** resolve the reported structural problem before trying to create the avatar.
 
-- [Follow the installation guide](installation.md) to set up the mod.
-- [Review compatibility](../reference/compatibility/) for supported components and shaders.
-- [Read legal notices](../legal/) for licensing terms and content ownership.
+### What to expect visually
+
+Unity shaders do not run in Resonite. Supported properties are converted to native materials. **Automatic** selects a conversion path; **Toon** and **PBS Metallic** let you override it. Switching presets cannot restore unsupported effects.

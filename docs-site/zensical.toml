@@ -6,38 +6,47 @@ repo_url = "https://github.com/Artbyo3/ResoniteUnityPackagesImporter"
 docs_dir = "pages"
 site_dir = "site"
 nav = [
-  { "Home" = "index.md" },
-  { "Documentation" = "documentation/index.md" },
-  { "Getting started" = [
-    "getting-started/index.md",
-    "getting-started/installation.md",
+  { "What can I import?" = "reference/compatibility/index.md" },
+  { "Set up" = [
+    { "Install" = "getting-started/installation.md" },
+    { "Update & remove" = "getting-started/installation/#updating" },
+    { "Settings" = "getting-started/installation/#configuration" },
   ] },
-  { "Importing concepts" = [
-    "importing/avatars.md",
-    "importing/clothing.md",
-    "importing/companion-packages.md",
+  { "Import content" = [
+    { "First import" = "getting-started/index.md" },
+    { "Avatars" = "importing/avatars.md" },
+    { "Clothing & props" = "importing/clothing.md" },
+    { "Missing dependencies" = "importing/companion-packages.md" },
   ] },
-  { "Compatibility" = [
-    "reference/compatibility/index.md",
-    "reference/compatibility/unity-packages.md",
-    "reference/compatibility/modular-avatar.md",
-    "reference/compatibility/vrcfury.md",
-    { "Shaders and materials" = [
-      "reference/compatibility/shaders/index.md",
-      "reference/compatibility/shaders/standard.md",
-      "reference/compatibility/shaders/liltoon.md",
-      "reference/compatibility/shaders/poiyomi.md",
+  { "Compatibility details" = [
+    { "Unity package content" = "reference/compatibility/unity-packages.md" },
+    { "Modular Avatar" = "reference/compatibility/modular-avatar.md" },
+    { "VRCFury" = "reference/compatibility/vrcfury.md" },
+    { "Materials" = [
+      { "Material conversion" = "reference/compatibility/shaders/index.md" },
+      { "Standard / PBS" = "reference/compatibility/shaders/standard.md" },
+      { "lilToon" = "reference/compatibility/shaders/liltoon.md" },
+      { "Poiyomi" = "reference/compatibility/shaders/poiyomi.md" },
     ] },
-    "reference/troubleshooting.md",
   ] },
-  { "Legal" = [
-    "legal/index.md",
-    "legal/third-party-notices.md",
+  { "Troubleshooting" = [
+    { "No import prompt" = "reference/troubleshooting/#the-import-prompt-does-not-appear" },
+    { "Material problems" = "reference/troubleshooting/#textures-are-missing-or-materials-look-different" },
+    { "Cannot create avatar" = "reference/troubleshooting/#the-station-will-not-create-the-avatar" },
+    { "Outfit rejected" = "reference/troubleshooting/#an-outfit-target-is-rejected" },
+    { "Package conflict" = "reference/troubleshooting/#companion-packages-conflict" },
+    { "Partial import" = "reference/troubleshooting/#some-items-imported-but-another-failed" },
+    { "Share a report" = "reference/sharing-reports.md" },
+  ] },
+  { "Project" = [
+    { "Project status" = "project-status/index.md" },
+    { "License" = "legal/index.md" },
+    { "Third-party notices" = "legal/third-party-notices.md" },
   ] },
 ]
 
-extra_css = ["stylesheets/notice.css", "stylesheets/branding.css", "stylesheets/landing-v2.css"]
-extra_javascript = ["javascripts/avatar-comparison.js", "javascripts/contributors-v2.js", "javascripts/landing-video.js"]
+extra_css = ["stylesheets/notice.css", "stylesheets/branding.css", "stylesheets/landing-v2.css", "stylesheets/development-preview.css", "stylesheets/page-transitions.css", "stylesheets/docs-workspace.css", "stylesheets/support-map.css", "stylesheets/visual-guides.css", "stylesheets/docs-compositions.css"]
+extra_javascript = ["javascripts/avatar-comparison.js", "javascripts/contributors-v2.js", "javascripts/landing-video.js", "javascripts/project-status.js", "javascripts/support-map.js", "javascripts/visual-guides.js", "javascripts/docs-workspace.js"]
 
 [project.markdown_extensions]
 admonition = {}
@@ -46,7 +55,7 @@ md_in_html = {}
 
 [project.theme]
 custom_dir = "overrides"
-features = ["navigation.sections", "navigation.path", "search.highlight"]
+features = ["navigation.path", "search.highlight"]
 
 [[project.theme.palette]]
 scheme = "default"
@@ -67,4 +76,3 @@ alternate = [
   { name = "English", link = "", lang = "en" },
   { name = "日本語", link = "ja/", lang = "ja" },
 ]
-

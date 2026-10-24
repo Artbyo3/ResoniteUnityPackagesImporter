@@ -1,7 +1,7 @@
 /* Landing page layout. The theme provides the typography, buttons, and cards. */
 .md-typeset .landing-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
   gap: clamp(1.5rem, 4vw, 3rem);
   margin: 0 0 2.6rem;
@@ -45,6 +45,8 @@
 
 .landing-hero__visual {
   position: relative;
+  align-self: center;
+  aspect-ratio: 1;
   min-width: 0;
   width: 100%;
 }
@@ -97,23 +99,20 @@
   background-image: var(--avatar-image, none);
   background-position: center;
   background-repeat: no-repeat;
-  background-size: contain;
+  background-size: cover;
 }
 
 .avatar-comparison__label {
   position: absolute;
   top: 0.85rem;
   z-index: 1;
-  padding: 0.38rem 0.58rem;
-  border: 1px solid color-mix(in srgb, white 16%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, #0b1012 78%, transparent);
   color: #f0f3f2;
-  font-size: 0.7rem;
-  font-weight: 650;
-  letter-spacing: 0.025em;
-  line-height: 1;
-  backdrop-filter: blur(8px);
+  font-size: 0.65rem;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  line-height: 1.4;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.85);
+  pointer-events: none;
 }
 
 .avatar-comparison__pane--resonite .avatar-comparison__label {
@@ -220,8 +219,8 @@
   }
 
   .landing-hero__visual {
-    aspect-ratio: 740 / 420;
-    max-width: 38rem;
+    max-width: 24rem;
+    justify-self: center;
   }
 }
 

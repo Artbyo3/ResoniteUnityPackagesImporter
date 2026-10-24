@@ -1,4 +1,5 @@
 ---
+title: Documentation
 hide:
   - toc
 ---
@@ -9,11 +10,9 @@ hide:
 
 # From Unity package to Resonite.
 
-<p class="landing-summary">Learn what the importer supports, how content is reconstructed, and where compatibility has limits.</p>
+<p class="landing-summary">Avatars, outfits, and props.</p>
 
-[Compatibility guide](../reference/compatibility/){ .md-button .md-button--primary }
-
-<p class="landing-status">An open-source mod for importing Unity packages, avatars, and clothing into Resonite.</p>
+[Compatibility](../reference/compatibility/){ .md-button .md-button--primary }
 
 </div>
 
@@ -37,6 +36,13 @@ hide:
 </div>
 
 </div>
+
+<section class="project-pulse" data-project-pulse aria-labelledby="project-pulse-title">
+<div class="project-pulse__heading"><h2 id="project-pulse-title">Project status</h2><a href="../project-status/">All updates <span aria-hidden="true">&#8594;</span></a></div>
+<div class="project-pulse__lanes" data-pulse-lanes hidden></div>
+<p class="project-pulse__notice" data-pulse-notice role="status">Project activity is not connected yet. This page does not currently report live work or known issues.</p>
+
+</section>
 
 ## Explore the docs
 

@@ -1,6 +1,8 @@
 # Importing avatars
 
-The importer reconstructs humanoid avatars from Unity packages and stages them for review before releasing them into the world.
+Drop a `.unitypackage`, inspect the reconstructed avatar in the station, and choose **Create avatar** when it is ready. Nothing is released from staging until you take that action.
+
+Use a private or local session for private assets. Staging is world content, even while inactive.
 
 ## Import workflow
 
@@ -9,10 +11,9 @@ The importer reconstructs humanoid avatars from Unity packages and stages them f
     - **Import as Raw File**: Bypasses the station and imports the file directly through Resonite's native file importer, the same way standard Resonite handles raw files.
     - **Cancel**: Aborts the operation without unpacking or importing.
 
-    <figure markdown="span">
-      ![Pre-import intake prompt](../images/pre-import-prompt.png){ width="480" }
-      <figcaption>The pre-import prompt modal shown when dropping a Unity package into Resonite.</figcaption>
-    </figure>
+    ![Pre-import intake prompt](../images/pre-import-prompt.png){ width="480" }
+
+    *The pre-import prompt modal shown when dropping a Unity package into Resonite.*
 
 2. **Station staging**: When you choose the station, the package is extracted to a dedicated cache and verified. Staged prefabs are prepared for inspection.
 3. **Review and customize**: The station tablet displays each detected avatar or prefab:
@@ -42,31 +43,20 @@ The importer reconstructs humanoid avatars from Unity packages and stages them f
 
 The station's material customizer provides tools to examine and override materials and textures across all detected meshes:
 
-<div class="grid cards" markdown>
+#### Find a mesh or material slot
 
--   **Mesh and slot list**
+Inspect detected skinned mesh renderers and their submesh slots. Use the search filter to locate a specific part.
 
-    ---
+![Material customizer mesh list](../images/material-customizer-meshes.png){ width="560" loading="lazy" }
 
-    ![Material Customizer mesh list](../images/material-customizer-meshes.png)
+#### Compare material variants
 
-    Inspect all detected skinned mesh renderers, check submesh slot counts, and quickly locate specific parts using the search filter.
+Select the preview spheres to inspect shading and reflections before choosing a material.
 
--   **Material sphere picker**
+![Material preview spheres](../images/material-customizer-spheres.png){ width="560" loading="lazy" }
 
-    ---
+#### Assign an alternate asset
 
-    ![Choose material preview spheres](../images/material-customizer-spheres.png)
+Browse the extracted package folders to select another material or texture.
 
-    Visual preview spheres render each material with realistic shading and reflections, letting you pick variants before committing.
-
--   **Package folder navigation**
-
-    ---
-
-    ![Folder navigation in the Material Customizer](../images/material-customizer-folders.png)
-
-    Browse texture and material folders within the extracted package to select and assign alternate assets directly.
-
-</div>
-
+![Package folder navigation](../images/material-customizer-folders.png){ width="560" loading="lazy" }
