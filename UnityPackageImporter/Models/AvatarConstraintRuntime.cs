@@ -75,14 +75,16 @@ public static class AvatarConstraintRuntime
                 case AvatarConstraintType.LookAt:
                 case AvatarConstraintType.Aim:
                 {
-                    var copy = targetSlot.AttachComponent<CopyGlobalTransform>();
-                    copy.Source.Target = sourceSlot;
-                    copy.DrivePosition = false;
-                    copy.DriveRotation = true;
+                    var lookAt = targetSlot.AttachComponent<LookAt>();
+                    lookAt.Target.Target = sourceSlot;
+                    lookAt.RotationOffset.Value = new floatQ(constraint.RotationOffset.X, constraint.RotationOffset.Y, constraint.RotationOffset.Z, constraint.RotationOffset.W);
                     break;
                 }
                 case AvatarConstraintType.Scale:
                 {
+                    var copyScale = targetSlot.AttachComponent<CopyGlobalScale>();
+                    copyScale.Source.Target = sourceSlot;
+                    copyScale.NonUniform.Value = true;
                     break;
                 }
             }

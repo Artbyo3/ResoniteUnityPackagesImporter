@@ -49,6 +49,33 @@ internal static class AvatarConstraintTests
             "  - sourceTransform: {fileID: " + srcTransId + "}\n" +
             "    weight: 1\n";
 
+        string UnityLookAtConstraint(long compId = 503, long goId = 2, long srcTransId = 103) =>
+            "--- !u!1953259897 &" + compId + "\nLookAtConstraint:\n" +
+            "  m_GameObject: {fileID: " + goId + "}\n" +
+            "  m_IsContraintActive: 1\n" +
+            "  m_Weight: 1\n" +
+            "  m_Sources:\n" +
+            "  - sourceTransform: {fileID: " + srcTransId + "}\n" +
+            "    weight: 1\n";
+
+        string UnityAimConstraint(long compId = 504, long goId = 2, long srcTransId = 103) =>
+            "--- !u!1183024368 &" + compId + "\nAimConstraint:\n" +
+            "  m_GameObject: {fileID: " + goId + "}\n" +
+            "  m_IsContraintActive: 1\n" +
+            "  m_Weight: 1\n" +
+            "  m_Sources:\n" +
+            "  - sourceTransform: {fileID: " + srcTransId + "}\n" +
+            "    weight: 1\n";
+
+        string UnityScaleConstraint(long compId = 505, long goId = 2, long srcTransId = 103) =>
+            "--- !u!894565638 &" + compId + "\nScaleConstraint:\n" +
+            "  m_GameObject: {fileID: " + goId + "}\n" +
+            "  m_IsContraintActive: 1\n" +
+            "  m_Weight: 1\n" +
+            "  m_Sources:\n" +
+            "  - sourceTransform: {fileID: " + srcTransId + "}\n" +
+            "    weight: 1\n";
+
         string VrcConstraint(long compId = 600, long goId = 2, string className = "VRCParentConstraint", long srcTransId = 103) =>
             "--- !u!114 &" + compId + "\nMonoBehaviour:\n" +
             "  m_GameObject: {fileID: " + goId + "}\n" +
@@ -83,17 +110,37 @@ internal static class AvatarConstraintTests
             check(plan.Constraints[1].Type == AvatarConstraintType.Parent, "Second must be Parent");
         });
 
+        test("Unity LookAt, Aim, and Scale constraints compile with correct types", () =>
+        {
+            string yaml = BaseScene() +
+                UnityLookAtConstraint(compId: 510, goId: 2, srcTransId: 103) +
+                UnityAimConstraint(compId: 511, goId: 4, srcTransId: 103) +
+                UnityScaleConstraint(compId: 512, goId: 2, srcTransId: 104);
+            var plan = AvatarConstraintPlanner.Compile(yaml, 1);
+            check(plan.CanBuild, Describe(plan));
+            check(plan.Constraints.Count == 3, "Expected 3 constraints");
+            check(plan.Constraints[0].Type == AvatarConstraintType.LookAt, "First must be LookAt");
+            check(plan.Constraints[1].Type == AvatarConstraintType.Aim, "Second must be Aim");
+            check(plan.Constraints[2].Type == AvatarConstraintType.Scale, "Third must be Scale");
+        });
+
         test("VRC SDK constraints compile from MonoBehaviours", () =>
         {
             string yaml = BaseScene() +
                 VrcConstraint(compId: 601, goId: 2, className: "VRCParentConstraint", srcTransId: 103) +
-                VrcConstraint(compId: 602, goId: 4, className: "VRCRotationConstraint", srcTransId: 103);
+                VrcConstraint(compId: 602, goId: 4, className: "VRCRotationConstraint", srcTransId: 103) +
+                VrcConstraint(compId: 603, goId: 2, className: "VRCLookAtConstraint", srcTransId: 103) +
+                VrcConstraint(compId: 604, goId: 4, className: "VRCAimConstraint", srcTransId: 103) +
+                VrcConstraint(compId: 605, goId: 2, className: "VRCScaleConstraint", srcTransId: 103);
 
             var plan = AvatarConstraintPlanner.Compile(yaml, 1);
             check(plan.CanBuild, Describe(plan));
-            check(plan.Constraints.Count == 2, "Expected 2 VRC constraints");
+            check(plan.Constraints.Count == 5, "Expected 5 VRC constraints");
             check(plan.Constraints[0].Type == AvatarConstraintType.Parent, "Expected VRCParentConstraint");
             check(plan.Constraints[1].Type == AvatarConstraintType.Rotation, "Expected VRCRotationConstraint");
+            check(plan.Constraints[2].Type == AvatarConstraintType.LookAt, "Expected VRCLookAtConstraint");
+            check(plan.Constraints[3].Type == AvatarConstraintType.Aim, "Expected VRCAimConstraint");
+            check(plan.Constraints[4].Type == AvatarConstraintType.Scale, "Expected VRCScaleConstraint");
         });
 
         test("Constraint self-reference fails closed with error diagnostic", () =>

@@ -123,14 +123,16 @@
       "framework": "vrchat",
       "name": "Aim Constraint",
       "type": "VRCAimConstraint",
-      "status": "missing",
-      "summary": "Constraint translation for aim, look-at, and scale following is under development.",
-      "outcome": "Source-driven aim rotation is not translated.",
-      "reason": "Keeping an authored transform is not a live constraint. VRChat-specific constraint settings and runtime evaluation need a dedicated translator; Unity component handling is not evidence of support for this SDK component.",
+      "status": "limited",
+      "summary": "Compiled to native FrooxEngine LookAt component with cycle detection and rotation offset support.",
+      "outcome": "Aim constraints are translated to native LookAt components pointing towards target source slots.",
+      "reason": "Mapped to native FrooxEngine LookAt. Advanced aim axes, world up objects, and multi-source weighted aim blending remain limited.",
       "work": "unplanned",
       "issue": null,
       "evidence": [
-        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+        "UnityPackageImporter/Models/AvatarConstraintPlanner.cs",
+        "UnityPackageImporter/Models/AvatarConstraintRuntime.cs",
+        "Tests/AvatarConstraintTests.cs"
       ],
       "legacy": false,
       "source": {
@@ -144,14 +146,16 @@
       "framework": "vrchat",
       "name": "Look At Constraint",
       "type": "VRCLookAtConstraint",
-      "status": "missing",
-      "summary": "Constraint translation for aim, look-at, and scale following is under development.",
-      "outcome": "Source-driven look-at tracking is not translated.",
-      "reason": "Keeping an authored transform is not a live constraint. VRChat-specific constraint settings and runtime evaluation need a dedicated translator; Unity component handling is not evidence of support for this SDK component.",
+      "status": "limited",
+      "summary": "Compiled to native FrooxEngine LookAt component with cycle detection and rotation offset support.",
+      "outcome": "LookAt constraints are translated to native LookAt components orienting towards source transforms.",
+      "reason": "Mapped to native FrooxEngine LookAt. Multi-source weighted blending and roll limits remain limited.",
       "work": "unplanned",
       "issue": null,
       "evidence": [
-        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+        "UnityPackageImporter/Models/AvatarConstraintPlanner.cs",
+        "UnityPackageImporter/Models/AvatarConstraintRuntime.cs",
+        "Tests/AvatarConstraintTests.cs"
       ],
       "legacy": false,
       "source": {
@@ -234,14 +238,16 @@
       "framework": "vrchat",
       "name": "Scale Constraint",
       "type": "VRCScaleConstraint",
-      "status": "missing",
-      "summary": "Constraint translation for aim, look-at, and scale following is under development.",
-      "outcome": "Source-weighted scale following is not translated.",
-      "reason": "Keeping an authored transform is not a live constraint. VRChat-specific constraint settings and runtime evaluation need a dedicated translator; Unity component handling is not evidence of support for this SDK component.",
+      "status": "limited",
+      "summary": "Compiled to native FrooxEngine CopyGlobalScale component with cycle detection.",
+      "outcome": "Scale constraints are translated to native CopyGlobalScale components mirroring non-uniform scale.",
+      "reason": "Mapped to native FrooxEngine CopyGlobalScale. Multi-source weighted scaling and per-axis scale freezing remain limited.",
       "work": "unplanned",
       "issue": null,
       "evidence": [
-        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+        "UnityPackageImporter/Models/AvatarConstraintPlanner.cs",
+        "UnityPackageImporter/Models/AvatarConstraintRuntime.cs",
+        "Tests/AvatarConstraintTests.cs"
       ],
       "legacy": false,
       "source": {
