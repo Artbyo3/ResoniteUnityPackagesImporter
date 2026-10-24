@@ -249,6 +249,36 @@ internal sealed class PreparedImportItem
                         avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "PHYSBONE_FAILED");
                     UnityPackageImporter.Warn("Failed to build PhysBone simulation: " + ex);
                 }
+
+                try
+                {
+                    await default(ToBackground);
+                    var constraintPlan = AvatarConstraintPlanner.Compile(prefab.ComposedYaml, avatar.GameObjectFileId, token);
+                    await default(ToWorld);
+                    token.ThrowIfCancellationRequested();
+                    foreach (var diagnostic in constraintPlan.Diagnostics)
+                    {
+                        ConversionPlan.AddDiagnostic(diagnostic.Severity == InitialAppearanceSeverity.Info
+                            ? AvatarOperationSeverity.Info : AvatarOperationSeverity.Warning, diagnostic.Message,
+                            diagnostic.SourceId.ToString(System.Globalization.CultureInfo.InvariantCulture), diagnostic.Code);
+                    }
+                    if (constraintPlan.CanBuild && constraintPlan.Constraints.Count > 0)
+                    {
+                        await AvatarConstraintRuntime.BuildAsync(constraintPlan, root, existingIUnityObjects, token);
+                        ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Info,
+                            $"Created {constraintPlan.Constraints.Count} native constraints via CopyGlobalTransform.",
+                            avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "CONSTRAINTS_BUILT");
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    await default(ToWorld);
+                    OptionalControlsFailed = true;
+                    ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Warning,
+                        "Optional constraint setup failed; no runtime parity is claimed. " + ex.Message,
+                        avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "CONSTRAINT_FAILED");
+                    UnityPackageImporter.Warn("Failed to build constraints: " + ex);
+                }
             }
         }
     }

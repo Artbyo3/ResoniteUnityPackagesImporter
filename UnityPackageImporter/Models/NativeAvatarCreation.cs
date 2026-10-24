@@ -125,6 +125,10 @@ internal static class NativeAvatarCreation
             item.CompleteHumanoidHierarchy(envelope);
             AvatarVisemeRuntime.Apply(item, rig, envelope, previousVisemeDrivers, previousVisemeAnalyzers,
                 previousHeadSlots, authoredVisemeWeights, cancellationToken);
+            if (item.Manifest?.Avatars.Count > 0 && item.Manifest.Avatars[0].EyeLook != null)
+            {
+                await AvatarEyeLookRuntime.ApplyAsync(item, envelope, item.Manifest.Avatars[0].EyeLook, cancellationToken);
+            }
 
             // Native protection is attached to the root and renderers. Assign the
             // importing user consistently before this object can leave staging.

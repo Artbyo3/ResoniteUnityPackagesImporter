@@ -60,7 +60,17 @@ public class RotationConstraint: IUnityObject
                             await targetgameobj.InstanciateAsync(importer);
                             await default(ToBackground);
 
-                            // Rotation and source weights are not translated yet.
+                            if (slotunity is GameObject slotGo && targetgameobj is GameObject targetGo &&
+                                slotGo.frooxEngineSlot != null && !slotGo.frooxEngineSlot.IsDestroyed &&
+                                targetGo.frooxEngineSlot != null && !targetGo.frooxEngineSlot.IsDestroyed)
+                            {
+                                await default(ToWorld);
+                                var copy = slotGo.frooxEngineSlot.AttachComponent<CopyGlobalTransform>();
+                                copy.Source.Target = targetGo.frooxEngineSlot;
+                                copy.DrivePosition = false;
+                                copy.DriveRotation = m_IsContraintActive != 0;
+                                await default(ToBackground);
+                            }
                         }
                     }
                     catch (Exception e)
