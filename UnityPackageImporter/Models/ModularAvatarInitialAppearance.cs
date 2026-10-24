@@ -70,6 +70,7 @@ public sealed class InitialAppearanceContext
     public long AvatarRootId { get; init; }
     public IReadOnlyDictionary<long, InitialAppearanceRenderer> Renderers { get; init; } = new Dictionary<long, InitialAppearanceRenderer>();
     public bool ExternalAnimationAndParameterContextVerifiedAbsent { get; init; }
+    public bool AllowMixedFrameworks { get; init; }
 }
 
 public sealed class InitialAppearanceResult

@@ -148,7 +148,7 @@ public static partial class ModularAvatarInitialAppearance
             }
         }
 
-        if (!context.ExternalAnimationAndParameterContextVerifiedAbsent)
+        if (!context.ExternalAnimationAndParameterContextVerifiedAbsent && !context.AllowMixedFrameworks)
             Report("CONTEXT", "External controllers, parameters and uncompiled runtime context must be verified absent.");
         foreach (var component in components)
         {
@@ -165,14 +165,15 @@ public static partial class ModularAvatarInitialAppearance
                 script.Equals(AvatarPackageIndex.VrcAvatarDescriptorScriptGuid, StringComparison.OrdinalIgnoreCase);
             bool HasReference(YamlNode? node) => node is YamlMappingNode reference &&
                 (ReferenceNode(reference) != 0 || Text(reference, "guid").Trim('0').Length != 0);
-            if (descriptor &&
+            if (descriptor && !context.AllowMixedFrameworks &&
                 (HasReference(Get(component.Body, "expressionParameters")) ||
                     Sequence(component.Body, "baseAnimationLayers").Concat(Sequence(component.Body, "specialAnimationLayers"))
                         .OfType<YamlMappingNode>().Any(layer => HasReference(Get(layer, "animatorController")))))
                 Report("CONTEXT", "Descriptor parameters/controllers require the shared Animator compiler.", component.Id);
-            if (component.ClassId is 95 or 111 || script.Equals(MergeAnimatorGuid, StringComparison.OrdinalIgnoreCase))
+            if (!context.AllowMixedFrameworks && (component.ClassId is 95 or 111 || script.Equals(MergeAnimatorGuid, StringComparison.OrdinalIgnoreCase)))
                 Report("CONTEXT", "Animator, legacy Animation or MergeAnimator requires the shared Animator compiler.", component.Id);
-            if (component.ClassId == 114 && !structural && !supportedMa && !descriptor)
+            if (component.ClassId == 114 && !structural && !supportedMa && !descriptor &&
+                (!context.AllowMixedFrameworks || !AvatarPackageIndex.RecognizedVrcFuryScriptGuids.Contains(script)))
                 Report("CONTEXT", "Coexisting MonoBehaviour runtime interactions have not been verified absent.", component.Id);
         }
 

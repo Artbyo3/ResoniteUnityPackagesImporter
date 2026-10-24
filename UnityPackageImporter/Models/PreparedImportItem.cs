@@ -120,10 +120,11 @@ internal sealed class PreparedImportItem
                 UnityPackageImporter.Warn("Skipping an unresolved avatar expression root in " + ID.Value);
                 continue;
             }
-            bool Owns(long id) => Contains(root, ResolveGameObject(id));
+            VrcMenu menu = null;
+            Dictionary<string, VrcParameter> parsedParameters = null;
             try
             {
-                var (menu, _) = ExpressionMenuParser.LoadMenuHierarchy(
+                (menu, parsedParameters) = ExpressionMenuParser.LoadMenuHierarchy(
                     avatar.ExpressionsMenu?.Guid, avatar.ExpressionParameters?.Guid, Project.AssetIDDict);
                 if (menu != null && menu.Controls.Count > 0)
                 {
@@ -151,60 +152,44 @@ internal sealed class PreparedImportItem
             var token = Project.Session?.Token ?? default;
             try
             {
-                bool vrcfRuntimeContext = (avatar.ExpressionParameters?.HasGuid ?? false) ||
-                    avatar.BaseAnimationLayers.Any(layer => layer.AnimatorController?.HasGuid ?? false) ||
-                    Manifest.ModularAvatarComponents.Where(component => Owns(component.GameObjectFileId)).Any(component => component.Kind is not
-                        (ModularAvatarComponentKind.MergeArmature or ModularAvatarComponentKind.BoneProxy or ModularAvatarComponentKind.OutfitRoot));
-                bool maRuntimeContext = (avatar.ExpressionParameters?.HasGuid ?? false) ||
-                    avatar.BaseAnimationLayers.Any(layer => layer.AnimatorController?.HasGuid ?? false) ||
-                    Manifest.VrcFuryComponents.Where(component => Owns(component.GameObjectFileId)).Any(component => component.ArmatureLinks.Count == 0 || component.UnsupportedFeatures.Count > 0);
-                var vrcfContext = new InitialAppearanceContext
+                var context = new InitialAppearanceContext
                 {
                     AvatarRootId = avatar.GameObjectFileId,
                     Renderers = prefab.AuthoredAppearanceRenderers,
-                    ExternalAnimationAndParameterContextVerifiedAbsent = !vrcfRuntimeContext
-                };
-                var maContext = new InitialAppearanceContext
-                {
-                    AvatarRootId = avatar.GameObjectFileId,
-                    Renderers = prefab.AuthoredAppearanceRenderers,
-                    ExternalAnimationAndParameterContextVerifiedAbsent = !maRuntimeContext
+                    AllowMixedFrameworks = true
                 };
                 await default(ToBackground);
-                var wardrobe = VrcFuryInitialAppearance.CompileWardrobe(prefab.ComposedYaml, vrcfContext,
-                    (guid, fileId) => UnityStaticAnimationClip.Resolve(Project.AssetIDDict, guid, fileId, token), token);
-                var maWardrobe = ModularAvatarInitialAppearance.CompileWardrobe(prefab.ComposedYaml, maContext, token);
+                var composedWardrobe = AvatarWardrobeComposer.Compose(
+                    prefab.ComposedYaml,
+                    context,
+                    (guid, fileId) => UnityStaticAnimationClip.Resolve(Project.AssetIDDict, guid, fileId, token),
+                    menu,
+                    parsedParameters,
+                    token);
                 await default(ToWorld);
                 token.ThrowIfCancellationRequested();
-                foreach (var diagnostic in wardrobe.Diagnostics)
+                foreach (var diagnostic in composedWardrobe.Diagnostics)
                     ConversionPlan.AddDiagnostic(diagnostic.Severity == InitialAppearanceSeverity.Info
                         ? AvatarOperationSeverity.Info : AvatarOperationSeverity.Warning, diagnostic.Message,
                         diagnostic.SourceId.ToString(System.Globalization.CultureInfo.InvariantCulture), diagnostic.Code);
-                foreach (var diagnostic in maWardrobe.Diagnostics)
-                    ConversionPlan.AddDiagnostic(diagnostic.Severity == InitialAppearanceSeverity.Info
-                        ? AvatarOperationSeverity.Info : AvatarOperationSeverity.Warning, diagnostic.Message,
-                        diagnostic.SourceId.ToString(System.Globalization.CultureInfo.InvariantCulture), diagnostic.Code);
-                var selectedWardrobe = wardrobe.CanBuild ? wardrobe : (maWardrobe.CanBuild ? maWardrobe : null);
-                if (selectedWardrobe == null)
+                if (!composedWardrobe.CanBuild)
                 {
-                    OptionalControlsFailed |= wardrobe.HasUnsupportedContext || maWardrobe.HasUnsupportedContext ||
-                        wardrobe.Diagnostics.Any(diagnostic => diagnostic.Severity == InitialAppearanceSeverity.Error) ||
-                        maWardrobe.Diagnostics.Any(diagnostic => diagnostic.Severity == InitialAppearanceSeverity.Error);
+                    OptionalControlsFailed |= composedWardrobe.HasUnsupportedContext ||
+                        composedWardrobe.Diagnostics.Any(diagnostic => diagnostic.Severity == InitialAppearanceSeverity.Error);
                 }
                 else if (root.GetComponentInParents<AvatarRoot>() == null)
                 {
                     OptionalControlsFailed = true;
                     ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Warning,
                         "Wardrobe controls require completed native avatar setup; no drivers were attached to this ordinary prefab.",
-                        code: "VRCFURY_WARDROBE_NATIVE_SETUP_REQUIRED");
+                        code: "WARDROBE_NATIVE_SETUP_REQUIRED");
                 }
                 else
                 {
-                    await AvatarWardrobeRuntime.BuildAsync(selectedWardrobe, root, existingIUnityObjects, Project, token);
-                    string code = ReferenceEquals(selectedWardrobe, maWardrobe) ? "MA_WARDROBE_BUILT" : "VRCFURY_WARDROBE_BUILT";
+                    await AvatarWardrobeRuntime.BuildAsync(composedWardrobe, root, existingIUnityObjects, Project, token);
                     ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Info,
-                        "Created " + selectedWardrobe.Controls.Count + " exact native wardrobe toggles. Native per-copy state is not VRChat saved-parameter restoration or re-wear reset parity.",
-                        avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), code);
+                        "Created " + composedWardrobe.Controls.Count + " exact native wardrobe toggles across unified framework composition. Native per-copy state is not VRChat saved-parameter restoration or re-wear reset parity.",
+                        avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "WARDROBE_COMPOSED_BUILT");
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)

@@ -25,7 +25,7 @@ internal sealed class AvatarWardrobeGraph
     private readonly IReadOnlyList<AvatarPropertyKey> order;
     private readonly IReadOnlyDictionary<AvatarPropertyKey, IReadOnlyList<AvatarWardrobeRule>> rules;
     internal AvatarParameterCatalog Parameters { get; }
-    internal IReadOnlyDictionary<string, AvatarParameterId>? IndependentControls { get; private init; }
+    internal IReadOnlyDictionary<string, AvatarParameterId>? IndependentControls { get; init; }
     internal IReadOnlyDictionary<AvatarPropertyKey, InitialAppearanceWrite> Baselines { get; }
 
     internal AvatarWardrobeGraph(AvatarParameterCatalog parameters, IEnumerable<InitialAppearanceWrite> baselines,
@@ -151,7 +151,8 @@ internal sealed class AvatarWardrobeGraph
 
     internal static AvatarParameterId IndependentParameter(string avatar, string control) => new(avatar, "vrcfury-toggle", control);
 
-    internal static AvatarWardrobeGraph FromIndependentControls(string avatar, IReadOnlyList<AvatarWardrobeControl> controls, CancellationToken token = default)
+    internal static AvatarWardrobeGraph FromUnifiedControls(string avatar, IReadOnlyList<AvatarWardrobeControl> controls,
+        IReadOnlyDictionary<string, VrcParameter>? baseParameters = null, CancellationToken token = default)
     {
         ArgumentNullException.ThrowIfNull(controls);
         token.ThrowIfCancellationRequested();
@@ -159,22 +160,39 @@ internal sealed class AvatarWardrobeGraph
         var defaults = new List<InitialAppearanceWrite>();
         var actions = new List<AvatarWardrobeRule>();
         var identities = new Dictionary<string, AvatarParameterId>(StringComparer.Ordinal);
+
+        if (baseParameters != null)
+        {
+            foreach (var (pName, pVal) in baseParameters)
+            {
+                token.ThrowIfCancellationRequested();
+                var pType = pVal.ValueType switch
+                {
+                    0 => AvatarParameterType.Int,
+                    1 => AvatarParameterType.Float,
+                    _ => AvatarParameterType.Bool
+                };
+                var id = new AvatarParameterId(avatar, "vrc", pName);
+                declarations.Add(new(id, pType, pVal.DefaultValue, pVal.Saved, pVal.Synced, "VRCExpressionParameters"));
+            }
+        }
+
         foreach (var control in controls)
         {
             token.ThrowIfCancellationRequested();
             if (control == null || string.IsNullOrWhiteSpace(control.Id) || control.Bindings == null || control.Bindings.Count == 0)
-                throw new InvalidDataException("Independent controls require an exact source identity and nonempty bindings.");
+                throw new InvalidDataException("Wardrobe controls require an exact source identity and nonempty bindings.");
             var id = IndependentParameter(avatar, control.Id);
-            if (!identities.TryAdd(control.Id, id)) throw new InvalidDataException("Independent controls require unique source identities.");
+            if (!identities.TryAdd(control.Id, id)) throw new InvalidDataException("Wardrobe controls require unique source identities: " + control.Id);
             declarations.Add(new(id, control.ParameterType, control.DefaultOn ? 1 : 0, control.Saved, control.Synced, control.Id));
             int index = 0;
             foreach (var binding in control.Bindings)
             {
                 token.ThrowIfCancellationRequested();
                 if (binding == null || binding.Off == null || binding.On == null)
-                    throw new InvalidDataException("Independent controls require explicit on/off property writes.");
+                    throw new InvalidDataException("Wardrobe controls require explicit on/off property writes.");
                 if (AvatarPropertyKey.Of(binding.Off) != AvatarPropertyKey.Of(binding.On))
-                    throw new InvalidDataException("An independent binding must restore the same property it controls.");
+                    throw new InvalidDataException("A wardrobe binding must restore the same property it controls.");
                 defaults.Add(binding.Off);
                 actions.Add(new(control.Id + "/" + index++, binding.On,
                     new AvatarWardrobeCondition[] { new AvatarParameterCondition(id, AvatarParameterComparison.Equal, 1) }));
@@ -185,4 +203,7 @@ internal sealed class AvatarWardrobeGraph
             IndependentControls = new ReadOnlyDictionary<string, AvatarParameterId>(identities)
         };
     }
+
+    internal static AvatarWardrobeGraph FromIndependentControls(string avatar, IReadOnlyList<AvatarWardrobeControl> controls, CancellationToken token = default) =>
+        FromUnifiedControls(avatar, controls, null, token);
 }

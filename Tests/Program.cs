@@ -1505,6 +1505,7 @@ BlendshapeInitialAppearanceTests.Register(Test, Check);
 VrcFuryArmatureSemanticsTests.Register(Test, Check);
 ModularAvatarInitialAppearanceTests.Register(Test, Check);
 ModularAvatarWardrobeTests.Register(Test, Check);
+AvatarWardrobeCompositionTests.Register(Test, Check);
 ComposedInitialAppearanceTests.Register(Test, Check);
 UnityStaticAnimationClipTests.Register(Test, Check);
 VrcFuryFeatureGraphTests.Register(Test, Check);

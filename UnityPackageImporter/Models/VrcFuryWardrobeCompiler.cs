@@ -110,7 +110,7 @@ public static partial class VrcFuryInitialAppearance
         ReadFeatures(documents.Where(item => ownedWrappers.Contains(item.Key)).ToDictionary(item => item.Key, item => item.Value),
             Within, features, Report, token, includeAll: true);
         if (!features.Any(item => item.Class == "Toggle")) return Result();
-        if (!context.ExternalAnimationAndParameterContextVerifiedAbsent)
+        if (!context.ExternalAnimationAndParameterContextVerifiedAbsent && !context.AllowMixedFrameworks)
             Report("CONTEXT", "External controllers, parameters and reactive context must be verified absent.");
         var reactiveGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -132,15 +132,16 @@ public static partial class VrcFuryInitialAppearance
                 script.Equals(AvatarPackageIndex.VrcAvatarDescriptorScriptGuid, StringComparison.OrdinalIgnoreCase);
             bool HasReference(YamlNode? node) => node is YamlMappingNode reference &&
                 (ReferenceNode(reference) != 0 || Text(reference, "guid").Trim('0').Length != 0);
-            if (descriptor &&
+            if (descriptor && !context.AllowMixedFrameworks &&
                 (HasReference(Get(document.Body, "expressionParameters")) ||
                     Sequence(document.Body, "baseAnimationLayers").Concat(Sequence(document.Body, "specialAnimationLayers"))
                         .OfType<YamlMappingNode>().Any(layer => HasReference(Get(layer, "animatorController")))))
                 Report("CONTEXT", "Descriptor parameters/controllers require the shared Animator compiler.", document.Id);
-            if (document.ClassId is 95 or 111 || reactiveGuids.Contains(script) ||
-                (!structural && identifier.Contains("ModularAvatar", StringComparison.Ordinal)))
+            if (!context.AllowMixedFrameworks && (document.ClassId is 95 or 111 || reactiveGuids.Contains(script) ||
+                (!structural && identifier.Contains("ModularAvatar", StringComparison.Ordinal))))
                 Report("CONTEXT", "Animator, legacy Animation or MA runtime context is not compiled by independent wardrobe controls.", document.Id);
-            if (document.ClassId == 114 && !IsComponent(document) && !structural && !descriptor)
+            if (document.ClassId == 114 && !IsComponent(document) && !structural && !descriptor &&
+                (!context.AllowMixedFrameworks || (!reactiveGuids.Contains(script) && !identifier.Contains("ModularAvatar", StringComparison.Ordinal))))
                 Report("CONTEXT", "MonoBehaviour runtime interactions have not been verified absent for this exact script GUID/fileID.", document.Id);
             if (AvatarPackageIndex.RecognizedVrcFuryScriptGuids.Contains(script) &&
                 !script.Equals(ScriptGuid, StringComparison.OrdinalIgnoreCase) &&
