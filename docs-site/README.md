@@ -24,23 +24,41 @@ python build.py
 
 The generated site is written to `site/` (with English at `/` and Japanese at `/ja/`) and is ignored by Git.
 
-## Project activity data
+## GitHub-connected project activity
 
-The documentation overview and `/project-status/` read
-`pages/data/project-status.json`. It currently contains `state: "not-connected"`,
-`updatedAt: null`, and an empty `issues` list. Both pages explain that activity
-is unavailable; they do not imply there are no known issues. Search, filters,
-rotation and pagination stay hidden until real records are available. Network
-or validation errors show a separate unavailable state, never a fake zero count.
-No synthetic records or scale-test query are shipped.
+The documentation overview and `/project-status/` share a generated snapshot of
+maintainer-approved GitHub Issues. Visitors fetch one local JSON file, not the
+GitHub API. No token or raw report body is included in the site.
 
-A future GitHub adapter can write `state: "available"`, a real ISO `updatedAt`
-timestamp and records with stable `id`, `title`, `status`, `why`, `next`,
-`priority` and `updatedAt`. Supported status values are `working`, `problem`,
-`testing` and `planned`. IDs must be unique. The existing renderer retains
-search, six-item pagination and bounded overview rotation for those records.
-No GitHub integration or credentials are configured by this change. Activity
-must not automatically promote compatibility status when an issue closes.
+Maintain updates in GitHub: add `project-status` and exactly one of
+`status:in-progress`, `status:known-issue`, `status:testing`, or `status:planned`.
+The issue body must contain short plain-text `### Why it matters` and
+`### Next step` sections. The new issue form drafts those fields but deliberately
+does not grant the publication label. Existing reports remain untriaged unless
+a maintainer chooses to publish them. A closed issue leaves the activity feed;
+it never automatically changes component compatibility or promises a release.
+
+The docs workflow refreshes on approved issue edits, status changes, closure,
+reopening and removal of the publication label. A six-hour schedule is the
+fallback; a manual docs workflow run can also refresh it. It builds once, syncs
+`site/data/project-status.json`, then deploys that exact artifact. The sync uses
+the job's read-only `GITHUB_TOKEN` through `GH_TOKEN`; it cannot edit issues,
+commits or compatibility data. Pull-request builds do not query GitHub Issues.
+Transport, pagination or editorial errors fail the sync and prevent publication
+rather than replacing the feed with a misleading empty result. The existing
+public snapshot stays in place; its timestamp warns visitors after 24 hours.
+
+For a connected local preview, build first and then run:
+
+```powershell
+python docs-site/sync_project_status.py
+```
+
+This writes generated output only. The committed
+`pages/data/project-status.json` remains the honest disconnected fallback for
+offline builds; no machine-generated issue timestamps need commits. Available
+but empty data says that no public updates have been selected, not that the
+project has no bugs. See `PROJECT_STATUS.md` for maintenance and troubleshooting.
 
 ## Integrated documentation reader
 
@@ -109,9 +127,8 @@ support or verified visual parity. Initial appearance must never be described
 as live control. New support requires local implementation and regression
 evidence. Status and delivery are deliberately independent: `missing` is not
 `planned`. An actual tracking issue is required to mark work `planned` or
-`in-progress`. Issue metadata is manual for now; no GitHub sync or credentials
-have been added. Project activity remains disconnected and does not feed this
-inventory.
+`in-progress`. Compatibility issue metadata remains manual. The GitHub activity feed is a
+separate read-only presentation and never promotes component support.
 
 All outcomes render without JavaScript. Every matching component is visible
 without pagination or reveal buttons; search and filters narrow the list.

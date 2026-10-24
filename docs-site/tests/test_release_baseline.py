@@ -61,7 +61,8 @@ class ReleaseBaselineTests(unittest.TestCase):
         self.assertFalse((HERE / "pages/data/project-status-preview.json").exists())
         for filename in ["project-status/index.md", "documentation/index.md"]:
             body = (HERE / "pages" / filename).read_text(encoding="utf-8")
-            self.assertIn("not connected yet", body)
+            self.assertIn("issue feed is available", body)
+            self.assertIn("Read published updates on GitHub", body)
             self.assertNotIn("Sample data", body)
             self.assertNotIn("sample items", body)
 
