@@ -1053,9 +1053,9 @@
       "framework": "vrcfury",
       "name": "Object State",
       "type": "ObjectState",
-      "status": "missing",
-      "outcome": "Apply legacy object-state behavior. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "Single-action static State applied to the initial imported avatar.",
+      "reason": "Reversible single-action states are applied to authored GameObject visibility, SkinnedMeshRenderer blend shapes, and static materials. Complex multi-action states, animation clips, and parameter-driven behavior remain unsupported.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -1064,8 +1064,11 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/ObjectState.cs"
       },
-      "evidence": [],
-      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
+      "evidence": [
+        "UnityPackageImporter/Models/VrcFuryInitialAppearance.cs",
+        "Tests/VrcFuryInitialAppearanceTests.cs"
+      ],
+      "summary": "Legacy VRCFury state action compiler mapped to initial appearance resting states."
     },
     {
       "id": "vrcfury-overridemenusettings",

@@ -236,7 +236,7 @@ public static partial class VrcFuryInitialAppearance
                 if (pair.Value.Effect == InitialAppearanceEffect.Active) active[pair.Value.TargetId] = pair.Value.Active;
             }
         }
-        Phase(eligible.Where(item => item.Class == "ApplyDuringUpload"), false);
+        Phase(eligible.Where(item => item.Class is "ApplyDuringUpload" or "ObjectState"), false);
         Phase(eligible.Where(item => item.Class == "Toggle"), true);
         Phase(eligible.Where(item => item.Class == "Toggle" && (Boolean(item.Data, "defaultOn", false, item.Source, report) ^ Boolean(item.Data, "invertRestLogic", false, item.Source, report))), false);
         bool safe = diagnostics.All(item => item.Severity != InitialAppearanceSeverity.Error);
@@ -418,9 +418,9 @@ public static partial class VrcFuryInitialAppearance
                 if (feature == null) continue;
                 long rootId = long.Parse(Text((YamlMappingNode)root, "rid"), CultureInfo.InvariantCulture);
                 stack.Add(rootId);
-                if (includeAll && feature.Class is not ("ApplyDuringUpload" or "Toggle"))
+                if (includeAll && feature.Class is not ("ApplyDuringUpload" or "ObjectState" or "Toggle"))
                     features.Add(new(component.Id, Reference(component.Body, "m_GameObject"), feature.Class, feature.Data, Array.Empty<Managed>(), rootId));
-                else if (feature.Class is not ("ApplyDuringUpload" or "Toggle"))
+                else if (feature.Class is not ("ApplyDuringUpload" or "ObjectState" or "Toggle"))
                     Unsupported("Feature '" + feature.Class + "' has no reversible INITIAL static conversion; structural conversion is separate.");
                 else if (Version(feature.Data, feature.Class == "Toggle" ? 3 : 0, component.Id, report))
                     features.Add(new(component.Id, Reference(component.Body, "m_GameObject"), feature.Class, feature.Data, Actions(Get(feature.Data, feature.Class == "Toggle" ? "state" : "action")), rootId));

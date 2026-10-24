@@ -158,6 +158,7 @@ public static partial class ModularAvatarInitialAppearance
                 script.Equals(AvatarPackageIndex.BoneProxyScriptGuid, StringComparison.OrdinalIgnoreCase) ||
                 script.Equals(AvatarPackageIndex.OutfitRootScriptGuid, StringComparison.OrdinalIgnoreCase) ||
                 script.Equals(AvatarPackageIndex.BlendshapeSyncScriptGuid, StringComparison.OrdinalIgnoreCase) ||
+                script.Equals(AvatarPhysBonePlanner.ModularAvatarBlockerScriptGuid, StringComparison.OrdinalIgnoreCase) ||
                 script.Equals(AvatarPackageIndex.VrcFuryArmatureLinkScriptGuid, StringComparison.OrdinalIgnoreCase) ||
                 (AvatarPackageIndex.RecognizedVrcFuryScriptGuids.Contains(script) && IsPureVrcFuryArmatureLink(component.Body)));
             bool supportedMa = scriptFileId == 11500000 && maMenuOrReactiveGuids.Contains(script);

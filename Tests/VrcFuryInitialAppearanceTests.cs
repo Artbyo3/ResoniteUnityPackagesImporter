@@ -56,6 +56,11 @@ internal static class VrcFuryInitialAppearanceTests
             var result = Evaluate(Graph("ApplyDuringUpload", actionData: "version: 1, obj: {fileID: 3}, mode: 1"));
             check(result.CanApply && !result.ActiveSelf[3], Describe(result));
         });
+        test("VRCF legacy ObjectState compiles into initial appearance resting states", () =>
+        {
+            var result = Evaluate(Graph("ObjectState", actionData: "version: 1, obj: {fileID: 3}, mode: 1"));
+            check(result.CanApply && !result.ActiveSelf[3], Describe(result));
+        });
         test("VRCF BlendShape allRenderers stays in owning avatar and copies snapshots", () =>
         {
             var context = Context();
