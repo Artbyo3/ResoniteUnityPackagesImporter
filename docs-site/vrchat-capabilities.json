@@ -9,16 +9,19 @@
       "name": "Avatar Descriptor",
       "type": "VRCAvatarDescriptor",
       "status": "limited",
-      "summary": "Avatar root and viewpoint only. Not full avatar behavior.",
-      "outcome": "The importer identifies avatar roots and reads the authored viewpoint for native avatar creation.",
-      "reason": "This is not a complete descriptor translation. SDK lip-sync configuration, eye-look settings, playable layers, expression menus and network parameters are not reproduced as a VRChat runtime.",
+      "summary": "Avatar root, viewpoint, eye look/blink calibration, and unified expression parameter composition.",
+      "outcome": "The importer identifies avatar roots, reads authored viewpoints, calibrates eye look and eyelid blinking into native AvatarEyeData, and compiles expression menus and parameters.",
+      "reason": "This translates viewpoint, eye look, eyelid blinking, and unified wardrobe/parameter menus. Playable layer animator state machines and custom network sync state are not fully reproduced as a VRChat runtime.",
       "work": "unplanned",
       "issue": null,
       "evidence": [
         "UnityPackageImporter/Models/AvatarPackageIndex.cs",
         "UnityPackageImporter/Models/NativeAvatarCreation.cs",
+        "UnityPackageImporter/Models/AvatarEyeLookRuntime.cs",
+        "UnityPackageImporter/Models/AvatarWardrobeComposer.cs",
         "Tests/AvatarViewpointTests.cs",
-        "Tests/AvatarImportSelectionTests.cs"
+        "Tests/AvatarEyeLookTests.cs",
+        "Tests/AvatarWardrobeCompositionTests.cs"
       ],
       "legacy": false,
       "source": {
@@ -32,14 +35,16 @@
       "framework": "vrchat",
       "name": "PhysBone",
       "type": "VRCPhysBone",
-      "status": "missing",
-      "summary": "No automatic secondary-motion conversion.",
-      "outcome": "PhysBone simulation and interaction are not translated.",
-      "reason": "A visible bone chain or retained resting transform is not a physics setup. The importer has no VRCPhysBone-to-native simulation translator.",
+      "status": "limited",
+      "summary": "Translated to native Resonite DynamicBoneChain with pull, stiffness, damping, and gravity forces.",
+      "outcome": "PhysBone hierarchies are translated into native DynamicBoneChain setups with authored motion forces.",
+      "reason": "Translated to native Resonite DynamicBoneChain with pull, stiffness, and gravity. Advanced PhysBone features like multi-axis stretching, grabbing, posing, and complex curve multipliers remain partial.",
       "work": "unplanned",
       "issue": null,
       "evidence": [
-        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+        "UnityPackageImporter/Models/AvatarPhysBonePlanner.cs",
+        "UnityPackageImporter/Models/AvatarPhysBoneRuntime.cs",
+        "Tests/AvatarPhysBoneTests.cs"
       ],
       "legacy": false,
       "source": {
@@ -53,14 +58,16 @@
       "framework": "vrchat",
       "name": "PhysBone Collider",
       "type": "VRCPhysBoneCollider",
-      "status": "missing",
-      "summary": "PhysBone collision shapes are not recreated.",
-      "outcome": "PhysBone collider settings and their simulation links are not translated.",
-      "reason": "A retained object transform is not a working collider for secondary motion. Native collision setup would need its own translation.",
+      "status": "limited",
+      "summary": "Translated to native DynamicBoneSphereCollider with authored position and rotation offsets.",
+      "outcome": "PhysBone sphere and capsule colliders are translated into native DynamicBoneSphereCollider components attached to bones.",
+      "reason": "Sphere colliders are mapped to native DynamicBoneSphereCollider. Plane colliders and arbitrary complex mesh shapes are not supported natively in DynamicBone.",
       "work": "unplanned",
       "issue": null,
       "evidence": [
-        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+        "UnityPackageImporter/Models/AvatarPhysBonePlanner.cs",
+        "UnityPackageImporter/Models/AvatarPhysBoneRuntime.cs",
+        "Tests/AvatarPhysBoneTests.cs"
       ],
       "legacy": false,
       "source": {
@@ -158,14 +165,16 @@
       "framework": "vrchat",
       "name": "Parent Constraint",
       "type": "VRCParentConstraint",
-      "status": "missing",
-      "summary": "Source-following and world locking do not transfer.",
-      "outcome": "The VRChat parent constraint, source weights and freeze-to-world behavior are not translated.",
-      "reason": "Keeping an authored transform is not a live constraint. VRChat-specific constraint settings and runtime evaluation need a dedicated translator; Unity component handling is not evidence of support for this SDK component.",
+      "status": "limited",
+      "summary": "Compiled to native FrooxEngine CopyGlobalTransform with cycle detection and source weighting.",
+      "outcome": "Parent constraints are translated to native CopyGlobalTransform components maintaining position and rotation relations.",
+      "reason": "Mapped to native FrooxEngine CopyGlobalTransform. Multi-source weighted blending and runtime dynamic weight modulation remain limited compared to Unity's native constraint solver.",
       "work": "unplanned",
       "issue": null,
       "evidence": [
-        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+        "UnityPackageImporter/Models/AvatarConstraintPlanner.cs",
+        "UnityPackageImporter/Models/AvatarConstraintRuntime.cs",
+        "Tests/AvatarConstraintTests.cs"
       ],
       "legacy": false,
       "source": {
@@ -179,14 +188,16 @@
       "framework": "vrchat",
       "name": "Position Constraint",
       "type": "VRCPositionConstraint",
-      "status": "missing",
-      "summary": "Position following is not recreated.",
-      "outcome": "Source-weighted position following is not translated.",
-      "reason": "Keeping an authored transform is not a live constraint. VRChat-specific constraint settings and runtime evaluation need a dedicated translator; Unity component handling is not evidence of support for this SDK component.",
+      "status": "limited",
+      "summary": "Compiled to native FrooxEngine CopyGlobalTransform with cycle detection and source weighting.",
+      "outcome": "Position constraints are translated to native CopyGlobalTransform components maintaining source position offsets.",
+      "reason": "Mapped to native CopyGlobalTransform. Per-axis freezing and multi-source linear blending are limited compared to Unity constraint evaluation.",
       "work": "unplanned",
       "issue": null,
       "evidence": [
-        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+        "UnityPackageImporter/Models/AvatarConstraintPlanner.cs",
+        "UnityPackageImporter/Models/AvatarConstraintRuntime.cs",
+        "Tests/AvatarConstraintTests.cs"
       ],
       "legacy": false,
       "source": {
@@ -200,14 +211,16 @@
       "framework": "vrchat",
       "name": "Rotation Constraint",
       "type": "VRCRotationConstraint",
-      "status": "missing",
-      "summary": "VRChat rotation constraints are not translated.",
-      "outcome": "Source-weighted VRChat rotation following is not translated.",
-      "reason": "Keeping an authored transform is not a live constraint. VRChat-specific constraint settings and runtime evaluation need a dedicated translator; Unity component handling is not evidence of support for this SDK component.",
+      "status": "limited",
+      "summary": "Compiled to native FrooxEngine CopyGlobalTransform with cycle detection and source weighting.",
+      "outcome": "Rotation constraints are translated to native CopyGlobalTransform components with source orientation tracking.",
+      "reason": "Mapped to native CopyGlobalTransform. Multi-source rotation slerping and per-axis rotation locking remain limited.",
       "work": "unplanned",
       "issue": null,
       "evidence": [
-        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+        "UnityPackageImporter/Models/AvatarConstraintPlanner.cs",
+        "UnityPackageImporter/Models/AvatarConstraintRuntime.cs",
+        "Tests/AvatarConstraintTests.cs"
       ],
       "legacy": false,
       "source": {

@@ -128,7 +128,9 @@
       },
       "evidence": [
         "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
-        "Tests/ModularAvatarInitialAppearanceTests.cs"
+        "Tests/ModularAvatarInitialAppearanceTests.cs",
+        "UnityPackageImporter/Models/AvatarWardrobeComposer.cs",
+        "Tests/AvatarWardrobeCompositionTests.cs"
       ],
       "summary": "Submenus and independent binary toggles with icons and defaults are compiled; puppets and momentary buttons fail closed."
     },
@@ -376,7 +378,9 @@
       },
       "evidence": [
         "UnityPackageImporter/Models/AvatarPackageIndex.cs",
-        "Tests/ModularAvatarInitialAppearanceTests.cs"
+        "Tests/ModularAvatarInitialAppearanceTests.cs",
+        "UnityPackageImporter/Models/AvatarWardrobeComposer.cs",
+        "Tests/AvatarWardrobeCompositionTests.cs"
       ],
       "summary": "Children and otherObjectChildren hierarchies are traversed during toggle menu compilation."
     },
@@ -416,7 +420,9 @@
       },
       "evidence": [
         "UnityPackageImporter/Models/AvatarPackageIndex.cs",
-        "Tests/ModularAvatarInitialAppearanceTests.cs"
+        "Tests/ModularAvatarInitialAppearanceTests.cs",
+        "UnityPackageImporter/Models/AvatarWardrobeComposer.cs",
+        "Tests/AvatarWardrobeCompositionTests.cs"
       ],
       "summary": "Menu roots and installer hierarchy scoping are parsed and compiled into native wardrobe controls."
     },
@@ -546,7 +552,9 @@
       },
       "evidence": [
         "UnityPackageImporter/Models/AvatarPackageIndex.cs",
-        "Tests/ModularAvatarInitialAppearanceTests.cs"
+        "Tests/ModularAvatarInitialAppearanceTests.cs",
+        "UnityPackageImporter/Models/AvatarWardrobeComposer.cs",
+        "Tests/AvatarWardrobeCompositionTests.cs"
       ],
       "summary": "Parameter remappings, defaults, and type preservation are compiled for wardrobe toggles; persistence fails closed."
     },
@@ -555,9 +563,9 @@
       "framework": "ma",
       "name": "PhysBone Blocker",
       "type": "ModularAvatarPBBlocker",
-      "status": "missing",
-      "outcome": "Control PhysBone processing. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "Sub-hierarchies under an active PhysBone marked with ModularAvatarPBBlocker are excluded from chain generation.",
+      "reason": "Exclusion is applied during importer chain planning and tree pruning. Dynamic runtime toggling of blocker components during play is not simulated.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -566,7 +574,12 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarPBBlocker.cs"
       },
-      "evidence": []
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarPhysBonePlanner.cs",
+        "UnityPackageImporter/Models/AvatarPhysBoneRuntime.cs",
+        "Tests/AvatarPhysBoneTests.cs"
+      ],
+      "summary": "Filtered during PhysBone chain traversal to exclude sub-hierarchies from ancestor dynamic bones."
     },
     {
       "id": "ma-platformfilter",
