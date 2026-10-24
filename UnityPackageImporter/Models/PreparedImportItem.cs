@@ -219,6 +219,36 @@ internal sealed class PreparedImportItem
                         avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "EXPRESSION_RUNTIME_FAILED");
                     UnityPackageImporter.Warn("Failed to build blendshape runtime links: " + ex);
                 }
+
+                try
+                {
+                    await default(ToBackground);
+                    var physBonePlan = AvatarPhysBonePlanner.Compile(prefab.ComposedYaml, avatar.GameObjectFileId, token);
+                    await default(ToWorld);
+                    token.ThrowIfCancellationRequested();
+                    foreach (var diagnostic in physBonePlan.Diagnostics)
+                    {
+                        ConversionPlan.AddDiagnostic(diagnostic.Severity == InitialAppearanceSeverity.Info
+                            ? AvatarOperationSeverity.Info : AvatarOperationSeverity.Warning, diagnostic.Message,
+                            diagnostic.SourceId.ToString(System.Globalization.CultureInfo.InvariantCulture), diagnostic.Code);
+                    }
+                    if (physBonePlan.CanBuild && (physBonePlan.Bones.Count > 0 || physBonePlan.Colliders.Count > 0))
+                    {
+                        await AvatarPhysBoneRuntime.BuildAsync(physBonePlan, root, existingIUnityObjects, Project, token);
+                        ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Info,
+                            $"Created {physBonePlan.Bones.Count} native DynamicBone chains and {physBonePlan.Colliders.Count} colliders from VRCPhysBones. Native Resonite physics behavior approximates PhysBone.",
+                            avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "PHYSBONE_BUILT");
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    await default(ToWorld);
+                    OptionalControlsFailed = true;
+                    ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Warning,
+                        "Optional PhysBone simulation failed; no runtime parity is claimed. " + ex.Message,
+                        avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "PHYSBONE_FAILED");
+                    UnityPackageImporter.Warn("Failed to build PhysBone simulation: " + ex);
+                }
             }
         }
     }

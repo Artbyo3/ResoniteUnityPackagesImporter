@@ -94,7 +94,9 @@
     <Compile Include="../UnityPackageImporter/Models/AvatarParameterState.cs" Link="AvatarParameterState.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarVisemeSettings.cs" Link="AvatarVisemeSettings.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarWardrobeGraph.cs" Link="AvatarWardrobeGraph.cs" />
-    <Compile Include="../UnityPackageImporter/Models/AvatarWardrobeComposer.cs" Link="AvatarWardrobeComposer.cs" />
+        <Compile Include="../UnityPackageImporter/Models/AvatarWardrobeComposer.cs" Link="AvatarWardrobeComposer.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AvatarPhysBoneModel.cs" Link="AvatarPhysBoneModel.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AvatarPhysBonePlanner.cs" Link="AvatarPhysBonePlanner.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarComponentCoverage.cs" Link="AvatarComponentCoverage.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarAnimationPathResolver.cs" Link="AvatarAnimationPathResolver.cs" />
     <Compile Include="../UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs" Link="VrcFuryWardrobeCompiler.cs" />
