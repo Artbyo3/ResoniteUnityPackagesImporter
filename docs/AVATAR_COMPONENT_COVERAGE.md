@@ -6,12 +6,12 @@ Partial receives one component credit only because a documented functional subse
 | Catalog | Implemented / total | Coverage | Full | Partial | Indexed only | Missing | Excluded | Runtime subsets |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Base VRChat SDK types | 1 / 28 | 3.6% | 0 | 1 | 3 | 24 | 0 | 1 |
-| Modular Avatar components | 10 / 40 | 25.0% | 0 | 10 | 1 | 26 | 3 | 8 |
-| VRCFury feature models | 9 / 56 | 16.1% | 0 | 9 | 0 | 39 | 8 | 7 |
+| Modular Avatar components | 13 / 40 | 32.5% | 0 | 13 | 1 | 23 | 3 | 11 |
+| VRCFury feature models | 10 / 56 | 17.9% | 0 | 10 | 0 | 38 | 8 | 8 |
 | VRCFury action models | 6 / 19 | 31.6% | 0 | 6 | 0 | 13 | 0 | 6 |
 | VRCFury wrapper components | 0 / 12 | 0.0% | 0 | 0 | 1 | 5 | 6 | 0 |
 
-VRCFury combined concrete authoring-type coverage: 15 / 87 = 17.2% (feature models + action models + wrapper components). The breakdown stays visible rather than changing denominators silently.
+VRCFury combined concrete authoring-type coverage: 16 / 87 = 18.4% (feature models + action models + wrapper components). The breakdown stays visible rather than changing denominators silently.
 
 ## Base VRChat SDK types
 
@@ -58,7 +58,7 @@ Source revision: f21ad465bb623e841b532a66aa555dbcddf2db47. 40 concrete Runtime a
 | ModularAvatarBlendshapeSync | partial | yes | Initial exact blendshape weights and continuous ValueCopy<float> synchronization for unique destination blendshapes; multi-source blendshape blending pending. | UnityPackageImporter/Models/BlendshapeInitialAppearance.cs, UnityPackageImporter/Models/BlendshapeInitialAppearanceAdapter.cs | Tests/BlendshapeInitialAppearanceTests.cs | Runtime/ModularAvatarBlendshapeSync.cs |
 | ModularAvatarBoneProxy | partial | no | Supported owned bone attachments/offsets; remaining modes/scale cases pending. | UnityPackageImporter/Models/BoneAttachmentTarget.cs | Tests/AvatarStructuralConversionTests.cs | Runtime/ModularAvatarBoneProxy.cs |
 | ModularAvatarConvertConstraints | missing | no | Interpret Unity intent directly; VRC intermediate unnecessary. |  |  | Runtime/ModularAvatarConvertConstraints.cs |
-| ModularAvatarFloorAdjuster | missing | no | Footwear/floor calibration; multiple-component conflicts. |  |  | Runtime/ModularAvatarFloorAdjuster.cs |
+| ModularAvatarFloorAdjuster | partial | yes | Footwear and floor calibration offset computed and applied to biped rig hips; multi-adjuster conflicts detected and warned without aborting build. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/ModularAvatarFloorAdjuster.cs |
 | ModularAvatarGlobalCollider | missing | no | Native dynamics/contacts; VRChat tags not universal protocols. |  |  | Runtime/ModularAvatarGlobalCollider.cs |
 | ModularAvatarMaterialSetter | partial | yes | Initial exact external material-slot replacement and independent Boolean-toggle reactive runtime with baseline restoration; multi-state/shared-parameter reactive conditions pending. | UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs, UnityPackageImporter/Models/ModularAvatarWardrobeCompiler.cs, UnityPackageImporter/Models/AvatarWardrobeRuntime.cs | Tests/ModularAvatarInitialAppearanceTests.cs, Tests/ModularAvatarWardrobeTests.cs | Runtime/ReactiveObjects/ModularAvatarMaterialSetter.cs |
 | ModularAvatarMaterialSwap | missing | no | Substitution/conditions, not covered by Material Setter support. |  |  | Runtime/ReactiveObjects/ModularAvatarMaterialSwap.cs |
@@ -70,7 +70,7 @@ Source revision: f21ad465bb623e841b532a66aa555dbcddf2db47. 40 concrete Runtime a
 | ModularAvatarMergeArmature | partial | no | Supported structural merge/skin-reference subset; unsupported merge modes remain pending. | UnityPackageImporter/Models/ModularAvatarMergePlanner.cs | Tests/AvatarStructuralConversionTests.cs | Runtime/ModularAvatarMergeArmature.cs |
 | ModularAvatarMergeBlendTree | missing | no | Shared motion/tree compilation. |  |  | Runtime/ModularAvatarMergeBlendTree.cs |
 | ModularAvatarMeshCutter | missing | no | Pending isolated-copy geometry removal with skin/blendshape/reference remapping and source immutability; destructive outcome is not a technical exclusion. |  |  | Runtime/ReactiveObjects/ModularAvatarMeshCutter.cs |
-| ModularAvatarMeshSettings | missing | no | Probe/anchor/bounds intent, lighting differences disclosed. |  |  | Runtime/ModularAvatarMeshSettings.cs |
+| ModularAvatarMeshSettings | partial | yes | Probe anchor target extraction and static bounding box configuration compiled across descendant renderers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/ModularAvatarMeshSettings.cs |
 | ModularAvatarMMDLayerControl | missing | no | VRChat world protocol excluded; usable animation intent separately. |  |  | Runtime/ModularAvatarMMDLayerControl.cs |
 | ModularAvatarMoveTo | missing | no | Staged reparent/reference remap and cycle checks. |  |  | Runtime/ModularAvatarMoveTo.cs |
 | ModularAvatarObjectToggle | partial | yes | Deterministic initial visibility and independent Boolean-toggle reactive runtime with baseline restoration; multi-state/shared-parameter reactive conditions pending. | UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs, UnityPackageImporter/Models/ModularAvatarWardrobeCompiler.cs, UnityPackageImporter/Models/AvatarWardrobeRuntime.cs | Tests/ModularAvatarInitialAppearanceTests.cs, Tests/ModularAvatarWardrobeTests.cs | Runtime/ReactiveObjects/ModularAvatarObjectToggle.cs |
@@ -85,7 +85,7 @@ Source revision: f21ad465bb623e841b532a66aa555dbcddf2db47. 40 concrete Runtime a
 | ModularAvatarScaleAdjuster | missing | no | Skin-aware compensation, not plain slot scale. |  |  | Runtime/ScaleAdjuster/ModularAvatarScaleAdjuster.cs |
 | ModularAvatarShapeChanger | partial | yes | Initial Set mode weights and independent Boolean-toggle reactive runtime with baseline restoration; multi-state conditions and destructive Delete mode are not supported. | UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs, UnityPackageImporter/Models/ModularAvatarWardrobeCompiler.cs, UnityPackageImporter/Models/AvatarWardrobeRuntime.cs | Tests/ModularAvatarInitialAppearanceTests.cs, Tests/ModularAvatarWardrobeTests.cs | Runtime/ReactiveObjects/ModularAvatarShapeChanger.cs |
 | ModularAvatarSyncParameterSequence | excluded | no | VRChat ordering protocol unnecessary; declarations/defaults still preserved. |  |  | Runtime/ModularAvatarSyncParameterSequence.cs |
-| ModularAvatarVisibleHeadAccessory | missing | no | Local first-person visibility, preserve mirror/remote. |  |  | Runtime/ModularAvatarVisibleHeadAccessory.cs |
+| ModularAvatarVisibleHeadAccessory | partial | yes | Targets head accessories for local first-person visibility via native slot tags. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/ModularAvatarVisibleHeadAccessory.cs |
 | ModularAvatarVRChatSettings | excluded | no | Current MMD support flag has no literal native contract. |  |  | Runtime/ModularAvatarVRChatSettings.cs |
 | ModularAvatarWorldFixedObject | missing | no | World anchoring, authority/cleanup/permissions. |  |  | Runtime/ModularAvatarWorldFixedObject.cs |
 | ModularAvatarWorldScaleObject | missing | no | Effective size across avatar scale changes. |  |  | Runtime/ModularAvatarWorldScaleObject.cs |
@@ -144,7 +144,7 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 56 concrete top-level
 | SecurityRestricted | missing | no | Never silently unlock/reveal restricted objects; explicit policy required. |  |  | Runtime/Model/Feature/SecurityRestricted.cs |
 | SenkyGestureDriver | missing | no | Specialized eye/mouth/ear expression states. |  |  | Runtime/Model/Feature/SenkyGestureDriver.cs |
 | SetIcon | missing | no | Metadata/texture import. |  |  | Runtime/Model/Feature/SetIcon.cs |
-| ShowInFirstPerson | missing | no | Local visibility, not mirror/remote deletion. |  |  | Runtime/Model/Feature/ShowInFirstPerson.cs |
+| ShowInFirstPerson | partial | yes | Feature records and standalone scripts compile target/owner GameObjects to first-person visible tags. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/ShowInFirstPerson.cs |
 | Slot4Fix | excluded | no | Deprecated upstream no-op for old Unity issue. |  |  | Runtime/Model/Feature/Slot4Fix.cs |
 | SpsOptions | missing | no | Optional specialized interaction; settings alone not parity. |  |  | Runtime/Model/Feature/SpsOptions.cs |
 | Talking | partial | yes | Native voice-activity actions mapped to FrooxEngine speech drivers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/Talking.cs |

@@ -292,11 +292,14 @@ internal sealed class PreparedImportItem
                             ? AvatarOperationSeverity.Info : AvatarOperationSeverity.Warning, diagnostic.Message,
                             diagnostic.SourceId.ToString(System.Globalization.CultureInfo.InvariantCulture), diagnostic.Code);
                     }
-                    if (behaviorPlan.CanBuild && (behaviorPlan.BreathingBindings.Count > 0 || behaviorPlan.BlinkingBindings.Count > 0))
+                    if (behaviorPlan.CanBuild && (behaviorPlan.BreathingBindings.Count > 0 || behaviorPlan.BlinkingBindings.Count > 0 ||
+                        behaviorPlan.TalkingBindings.Count > 0 || behaviorPlan.VisemeBindings.Count > 0 ||
+                        behaviorPlan.MeshSettingsBindings.Count > 0 || behaviorPlan.VisibleInFirstPersonObjectIds.Count > 0 ||
+                        behaviorPlan.FloorAdjustmentY.HasValue))
                     {
                         await AvatarBehaviorRuntime.BuildAsync(behaviorPlan, root, existingIUnityObjects, token);
                         ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Info,
-                            $"Created {behaviorPlan.BreathingBindings.Count} breathing drivers and {behaviorPlan.BlinkingBindings.Count} blinking links.",
+                            $"Applied avatar behaviors (breathing: {behaviorPlan.BreathingBindings.Count}, blinking: {behaviorPlan.BlinkingBindings.Count}, talking: {behaviorPlan.TalkingBindings.Count}, visemes: {behaviorPlan.VisemeBindings.Count}, meshSettings: {behaviorPlan.MeshSettingsBindings.Count}, firstPerson: {behaviorPlan.VisibleInFirstPersonObjectIds.Count}).",
                             avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "BEHAVIOR_BUILT");
                     }
                 }

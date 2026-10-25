@@ -94,7 +94,7 @@ internal static class AvatarBehaviorPlanner
                     transformParents[fileId] = fatherRef;
                 }
             }
-            else if (tagStr.EndsWith("!137") || tagStr == "SkinnedMeshRenderer")
+            else if (tagStr.EndsWith("!137") || tagStr == "SkinnedMeshRenderer" || tagStr.EndsWith("!23") || tagStr == "MeshRenderer")
             {
                 long goRef = ParseFileId(Get(body, "m_GameObject"));
                 var shapes = new HashSet<string>(StringComparer.Ordinal);
@@ -129,6 +129,10 @@ internal static class AvatarBehaviorPlanner
         var blinkingBindings = new List<AvatarBlinkingBinding>();
         var talkingBindings = new List<AvatarTalkingBinding>();
         var visemeBindings = new List<AvatarFuryVisemeBinding>();
+        var meshSettingsBindings = new List<AvatarMeshSettingsBinding>();
+        var visibleInFirstPersonObjectIds = new List<long>();
+        float? floorAdjustmentY = null;
+        long floorAdjusterSourceId = 0;
         bool blinkSuppressed = false;
         bool hasBlockBlinking = false;
         bool hasBlockVisemes = false;
@@ -189,6 +193,40 @@ internal static class AvatarBehaviorPlanner
                 {
                     blinkSuppressed = true;
                 }
+                else if (className == "ShowInFirstPerson")
+                {
+                    CompileShowInFirstPerson(mbFileId, dataNode, ownerGo, IsOwnedGameObject, visibleInFirstPersonObjectIds);
+                }
+            }
+
+            if (guid.Equals(AvatarPackageIndex.VrcFuryShowInFirstPersonScriptGuid, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!visibleInFirstPersonObjectIds.Contains(ownerGo))
+                    visibleInFirstPersonObjectIds.Add(ownerGo);
+            }
+        }
+
+        // 3. Scan Modular Avatar components
+        foreach (var (mbFileId, body) in monoBehaviours)
+        {
+            token.ThrowIfCancellationRequested();
+            var script = Get(body, "m_Script") as YamlMappingNode;
+            string guid = Text(script, "guid");
+            long ownerGo = ParseFileId(Get(body, "m_GameObject"));
+            if (!IsOwnedGameObject(ownerGo)) continue;
+
+            if (guid.Equals(AvatarPackageIndex.MeshSettingsScriptGuid, StringComparison.OrdinalIgnoreCase))
+            {
+                CompileMeshSettings(mbFileId, body, ownerGo, gameObjectToTransform, transformParents, skinnedMeshRenderers, meshSettingsBindings);
+            }
+            else if (guid.Equals(AvatarPackageIndex.FloorAdjusterScriptGuid, StringComparison.OrdinalIgnoreCase))
+            {
+                CompileFloorAdjuster(mbFileId, body, ownerGo, ref floorAdjustmentY, ref floorAdjusterSourceId, Report);
+            }
+            else if (guid.Equals(AvatarPackageIndex.VisibleHeadAccessoryScriptGuid, StringComparison.OrdinalIgnoreCase))
+            {
+                if (!visibleInFirstPersonObjectIds.Contains(ownerGo))
+                    visibleInFirstPersonObjectIds.Add(ownerGo);
             }
         }
 
@@ -198,6 +236,10 @@ internal static class AvatarBehaviorPlanner
             BlinkingBindings = blinkingBindings.AsReadOnly(),
             TalkingBindings = talkingBindings.AsReadOnly(),
             VisemeBindings = visemeBindings.AsReadOnly(),
+            MeshSettingsBindings = meshSettingsBindings.AsReadOnly(),
+            VisibleInFirstPersonObjectIds = visibleInFirstPersonObjectIds.AsReadOnly(),
+            FloorAdjustmentY = floorAdjustmentY,
+            FloorAdjusterSourceId = floorAdjusterSourceId,
             BlinkSuppressed = blinkSuppressed,
             HasBlockBlinking = hasBlockBlinking,
             HasBlockVisemes = hasBlockVisemes,
@@ -510,5 +552,124 @@ internal static class AvatarBehaviorPlanner
             }
         }
         return 0;
+    }
+
+    private static void CompileShowInFirstPerson(
+        long sourceId,
+        YamlMappingNode data,
+        long ownerGo,
+        Func<long, bool> isOwnedGo,
+        List<long> visibleObjectIds)
+    {
+        long targetGo = ParseFileId(Get(data, "target") ?? Get(data, "targetObject") ?? Get(data, "gameObject"));
+        long target = (targetGo != 0 && isOwnedGo(targetGo)) ? targetGo : ownerGo;
+        if (target != 0 && !visibleObjectIds.Contains(target))
+        {
+            visibleObjectIds.Add(target);
+        }
+    }
+
+    private static void CompileMeshSettings(
+        long sourceId,
+        YamlMappingNode body,
+        long ownerGo,
+        Dictionary<long, long> gameObjectToTransform,
+        Dictionary<long, long> transformParents,
+        Dictionary<long, (long GameObjectId, HashSet<string> Shapes)> renderers,
+        List<AvatarMeshSettingsBinding> meshSettingsBindings)
+    {
+        long probeAnchorTargetGo = ParseFileId(Get(body, "probeAnchor") ?? Get(body, "m_ProbeAnchor"));
+        bool inheritProbeAnchor = ParseBool(Get(body, "inheritProbeAnchor"), true);
+        bool setProbeAnchor = probeAnchorTargetGo != 0 || inheritProbeAnchor;
+
+        var boundsNode = Get(body, "bounds") as YamlMappingNode ?? Get(body, "m_Bounds") as YamlMappingNode;
+        var centerPos = ParsePosition(Get(boundsNode, "m_Center") ?? Get(boundsNode, "center")) ?? new UnityPosition(0, 0, 0);
+        var sizePos = ParsePosition(Get(boundsNode, "m_Extent") ?? Get(boundsNode, "extent") ?? Get(boundsNode, "m_Size") ?? Get(boundsNode, "size")) ?? new UnityPosition(1, 1, 1);
+        bool inheritBounds = ParseBool(Get(body, "inheritBounds"), false);
+        bool setBounds = boundsNode != null || inheritBounds;
+
+        long ownerTransform = gameObjectToTransform.GetValueOrDefault(ownerGo);
+        if (ownerTransform == 0) return;
+
+        bool IsUnderOwner(long rendererGo)
+        {
+            long t = gameObjectToTransform.GetValueOrDefault(rendererGo);
+            var seen = new HashSet<long>();
+            while (t != 0 && seen.Add(t))
+            {
+                if (t == ownerTransform) return true;
+                t = transformParents.GetValueOrDefault(t);
+            }
+            return false;
+        }
+
+        foreach (var (rendererFileId, (rendererGo, _)) in renderers)
+        {
+            if (IsUnderOwner(rendererGo))
+            {
+                meshSettingsBindings.Add(new AvatarMeshSettingsBinding(
+                    sourceId,
+                    rendererFileId,
+                    probeAnchorTargetGo,
+                    centerPos,
+                    sizePos,
+                    setBounds,
+                    setProbeAnchor
+                ));
+            }
+        }
+    }
+
+    private static void CompileFloorAdjuster(
+        long sourceId,
+        YamlMappingNode body,
+        long ownerGo,
+        ref float? floorAdjustmentY,
+        ref long floorAdjusterSourceId,
+        Action<string, string, long, InitialAppearanceSeverity> report)
+    {
+        float parsedAdjustment = 0f;
+        var adjNode = Get(body, "adjustment") ?? Get(body, "m_Adjustment") ??
+                      Get(body, "offset") ?? Get(body, "floorOffset") ??
+                      Get(body, "height") ?? Get(body, "yOffset");
+
+        if (adjNode is YamlScalarNode scalar &&
+            float.TryParse(scalar.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out float adj) &&
+            float.IsFinite(adj))
+        {
+            parsedAdjustment = adj;
+        }
+
+        if (floorAdjustmentY.HasValue)
+        {
+            report("FLOOR_ADJUSTER_CONFLICT",
+                $"Multiple ModularAvatarFloorAdjuster components found on avatar; ignoring conflicting adjuster on GameObject {ownerGo}.",
+                sourceId,
+                InitialAppearanceSeverity.Warning);
+            return;
+        }
+
+        floorAdjustmentY = parsedAdjustment;
+        floorAdjusterSourceId = sourceId;
+    }
+
+    private static bool ParseBool(YamlNode? node, bool fallback = false)
+    {
+        if (node is YamlScalarNode scalar)
+        {
+            if (bool.TryParse(scalar.Value, out bool b)) return b;
+            if (int.TryParse(scalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int i)) return i != 0;
+        }
+        return fallback;
+    }
+
+    private static UnityPosition? ParsePosition(YamlNode? node)
+    {
+        if (node is not YamlMappingNode map) return null;
+        float x = 0f, y = 0f, z = 0f;
+        if (Get(map, "x") is YamlScalarNode sx && float.TryParse(sx.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out float px)) x = px;
+        if (Get(map, "y") is YamlScalarNode sy && float.TryParse(sy.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out float py)) y = py;
+        if (Get(map, "z") is YamlScalarNode sz && float.TryParse(sz.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out float pz)) z = pz;
+        return new UnityPosition(x, y, z);
     }
 }

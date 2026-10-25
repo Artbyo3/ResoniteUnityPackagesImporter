@@ -358,5 +358,153 @@ MonoBehaviour:
             var planBad = AvatarBehaviorPlanner.Compile("not: [valid: {yaml", 1);
             check(planBad.HasUnsupportedContext, "Malformed YAML did not report unsupported context.");
         });
+
+        test("ModularAvatarMeshSettings targets descendant renderers with probe and bounds intent", () =>
+        {
+            string yaml = @"--- !u!1 &1
+GameObject:
+  m_Name: AvatarRoot
+--- !u!4 &2
+Transform:
+  m_GameObject: {fileID: 1}
+  m_Father: {fileID: 0}
+--- !u!1 &10
+GameObject:
+  m_Name: ClothingParent
+--- !u!4 &20
+Transform:
+  m_GameObject: {fileID: 10}
+  m_Father: {fileID: 2}
+--- !u!1 &12
+GameObject:
+  m_Name: Dress
+--- !u!4 &22
+Transform:
+  m_GameObject: {fileID: 12}
+  m_Father: {fileID: 20}
+--- !u!137 &30
+SkinnedMeshRenderer:
+  m_GameObject: {fileID: 12}
+--- !u!114 &40
+MonoBehaviour:
+  m_GameObject: {fileID: 10}
+  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.MeshSettingsScriptGuid + @"}
+  inheritProbeAnchor: 1
+  probeAnchor: {fileID: 1}
+  inheritBounds: 0
+  bounds:
+    m_Center: {x: 0, y: 1.2, z: 0.1}
+    m_Extent: {x: 0.5, y: 0.8, z: 0.5}
+";
+            var plan = AvatarBehaviorPlanner.Compile(yaml, 1);
+            check(plan.CanBuild, "MeshSettings plan failed to build.");
+            check(plan.MeshSettingsBindings.Count == 1, $"Expected 1 mesh settings binding, got {plan.MeshSettingsBindings.Count}.");
+            var setting = plan.MeshSettingsBindings[0];
+            check(setting.TargetRendererFileId == 30, $"Expected target renderer 30, got {setting.TargetRendererFileId}.");
+            check(setting.ProbeAnchorTargetFileId == 1, $"Expected probe anchor target 1, got {setting.ProbeAnchorTargetFileId}.");
+            check(setting.SetBounds, "Expected SetBounds to be true.");
+            check(setting.SetProbeAnchor, "Expected SetProbeAnchor to be true.");
+            check(Math.Abs(setting.BoundsCenter.Y - 1.2f) < 0.001f, $"Expected BoundsCenter.Y 1.2, got {setting.BoundsCenter.Y}.");
+        });
+
+        test("ModularAvatarFloorAdjuster computes floor offset and handles multi-adjuster conflicts safely", () =>
+        {
+            string yaml = @"--- !u!1 &1
+GameObject:
+  m_Name: AvatarRoot
+--- !u!4 &2
+Transform:
+  m_GameObject: {fileID: 1}
+  m_Father: {fileID: 0}
+--- !u!114 &40
+MonoBehaviour:
+  m_GameObject: {fileID: 1}
+  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.FloorAdjusterScriptGuid + @"}
+  adjustment: 0.08
+--- !u!114 &41
+MonoBehaviour:
+  m_GameObject: {fileID: 1}
+  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.FloorAdjusterScriptGuid + @"}
+  adjustment: 0.15
+";
+            var plan = AvatarBehaviorPlanner.Compile(yaml, 1);
+            check(plan.CanBuild, "FloorAdjuster plan failed to build.");
+            check(plan.FloorAdjustmentY.HasValue, "Expected FloorAdjustmentY to have value.");
+            check(Math.Abs(plan.FloorAdjustmentY!.Value - 0.08f) < 0.001f, $"Expected adjustment 0.08, got {plan.FloorAdjustmentY}.");
+            check(plan.FloorAdjusterSourceId == 40, $"Expected source ID 40, got {plan.FloorAdjusterSourceId}.");
+            check(plan.Diagnostics.Any(d => d.Code == "BEHAVIOR_FLOOR_ADJUSTER_CONFLICT"), "Expected conflict diagnostic.");
+        });
+
+        test("ModularAvatarVisibleHeadAccessory marks target GameObject as visible in first person", () =>
+        {
+            string yaml = @"--- !u!1 &1
+GameObject:
+  m_Name: AvatarRoot
+--- !u!4 &2
+Transform:
+  m_GameObject: {fileID: 1}
+  m_Father: {fileID: 0}
+--- !u!1 &15
+GameObject:
+  m_Name: Hat
+--- !u!4 &25
+Transform:
+  m_GameObject: {fileID: 15}
+  m_Father: {fileID: 2}
+--- !u!114 &50
+MonoBehaviour:
+  m_GameObject: {fileID: 15}
+  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VisibleHeadAccessoryScriptGuid + @"}
+";
+            var plan = AvatarBehaviorPlanner.Compile(yaml, 1);
+            check(plan.CanBuild, "VisibleHeadAccessory plan failed to build.");
+            check(plan.VisibleInFirstPersonObjectIds.Contains(15), "Expected Hat (15) in VisibleInFirstPersonObjectIds.");
+        });
+
+        test("VRCFury ShowInFirstPerson compiles feature and standalone script into visible first-person IDs", () =>
+        {
+            string yaml = @"--- !u!1 &1
+GameObject:
+  m_Name: AvatarRoot
+--- !u!4 &2
+Transform:
+  m_GameObject: {fileID: 1}
+  m_Father: {fileID: 0}
+--- !u!1 &16
+GameObject:
+  m_Name: Glasses
+--- !u!4 &26
+Transform:
+  m_GameObject: {fileID: 16}
+  m_Father: {fileID: 2}
+--- !u!1 &17
+GameObject:
+  m_Name: Earring
+--- !u!4 &27
+Transform:
+  m_GameObject: {fileID: 17}
+  m_Father: {fileID: 2}
+--- !u!114 &60
+MonoBehaviour:
+  m_GameObject: {fileID: 1}
+  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VrcFuryArmatureLinkScriptGuid + @"}
+  content: {rid: 700}
+  references:
+    version: 2
+    RefIds:
+      - rid: 700
+        type: {class: ShowInFirstPerson, ns: VF.Model.Feature, asm: VRCFury}
+        data:
+          target: {fileID: 16}
+--- !u!114 &61
+MonoBehaviour:
+  m_GameObject: {fileID: 17}
+  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VrcFuryShowInFirstPersonScriptGuid + @"}
+";
+            var plan = AvatarBehaviorPlanner.Compile(yaml, 1);
+            check(plan.CanBuild, "ShowInFirstPerson plan failed to build.");
+            check(plan.VisibleInFirstPersonObjectIds.Contains(16), "Expected Glasses (16) in VisibleInFirstPersonObjectIds.");
+            check(plan.VisibleInFirstPersonObjectIds.Contains(17), "Expected Earring (17) in VisibleInFirstPersonObjectIds.");
+        });
     }
 }

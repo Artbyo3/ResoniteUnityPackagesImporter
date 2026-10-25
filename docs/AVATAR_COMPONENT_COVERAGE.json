@@ -334,11 +334,16 @@
         {
           "name": "ModularAvatarFloorAdjuster",
           "source": "Runtime/ModularAvatarFloorAdjuster.cs",
-          "status": "missing",
-          "reason": "Footwear/floor calibration; multiple-component conflicts.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "status": "partial",
+          "reason": "Footwear and floor calibration offset computed and applied to biped rig hips; multi-adjuster conflicts detected and warned without aborting build.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "ModularAvatarGlobalCollider",
@@ -467,11 +472,16 @@
         {
           "name": "ModularAvatarMeshSettings",
           "source": "Runtime/ModularAvatarMeshSettings.cs",
-          "status": "missing",
-          "reason": "Probe/anchor/bounds intent, lighting differences disclosed.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "status": "partial",
+          "reason": "Probe anchor target extraction and static bounding box configuration compiled across descendant renderers.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "ModularAvatarMMDLayerControl",
@@ -625,11 +635,16 @@
         {
           "name": "ModularAvatarVisibleHeadAccessory",
           "source": "Runtime/ModularAvatarVisibleHeadAccessory.cs",
-          "status": "missing",
-          "reason": "Local first-person visibility, preserve mirror/remote.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "status": "partial",
+          "reason": "Targets head accessories for local first-person visibility via native slot tags.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "ModularAvatarVRChatSettings",
@@ -1128,12 +1143,17 @@
         },
         {
           "name": "ShowInFirstPerson",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/ShowInFirstPerson.cs",
-          "reason": "Local visibility, not mirror/remote deletion.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Feature records and standalone scripts compile target/owner GameObjects to first-person visible tags.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "Slot4Fix",

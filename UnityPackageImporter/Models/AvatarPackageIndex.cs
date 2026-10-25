@@ -54,7 +54,10 @@ public enum ModularAvatarComponentKind
     BlendshapeSync,
     MenuInstaller,
     Parameters,
-    ObjectToggle
+    ObjectToggle,
+    MeshSettings,
+    FloorAdjuster,
+    VisibleHeadAccessory
 }
 
 public sealed class ModularAvatarComponentDefinition
@@ -166,6 +169,10 @@ public static class AvatarPackageIndex
     public const string MenuInstallerScriptGuid = "7ef83cb0c23d4d7c9d41021e544a1978";
     public const string ParametersScriptGuid = "71a96d4ea0c344f39e277d82035bf9bd";
     public const string ObjectToggleScriptGuid = "a162bb8ec7e24a5abcf457887f1df3fa";
+    public const string MeshSettingsScriptGuid = "560fdafd46c74b2db6422fdf0e7f2363";
+    public const string FloorAdjusterScriptGuid = "ba18e6eae93342fd8774b3f3f132928a";
+    public const string VisibleHeadAccessoryScriptGuid = "33dac8cfeaeb4c399ddd90597f849f70";
+    public const string VrcFuryShowInFirstPersonScriptGuid = "7d465e07b92c48db912e2e20f6621536";
 
     // Verified VRCFury component script GUIDs across versions.
     public const string VrcFuryFullScriptGuid = "d9e94e501a2d4c95bff3d5601013d923";
@@ -180,7 +187,8 @@ public static class AvatarPackageIndex
         VrcFuryScriptGuid,
         VrcFuryLegacyScriptGuid,
         VrcFuryTestScriptGuid,
-        VrcFuryArmatureLinkScriptGuid
+        VrcFuryArmatureLinkScriptGuid,
+        VrcFuryShowInFirstPersonScriptGuid
     };
 
     private static readonly Regex HeaderPattern = new(
@@ -209,7 +217,10 @@ public static class AvatarPackageIndex
             [BlendshapeSyncScriptGuid] = ModularAvatarComponentKind.BlendshapeSync,
             [MenuInstallerScriptGuid] = ModularAvatarComponentKind.MenuInstaller,
             [ParametersScriptGuid] = ModularAvatarComponentKind.Parameters,
-            [ObjectToggleScriptGuid] = ModularAvatarComponentKind.ObjectToggle
+            [ObjectToggleScriptGuid] = ModularAvatarComponentKind.ObjectToggle,
+            [MeshSettingsScriptGuid] = ModularAvatarComponentKind.MeshSettings,
+            [FloorAdjusterScriptGuid] = ModularAvatarComponentKind.FloorAdjuster,
+            [VisibleHeadAccessoryScriptGuid] = ModularAvatarComponentKind.VisibleHeadAccessory
         };
 
     public static AvatarPackageManifest ParseFile(string filePath, IReadOnlyDictionary<string, string> prefabs = null)

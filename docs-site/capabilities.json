@@ -312,9 +312,9 @@
       "framework": "ma",
       "name": "Floor Adjuster",
       "type": "ModularAvatarFloorAdjuster",
-      "status": "re-evaluation",
-      "outcome": "Adjust the avatar against floor height. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "Calibrates floor and viewpoint offset for footwear height adjustments on humanoid rig hips.",
+      "reason": "AvatarBehaviorPlanner compiles authored adjustment height; multi-adjuster conflicts are detected with warnings and the baseline offset applied to hips.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -323,8 +323,12 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarFloorAdjuster.cs"
       },
-      "evidence": [],
-      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs",
+        "Tests/AvatarBehaviorTests.cs"
+      ],
+      "summary": "Partial runtime support: floor calibration offsets applied to rig hips with multi-adjuster conflict safety."
     },
     {
       "id": "ma-globalcollider",
@@ -493,9 +497,9 @@
       "framework": "ma",
       "name": "Mesh Settings",
       "type": "ModularAvatarMeshSettings",
-      "status": "re-evaluation",
-      "outcome": "Set renderer bounds and probe settings. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "Applies light probe anchor target overrides and bounds intent across descendant mesh renderers.",
+      "reason": "AvatarBehaviorPlanner resolves probe anchor references and authored bounds across descendant SkinnedMeshRenderers and sets static bounds compute method.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -504,8 +508,12 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarMeshSettings.cs"
       },
-      "evidence": [],
-      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs",
+        "Tests/AvatarBehaviorTests.cs"
+      ],
+      "summary": "Partial runtime support: descendant probe anchor overrides and static bounds compute configuration."
     },
     {
       "id": "ma-moveto",
@@ -673,9 +681,9 @@
       "framework": "ma",
       "name": "Visible Head Accessory",
       "type": "ModularAvatarVisibleHeadAccessory",
-      "status": "re-evaluation",
-      "outcome": "Keep head accessories visible in first person. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "Retains head accessories visible in first person via native slot tags.",
+      "reason": "AvatarBehaviorPlanner marks owned head accessories with first-person visibility tags to prevent avatar head culling.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -684,8 +692,12 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarVisibleHeadAccessory.cs"
       },
-      "evidence": [],
-      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs",
+        "Tests/AvatarBehaviorTests.cs"
+      ],
+      "summary": "Partial runtime support: native slot tagging for first-person accessory visibility."
     },
     {
       "id": "ma-worldfixedobject",
@@ -1293,9 +1305,9 @@
       "framework": "vrcfury",
       "name": "Show In First Person",
       "type": "ShowInFirstPerson",
-      "status": "missing",
-      "outcome": "Keep selected objects visible in first person. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "Retains targeted objects visible in first person via native slot tags.",
+      "reason": "AvatarBehaviorPlanner parses VRCFury ShowInFirstPerson feature records and standalone script components, tagging target slots for first-person visibility.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -1304,8 +1316,12 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/ShowInFirstPerson.cs"
       },
-      "evidence": [],
-      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs",
+        "Tests/AvatarBehaviorTests.cs"
+      ],
+      "summary": "Partial runtime support: native slot tagging for target object first-person visibility."
     },
     {
       "id": "vrcfury-spsoptions",

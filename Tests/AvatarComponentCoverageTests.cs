@@ -29,7 +29,7 @@ internal static class AvatarComponentCoverageTests
         test("Component coverage pins concrete counts not grouped markdown rows", () =>
         {
             var catalog = Catalog();
-            var expected = new Dictionary<string, (int Total, int Implemented)> { ["vrc-sdk"] = (28, 1), ["ma"] = (40, 10), ["vrcf-features"] = (56, 9), ["vrcf-actions"] = (19, 6), ["vrcf-wrappers"] = (12, 0) };
+            var expected = new Dictionary<string, (int Total, int Implemented)> { ["vrc-sdk"] = (28, 1), ["ma"] = (40, 13), ["vrcf-features"] = (56, 10), ["vrcf-actions"] = (19, 6), ["vrcf-wrappers"] = (12, 0) };
             check(catalog.Groups.Count == expected.Count, "Catalog groups changed; review the denominator policy.");
             foreach (var group in catalog.Groups)
                 check(expected.TryGetValue(group.Id, out var count) && group.Entries.Count == count.Total && group.Implemented == count.Implemented,
@@ -40,7 +40,7 @@ internal static class AvatarComponentCoverageTests
         test("Component coverage indexed metadata and exclusions do not earn support credit", () =>
         {
             var group = Catalog().Groups.Single(group => group.Id == "ma");
-            check(group.Count("indexed") == 1 && group.Count("excluded") > 0 && group.Percentage == 25.0m, "Metadata/exclusion bookkeeping changed the score.");
+            check(group.Count("indexed") == 1 && group.Count("excluded") > 0 && group.Percentage == 32.5m, "Metadata/exclusion bookkeeping changed the score.");
             check(group.Entries.Single(entry => entry.Name == "ModularAvatarShapeChanger").Status == "partial", "Set/Delete must remain one component.");
         });
         test("Component coverage functional support has real repository evidence", () =>
@@ -61,10 +61,10 @@ internal static class AvatarComponentCoverageTests
         test("Component coverage reproducible markdown reports separate denominators", () =>
         {
             string report = Catalog().RenderMarkdown();
-            check(report.Contains("10 / 40 | 25.0%", StringComparison.Ordinal) && report.Contains("9 / 56 | 16.1%", StringComparison.Ordinal) &&
+            check(report.Contains("13 / 40 | 32.5%", StringComparison.Ordinal) && report.Contains("10 / 56 | 17.9%", StringComparison.Ordinal) &&
                 report.Contains("6 / 19 | 31.6%", StringComparison.Ordinal) && report.Contains("1 / 28 | 3.6%", StringComparison.Ordinal), "Coverage scores were not rendered transparently.");
             check(report.Contains("Indexed only", StringComparison.Ordinal) && report.Contains("not live-test certification", StringComparison.Ordinal) &&
-                report.Contains("15 / 87 = 17.2%", StringComparison.Ordinal), "Coverage must disclose its numerator and combined VRCFury count.");
+                report.Contains("16 / 87 = 18.4%", StringComparison.Ordinal), "Coverage must disclose its numerator and combined VRCFury count.");
         });
         test("Component coverage checked-in report matches catalog", () =>
         {

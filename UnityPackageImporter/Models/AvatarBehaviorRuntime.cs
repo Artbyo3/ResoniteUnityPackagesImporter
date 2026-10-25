@@ -26,7 +26,9 @@ public static class AvatarBehaviorRuntime
         token.ThrowIfCancellationRequested();
 
         if (!plan.CanBuild || (plan.BreathingBindings.Count == 0 && plan.BlinkingBindings.Count == 0 &&
-            plan.TalkingBindings.Count == 0 && plan.VisemeBindings.Count == 0 && !plan.BlinkSuppressed))
+            plan.TalkingBindings.Count == 0 && plan.VisemeBindings.Count == 0 && !plan.BlinkSuppressed &&
+            plan.MeshSettingsBindings.Count == 0 && plan.VisibleInFirstPersonObjectIds.Count == 0 &&
+            !plan.FloorAdjustmentY.HasValue))
             return;
 
         await default(ToWorld);
@@ -260,6 +262,59 @@ public static class AvatarBehaviorRuntime
                             }
                         }
                     }
+                }
+            }
+        }
+
+        // 5. Process MeshSettings (bounds & probe anchor)
+        if (plan.MeshSettingsBindings.Count > 0)
+        {
+            foreach (var meshSetting in plan.MeshSettingsBindings)
+            {
+                token.ThrowIfCancellationRequested();
+                UnitySkin? skin = null;
+                if (meshSetting.TargetRendererFileId != 0 &&
+                    unityObjects.TryGetValue(unchecked((ulong)meshSetting.TargetRendererFileId), out var obj) &&
+                    obj is UnitySkin uSkin)
+                {
+                    skin = uSkin;
+                }
+
+                if (skin?.createdMeshRenderer != null && !skin.createdMeshRenderer.IsDestroyed)
+                {
+                    if (meshSetting.SetBounds)
+                    {
+                        skin.createdMeshRenderer.BoundsComputeMethod.Value = SkinnedBounds.Static;
+                    }
+                }
+            }
+        }
+
+        // 6. Process VisibleInFirstPerson
+        if (plan.VisibleInFirstPersonObjectIds.Count > 0)
+        {
+            foreach (long goId in plan.VisibleInFirstPersonObjectIds)
+            {
+                token.ThrowIfCancellationRequested();
+                if (unityObjects.TryGetValue(unchecked((ulong)goId), out var obj) &&
+                    obj is UnityGameObject uGo && uGo.frooxEngineSlot != null && !uGo.frooxEngineSlot.IsDestroyed &&
+                    PreparedImportItem.Contains(avatarRoot, uGo.frooxEngineSlot))
+                {
+                    uGo.frooxEngineSlot.Tag = "VisibleInFirstPerson";
+                }
+            }
+        }
+
+        // 7. Process FloorAdjuster
+        if (plan.FloorAdjustmentY.HasValue && Math.Abs(plan.FloorAdjustmentY.Value) > 0.0001f)
+        {
+            var bipedRig = avatarRoot.GetComponentInChildren<BipedRig>();
+            if (bipedRig != null)
+            {
+                var hips = bipedRig.TryGetBone(BodyNode.Hips);
+                if (hips != null)
+                {
+                    hips.LocalPosition += new float3(0f, plan.FloorAdjustmentY.Value, 0f);
                 }
             }
         }
