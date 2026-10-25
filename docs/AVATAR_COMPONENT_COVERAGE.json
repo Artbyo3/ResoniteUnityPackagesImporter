@@ -737,21 +737,31 @@
         },
         {
           "name": "AnchorOverrideFix",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/AnchorOverrideFix.cs",
-          "reason": "Legacy/current common lighting-anchor intent if meaningful natively.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Legacy lighting-anchor override compiles target anchor to mesh settings probe binding across descendant renderers.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "AnchorOverrideFix2",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/AnchorOverrideFix2.cs",
-          "reason": "Legacy/current common lighting-anchor intent if meaningful natively.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Current lighting-anchor override compiles target anchor to mesh settings probe binding across descendant renderers.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "ApplyDuringUpload",
@@ -845,21 +855,31 @@
         },
         {
           "name": "BoundingBoxFix",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/BoundingBoxFix.cs",
-          "reason": "Legacy/current bounds/culling, cost caps.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Legacy bounding box fix compiles explicit bounds and static compute mode across descendant renderers.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "BoundingBoxFix2",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/BoundingBoxFix2.cs",
-          "reason": "Legacy/current bounds/culling, cost caps.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Current bounding box fix compiles explicit bounds and static compute mode across descendant renderers.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "Breathing",

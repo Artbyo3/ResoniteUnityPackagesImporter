@@ -761,9 +761,9 @@
       "framework": "vrcfury",
       "name": "Anchor Override Fix2",
       "type": "AnchorOverrideFix2",
-      "status": "missing",
-      "outcome": "Adjust renderer anchor overrides. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "Compiles target anchor overrides to mesh probe bindings across descendant renderers.",
+      "reason": "AvatarBehaviorPlanner compiles authored lighting anchor target to mesh settings probe anchor binding with static compute mode.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -772,8 +772,12 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/AnchorOverrideFix2.cs"
       },
-      "evidence": [],
-      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs",
+        "Tests/AvatarBehaviorTests.cs"
+      ],
+      "summary": "Partial runtime support: descendant lighting anchor probe overrides."
     },
     {
       "id": "vrcfury-avatarscale2",
@@ -859,9 +863,9 @@
       "framework": "vrcfury",
       "name": "Bounding Box Fix2",
       "type": "BoundingBoxFix2",
-      "status": "missing",
-      "outcome": "Adjust mesh bounds. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "Compiles explicit bounding box settings and static compute mode across descendant renderers.",
+      "reason": "AvatarBehaviorPlanner compiles explicit bounding boxes to mesh settings bindings with static compute mode.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -870,8 +874,12 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/BoundingBoxFix2.cs"
       },
-      "evidence": [],
-      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs",
+        "Tests/AvatarBehaviorTests.cs"
+      ],
+      "summary": "Partial runtime support: descendant explicit bounding box and static compute configuration."
     },
     {
       "id": "vrcfury-breathing",
@@ -1751,9 +1759,9 @@
       "framework": "vrcfury",
       "name": "Anchor Override Fix",
       "type": "AnchorOverrideFix",
-      "status": "legacy",
-      "outcome": "Legacy serialized feature; not a separate new support target.",
-      "reason": "An older upstream migration model. Assess its current replacement separately; this is not counted as another missing capability.",
+      "status": "limited",
+      "outcome": "Compiles target anchor overrides to mesh probe bindings across descendant renderers.",
+      "reason": "AvatarBehaviorPlanner compiles authored lighting anchor target to mesh settings probe anchor binding with static compute mode.",
       "legacy": true,
       "work": "unplanned",
       "issue": null,
@@ -1762,7 +1770,12 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/AnchorOverrideFix.cs"
       },
-      "evidence": []
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs",
+        "Tests/AvatarBehaviorTests.cs"
+      ],
+      "summary": "Partial runtime support: descendant lighting anchor probe overrides."
     },
     {
       "id": "vrcfury-avatarscale",
@@ -1787,9 +1800,9 @@
       "framework": "vrcfury",
       "name": "Bounding Box Fix",
       "type": "BoundingBoxFix",
-      "status": "legacy",
-      "outcome": "Legacy serialized feature; not a separate new support target.",
-      "reason": "An older upstream migration model. Assess its current replacement separately; this is not counted as another missing capability.",
+      "status": "limited",
+      "outcome": "Compiles explicit bounding box settings and static compute mode across descendant renderers.",
+      "reason": "AvatarBehaviorPlanner compiles explicit bounding boxes to mesh settings bindings with static compute mode.",
       "legacy": true,
       "work": "unplanned",
       "issue": null,
@@ -1798,7 +1811,12 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/BoundingBoxFix.cs"
       },
-      "evidence": []
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs",
+        "Tests/AvatarBehaviorTests.cs"
+      ],
+      "summary": "Partial runtime support: descendant explicit bounding box and static compute configuration."
     },
     {
       "id": "vrcfury-crosseyefix",

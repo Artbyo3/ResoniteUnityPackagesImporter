@@ -7,11 +7,11 @@ Partial receives one component credit only because a documented functional subse
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Base VRChat SDK types | 1 / 28 | 3.6% | 0 | 1 | 3 | 24 | 0 | 1 |
 | Modular Avatar components | 13 / 40 | 32.5% | 0 | 13 | 1 | 23 | 3 | 11 |
-| VRCFury feature models | 10 / 56 | 17.9% | 0 | 10 | 0 | 38 | 8 | 8 |
+| VRCFury feature models | 14 / 56 | 25.0% | 0 | 14 | 0 | 34 | 8 | 12 |
 | VRCFury action models | 6 / 19 | 31.6% | 0 | 6 | 0 | 13 | 0 | 6 |
 | VRCFury wrapper components | 0 / 12 | 0.0% | 0 | 0 | 1 | 5 | 6 | 0 |
 
-VRCFury combined concrete authoring-type coverage: 16 / 87 = 18.4% (feature models + action models + wrapper components). The breakdown stays visible rather than changing denominators silently.
+VRCFury combined concrete authoring-type coverage: 20 / 87 = 23.0% (feature models + action models + wrapper components). The breakdown stays visible rather than changing denominators silently.
 
 ## Base VRChat SDK types
 
@@ -102,8 +102,8 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 56 concrete top-level
 | Concrete type | Status | Runtime subset | Implemented behavior / remaining gap | Code evidence | Test evidence | Upstream source |
 | --- | --- | --- | --- | --- | --- | --- |
 | AdvancedCollider | missing | no | Shared collider/contact adapters. |  |  | Runtime/Model/Feature/AdvancedCollider.cs |
-| AnchorOverrideFix | missing | no | Legacy/current common lighting-anchor intent if meaningful natively. |  |  | Runtime/Model/Feature/AnchorOverrideFix.cs |
-| AnchorOverrideFix2 | missing | no | Legacy/current common lighting-anchor intent if meaningful natively. |  |  | Runtime/Model/Feature/AnchorOverrideFix2.cs |
+| AnchorOverrideFix | partial | yes | Legacy lighting-anchor override compiles target anchor to mesh settings probe binding across descendant renderers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/AnchorOverrideFix.cs |
+| AnchorOverrideFix2 | partial | yes | Current lighting-anchor override compiles target anchor to mesh settings probe binding across descendant renderers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/AnchorOverrideFix2.cs |
 | ApplyDuringUpload | partial | no | Reversible initial visibility/shape/material/constant-clip subset; arbitrary/destructive actions not executed. | UnityPackageImporter/Models/VrcFuryInitialAppearance.cs | Tests/VrcFuryInitialAppearanceTests.cs | Runtime/Model/Feature/ApplyDuringUpload.cs |
 | ArmatureLink | partial | no | Supported staged structural attachment/merge subset; other link/scaling modes pending. | UnityPackageImporter/Frameworks/VrcFury/VrcFuryPlanAdapter.cs | Tests/VrcFuryArmatureSemanticsTests.cs | Runtime/Model/Feature/ArmatureLink.cs |
 | AvatarScale | excluded | no | Retired upstream; native scaling belongs to base-avatar scope. |  |  | Runtime/Model/Feature/AvatarScale.cs |
@@ -112,8 +112,8 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 56 concrete top-level
 | BlendshapeOptimizer | missing | no | Pending equivalent built appearance and animation bindings; preserve editable source and skip optimization only when behavior equivalence is proven. |  |  | Runtime/Model/Feature/BlendshapeOptimizer.cs |
 | Blinking | partial | yes | Native blink cycle blendshape actions mapped to avatar eyelid drivers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/Blinking.cs |
 | BoneConstraint | missing | no | Authored humanoid-bone constraint/attachment. |  |  | Runtime/Model/Feature/BoneConstraint.cs |
-| BoundingBoxFix | missing | no | Legacy/current bounds/culling, cost caps. |  |  | Runtime/Model/Feature/BoundingBoxFix.cs |
-| BoundingBoxFix2 | missing | no | Legacy/current bounds/culling, cost caps. |  |  | Runtime/Model/Feature/BoundingBoxFix2.cs |
+| BoundingBoxFix | partial | yes | Legacy bounding box fix compiles explicit bounds and static compute mode across descendant renderers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/BoundingBoxFix.cs |
+| BoundingBoxFix2 | partial | yes | Current bounding box fix compiles explicit bounds and static compute mode across descendant renderers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/BoundingBoxFix2.cs |
 | Breathing | partial | yes | Cyclic motion and chest expansion mapped to native Wiggler drivers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/Breathing.cs |
 | ConstraintRetarget | missing | no | Reference rewrite within verified ownership. |  |  | Runtime/Model/Feature/ConstraintRetarget.cs |
 | CrossEyeFix | missing | no | Diagnose native eye solver; no blind compensating constraints. |  |  | Runtime/Model/Feature/CrossEyeFix.cs |

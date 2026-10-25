@@ -197,6 +197,14 @@ internal static class AvatarBehaviorPlanner
                 {
                     CompileShowInFirstPerson(mbFileId, dataNode, ownerGo, IsOwnedGameObject, visibleInFirstPersonObjectIds);
                 }
+                else if (className is "AnchorOverrideFix" or "AnchorOverrideFix2")
+                {
+                    CompileAnchorOverrideFix(mbFileId, dataNode, ownerGo, gameObjectToTransform, transformParents, skinnedMeshRenderers, meshSettingsBindings);
+                }
+                else if (className is "BoundingBoxFix" or "BoundingBoxFix2")
+                {
+                    CompileBoundingBoxFix(mbFileId, dataNode, ownerGo, gameObjectToTransform, transformParents, skinnedMeshRenderers, meshSettingsBindings);
+                }
             }
 
             if (guid.Equals(AvatarPackageIndex.VrcFuryShowInFirstPersonScriptGuid, StringComparison.OrdinalIgnoreCase))
@@ -671,5 +679,123 @@ internal static class AvatarBehaviorPlanner
         if (Get(map, "y") is YamlScalarNode sy && float.TryParse(sy.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out float py)) y = py;
         if (Get(map, "z") is YamlScalarNode sz && float.TryParse(sz.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out float pz)) z = pz;
         return new UnityPosition(x, y, z);
+    }
+
+    private static void CompileAnchorOverrideFix(
+        long sourceId,
+        YamlMappingNode data,
+        long ownerGo,
+        Dictionary<long, long> gameObjectToTransform,
+        Dictionary<long, long> transformParents,
+        Dictionary<long, (long GameObjectId, HashSet<string> Shapes)> renderers,
+        List<AvatarMeshSettingsBinding> meshSettingsBindings)
+    {
+        long anchorGo = ParseFileId(Get(data, "anchor") ?? Get(data, "target") ?? Get(data, "targetObject"));
+        long targetRenderer = ParseFileId(Get(data, "renderer"));
+
+        if (targetRenderer != 0)
+        {
+            meshSettingsBindings.Add(new AvatarMeshSettingsBinding(
+                sourceId,
+                targetRenderer,
+                anchorGo,
+                new UnityPosition(0, 0, 0),
+                new UnityPosition(1, 1, 1),
+                SetBounds: false,
+                SetProbeAnchor: true
+            ));
+            return;
+        }
+
+        long ownerTransform = gameObjectToTransform.GetValueOrDefault(ownerGo);
+        if (ownerTransform == 0) return;
+
+        bool IsUnderOwner(long rendererGo)
+        {
+            long t = gameObjectToTransform.GetValueOrDefault(rendererGo);
+            var seen = new HashSet<long>();
+            while (t != 0 && seen.Add(t))
+            {
+                if (t == ownerTransform) return true;
+                t = transformParents.GetValueOrDefault(t);
+            }
+            return false;
+        }
+
+        foreach (var (rendererFileId, (rendererGo, _)) in renderers)
+        {
+            if (IsUnderOwner(rendererGo))
+            {
+                meshSettingsBindings.Add(new AvatarMeshSettingsBinding(
+                    sourceId,
+                    rendererFileId,
+                    anchorGo,
+                    new UnityPosition(0, 0, 0),
+                    new UnityPosition(1, 1, 1),
+                    SetBounds: false,
+                    SetProbeAnchor: true
+                ));
+            }
+        }
+    }
+
+    private static void CompileBoundingBoxFix(
+        long sourceId,
+        YamlMappingNode data,
+        long ownerGo,
+        Dictionary<long, long> gameObjectToTransform,
+        Dictionary<long, long> transformParents,
+        Dictionary<long, (long GameObjectId, HashSet<string> Shapes)> renderers,
+        List<AvatarMeshSettingsBinding> meshSettingsBindings)
+    {
+        long targetRenderer = ParseFileId(Get(data, "renderer"));
+        var boundsNode = Get(data, "bounds") as YamlMappingNode ?? Get(data, "boundingBox") as YamlMappingNode;
+        var centerPos = ParsePosition(Get(boundsNode, "m_Center") ?? Get(boundsNode, "center")) ?? new UnityPosition(0, 0, 0);
+        var sizePos = ParsePosition(Get(boundsNode, "m_Extent") ?? Get(boundsNode, "extent") ?? Get(boundsNode, "m_Size") ?? Get(boundsNode, "size")) ?? new UnityPosition(2, 2, 2);
+
+        if (targetRenderer != 0)
+        {
+            meshSettingsBindings.Add(new AvatarMeshSettingsBinding(
+                sourceId,
+                targetRenderer,
+                0,
+                centerPos,
+                sizePos,
+                SetBounds: true,
+                SetProbeAnchor: false
+            ));
+            return;
+        }
+
+        long ownerTransform = gameObjectToTransform.GetValueOrDefault(ownerGo);
+        if (ownerTransform == 0) return;
+
+        bool IsUnderOwner(long rendererGo)
+        {
+            long t = gameObjectToTransform.GetValueOrDefault(rendererGo);
+            var seen = new HashSet<long>();
+            while (t != 0 && seen.Add(t))
+            {
+                if (t == ownerTransform) return true;
+                t = transformParents.GetValueOrDefault(t);
+            }
+            return false;
+        }
+
+        foreach (var (rendererFileId, (rendererGo, _)) in renderers)
+        {
+            if (IsUnderOwner(rendererGo))
+            {
+                meshSettingsBindings.Add(new AvatarMeshSettingsBinding(
+                    sourceId,
+                    rendererFileId,
+                    0,
+                    centerPos,
+                    sizePos,
+                    SetBounds: true,
+                    SetProbeAnchor: false
+                ));
+            }
+        }
     }
 }

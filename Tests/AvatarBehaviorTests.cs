@@ -505,6 +505,97 @@ MonoBehaviour:
             check(plan.CanBuild, "ShowInFirstPerson plan failed to build.");
             check(plan.VisibleInFirstPersonObjectIds.Contains(16), "Expected Glasses (16) in VisibleInFirstPersonObjectIds.");
             check(plan.VisibleInFirstPersonObjectIds.Contains(17), "Expected Earring (17) in VisibleInFirstPersonObjectIds.");
+                });
+
+        test("VRCFury AnchorOverrideFix and AnchorOverrideFix2 compile lighting anchor target to mesh settings binding", () =>
+        {
+            string yaml = @"--- !u!1 &1
+GameObject:
+  m_Name: AvatarRoot
+--- !u!4 &2
+Transform:
+  m_GameObject: {fileID: 1}
+  m_Father: {fileID: 0}
+--- !u!1 &10
+GameObject:
+  m_Name: ChestAnchor
+--- !u!4 &20
+Transform:
+  m_GameObject: {fileID: 10}
+  m_Father: {fileID: 2}
+--- !u!1 &11
+GameObject:
+  m_Name: Shirt
+--- !u!4 &21
+Transform:
+  m_GameObject: {fileID: 11}
+  m_Father: {fileID: 2}
+--- !u!137 &31
+SkinnedMeshRenderer:
+  m_GameObject: {fileID: 11}
+--- !u!114 &70
+MonoBehaviour:
+  m_GameObject: {fileID: 1}
+  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VrcFuryArmatureLinkScriptGuid + @"}
+  content: {rid: 800}
+  references:
+    version: 2
+    RefIds:
+      - rid: 800
+        type: {class: AnchorOverrideFix2, ns: VF.Model.Feature, asm: VRCFury}
+        data:
+          anchor: {fileID: 10}
+";
+            var plan = AvatarBehaviorPlanner.Compile(yaml, 1);
+            check(plan.CanBuild, "AnchorOverrideFix plan failed to build.");
+            check(plan.MeshSettingsBindings.Count == 1, $"Expected 1 mesh setting, got {plan.MeshSettingsBindings.Count}.");
+            var setting = plan.MeshSettingsBindings[0];
+            check(setting.TargetRendererFileId == 31, $"Expected renderer 31, got {setting.TargetRendererFileId}.");
+            check(setting.ProbeAnchorTargetFileId == 10, $"Expected anchor 10, got {setting.ProbeAnchorTargetFileId}.");
+            check(setting.SetProbeAnchor, "Expected SetProbeAnchor to be true.");
+        });
+
+        test("VRCFury BoundingBoxFix and BoundingBoxFix2 compile bounding box settings to mesh settings binding", () =>
+        {
+            string yaml = @"--- !u!1 &1
+GameObject:
+  m_Name: AvatarRoot
+--- !u!4 &2
+Transform:
+  m_GameObject: {fileID: 1}
+  m_Father: {fileID: 0}
+--- !u!1 &12
+GameObject:
+  m_Name: Pants
+--- !u!4 &22
+Transform:
+  m_GameObject: {fileID: 12}
+  m_Father: {fileID: 2}
+--- !u!137 &32
+SkinnedMeshRenderer:
+  m_GameObject: {fileID: 12}
+--- !u!114 &80
+MonoBehaviour:
+  m_GameObject: {fileID: 1}
+  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VrcFuryArmatureLinkScriptGuid + @"}
+  content: {rid: 900}
+  references:
+    version: 2
+    RefIds:
+      - rid: 900
+        type: {class: BoundingBoxFix2, ns: VF.Model.Feature, asm: VRCFury}
+        data:
+          bounds:
+            m_Center: {x: 0, y: 0.5, z: 0}
+            m_Extent: {x: 1, y: 1, z: 1}
+";
+            var plan = AvatarBehaviorPlanner.Compile(yaml, 1);
+            check(plan.CanBuild, "BoundingBoxFix plan failed to build.");
+            check(plan.MeshSettingsBindings.Count == 1, $"Expected 1 mesh setting, got {plan.MeshSettingsBindings.Count}.");
+            var setting = plan.MeshSettingsBindings[0];
+            check(setting.TargetRendererFileId == 32, $"Expected renderer 32, got {setting.TargetRendererFileId}.");
+            check(setting.SetBounds, "Expected SetBounds to be true.");
+            check(Math.Abs(setting.BoundsCenter.Y - 0.5f) < 0.001f, $"Expected BoundsCenter.Y 0.5, got {setting.BoundsCenter.Y}.");
         });
     }
 }
