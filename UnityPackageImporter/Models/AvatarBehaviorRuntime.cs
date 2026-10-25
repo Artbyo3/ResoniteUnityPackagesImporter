@@ -25,7 +25,8 @@ public static class AvatarBehaviorRuntime
         ArgumentNullException.ThrowIfNull(avatarRoot);
         token.ThrowIfCancellationRequested();
 
-        if (!plan.CanBuild || (plan.BreathingBindings.Count == 0 && plan.BlinkingBindings.Count == 0))
+        if (!plan.CanBuild || (plan.BreathingBindings.Count == 0 && plan.BlinkingBindings.Count == 0 &&
+            plan.TalkingBindings.Count == 0 && plan.VisemeBindings.Count == 0 && !plan.BlinkSuppressed))
             return;
 
         await default(ToWorld);
@@ -148,6 +149,116 @@ public static class AvatarBehaviorRuntime
                         driver.Offset.Value = new float3(1.025f, 1.025f, 1.025f);
                         driver.Magnitude.Value = new float3(0.025f, 0.025f, 0.025f);
                         driver.Target.ForceLink(boneSlot.Scale_Field);
+                    }
+                }
+            }
+        }
+
+        // 3. Process Talking
+        if (plan.TalkingBindings.Count > 0)
+        {
+            Slot? talkingRoot = null;
+            foreach (var talking in plan.TalkingBindings)
+            {
+                token.ThrowIfCancellationRequested();
+                if (!string.IsNullOrEmpty(talking.TargetBlendShape))
+                {
+                    UnitySkin? skin = null;
+                    if (talking.TargetRendererFileId != 0 &&
+                        unityObjects.TryGetValue(unchecked((ulong)talking.TargetRendererFileId), out var obj) &&
+                        obj is UnitySkin uSkin)
+                    {
+                        skin = uSkin;
+                    }
+                    else
+                    {
+                        foreach (var uObj in unityObjects.Values)
+                        {
+                            if (uObj is UnitySkin candidate && candidate.createdMeshRenderer != null &&
+                                !candidate.createdMeshRenderer.IsDestroyed &&
+                                PreparedImportItem.Contains(avatarRoot, candidate.createdMeshRenderer.Slot) &&
+                                candidate.createdMeshRenderer.BlendShapeIndex(talking.TargetBlendShape) >= 0)
+                            {
+                                skin = candidate;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (skin?.createdMeshRenderer != null && !skin.createdMeshRenderer.IsDestroyed)
+                    {
+                        int shapeIdx = skin.createdMeshRenderer.BlendShapeIndex(talking.TargetBlendShape);
+                        if (shapeIdx >= 0 && shapeIdx < skin.createdMeshRenderer.BlendShapeWeights.Count)
+                        {
+                            var field = skin.createdMeshRenderer.BlendShapeWeights.GetElement(shapeIdx);
+                            if (!field.IsDriven && !field.IsLinked)
+                            {
+                                talkingRoot ??= avatarRoot.AddSlot("Talking Driver");
+                                var driver = talkingRoot.AttachComponent<ValueCopy<float>>();
+                                driver.Target.ForceLink(field);
+                            }
+                        }
+                    }
+                }
+                else if (talking.TargetObjectFileId != 0)
+                {
+                    if (unityObjects.TryGetValue(unchecked((ulong)talking.TargetObjectFileId), out var obj) &&
+                        obj is UnityGameObject uGo && uGo.frooxEngineSlot != null && !uGo.frooxEngineSlot.IsDestroyed &&
+                        PreparedImportItem.Contains(avatarRoot, uGo.frooxEngineSlot))
+                    {
+                        talkingRoot ??= avatarRoot.AddSlot("Talking Driver");
+                        var driver = talkingRoot.AttachComponent<ValueCopy<bool>>();
+                        driver.Target.ForceLink(uGo.frooxEngineSlot.ActiveSelf_Field);
+                    }
+                }
+            }
+        }
+
+        // 4. Process Visemes
+        if (plan.VisemeBindings.Count > 0)
+        {
+            foreach (var viseme in plan.VisemeBindings)
+            {
+                token.ThrowIfCancellationRequested();
+                UnitySkin? skin = null;
+                if (viseme.TargetRendererFileId != 0 &&
+                    unityObjects.TryGetValue(unchecked((ulong)viseme.TargetRendererFileId), out var obj) &&
+                    obj is UnitySkin uSkin)
+                {
+                    skin = uSkin;
+                }
+                else
+                {
+                    foreach (var uObj in unityObjects.Values)
+                    {
+                        if (uObj is UnitySkin candidate && candidate.createdMeshRenderer != null &&
+                            !candidate.createdMeshRenderer.IsDestroyed &&
+                            PreparedImportItem.Contains(avatarRoot, candidate.createdMeshRenderer.Slot) &&
+                            candidate.createdMeshRenderer.BlendShapeIndex(viseme.TargetBlendShape) >= 0)
+                        {
+                            skin = candidate;
+                            break;
+                        }
+                    }
+                }
+
+                if (skin?.createdMeshRenderer != null && !skin.createdMeshRenderer.IsDestroyed)
+                {
+                    int shapeIdx = skin.createdMeshRenderer.BlendShapeIndex(viseme.TargetBlendShape);
+                    if (shapeIdx >= 0 && shapeIdx < skin.createdMeshRenderer.BlendShapeWeights.Count)
+                    {
+                        var field = skin.createdMeshRenderer.BlendShapeWeights.GetElement(shapeIdx);
+                        if (!field.IsDriven && !field.IsLinked)
+                        {
+                            var directDrivers = skin.createdMeshRenderer.Slot.GetComponents<DirectVisemeDriver>();
+                            var directDriver = directDrivers.Count > 0 ? directDrivers[0] : skin.createdMeshRenderer.Slot.AttachComponent<DirectVisemeDriver>();
+                            if (viseme.Channel >= 0 && viseme.Channel <= (int)Viseme.Laughter)
+                            {
+                                var drive = directDriver[(Viseme)viseme.Channel];
+                                if (!drive.IsLinkGranted)
+                                    drive.ForceLink(field);
+                            }
+                        }
                     }
                 }
             }

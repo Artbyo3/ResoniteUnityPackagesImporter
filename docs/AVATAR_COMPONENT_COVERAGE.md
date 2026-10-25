@@ -7,11 +7,11 @@ Partial receives one component credit only because a documented functional subse
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Base VRChat SDK types | 1 / 28 | 3.6% | 0 | 1 | 3 | 24 | 0 | 1 |
 | Modular Avatar components | 10 / 40 | 25.0% | 0 | 10 | 1 | 26 | 3 | 8 |
-| VRCFury feature models | 6 / 56 | 10.7% | 0 | 6 | 0 | 42 | 8 | 4 |
-| VRCFury action models | 4 / 19 | 21.1% | 0 | 4 | 0 | 15 | 0 | 4 |
+| VRCFury feature models | 9 / 56 | 16.1% | 0 | 9 | 0 | 39 | 8 | 7 |
+| VRCFury action models | 6 / 19 | 31.6% | 0 | 6 | 0 | 13 | 0 | 6 |
 | VRCFury wrapper components | 0 / 12 | 0.0% | 0 | 0 | 1 | 5 | 6 | 0 |
 
-VRCFury combined concrete authoring-type coverage: 10 / 87 = 11.5% (feature models + action models + wrapper components). The breakdown stays visible rather than changing denominators silently.
+VRCFury combined concrete authoring-type coverage: 15 / 87 = 17.2% (feature models + action models + wrapper components). The breakdown stays visible rather than changing denominators silently.
 
 ## Base VRChat SDK types
 
@@ -136,7 +136,7 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 56 concrete top-level
 | OGBIntegration2 | missing | no | Separate specialized adapter, no auto-activation/substitution. |  |  | Runtime/Model/Feature/OGBIntegration2.cs |
 | OverrideMenuSettings | missing | no | Native presentation where meaningful. |  |  | Runtime/Model/Feature/OverrideMenuSettings.cs |
 | Puppet | missing | no | Continuous bounded native controls. Continuous 1D/2D authored stops/defaults. Down/up/splay via native menu puppet controls. |  |  | Runtime/Model/Feature/Puppet.cs |
-| RemoveBlinking | missing | no | Reversible blink disable, not shape deletion. |  |  | Runtime/Model/Feature/RemoveBlinking.cs |
+| RemoveBlinking | partial | yes | Suppresses default descriptor eyelid blinking when custom blinking is active. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/RemoveBlinking.cs |
 | RemoveHandGestures | missing | no | Reversible gesture-layer disable, not source stripping. |  |  | Runtime/Model/Feature/RemoveHandGestures.cs |
 | RemoveHandGestures2 | missing | no | Reversible gesture-layer disable, not source stripping. |  |  | Runtime/Model/Feature/RemoveHandGestures2.cs |
 | ReorderMenuItem | missing | no | Native control order. |  |  | Runtime/Model/Feature/ReorderMenuItem.cs |
@@ -147,14 +147,14 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 56 concrete top-level
 | ShowInFirstPerson | missing | no | Local visibility, not mirror/remote deletion. |  |  | Runtime/Model/Feature/ShowInFirstPerson.cs |
 | Slot4Fix | excluded | no | Deprecated upstream no-op for old Unity issue. |  |  | Runtime/Model/Feature/Slot4Fix.cs |
 | SpsOptions | missing | no | Optional specialized interaction; settings alone not parity. |  |  | Runtime/Model/Feature/SpsOptions.cs |
-| Talking | missing | no | Voice-activity actions. |  |  | Runtime/Model/Feature/Talking.cs |
+| Talking | partial | yes | Native voice-activity actions mapped to FrooxEngine speech drivers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/Talking.cs |
 | Toes | missing | no | Down/up/splay via native menu puppet controls. |  |  | Runtime/Model/Feature/Toes.cs |
 | Toggle | partial | yes | Independent native Boolean visibility/blendshape/material and constant-animation-clip controls; mixed controllers, saved/exclusive/transitions/sliders pending. | UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs, UnityPackageImporter/Models/AvatarWardrobeRuntime.cs | Tests/VrcFuryWardrobeTests.cs | Runtime/Model/Feature/Toggle.cs |
 | TPSIntegration | missing | no | Legacy/current specialized intent; no literal Unity shader protocol. |  |  | Runtime/Model/Feature/TPSIntegration.cs |
 | TPSIntegration2 | missing | no | Legacy/current specialized intent; no literal Unity shader protocol. |  |  | Runtime/Model/Feature/TPSIntegration2.cs |
 | TpsScaleFix | missing | no | Specialized deformation/scale compensation, integration-gated. |  |  | Runtime/Model/Feature/TpsScaleFix.cs |
 | UnlimitedParameters | excluded | no | VRChat multiplexing protocol excluded; native logical state can avoid encoding. |  |  | Runtime/Model/Feature/UnlimitedParameters.cs |
-| Visemes | missing | no | Advanced viseme action states/transitions. |  |  | Runtime/Model/Feature/Visemes.cs |
+| Visemes | partial | yes | Multi-channel phoneme actions mapped to native DirectVisemeDriver. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/Visemes.cs |
 | WorldConstraint | missing | no | Drop/world-anchor, reset/pickup/cleanup/authority. |  |  | Runtime/Model/Feature/WorldConstraint.cs |
 | ZawooIntegration | missing | no | Separate specialized adapter/fixtures. |  |  | Runtime/Model/Feature/ZawooIntegration.cs |
 
@@ -166,8 +166,8 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 19 concrete Action-de
 | --- | --- | --- | --- | --- | --- | --- |
 | AnimationClipAction | partial | yes | Initial and independent native-toggle constant visibility/blendshape clips, exact GUID/fileID/path binding and authored off-state restoration; time-varying curves, transforms, materials, events and Animator execution pending. | UnityPackageImporter/Models/VrcFuryInitialAppearance.cs, UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs, UnityPackageImporter/Models/AvatarAnimationPathResolver.cs | Tests/VrcFuryInitialAppearanceTests.cs, Tests/VrcFuryWardrobeTests.cs | Runtime/Model/StateAction/AnimationClipAction.cs |
 | BlendShapeAction | partial | yes | Initial weights and independent constant runtime values/restoration; shared-property arbitration pending. | UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs | Tests/VrcFuryWardrobeTests.cs | Runtime/Model/StateAction/BlendShapeAction.cs |
-| BlockBlinkingAction | missing | no | Scoped native blink suppression/restoration. |  |  | Runtime/Model/StateAction/BlockBlinkingAction.cs |
-| BlockVisemesAction | missing | no | Scoped lip-sync suppression/restoration. |  |  | Runtime/Model/StateAction/BlockVisemesAction.cs |
+| BlockBlinkingAction | partial | yes | Recognized in feature states to suppress native eyelid blinking. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/StateAction/BlockBlinkingAction.cs |
+| BlockVisemesAction | partial | yes | Recognized in feature states to suppress native lip-sync visemes. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/StateAction/BlockVisemesAction.cs |
 | ChangeSpsTagAction | missing | no | Optional specialized tags, permission/namespacing. |  |  | Runtime/Model/StateAction/ChangeSpsTagAction.cs |
 | DisableGesturesAction | missing | no | Scoped gesture suppression/restoration. |  |  | Runtime/Model/StateAction/DisableGesturesAction.cs |
 | FlipbookAction | missing | no | Specific Poiyomi material frame selection; compatible native flipbook/material adapter required, not generic animation playback. |  |  | Runtime/Model/StateAction/FlipbookAction.cs |

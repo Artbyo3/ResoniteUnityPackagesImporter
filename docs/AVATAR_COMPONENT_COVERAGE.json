@@ -1051,12 +1051,17 @@
         },
         {
           "name": "RemoveBlinking",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/RemoveBlinking.cs",
-          "reason": "Reversible blink disable, not shape deletion.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Suppresses default descriptor eyelid blinking when custom blinking is active.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "RemoveHandGestures",
@@ -1150,12 +1155,17 @@
         },
         {
           "name": "Talking",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/Talking.cs",
-          "reason": "Voice-activity actions.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Native voice-activity actions mapped to FrooxEngine speech drivers.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "Toes",
@@ -1218,12 +1228,17 @@
         },
         {
           "name": "Visemes",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/Visemes.cs",
-          "reason": "Advanced viseme action states/transitions.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Multi-channel phoneme actions mapped to native DirectVisemeDriver.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "WorldConstraint",
@@ -1282,21 +1297,29 @@
         },
         {
           "name": "BlockBlinkingAction",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/StateAction/BlockBlinkingAction.cs",
-          "reason": "Scoped native blink suppression/restoration.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Recognized in feature states to suppress native eyelid blinking.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "BlockVisemesAction",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/StateAction/BlockVisemesAction.cs",
-          "reason": "Scoped lip-sync suppression/restoration.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Recognized in feature states to suppress native lip-sync visemes.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "ChangeSpsTagAction",
