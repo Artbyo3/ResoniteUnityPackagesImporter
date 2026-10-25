@@ -1119,9 +1119,9 @@
       "framework": "vrcfury",
       "name": "Remove Blinking",
       "type": "RemoveBlinking",
-      "status": "not-applicable",
-      "outcome": "Remove generated blinking behavior. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "The importer parses RemoveBlinking to suppress default descriptor eyelid blinking when custom blinking is active.",
+      "reason": "Suppresses descriptor eyelid blinking to avoid conflicts with custom eye systems.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -1130,8 +1130,11 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/RemoveBlinking.cs"
       },
-      "evidence": [],
-      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+      ],
+      "summary": "Suppresses descriptor eyelid blinking in favor of custom avatar eye drivers."
     },
     {
       "id": "vrcfury-reordermenuitem",
@@ -1347,9 +1350,9 @@
       "framework": "vrcfury",
       "name": "Talking",
       "type": "Talking",
-      "status": "missing",
-      "outcome": "Drive actions while speaking. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "The importer parses talking blendshapes and object toggles, driving them when voice activity is detected.",
+      "reason": "Maps voice-activity actions to native FrooxEngine speech drivers. Complex controller blends fail closed.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -1358,8 +1361,11 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Talking.cs"
       },
-      "evidence": [],
-      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+      ],
+      "summary": "Voice-activity blendshapes and object toggles driven via native FrooxEngine speech drivers."
     },
     {
       "id": "vrcfury-toes",
@@ -1423,9 +1429,9 @@
       "framework": "vrcfury",
       "name": "Visemes",
       "type": "Visemes",
-      "status": "missing",
-      "outcome": "Configure speech shapes. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "The importer parses multi-channel phonemes into native viseme channels connected to DirectVisemeDriver.",
+      "reason": "Maps 14 phoneme channel actions directly into native FrooxEngine DirectVisemeDriver. Complex transitions fail closed.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -1434,8 +1440,11 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Visemes.cs"
       },
-      "evidence": [],
-      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+      ],
+      "summary": "Multi-channel phoneme blendshapes mapped directly to FrooxEngine DirectVisemeDriver."
     },
     {
       "id": "vrcfury-worldconstraint",
