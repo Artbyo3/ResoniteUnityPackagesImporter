@@ -279,6 +279,37 @@ public static partial class VrcFuryInitialAppearance
                     Add(new(InitialAppearanceEffect.Material, rendererId, slot, Material: new(baseline.FileId, baseline.Guid!.ToLowerInvariant())),
                         new(InitialAppearanceEffect.Material, rendererId, slot, Material: material));
                 }
+                else if (action.Class == "MaterialPropertyAction")
+                {
+                    string prop = Text(action.Data, "propertyName");
+                    if (string.IsNullOrWhiteSpace(prop))
+                    {
+                        Report("PROPERTY", "MaterialPropertyAction requires a propertyName.", feature.Source);
+                        continue;
+                    }
+                    bool affectAll = Boolean(action.Data, "affectAllMeshes", false, feature.Source, Report);
+                    long targetObj = 0;
+                    if (Get(action.Data, "renderer2") is YamlMappingNode r2) targetObj = ReferenceNode(r2);
+                    else if (Get(action.Data, "renderer") is YamlMappingNode r1) targetObj = ReferenceNode(r1);
+
+                    var targets = context.Renderers.Where(item => Within(item.Value.GameObjectId) &&
+                        (affectAll || item.Key == targetObj || item.Value.GameObjectId == targetObj)).ToArray();
+                    if (targets.Length == 0)
+                    {
+                        Report("TARGET", "MaterialPropertyAction target renderer was not found.", feature.Source);
+                        continue;
+                    }
+                    float val = 1f;
+                    if (Get(action.Data, "value") != null && float.TryParse(Text(action.Data, "value"), NumberStyles.Float, CultureInfo.InvariantCulture, out float fVal))
+                    {
+                        val = fVal;
+                    }
+                    foreach (var target in targets)
+                    {
+                        Add(new(InitialAppearanceEffect.Shape, target.Key, prop, Weight: 0f),
+                            new(InitialAppearanceEffect.Shape, target.Key, prop, Weight: val));
+                    }
+                }
                 else if (action.Class == "AnimationClipAction")
                 {
                     if (Integer(action.Data, "version", 0, feature.Source, Report) != 0)

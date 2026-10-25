@@ -434,6 +434,15 @@ internal static class VrcFuryWardrobeTests
             }
             finally { CultureInfo.CurrentCulture = original; }
         });
+
+        test("Wardrobe compiles MaterialPropertyAction to property bindings", () =>
+        {
+            var plan = Compile(Toggle(0, "Tint", "propertyName: _Color, affectAllMeshes: 1, value: 0.8", actionType: "MaterialPropertyAction"));
+            check(plan.CanBuild && plan.Controls.Count == 1, Describe(plan));
+            var control = plan.Controls.Single();
+            check(control.Bindings.Count == 2, $"Expected 2 bindings, got {control.Bindings.Count}");
+            check(control.Bindings.All(b => b.On.Property == "_Color" && b.On.Weight == 0.8f && b.Off.Weight == 0f), "Wrong MaterialPropertyAction binding values");
+        });
     }
 
     private static string ObjectAction(long target, int mode = 0) => "version: 1, obj: {fileID: " + target + "}, mode: " + mode;

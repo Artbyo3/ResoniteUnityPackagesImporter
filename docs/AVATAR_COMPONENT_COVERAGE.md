@@ -7,11 +7,11 @@ Partial receives one component credit only because a documented functional subse
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Base VRChat SDK types | 7 / 28 | 25.0% | 0 | 7 | 3 | 18 | 0 | 7 |
 | Modular Avatar components | 15 / 40 | 37.5% | 0 | 15 | 1 | 21 | 3 | 13 |
-| VRCFury feature models | 14 / 56 | 25.0% | 0 | 14 | 0 | 34 | 8 | 12 |
-| VRCFury action models | 6 / 19 | 31.6% | 0 | 6 | 0 | 13 | 0 | 6 |
+| VRCFury feature models | 17 / 56 | 30.4% | 0 | 17 | 0 | 31 | 8 | 15 |
+| VRCFury action models | 7 / 19 | 36.8% | 0 | 7 | 0 | 12 | 0 | 7 |
 | VRCFury wrapper components | 0 / 12 | 0.0% | 0 | 0 | 1 | 5 | 6 | 0 |
 
-VRCFury combined concrete authoring-type coverage: 20 / 87 = 23.0% (feature models + action models + wrapper components). The breakdown stays visible rather than changing denominators silently.
+VRCFury combined concrete authoring-type coverage: 24 / 87 = 27.6% (feature models + action models + wrapper components). The breakdown stays visible rather than changing denominators silently.
 
 ## Base VRChat SDK types
 
@@ -111,7 +111,7 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 56 concrete top-level
 | BlendShapeLink | partial | yes | Initial exact mapped blendshape weights and continuous ValueCopy<float> synchronization for unique destination blendshapes; multi-source blendshape blending pending. | UnityPackageImporter/Models/BlendshapeInitialAppearance.cs, UnityPackageImporter/Models/BlendshapeInitialAppearanceAdapter.cs | Tests/BlendshapeInitialAppearanceTests.cs | Runtime/Model/Feature/BlendShapeLink.cs |
 | BlendshapeOptimizer | missing | no | Pending equivalent built appearance and animation bindings; preserve editable source and skip optimization only when behavior equivalence is proven. |  |  | Runtime/Model/Feature/BlendshapeOptimizer.cs |
 | Blinking | partial | yes | Native blink cycle blendshape actions mapped to avatar eyelid drivers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/Blinking.cs |
-| BoneConstraint | missing | no | Authored humanoid-bone constraint/attachment. |  |  | Runtime/Model/Feature/BoneConstraint.cs |
+| BoneConstraint | partial | yes | Compiles humanoid bone constraint to native FrooxEngine CopyGlobalTransform pointing to biped rig target bone slot. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/BoneConstraint.cs |
 | BoundingBoxFix | partial | yes | Legacy bounding box fix compiles explicit bounds and static compute mode across descendant renderers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/BoundingBoxFix.cs |
 | BoundingBoxFix2 | partial | yes | Current bounding box fix compiles explicit bounds and static compute mode across descendant renderers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/BoundingBoxFix2.cs |
 | Breathing | partial | yes | Cyclic motion and chest expansion mapped to native Wiggler drivers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/Breathing.cs |
@@ -125,7 +125,7 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 56 concrete top-level
 | FullController | missing | no | Shared controller/menu/parameter merge, path/conflict rules. |  |  | Runtime/Model/Feature/FullController.cs |
 | GestureDriver | missing | no | Native hand triggers/weights/composition. |  |  | Runtime/Model/Feature/GestureDriver.cs |
 | Gizmo | excluded | no | Editor marker only. |  |  | Runtime/Model/Feature/Gizmo.cs |
-| HeadChopHead | missing | no | Native head-chop retarget. |  |  | Runtime/Model/Feature/HeadChopHead.cs |
+| HeadChopHead | partial | yes | Compiles head accessories and bones into first-person visibility tagging for local view. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/HeadChopHead.cs |
 | MakeWriteDefaultsOff | missing | no | Normalize while preserving effective behavior. |  |  | Runtime/Model/Feature/MakeWriteDefaultsOff.cs |
 | MakeWriteDefaultsOff2 | missing | no | Normalize while preserving effective behavior. |  |  | Runtime/Model/Feature/MakeWriteDefaultsOff2.cs |
 | MmdCompatibility | excluded | no | VRChat MMD conventions excluded; preserve usable assets. |  |  | Runtime/Model/Feature/MmdCompatibility.cs |
@@ -155,7 +155,7 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 56 concrete top-level
 | TpsScaleFix | missing | no | Specialized deformation/scale compensation, integration-gated. |  |  | Runtime/Model/Feature/TpsScaleFix.cs |
 | UnlimitedParameters | excluded | no | VRChat multiplexing protocol excluded; native logical state can avoid encoding. |  |  | Runtime/Model/Feature/UnlimitedParameters.cs |
 | Visemes | partial | yes | Multi-channel phoneme actions mapped to native DirectVisemeDriver. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/Visemes.cs |
-| WorldConstraint | missing | no | Drop/world-anchor, reset/pickup/cleanup/authority. |  |  | Runtime/Model/Feature/WorldConstraint.cs |
+| WorldConstraint | partial | yes | Compiles world constraint to native FrooxEngine CopyGlobalTransform targeting avatar root to pin object. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/WorldConstraint.cs |
 | ZawooIntegration | missing | no | Separate specialized adapter/fixtures. |  |  | Runtime/Model/Feature/ZawooIntegration.cs |
 
 ## VRCFury action models
@@ -174,7 +174,7 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 19 concrete Action-de
 | FlipBookBuilderAction | missing | no | Nested pages and versioned states-to-pages normalization. |  |  | Runtime/Model/StateAction/FlipBookBuilderAction.cs |
 | FxFloatAction | missing | no | Shared parameter writes/defaults/scope. |  |  | Runtime/Model/StateAction/FxFloatAction.cs |
 | MaterialAction | partial | yes | Initial material-slot replacement and independent Boolean-toggle runtime material switching with baseline restoration; shared-slot arbitration pending. | UnityPackageImporter/Models/VrcFuryInitialAppearance.cs, UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs, UnityPackageImporter/Models/AvatarWardrobeRuntime.cs | Tests/VrcFuryInitialAppearanceTests.cs, Tests/VrcFuryWardrobeTests.cs | Runtime/Model/StateAction/MaterialAction.cs |
-| MaterialPropertyAction | missing | no | Mapped native properties, instance ownership/restoration. |  |  | Runtime/Model/StateAction/MaterialPropertyAction.cs |
+| MaterialPropertyAction | partial | yes | Compiles property modifications across renderers into independent wardrobe toggle bindings with baseline restoration. | UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs, UnityPackageImporter/Models/AvatarWardrobeRuntime.cs | Tests/VrcFuryWardrobeTests.cs | Runtime/Model/StateAction/MaterialPropertyAction.cs |
 | ObjectToggleAction | partial | yes | Initial active state subset; independent runtime explicit on/off modes with inverse off state; legacy invert mode pending. | UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs | Tests/VrcFuryWardrobeTests.cs | Runtime/Model/StateAction/ObjectToggleAction.cs |
 | PoiyomiUVTileAction | missing | no | UV-tile visibility needs compatible native rendering design; property names alone not support. |  |  | Runtime/Model/StateAction/PoiyomiUVTileAction.cs |
 | ResetPhysboneAction | missing | no | Native chain reset, not guessed object toggling. |  |  | Runtime/Model/StateAction/ResetPhysboneAction.cs |

@@ -28,7 +28,7 @@ public static class AvatarBehaviorRuntime
         if (!plan.CanBuild || (plan.BreathingBindings.Count == 0 && plan.BlinkingBindings.Count == 0 &&
             plan.TalkingBindings.Count == 0 && plan.VisemeBindings.Count == 0 && !plan.BlinkSuppressed &&
             plan.MeshSettingsBindings.Count == 0 && plan.VisibleInFirstPersonObjectIds.Count == 0 &&
-            !plan.FloorAdjustmentY.HasValue))
+            !plan.FloorAdjustmentY.HasValue && plan.BoneConstraintBindings.Count == 0 && plan.WorldConstraintBindings.Count == 0))
             return;
 
         await default(ToWorld);
@@ -315,6 +315,43 @@ public static class AvatarBehaviorRuntime
                 if (hips != null)
                 {
                     hips.LocalPosition += new float3(0f, plan.FloorAdjustmentY.Value, 0f);
+                }
+            }
+        }
+        // 8. Process BoneConstraint
+        if (plan.BoneConstraintBindings.Count > 0)
+        {
+            var bipedRig = avatarRoot.GetComponentInChildren<BipedRig>();
+            foreach (var bc in plan.BoneConstraintBindings)
+            {
+                token.ThrowIfCancellationRequested();
+                if (unityObjects.TryGetValue(unchecked((ulong)bc.TargetObjectFileId), out var obj) &&
+                    obj is UnityGameObject uGo && uGo.frooxEngineSlot != null && !uGo.frooxEngineSlot.IsDestroyed &&
+                    PreparedImportItem.Contains(avatarRoot, uGo.frooxEngineSlot))
+                {
+                    var bodyNode = (BodyNode)bc.HumanoidBone;
+                    var targetBoneSlot = bipedRig?.TryGetBone(bodyNode);
+                    if (targetBoneSlot != null && !targetBoneSlot.IsDestroyed && targetBoneSlot != uGo.frooxEngineSlot)
+                    {
+                        var copy = uGo.frooxEngineSlot.AttachComponent<CopyGlobalTransform>();
+                        copy.Source.Target = targetBoneSlot;
+                    }
+                }
+            }
+        }
+
+        // 9. Process WorldConstraint
+        if (plan.WorldConstraintBindings.Count > 0)
+        {
+            foreach (var wc in plan.WorldConstraintBindings)
+            {
+                token.ThrowIfCancellationRequested();
+                if (unityObjects.TryGetValue(unchecked((ulong)wc.TargetObjectFileId), out var obj) &&
+                    obj is UnityGameObject uGo && uGo.frooxEngineSlot != null && !uGo.frooxEngineSlot.IsDestroyed &&
+                    PreparedImportItem.Contains(avatarRoot, uGo.frooxEngineSlot))
+                {
+                    var copy = uGo.frooxEngineSlot.AttachComponent<CopyGlobalTransform>();
+                    copy.Source.Target = avatarRoot;
                 }
             }
         }

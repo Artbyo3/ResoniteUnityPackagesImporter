@@ -54,6 +54,17 @@ internal sealed record AvatarMeshSettingsBinding(
     bool SetProbeAnchor
 );
 
+internal sealed record AvatarBoneConstraintBinding(
+    long FeatureSourceId,
+    long TargetObjectFileId,
+    int HumanoidBone
+);
+
+internal sealed record AvatarWorldConstraintBinding(
+    long FeatureSourceId,
+    long TargetObjectFileId
+);
+
 internal sealed record AvatarBehaviorPlan
 {
     public IReadOnlyList<AvatarBreathingBinding> BreathingBindings { get; init; } = Array.Empty<AvatarBreathingBinding>();
@@ -61,6 +72,8 @@ internal sealed record AvatarBehaviorPlan
     public IReadOnlyList<AvatarTalkingBinding> TalkingBindings { get; init; } = Array.Empty<AvatarTalkingBinding>();
     public IReadOnlyList<AvatarFuryVisemeBinding> VisemeBindings { get; init; } = Array.Empty<AvatarFuryVisemeBinding>();
     public IReadOnlyList<AvatarMeshSettingsBinding> MeshSettingsBindings { get; init; } = Array.Empty<AvatarMeshSettingsBinding>();
+    public IReadOnlyList<AvatarBoneConstraintBinding> BoneConstraintBindings { get; init; } = Array.Empty<AvatarBoneConstraintBinding>();
+    public IReadOnlyList<AvatarWorldConstraintBinding> WorldConstraintBindings { get; init; } = Array.Empty<AvatarWorldConstraintBinding>();
     public IReadOnlyList<long> VisibleInFirstPersonObjectIds { get; init; } = Array.Empty<long>();
     public float? FloorAdjustmentY { get; init; }
     public long FloorAdjusterSourceId { get; init; }

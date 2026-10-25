@@ -597,5 +597,116 @@ MonoBehaviour:
             check(setting.SetBounds, "Expected SetBounds to be true.");
             check(Math.Abs(setting.BoundsCenter.Y - 0.5f) < 0.001f, $"Expected BoundsCenter.Y 0.5, got {setting.BoundsCenter.Y}.");
         });
+
+        test("VRCFury BoneConstraint compiles humanoid bone constraint binding", () =>
+        {
+            string yaml = @"--- !u!1 &1
+GameObject:
+  m_Name: AvatarRoot
+--- !u!4 &2
+Transform:
+  m_GameObject: {fileID: 1}
+  m_Father: {fileID: 0}
+--- !u!1 &13
+GameObject:
+  m_Name: Sword
+--- !u!4 &23
+Transform:
+  m_GameObject: {fileID: 13}
+  m_Father: {fileID: 2}
+--- !u!114 &90
+MonoBehaviour:
+  m_GameObject: {fileID: 1}
+  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VrcFuryArmatureLinkScriptGuid + @"}
+" +
+@"  content: {rid: 1000}
+  references:
+    version: 2
+    RefIds:
+      - rid: 1000
+        type: {class: BoneConstraint, ns: VF.Model.Feature, asm: VRCFury}
+        data:
+          obj: {fileID: 13}
+          bone: 18
+";
+            var plan = AvatarBehaviorPlanner.Compile(yaml, 1);
+            check(plan.CanBuild, "BoneConstraint plan failed to build.");
+            check(plan.BoneConstraintBindings.Count == 1, $"Expected 1 bone constraint binding, got {plan.BoneConstraintBindings.Count}.");
+            var bc = plan.BoneConstraintBindings[0];
+            check(bc.TargetObjectFileId == 13, $"Expected target object 13, got {bc.TargetObjectFileId}.");
+            check(bc.HumanoidBone == 18, $"Expected bone 18 (RightHand), got {bc.HumanoidBone}.");
+        });
+
+        test("VRCFury WorldConstraint compiles world constraint binding", () =>
+        {
+            string yaml = @"--- !u!1 &1
+GameObject:
+  m_Name: AvatarRoot
+--- !u!4 &2
+Transform:
+  m_GameObject: {fileID: 1}
+  m_Father: {fileID: 0}
+--- !u!1 &14
+GameObject:
+  m_Name: CameraProp
+--- !u!4 &24
+Transform:
+  m_GameObject: {fileID: 14}
+  m_Father: {fileID: 2}
+--- !u!114 &91
+MonoBehaviour:
+  m_GameObject: {fileID: 1}
+  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VrcFuryArmatureLinkScriptGuid + @"}
+" +
+@"  content: {rid: 1001}
+  references:
+    version: 2
+    RefIds:
+      - rid: 1001
+        type: {class: WorldConstraint, ns: VF.Model.Feature, asm: VRCFury}
+        data:
+          obj: {fileID: 14}
+";
+            var plan = AvatarBehaviorPlanner.Compile(yaml, 1);
+            check(plan.CanBuild, "WorldConstraint plan failed to build.");
+            check(plan.WorldConstraintBindings.Count == 1, $"Expected 1 world constraint binding, got {plan.WorldConstraintBindings.Count}.");
+            var wc = plan.WorldConstraintBindings[0];
+            check(wc.TargetObjectFileId == 14, $"Expected target object 14, got {wc.TargetObjectFileId}.");
+        });
+
+        test("VRCFury HeadChopHead compiles head target into visible first-person IDs", () =>
+        {
+            string yaml = @"--- !u!1 &1
+GameObject:
+  m_Name: AvatarRoot
+--- !u!4 &2
+Transform:
+  m_GameObject: {fileID: 1}
+  m_Father: {fileID: 0}
+--- !u!1 &15
+GameObject:
+  m_Name: HeadAccessory
+--- !u!4 &25
+Transform:
+  m_GameObject: {fileID: 15}
+  m_Father: {fileID: 2}
+--- !u!114 &92
+MonoBehaviour:
+  m_GameObject: {fileID: 1}
+  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VrcFuryArmatureLinkScriptGuid + @"}
+" +
+@"  content: {rid: 1002}
+  references:
+    version: 2
+    RefIds:
+      - rid: 1002
+        type: {class: HeadChopHead, ns: VF.Model.Feature, asm: VRCFury}
+        data:
+          target: {fileID: 15}
+";
+            var plan = AvatarBehaviorPlanner.Compile(yaml, 1);
+            check(plan.CanBuild, "HeadChopHead plan failed to build.");
+            check(plan.VisibleInFirstPersonObjectIds.Contains(15), "Expected HeadAccessory (15) in VisibleInFirstPersonObjectIds.");
+        });
     }
 }

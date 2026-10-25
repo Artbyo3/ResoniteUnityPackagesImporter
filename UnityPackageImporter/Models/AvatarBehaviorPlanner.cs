@@ -131,6 +131,8 @@ internal static class AvatarBehaviorPlanner
         var visemeBindings = new List<AvatarFuryVisemeBinding>();
         var meshSettingsBindings = new List<AvatarMeshSettingsBinding>();
         var visibleInFirstPersonObjectIds = new List<long>();
+        var boneConstraintBindings = new List<AvatarBoneConstraintBinding>();
+        var worldConstraintBindings = new List<AvatarWorldConstraintBinding>();
         float? floorAdjustmentY = null;
         long floorAdjusterSourceId = 0;
         bool blinkSuppressed = false;
@@ -205,6 +207,18 @@ internal static class AvatarBehaviorPlanner
                 {
                     CompileBoundingBoxFix(mbFileId, dataNode, ownerGo, gameObjectToTransform, transformParents, skinnedMeshRenderers, meshSettingsBindings);
                 }
+                else if (className == "BoneConstraint")
+                {
+                    CompileBoneConstraint(mbFileId, dataNode, ownerGo, IsOwnedGameObject, boneConstraintBindings, Report);
+                }
+                else if (className == "WorldConstraint")
+                {
+                    CompileWorldConstraint(mbFileId, dataNode, ownerGo, IsOwnedGameObject, worldConstraintBindings, Report);
+                }
+                else if (className == "HeadChopHead")
+                {
+                    CompileHeadChopHead(mbFileId, dataNode, ownerGo, IsOwnedGameObject, visibleInFirstPersonObjectIds);
+                }
             }
 
             if (guid.Equals(AvatarPackageIndex.VrcFuryShowInFirstPersonScriptGuid, StringComparison.OrdinalIgnoreCase))
@@ -246,6 +260,8 @@ internal static class AvatarBehaviorPlanner
             VisemeBindings = visemeBindings.AsReadOnly(),
             MeshSettingsBindings = meshSettingsBindings.AsReadOnly(),
             VisibleInFirstPersonObjectIds = visibleInFirstPersonObjectIds.AsReadOnly(),
+            BoneConstraintBindings = boneConstraintBindings.AsReadOnly(),
+            WorldConstraintBindings = worldConstraintBindings.AsReadOnly(),
             FloorAdjustmentY = floorAdjustmentY,
             FloorAdjusterSourceId = floorAdjusterSourceId,
             BlinkSuppressed = blinkSuppressed,
@@ -796,6 +812,63 @@ internal static class AvatarBehaviorPlanner
                     SetProbeAnchor: false
                 ));
             }
+        }
+    }
+
+    private static void CompileBoneConstraint(
+        long sourceId,
+        YamlMappingNode data,
+        long ownerGo,
+        Func<long, bool> isOwnedGo,
+        List<AvatarBoneConstraintBinding> bindings,
+        Action<string, string, long, InitialAppearanceSeverity> report)
+    {
+        long objRef = ParseFileId(Get(data, "obj"));
+        if (objRef == 0) objRef = ownerGo;
+        if (!isOwnedGo(objRef))
+        {
+            report("BONE_CONSTRAINT_TARGET", "BoneConstraint target object is outside avatar root.", sourceId, InitialAppearanceSeverity.Warning);
+            return;
+        }
+        int bone = 0;
+        if (Get(data, "bone") is YamlScalarNode boneScalar &&
+            int.TryParse(boneScalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedBone))
+        {
+            bone = parsedBone;
+        }
+        bindings.Add(new AvatarBoneConstraintBinding(sourceId, objRef, bone));
+    }
+
+    private static void CompileWorldConstraint(
+        long sourceId,
+        YamlMappingNode data,
+        long ownerGo,
+        Func<long, bool> isOwnedGo,
+        List<AvatarWorldConstraintBinding> bindings,
+        Action<string, string, long, InitialAppearanceSeverity> report)
+    {
+        long objRef = ParseFileId(Get(data, "obj"));
+        if (objRef == 0) objRef = ownerGo;
+        if (!isOwnedGo(objRef))
+        {
+            report("WORLD_CONSTRAINT_TARGET", "WorldConstraint target object is outside avatar root.", sourceId, InitialAppearanceSeverity.Warning);
+            return;
+        }
+        bindings.Add(new AvatarWorldConstraintBinding(sourceId, objRef));
+    }
+
+    private static void CompileHeadChopHead(
+        long sourceId,
+        YamlMappingNode data,
+        long ownerGo,
+        Func<long, bool> isOwnedGo,
+        List<long> visibleInFirstPersonObjectIds)
+    {
+        long target = ParseFileId(Get(data, "target"));
+        if (target == 0) target = ownerGo;
+        if (isOwnedGo(target) && !visibleInFirstPersonObjectIds.Contains(target))
+        {
+            visibleInFirstPersonObjectIds.Add(target);
         }
     }
 }

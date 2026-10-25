@@ -887,12 +887,17 @@
         },
         {
           "name": "BoneConstraint",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/BoneConstraint.cs",
-          "reason": "Authored humanoid-bone constraint/attachment.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Compiles humanoid bone constraint to native FrooxEngine CopyGlobalTransform pointing to biped rig target bone slot.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "BoundingBoxFix",
@@ -1028,12 +1033,17 @@
         },
         {
           "name": "HeadChopHead",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/HeadChopHead.cs",
-          "reason": "Native head-chop retarget.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Compiles head accessories and bones into first-person visibility tagging for local view.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "MakeWriteDefaultsOff",
@@ -1323,12 +1333,17 @@
         },
         {
           "name": "WorldConstraint",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/WorldConstraint.cs",
-          "reason": "Drop/world-anchor, reset/pickup/cleanup/authority.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Compiles world constraint to native FrooxEngine CopyGlobalTransform targeting avatar root to pin object.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "ZawooIntegration",
@@ -1465,12 +1480,17 @@
         },
         {
           "name": "MaterialPropertyAction",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/StateAction/MaterialPropertyAction.cs",
-          "reason": "Mapped native properties, instance ownership/restoration.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Compiles property modifications across renderers into independent wardrobe toggle bindings with baseline restoration.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs",
+            "UnityPackageImporter/Models/AvatarWardrobeRuntime.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryWardrobeTests.cs"
+          ]
         },
         {
           "name": "ObjectToggleAction",

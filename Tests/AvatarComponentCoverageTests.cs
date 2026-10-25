@@ -29,7 +29,7 @@ internal static class AvatarComponentCoverageTests
         test("Component coverage pins concrete counts not grouped markdown rows", () =>
         {
             var catalog = Catalog();
-            var expected = new Dictionary<string, (int Total, int Implemented)> { ["vrc-sdk"] = (28, 7), ["ma"] = (40, 15), ["vrcf-features"] = (56, 14), ["vrcf-actions"] = (19, 6), ["vrcf-wrappers"] = (12, 0) };
+            var expected = new Dictionary<string, (int Total, int Implemented)> { ["vrc-sdk"] = (28, 7), ["ma"] = (40, 15), ["vrcf-features"] = (56, 17), ["vrcf-actions"] = (19, 7), ["vrcf-wrappers"] = (12, 0) };
             check(catalog.Groups.Count == expected.Count, "Catalog groups changed; review the denominator policy.");
             foreach (var group in catalog.Groups)
                 check(expected.TryGetValue(group.Id, out var count) && group.Entries.Count == count.Total && group.Implemented == count.Implemented,
@@ -61,10 +61,10 @@ internal static class AvatarComponentCoverageTests
         test("Component coverage reproducible markdown reports separate denominators", () =>
         {
             string report = Catalog().RenderMarkdown();
-            check(report.Contains("15 / 40 | 37.5%", StringComparison.Ordinal) && report.Contains("14 / 56 | 25.0%", StringComparison.Ordinal) &&
-                report.Contains("6 / 19 | 31.6%", StringComparison.Ordinal) && report.Contains("7 / 28 | 25.0%", StringComparison.Ordinal), "Coverage scores were not rendered transparently.");
+            check(report.Contains("15 / 40 | 37.5%", StringComparison.Ordinal) && report.Contains("17 / 56 | 30.4%", StringComparison.Ordinal) &&
+                report.Contains("7 / 19 | 36.8%", StringComparison.Ordinal) && report.Contains("7 / 28 | 25.0%", StringComparison.Ordinal), "Coverage scores were not rendered transparently.");
             check(report.Contains("Indexed only", StringComparison.Ordinal) && report.Contains("not live-test certification", StringComparison.Ordinal) &&
-                report.Contains("20 / 87 = 23.0%", StringComparison.Ordinal), "Coverage must disclose its numerator and combined VRCFury count.");
+                report.Contains("24 / 87 = 27.6%", StringComparison.Ordinal), "Coverage must disclose its numerator and combined VRCFury count.");
         });
         test("Component coverage checked-in report matches catalog", () =>
         {
