@@ -73,7 +73,7 @@ internal sealed class PreparedImportItem
         if (!includeAuthoredSkeleton || CurrentStructureRootSlot.GetComponentsInChildren<BipedRig>().Any(rig => rig.IsBiped)) return;
 
         // Directly authored skeletons have no FBX PrefabInstance. Resolve their
-        // humanoid metadata through the skinned meshes, inside this item's scope.
+        // humanoid metadata through the skinned meshes, inside this item's scope.\
         var sources = existingIUnityObjects.Values.OfType<UnitySkin>()
             .Where(skin => skin.createdMeshRenderer != null &&
                 Contains(CurrentStructureRootSlot, skin.createdMeshRenderer.Slot))
@@ -189,7 +189,7 @@ internal sealed class PreparedImportItem
                     await AvatarWardrobeRuntime.BuildAsync(composedWardrobe, root, existingIUnityObjects, Project, token);
                     ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Info,
                         "Created " + composedWardrobe.Controls.Count + " exact native wardrobe toggles across unified framework composition. Native per-copy state is not VRChat saved-parameter restoration or re-wear reset parity.",
-                        avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "WARDROBE_COMPOSED_BUILT");
+                        avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "WARDROBE_COMPOSED_BUILT\");
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -278,6 +278,36 @@ internal sealed class PreparedImportItem
                         "Optional constraint setup failed; no runtime parity is claimed. " + ex.Message,
                         avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "CONSTRAINT_FAILED");
                     UnityPackageImporter.Warn("Failed to build constraints: " + ex);
+                }
+
+                try
+                {
+                    await default(ToBackground);
+                    var behaviorPlan = AvatarBehaviorPlanner.Compile(prefab.ComposedYaml, avatar.GameObjectFileId, token: token);
+                    await default(ToWorld);
+                    token.ThrowIfCancellationRequested();
+                    foreach (var diagnostic in behaviorPlan.Diagnostics)
+                    {
+                        ConversionPlan.AddDiagnostic(diagnostic.Severity == InitialAppearanceSeverity.Info
+                            ? AvatarOperationSeverity.Info : AvatarOperationSeverity.Warning, diagnostic.Message,
+                            diagnostic.SourceId.ToString(System.Globalization.CultureInfo.InvariantCulture), diagnostic.Code);
+                    }
+                    if (behaviorPlan.CanBuild && (behaviorPlan.BreathingBindings.Count > 0 || behaviorPlan.BlinkingBindings.Count > 0))
+                    {
+                        await AvatarBehaviorRuntime.BuildAsync(behaviorPlan, root, existingIUnityObjects, token);
+                        ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Info,
+                            $"Created {behaviorPlan.BreathingBindings.Count} breathing drivers and {behaviorPlan.BlinkingBindings.Count} blinking links.",
+                            avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "BEHAVIOR_BUILT");
+                    }
+                }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    await default(ToWorld);
+                    OptionalControlsFailed = true;
+                    ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Warning,
+                        "Optional avatar behavior setup failed; no runtime parity is claimed. " + ex.Message,
+                        avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "BEHAVIOR_FAILED");
+                    UnityPackageImporter.Warn("Failed to build avatar behaviors: " + ex);
                 }
             }
         }

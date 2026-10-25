@@ -806,9 +806,9 @@
       "framework": "vrcfury",
       "name": "Blinking",
       "type": "Blinking",
-      "status": "missing",
-      "outcome": "Generate blinking behavior. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "The importer parses blink blendshapes and curves from VRCFury Blinking and connects them to native avatar eye/eyelid drivers.",
+      "reason": "Translates blink blendshape actions and curves into native eyelid blink drivers. Multi-layer animator state machine overrides fail closed.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -817,8 +817,11 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Blinking.cs"
       },
-      "evidence": [],
-      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+      ],
+      "summary": "Blink cycle blendshapes and animation curves mapped to native eyelid drivers."
     },
     {
       "id": "vrcfury-boneconstraint",
@@ -863,9 +866,9 @@
       "framework": "vrcfury",
       "name": "Breathing",
       "type": "Breathing",
-      "status": "missing",
-      "outcome": "Generate breathing motion. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "The importer parses breathing blendshapes and bone scales, attaching native Wiggler drivers for natural sinusoidal breathing motion.",
+      "reason": "Translates blendshape or bone-scale breathing oscillation to native FrooxEngine Wiggler drivers. Custom multi-layer blend trees fail closed.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -874,8 +877,11 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Breathing.cs"
       },
-      "evidence": [],
-      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+      ],
+      "summary": "Chest blendshape or bone-scale breathing oscillation driven via native FrooxEngine Wiggler."
     },
     {
       "id": "vrcfury-constraintretarget",

@@ -7,11 +7,11 @@ Partial receives one component credit only because a documented functional subse
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Base VRChat SDK types | 1 / 28 | 3.6% | 0 | 1 | 3 | 24 | 0 | 1 |
 | Modular Avatar components | 10 / 40 | 25.0% | 0 | 10 | 1 | 26 | 3 | 8 |
-| VRCFury feature models | 4 / 56 | 7.1% | 0 | 4 | 0 | 44 | 8 | 2 |
+| VRCFury feature models | 6 / 56 | 10.7% | 0 | 6 | 0 | 42 | 8 | 4 |
 | VRCFury action models | 4 / 19 | 21.1% | 0 | 4 | 0 | 15 | 0 | 4 |
 | VRCFury wrapper components | 0 / 12 | 0.0% | 0 | 0 | 1 | 5 | 6 | 0 |
 
-VRCFury combined concrete authoring-type coverage: 8 / 87 = 9.2% (feature models + action models + wrapper components). The breakdown stays visible rather than changing denominators silently.
+VRCFury combined concrete authoring-type coverage: 10 / 87 = 11.5% (feature models + action models + wrapper components). The breakdown stays visible rather than changing denominators silently.
 
 ## Base VRChat SDK types
 
@@ -110,11 +110,11 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 56 concrete top-level
 | AvatarScale2 | excluded | no | Retired upstream; native scaling belongs to base-avatar scope. |  |  | Runtime/Model/Feature/AvatarScale2.cs |
 | BlendShapeLink | partial | yes | Initial exact mapped blendshape weights and continuous ValueCopy<float> synchronization for unique destination blendshapes; multi-source blendshape blending pending. | UnityPackageImporter/Models/BlendshapeInitialAppearance.cs, UnityPackageImporter/Models/BlendshapeInitialAppearanceAdapter.cs | Tests/BlendshapeInitialAppearanceTests.cs | Runtime/Model/Feature/BlendShapeLink.cs |
 | BlendshapeOptimizer | missing | no | Pending equivalent built appearance and animation bindings; preserve editable source and skip optimization only when behavior equivalence is proven. |  |  | Runtime/Model/Feature/BlendshapeOptimizer.cs |
-| Blinking | missing | no | Native blink cycle and gesture suppression. |  |  | Runtime/Model/Feature/Blinking.cs |
+| Blinking | partial | yes | Native blink cycle blendshape actions mapped to avatar eyelid drivers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/Blinking.cs |
 | BoneConstraint | missing | no | Authored humanoid-bone constraint/attachment. |  |  | Runtime/Model/Feature/BoneConstraint.cs |
 | BoundingBoxFix | missing | no | Legacy/current bounds/culling, cost caps. |  |  | Runtime/Model/Feature/BoundingBoxFix.cs |
 | BoundingBoxFix2 | missing | no | Legacy/current bounds/culling, cost caps. |  |  | Runtime/Model/Feature/BoundingBoxFix2.cs |
-| Breathing | missing | no | Cyclic motion/expression. |  |  | Runtime/Model/Feature/Breathing.cs |
+| Breathing | partial | yes | Cyclic motion and chest expansion mapped to native Wiggler drivers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/Breathing.cs |
 | ConstraintRetarget | missing | no | Reference rewrite within verified ownership. |  |  | Runtime/Model/Feature/ConstraintRetarget.cs |
 | CrossEyeFix | missing | no | Diagnose native eye solver; no blind compensating constraints. |  |  | Runtime/Model/Feature/CrossEyeFix.cs |
 | CrossEyeFix2 | missing | no | Diagnose native eye solver; no blind compensating constraints. |  |  | Runtime/Model/Feature/CrossEyeFix2.cs |

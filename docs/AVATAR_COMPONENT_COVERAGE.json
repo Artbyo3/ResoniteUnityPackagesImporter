@@ -135,7 +135,9 @@
             "UnityPackageImporter/Models/ExpressionMenuParser.cs",
             "UnityPackageImporter/Models/AvatarParameterState.cs"
           ],
-          "tests": ["Tests/AvatarWardrobeStateTests.cs"]
+          "tests": [
+            "Tests/AvatarWardrobeStateTests.cs"
+          ]
         },
         {
           "name": "VRCExpressionsMenu",
@@ -146,7 +148,9 @@
           "evidence": [
             "UnityPackageImporter/Models/ExpressionMenuParser.cs"
           ],
-          "tests": ["Tests/ExpressionMenuStructureTests.cs"]
+          "tests": [
+            "Tests/ExpressionMenuStructureTests.cs"
+          ]
         },
         {
           "name": "VRCHeadChop",
@@ -803,12 +807,17 @@
         },
         {
           "name": "Blinking",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/Blinking.cs",
-          "reason": "Native blink cycle and gesture suppression.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Native blink cycle blendshape actions mapped to avatar eyelid drivers.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "BoneConstraint",
@@ -839,12 +848,17 @@
         },
         {
           "name": "Breathing",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/Breathing.cs",
-          "reason": "Cyclic motion/expression.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Cyclic motion and chest expansion mapped to native Wiggler drivers.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "ConstraintRetarget",

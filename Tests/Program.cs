@@ -1509,6 +1509,7 @@ AvatarWardrobeCompositionTests.Register(Test, Check);
 AvatarPhysBoneTests.Register(Test, Check);
 AvatarEyeLookTests.Register(Test, Check);
 AvatarConstraintTests.Register(Test, Check);
+AvatarBehaviorTests.Register(Test, Check);
 ComposedInitialAppearanceTests.Register(Test, Check);
 UnityStaticAnimationClipTests.Register(Test, Check);
 VrcFuryFeatureGraphTests.Register(Test, Check);
