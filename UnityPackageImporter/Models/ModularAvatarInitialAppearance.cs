@@ -89,6 +89,7 @@ public static partial class ModularAvatarInitialAppearance
     public const string ObjectToggleGuid = "a162bb8ec7e24a5abcf457887f1df3fa";
     public const string ShapeChangerGuid = "2db441f589c3407bb6fb5f02ff8ab541";
     public const string MaterialSetterGuid = "0adf335711644e34b6c635e94ae61fa7";
+    public const string MaterialSwapGuid = "b259b73280ead4e4fbbdafc5e29175d1";
     public const string MenuItemGuid = "3b29d45007c5493d926d2cd45a489529";
     public const string MergeAnimatorGuid = "1bb122659f724ebf85fe095ac02dc339";
     private static readonly Regex Header = new(@"^--- !u!(?<class>\d+) &(?<id>-?\d+)(?: stripped)?\s*$", RegexOptions.Multiline | RegexOptions.CultureInvariant);
@@ -287,6 +288,47 @@ public static partial class ModularAvatarInitialAppearance
             string script = Script(component);
             if (Get(component.Body, "m_inverted") != null && Text(component.Body, "m_inverted") is not ("0" or "1"))
                 Report("MA_INITIAL_VALUE", "Malformed reactive inversion boolean.", component.Id);
+            if (script == MaterialSwapGuid)
+            {
+                var swaps = Get(component.Body, "m_swaps") as YamlSequenceNode;
+                if (swaps == null)
+                {
+                    Report("MA_INITIAL_ENTRIES", "Missing or invalid reactive entry list.", component.Id);
+                    continue;
+                }
+                long rootTarget = Resolve(Get(component.Body, "m_root") as YamlMappingNode, component.Id);
+                if (rootTarget == 0) rootTarget = Reference(component.Body, "m_GameObject");
+
+                var targetRenderers = context.Renderers.Where(r => Within(r.Value.GameObjectId, rootTarget)).ToList();
+                foreach (var swapEntry in swaps.Children)
+                {
+                    if (swapEntry is not YamlMappingNode swapMap) continue;
+                    var fromNode = Get(swapMap, "From") as YamlMappingNode;
+                    var toNode = Get(swapMap, "To") as YamlMappingNode;
+                    if (fromNode == null || toNode == null) continue;
+
+                    string fromGuid = Text(fromNode, "guid").ToLowerInvariant();
+                    long fromFileId = ReferenceNode(fromNode);
+                    string toGuid = Text(toNode, "guid").ToLowerInvariant();
+                    long toFileId = ReferenceNode(toNode);
+
+                    foreach (var (rendererId, snapshot) in targetRenderers)
+                    {
+                        for (int idx = 0; idx < snapshot.Materials.Count; idx++)
+                        {
+                            var mat = snapshot.Materials[idx];
+                            if (mat != null && mat.FileId == fromFileId && string.Equals(mat.Guid, fromGuid, StringComparison.OrdinalIgnoreCase))
+                            {
+                                var write = new InitialAppearanceWrite(InitialAppearanceEffect.Material, rendererId, idx.ToString(CultureInfo.InvariantCulture),
+                                    Material: new InitialAppearanceMaterial(toFileId, toGuid));
+                                rules.Add(new(component.Id, Reference(component.Body, "m_GameObject"), 0,
+                                    Text(component.Body, "m_inverted") == "1", write));
+                            }
+                        }
+                    }
+                }
+                continue;
+            }
             var entries = Get(component.Body, script == ShapeChangerGuid ? "m_shapes" : "m_objects") ?? (script == ShapeChangerGuid ? Get(component.Body, "Shapes") : null);
             if (entries is not YamlSequenceNode sequence)
             {
@@ -468,7 +510,7 @@ public static partial class ModularAvatarInitialAppearance
         }
         return result;
     }
-    private static bool IsReactive(string guid) => guid is ObjectToggleGuid or ShapeChangerGuid or MaterialSetterGuid;
+    private static bool IsReactive(string guid) => guid is ObjectToggleGuid or ShapeChangerGuid or MaterialSetterGuid or MaterialSwapGuid;
     private static string Script(Document document) => document.ClassId == 114 ? Text(Get(document.Body, "m_Script") as YamlMappingNode, "guid").ToLowerInvariant() : "";
     private static YamlNode? Get(YamlMappingNode? mapping, string name) => mapping != null && mapping.Children.TryGetValue(new YamlScalarNode(name), out var value) ? value : null;
     private static string Text(YamlMappingNode? mapping, string name) => (Get(mapping, name) as YamlScalarNode)?.Value ?? "";

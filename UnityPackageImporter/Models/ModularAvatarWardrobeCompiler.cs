@@ -43,7 +43,7 @@ public static partial class ModularAvatarInitialAppearance
         }
         var maMenuOrReactiveGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
         {
-            ObjectToggleGuid, ShapeChangerGuid, MaterialSetterGuid, MenuItemGuid,
+            ObjectToggleGuid, ShapeChangerGuid, MaterialSetterGuid, MaterialSwapGuid, MenuItemGuid,
             MenuGroupGuid, MenuInstallTargetGuid, AvatarPackageIndex.MenuInstallerScriptGuid, AvatarPackageIndex.ParametersScriptGuid
         };
         if (!documents.Values.Any(item => maMenuOrReactiveGuids.Contains(Script(item))))
@@ -611,8 +611,7 @@ public static partial class ModularAvatarInitialAppearance
                 Report("INVERTED", "Reactive component has malformed m_inverted.", component.Id);
                 continue;
             }
-
-            // Walk ancestors from compOwner to AvatarRootId to find the controlling MenuItem and verify no other active-state dependencies exist
+            // Walk ancestors            // Walk ancestors from compOwner to AvatarRootId to find the controlling MenuItem and verify no other active-state dependencies exist
             long? controllingMenuId = null;
             for (long cursor = compOwner; cursor != 0 && cursor != context.AvatarRootId; cursor = parent.GetValueOrDefault(cursor))
             {
@@ -643,6 +642,60 @@ public static partial class ModularAvatarInitialAppearance
             if (!controllingMenuId.HasValue || !menuControlByMenuId.ContainsKey(controllingMenuId.Value))
             {
                 Report("UNCONTROLLED", "Reactive component has no unambiguous controlling ModularAvatarMenuItem toggle.", component.Id);
+                continue;
+            }
+
+            if (script == MaterialSwapGuid)
+            {
+                var swaps = Get(component.Body, "m_swaps") as YamlSequenceNode;
+                if (swaps == null)
+                {
+                    Report("ENTRIES", "Missing or invalid reactive entry list.", component.Id);
+                    continue;
+                }
+                long rootTarget = ResolveTarget(Get(component.Body, "m_root") as YamlMappingNode, component.Id);
+                if (rootTarget == 0) rootTarget = compOwner;
+
+                var targetRenderers = context.Renderers.Where(r => Within(r.Value.GameObjectId, rootTarget)).ToList();
+                foreach (var swapEntry in swaps.Children)
+                {
+                    if (swapEntry is not YamlMappingNode swapMap) continue;
+                    var fromNode = Get(swapMap, "From") as YamlMappingNode;
+                    var toNode = Get(swapMap, "To") as YamlMappingNode;
+                    if (fromNode == null || toNode == null) continue;
+
+                    string fromGuid = Text(fromNode, "guid").ToLowerInvariant();
+                    long fromFileId = ReferenceNode(fromNode);
+                    string toGuid = Text(toNode, "guid").ToLowerInvariant();
+                    long toFileId = ReferenceNode(toNode);
+
+                    if (fromFileId == 0 || fromGuid.Length != 32 || toFileId == 0 || toGuid.Length != 32)
+                    {
+                        Report("MATERIAL", "Invalid material swap identity.", component.Id);
+                        continue;
+                    }
+
+                    var baselineRef = new InitialAppearanceMaterial(fromFileId, fromGuid);
+                    var targetRef = new InitialAppearanceMaterial(toFileId, toGuid);
+
+                    foreach (var (rendererId, snapshot) in targetRenderers)
+                    {
+                        for (int idx = 0; idx < snapshot.Materials.Count; idx++)
+                        {
+                            var mat = snapshot.Materials[idx];
+                            if (mat != null && mat.FileId == fromFileId && string.Equals(mat.Guid, fromGuid, StringComparison.OrdinalIgnoreCase))
+                            {
+                                string slot = idx.ToString(CultureInfo.InvariantCulture);
+                                var offWrite = new InitialAppearanceWrite(InitialAppearanceEffect.Material, rendererId, slot, Material: inverted ? targetRef : baselineRef);
+                                var onWrite = new InitialAppearanceWrite(InitialAppearanceEffect.Material, rendererId, slot, Material: inverted ? baselineRef : targetRef);
+
+                                if (!destinations.Add((onWrite.Effect, onWrite.TargetId, onWrite.Property)))
+                                    Report("CONFLICT", "Multiple Modular Avatar reactive entries write the same terminal property.", component.Id);
+                                bindingsByMenuId[controllingMenuId.Value].Add(new(offWrite, onWrite));
+                            }
+                        }
+                    }
+                }
                 continue;
             }
 

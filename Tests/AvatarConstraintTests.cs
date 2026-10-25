@@ -131,16 +131,18 @@ internal static class AvatarConstraintTests
                 VrcConstraint(compId: 602, goId: 4, className: "VRCRotationConstraint", srcTransId: 103) +
                 VrcConstraint(compId: 603, goId: 2, className: "VRCLookAtConstraint", srcTransId: 103) +
                 VrcConstraint(compId: 604, goId: 4, className: "VRCAimConstraint", srcTransId: 103) +
-                VrcConstraint(compId: 605, goId: 2, className: "VRCScaleConstraint", srcTransId: 103);
+                VrcConstraint(compId: 605, goId: 2, className: "VRCScaleConstraint", srcTransId: 103) +
+                VrcConstraint(compId: 606, goId: 4, className: "VRCPositionConstraint", srcTransId: 103);
 
             var plan = AvatarConstraintPlanner.Compile(yaml, 1);
             check(plan.CanBuild, Describe(plan));
-            check(plan.Constraints.Count == 5, "Expected 5 VRC constraints");
+            check(plan.Constraints.Count == 6, "Expected 6 VRC constraints");
             check(plan.Constraints[0].Type == AvatarConstraintType.Parent, "Expected VRCParentConstraint");
             check(plan.Constraints[1].Type == AvatarConstraintType.Rotation, "Expected VRCRotationConstraint");
             check(plan.Constraints[2].Type == AvatarConstraintType.LookAt, "Expected VRCLookAtConstraint");
             check(plan.Constraints[3].Type == AvatarConstraintType.Aim, "Expected VRCAimConstraint");
             check(plan.Constraints[4].Type == AvatarConstraintType.Scale, "Expected VRCScaleConstraint");
+            check(plan.Constraints[5].Type == AvatarConstraintType.Position, "Expected VRCPositionConstraint");
         });
 
         test("Constraint self-reference fails closed with error diagnostic", () =>

@@ -318,5 +318,22 @@ internal static class ModularAvatarWardrobeTests
             check(!planUnsupported.CanBuild && planUnsupported.Diagnostics.Any(d => d.Code == "MA_WARDROBE_CONTEXT"),
                   "MA wardrobe must fail closed with MA_WARDROBE_CONTEXT when runtime context is present: " + Describe(planUnsupported));
         });
+
+        test("MA wardrobe compiles ModularAvatarMaterialSwap and restores baseline on off state", () =>
+        {
+            string matSwap =
+                "--- !u!114 &505\nMonoBehaviour:\n  m_GameObject: {fileID: 2}\n  m_Script: {fileID: 11500000, guid: " + ModularAvatarInitialAppearance.MaterialSwapGuid + "}\n  m_inverted: 0\n  m_root:\n    referencePath: JacketMesh\n    targetObject: {fileID: 3}\n  m_swaps:\n  - From: {fileID: 2100000, guid: " + baseMat + ", type: 2}\n    To: {fileID: 2100001, guid: " + altMat + ", type: 2}\n";
+            string yaml = SimpleScene(reactiveComponents: "505", extraObjects: matSwap);
+            var plan = ModularAvatarInitialAppearance.CompileWardrobe(yaml, Context());
+            check(plan.CanBuild && plan.Controls.Count == 1, Describe(plan));
+            var control = plan.Controls.Single();
+            check(control.Bindings.Count == 1, "Expected 1 binding for MaterialSwap");
+            var binding = control.Bindings[0];
+            check(binding.On.Effect == InitialAppearanceEffect.Material, "Expected Material effect");
+            check(binding.On.TargetId == 300, "Expected target renderer 300");
+            check(binding.On.Property == "0", "Expected slot 0");
+            check(binding.On.Material != null && binding.On.Material.Guid == altMat, "Expected OnMaterial altMat");
+            check(binding.Off.Material != null && binding.Off.Material.Guid == baseMat, "Expected OffMaterial baseMat");
+        });
     }
 }

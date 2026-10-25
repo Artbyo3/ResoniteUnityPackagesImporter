@@ -293,9 +293,9 @@
       "framework": "ma",
       "name": "Convert Constraints",
       "type": "ModularAvatarConvertConstraints",
-      "status": "not-applicable",
-      "outcome": "Convert Unity constraints for the target platform. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "Converts both Unity and VRC constraints into native Resonite constraint components with cycle detection and source weighting.",
+      "reason": "Both Unity and VRChat constraint formats are parsed and mapped directly to FrooxEngine constraints, making explicit intermediate conversion inherently satisfied.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -304,8 +304,12 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ModularAvatarConvertConstraints.cs"
       },
-      "evidence": [],
-      "summary": "VRChat upload pipeline / compiler operation; no equivalent or need in Resonite."
+      "evidence": [
+        "UnityPackageImporter/Models/AvatarConstraintPlanner.cs",
+        "UnityPackageImporter/Models/AvatarConstraintRuntime.cs",
+        "Tests/AvatarConstraintTests.cs"
+      ],
+      "summary": "Unity and VRC constraints are directly compiled to FrooxEngine CopyGlobalTransform, LookAt, and CopyGlobalScale components."
     },
     {
       "id": "ma-flooradjuster",
@@ -354,9 +358,9 @@
       "framework": "ma",
       "name": "Material Swap",
       "type": "ModularAvatarMaterialSwap",
-      "status": "re-evaluation",
-      "outcome": "Swap materials through reactive rules. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "Dynamic material swaps across renderers under target root compiled into independent Boolean-toggle reactive runtime.",
+      "reason": "Swaps target material across matching renderer slots under root object with full toggle-off baseline restoration.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -365,8 +369,12 @@
         "revision": "f21ad465bb623e841b532a66aa555dbcddf2db47",
         "path": "Runtime/ReactiveObjects/ModularAvatarMaterialSwap.cs"
       },
-      "evidence": [],
-      "summary": "Under review for native Resonite runtime equivalence; not required for core visual fidelity."
+      "evidence": [
+        "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
+        "UnityPackageImporter/Models/ModularAvatarWardrobeCompiler.cs",
+        "Tests/ModularAvatarWardrobeTests.cs"
+      ],
+      "summary": "Material swaps across renderers under target root compiled into native wardrobe toggles with baseline restoration."
     },
     {
       "id": "ma-menugroup",

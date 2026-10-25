@@ -57,7 +57,9 @@ public enum ModularAvatarComponentKind
     ObjectToggle,
     MeshSettings,
     FloorAdjuster,
-    VisibleHeadAccessory
+    VisibleHeadAccessory,
+    ConvertConstraints,
+    MaterialSwap
 }
 
 public sealed class ModularAvatarComponentDefinition
@@ -172,6 +174,8 @@ public static class AvatarPackageIndex
     public const string MeshSettingsScriptGuid = "560fdafd46c74b2db6422fdf0e7f2363";
     public const string FloorAdjusterScriptGuid = "ba18e6eae93342fd8774b3f3f132928a";
     public const string VisibleHeadAccessoryScriptGuid = "33dac8cfeaeb4c399ddd90597f849f70";
+    public const string ConvertConstraintsScriptGuid = "e362b3df8a3d478c82bf5ffe18f622e6";
+    public const string MaterialSwapScriptGuid = "b259b73280ead4e4fbbdafc5e29175d1";
     public const string VrcFuryShowInFirstPersonScriptGuid = "7d465e07b92c48db912e2e20f6621536";
 
     // Verified VRCFury component script GUIDs across versions.
@@ -220,7 +224,9 @@ public static class AvatarPackageIndex
             [ObjectToggleScriptGuid] = ModularAvatarComponentKind.ObjectToggle,
             [MeshSettingsScriptGuid] = ModularAvatarComponentKind.MeshSettings,
             [FloorAdjusterScriptGuid] = ModularAvatarComponentKind.FloorAdjuster,
-            [VisibleHeadAccessoryScriptGuid] = ModularAvatarComponentKind.VisibleHeadAccessory
+            [VisibleHeadAccessoryScriptGuid] = ModularAvatarComponentKind.VisibleHeadAccessory,
+            [ConvertConstraintsScriptGuid] = ModularAvatarComponentKind.ConvertConstraints,
+            [MaterialSwapScriptGuid] = ModularAvatarComponentKind.MaterialSwap
         };
 
     public static AvatarPackageManifest ParseFile(string filePath, IReadOnlyDictionary<string, string> prefabs = null)

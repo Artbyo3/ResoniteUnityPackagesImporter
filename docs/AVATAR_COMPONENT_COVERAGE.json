@@ -30,12 +30,17 @@
         },
         {
           "name": "VRCAimConstraint",
-          "status": "missing",
+          "status": "partial",
           "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCAimConstraint",
-          "reason": "Sources, axes, offsets, activation/world-up.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Aim constraints compiled to native FrooxEngine LookAt components with cycle detection and rotation offset support.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarConstraintPlanner.cs",
+            "UnityPackageImporter/Models/AvatarConstraintRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarConstraintTests.cs"
+          ]
         },
         {
           "name": "VRCAnimatorLayerControl",
@@ -172,21 +177,31 @@
         },
         {
           "name": "VRCLookAtConstraint",
-          "status": "missing",
+          "status": "partial",
           "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCLookAtConstraint",
-          "reason": "Look-at/up-vector/weights.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "LookAt constraints compiled to native FrooxEngine LookAt components with cycle detection and rotation offset support.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarConstraintPlanner.cs",
+            "UnityPackageImporter/Models/AvatarConstraintRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarConstraintTests.cs"
+          ]
         },
         {
           "name": "VRCParentConstraint",
-          "status": "missing",
+          "status": "partial",
           "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCParentConstraint",
-          "reason": "Multi-source position/rotation, offsets/rest.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Parent constraints compiled to native FrooxEngine CopyGlobalTransform components with cycle detection and source weighting.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarConstraintPlanner.cs",
+            "UnityPackageImporter/Models/AvatarConstraintRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarConstraintTests.cs"
+          ]
         },
         {
           "name": "VRCPerPlatformOverrides",
@@ -226,12 +241,17 @@
         },
         {
           "name": "VRCPositionConstraint",
-          "status": "missing",
+          "status": "partial",
           "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCPositionConstraint",
-          "reason": "Masks, offsets/rest, freeze/activation.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Position constraints compiled to native FrooxEngine CopyGlobalTransform components with cycle detection and source weighting.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarConstraintPlanner.cs",
+            "UnityPackageImporter/Models/AvatarConstraintRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarConstraintTests.cs"
+          ]
         },
         {
           "name": "VRCRaycast",
@@ -244,21 +264,31 @@
         },
         {
           "name": "VRCRotationConstraint",
-          "status": "missing",
+          "status": "partial",
           "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCRotationConstraint",
-          "reason": "Masks, weighted rotations/offsets.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Rotation constraints compiled to native FrooxEngine CopyGlobalTransform components with cycle detection and source weighting.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarConstraintPlanner.cs",
+            "UnityPackageImporter/Models/AvatarConstraintRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarConstraintTests.cs"
+          ]
         },
         {
           "name": "VRCScaleConstraint",
-          "status": "missing",
+          "status": "partial",
           "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCScaleConstraint",
-          "reason": "Weights, offsets, singular/nonuniform scale.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Scale constraints compiled to native FrooxEngine CopyGlobalScale components with cycle detection and source weighting.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarConstraintPlanner.cs",
+            "UnityPackageImporter/Models/AvatarConstraintRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarConstraintTests.cs"
+          ]
         },
         {
           "name": "VRCSpatialAudioSource",
@@ -325,11 +355,16 @@
         {
           "name": "ModularAvatarConvertConstraints",
           "source": "Runtime/ModularAvatarConvertConstraints.cs",
-          "status": "missing",
-          "reason": "Interpret Unity intent directly; VRC intermediate unnecessary.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "status": "partial",
+          "reason": "Unity and VRC constraints are directly compiled into native FrooxEngine constraint components; explicit intermediate conversion is inherently satisfied.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarConstraintPlanner.cs",
+            "UnityPackageImporter/Models/AvatarConstraintRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarConstraintTests.cs"
+          ]
         },
         {
           "name": "ModularAvatarFloorAdjuster",
@@ -373,11 +408,17 @@
         {
           "name": "ModularAvatarMaterialSwap",
           "source": "Runtime/ReactiveObjects/ModularAvatarMaterialSwap.cs",
-          "status": "missing",
-          "reason": "Substitution/conditions, not covered by Material Setter support.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "status": "partial",
+          "reason": "Material swaps across renderers under target root compiled into independent Boolean-toggle reactive runtime with baseline restoration; multi-state conditions pending.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs",
+            "UnityPackageImporter/Models/ModularAvatarWardrobeCompiler.cs",
+            "UnityPackageImporter/Models/AvatarWardrobeRuntime.cs"
+          ],
+          "tests": [
+            "Tests/ModularAvatarWardrobeTests.cs"
+          ]
         },
         {
           "name": "ModularAvatarMenuGroup",
