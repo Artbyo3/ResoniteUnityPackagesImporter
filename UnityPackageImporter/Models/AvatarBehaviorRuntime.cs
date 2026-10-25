@@ -28,7 +28,8 @@ public static class AvatarBehaviorRuntime
         if (!plan.CanBuild || (plan.BreathingBindings.Count == 0 && plan.BlinkingBindings.Count == 0 &&
             plan.TalkingBindings.Count == 0 && plan.VisemeBindings.Count == 0 && !plan.BlinkSuppressed &&
             plan.MeshSettingsBindings.Count == 0 && plan.VisibleInFirstPersonObjectIds.Count == 0 &&
-            !plan.FloorAdjustmentY.HasValue && plan.BoneConstraintBindings.Count == 0 && plan.WorldConstraintBindings.Count == 0))
+            !plan.FloorAdjustmentY.HasValue && plan.BoneConstraintBindings.Count == 0 && plan.WorldConstraintBindings.Count == 0 &&
+            plan.MoveToBindings.Count == 0 && plan.WorldFixedBindings.Count == 0 && plan.WorldScaleBindings.Count == 0))
             return;
 
         await default(ToWorld);
@@ -352,6 +353,72 @@ public static class AvatarBehaviorRuntime
                 {
                     var copy = uGo.frooxEngineSlot.AttachComponent<CopyGlobalTransform>();
                     copy.Source.Target = avatarRoot;
+                }
+            }
+        }
+
+        // 10. Process MoveTo
+        if (plan.MoveToBindings.Count > 0)
+        {
+            var bipedRig = avatarRoot.GetComponentInChildren<BipedRig>();
+            foreach (var mt in plan.MoveToBindings)
+            {
+                token.ThrowIfCancellationRequested();
+                if (unityObjects.TryGetValue(unchecked((ulong)mt.SourceObjectFileId), out var sObj) &&
+                    sObj is UnityGameObject sourceUGo && sourceUGo.frooxEngineSlot != null && !sourceUGo.frooxEngineSlot.IsDestroyed &&
+                    PreparedImportItem.Contains(avatarRoot, sourceUGo.frooxEngineSlot))
+                {
+                    Slot? destSlot = null;
+                    if (mt.DestinationObjectFileId != 0 &&
+                        unityObjects.TryGetValue(unchecked((ulong)mt.DestinationObjectFileId), out var dObj) &&
+                        dObj is UnityGameObject destUGo && destUGo.frooxEngineSlot != null && !destUGo.frooxEngineSlot.IsDestroyed &&
+                        PreparedImportItem.Contains(avatarRoot, destUGo.frooxEngineSlot))
+                    {
+                        destSlot = destUGo.frooxEngineSlot;
+                    }
+                    else if (mt.HumanoidBone >= 0 && bipedRig != null)
+                    {
+                        var bodyNode = (BodyNode)mt.HumanoidBone;
+                        destSlot = bipedRig.TryGetBone(bodyNode);
+                    }
+
+                    if (destSlot != null && !destSlot.IsDestroyed && destSlot != sourceUGo.frooxEngineSlot &&
+                        !sourceUGo.frooxEngineSlot.IsChildOf(destSlot))
+                    {
+                        sourceUGo.frooxEngineSlot.SetParent(destSlot, mt.PreserveWorldTransform);
+                    }
+                }
+            }
+        }
+
+        // 11. Process WorldFixed
+        if (plan.WorldFixedBindings.Count > 0)
+        {
+            foreach (var wf in plan.WorldFixedBindings)
+            {
+                token.ThrowIfCancellationRequested();
+                if (unityObjects.TryGetValue(unchecked((ulong)wf.TargetObjectFileId), out var obj) &&
+                    obj is UnityGameObject uGo && uGo.frooxEngineSlot != null && !uGo.frooxEngineSlot.IsDestroyed &&
+                    PreparedImportItem.Contains(avatarRoot, uGo.frooxEngineSlot))
+                {
+                    var parentSlot = avatarRoot.Parent ?? avatarRoot;
+                    uGo.frooxEngineSlot.SetParent(parentSlot, true);
+                }
+            }
+        }
+
+        // 12. Process WorldScale
+        if (plan.WorldScaleBindings.Count > 0)
+        {
+            foreach (var ws in plan.WorldScaleBindings)
+            {
+                token.ThrowIfCancellationRequested();
+                if (unityObjects.TryGetValue(unchecked((ulong)ws.TargetObjectFileId), out var obj) &&
+                    obj is UnityGameObject uGo && uGo.frooxEngineSlot != null && !uGo.frooxEngineSlot.IsDestroyed &&
+                    PreparedImportItem.Contains(avatarRoot, uGo.frooxEngineSlot))
+                {
+                    var scaleCopy = uGo.frooxEngineSlot.AttachComponent<CopyGlobalScale>();
+                    scaleCopy.Source.Target = avatarRoot.Parent ?? avatarRoot;
                 }
             }
         }

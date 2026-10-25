@@ -133,6 +133,9 @@ internal static class AvatarBehaviorPlanner
         var visibleInFirstPersonObjectIds = new List<long>();
         var boneConstraintBindings = new List<AvatarBoneConstraintBinding>();
         var worldConstraintBindings = new List<AvatarWorldConstraintBinding>();
+        var moveToBindings = new List<AvatarMoveToBinding>();
+        var worldFixedBindings = new List<AvatarWorldFixedBinding>();
+        var worldScaleBindings = new List<AvatarWorldScaleBinding>();
         float? floorAdjustmentY = null;
         long floorAdjusterSourceId = 0;
         bool blinkSuppressed = false;
@@ -237,6 +240,7 @@ internal static class AvatarBehaviorPlanner
             long ownerGo = ParseFileId(Get(body, "m_GameObject"));
             if (!IsOwnedGameObject(ownerGo)) continue;
 
+            string idClass = Text(body, "m_EditorClassIdentifier") + " " + Text(body, "m_Name");
             if (guid.Equals(AvatarPackageIndex.MeshSettingsScriptGuid, StringComparison.OrdinalIgnoreCase))
             {
                 CompileMeshSettings(mbFileId, body, ownerGo, gameObjectToTransform, transformParents, skinnedMeshRenderers, meshSettingsBindings);
@@ -250,6 +254,21 @@ internal static class AvatarBehaviorPlanner
                 if (!visibleInFirstPersonObjectIds.Contains(ownerGo))
                     visibleInFirstPersonObjectIds.Add(ownerGo);
             }
+            else if (guid.Equals(AvatarPackageIndex.MoveToScriptGuid, StringComparison.OrdinalIgnoreCase) ||
+                     idClass.Contains("MoveTo", StringComparison.OrdinalIgnoreCase))
+            {
+                CompileMoveTo(mbFileId, body, ownerGo, IsOwnedGameObject, moveToBindings, Report);
+            }
+            else if (guid.Equals(AvatarPackageIndex.WorldFixedObjectScriptGuid, StringComparison.OrdinalIgnoreCase) ||
+                     idClass.Contains("WorldFixed", StringComparison.OrdinalIgnoreCase))
+            {
+                worldFixedBindings.Add(new(mbFileId, ownerGo));
+            }
+            else if (guid.Equals(AvatarPackageIndex.WorldScaleObjectScriptGuid, StringComparison.OrdinalIgnoreCase) ||
+                     idClass.Contains("WorldScale", StringComparison.OrdinalIgnoreCase))
+            {
+                worldScaleBindings.Add(new(mbFileId, ownerGo));
+            }
         }
 
         return new AvatarBehaviorPlan
@@ -262,6 +281,9 @@ internal static class AvatarBehaviorPlanner
             VisibleInFirstPersonObjectIds = visibleInFirstPersonObjectIds.AsReadOnly(),
             BoneConstraintBindings = boneConstraintBindings.AsReadOnly(),
             WorldConstraintBindings = worldConstraintBindings.AsReadOnly(),
+            MoveToBindings = moveToBindings.AsReadOnly(),
+            WorldFixedBindings = worldFixedBindings.AsReadOnly(),
+            WorldScaleBindings = worldScaleBindings.AsReadOnly(),
             FloorAdjustmentY = floorAdjustmentY,
             FloorAdjusterSourceId = floorAdjusterSourceId,
             BlinkSuppressed = blinkSuppressed,
@@ -556,6 +578,45 @@ internal static class AvatarBehaviorPlanner
             long.TryParse(rootNode.Anchor.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out long id))
             return id;
         return 0;
+    }
+
+
+    private static void CompileMoveTo(
+        long sourceId,
+        YamlMappingNode body,
+        long ownerGo,
+        Func<long, bool> isOwnedGo,
+        List<AvatarMoveToBinding> bindings,
+        Action<string, string, long, InitialAppearanceSeverity> report)
+    {
+        long targetObj = ParseFileId(Get(body, "target") ?? Get(body, "targetObject") ?? Get(body, "m_Target"));
+        int bone = -1;
+        if (Get(body, "bone") is YamlScalarNode boneScalar &&
+            int.TryParse(boneScalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int parsedBone))
+        {
+            bone = parsedBone;
+        }
+
+        bool preserveWorld = true;
+        if (Get(body, "preserveWorldTransform") is YamlScalarNode pwScalar &&
+            int.TryParse(pwScalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out int pwInt))
+        {
+            preserveWorld = pwInt != 0;
+        }
+
+        if (targetObj == 0 && bone < 0)
+        {
+            report("MA_MOVETO_NOTARGET", "ModularAvatarMoveTo has neither a target GameObject nor humanoid bone specified.", sourceId, InitialAppearanceSeverity.Warning);
+            return;
+        }
+
+        if (targetObj == ownerGo)
+        {
+            report("MA_MOVETO_SELF", "ModularAvatarMoveTo cannot target itself.", sourceId, InitialAppearanceSeverity.Error);
+            return;
+        }
+
+        bindings.Add(new(sourceId, ownerGo, targetObj, bone, preserveWorld));
     }
 
     private static long ParseFileId(YamlNode? node)

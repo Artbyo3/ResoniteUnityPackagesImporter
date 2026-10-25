@@ -419,7 +419,14 @@ public static partial class VrcFuryInitialAppearance
                 long rootId = long.Parse(Text((YamlMappingNode)root, "rid"), CultureInfo.InvariantCulture);
                 stack.Add(rootId);
                 if (includeAll && feature.Class is not ("ApplyDuringUpload" or "ObjectState" or "Toggle"))
-                    features.Add(new(component.Id, Reference(component.Body, "m_GameObject"), feature.Class, feature.Data, Array.Empty<Managed>(), rootId));
+                {
+                    var extraActions = feature.Class switch
+                    {
+                        "Puppet" => Actions(Get(feature.Data, "actions") != null ? feature.Data : Get(feature.Data, "state")),
+                        _ => Array.Empty<Managed>()
+                    };
+                    features.Add(new(component.Id, Reference(component.Body, "m_GameObject"), feature.Class, feature.Data, extraActions, rootId));
+                }
                 else if (feature.Class is not ("ApplyDuringUpload" or "ObjectState" or "Toggle"))
                     Unsupported("Feature '" + feature.Class + "' has no reversible INITIAL static conversion; structural conversion is separate.");
                 else if (Version(feature.Data, feature.Class == "Toggle" ? 3 : 0, component.Id, report))

@@ -109,7 +109,7 @@ public static partial class VrcFuryInitialAppearance
         var features = new List<Feature>();
         ReadFeatures(documents.Where(item => ownedWrappers.Contains(item.Key)).ToDictionary(item => item.Key, item => item.Value),
             Within, features, Report, token, includeAll: true);
-        if (!features.Any(item => item.Class == "Toggle")) return Result();
+        if (!features.Any(item => item.Class is "Toggle" or "Modes" or "Puppet")) return Result();
         if (!context.ExternalAnimationAndParameterContextVerifiedAbsent && !context.AllowMixedFrameworks)
             Report("CONTEXT", "External controllers, parameters and reactive context must be verified absent.");
         var reactiveGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -148,7 +148,7 @@ public static partial class VrcFuryInitialAppearance
                 !script.Equals(AvatarPackageIndex.VrcFuryArmatureLinkScriptGuid, StringComparison.OrdinalIgnoreCase))
                 Report("CONTEXT", "Alternate VRCFury wrappers require a verified runtime adapter.", document.Id);
         }
-        foreach (var feature in features.Where(item => item.Class != "Toggle" && item.Class != "ArmatureLink"))
+        foreach (var feature in features.Where(item => item.Class != "Toggle" && item.Class != "ArmatureLink" && item.Class != "Modes" && item.Class != "Puppet"))
             Report("CONTEXT", "Coexisting feature '" + feature.Class + "' has uncompiled runtime/resting interactions.", feature.Source);
         var identities = new HashSet<string>(StringComparer.Ordinal);
         var animationPaths = new AvatarAnimationPathResolver(context.AvatarRootId,
@@ -357,6 +357,33 @@ public static partial class VrcFuryInitialAppearance
                         }
                     }
                 }
+                else if (action.Class == "ScaleAction")
+                {
+                    long target = Target(action.Data, "obj");
+                    if (target != 0 && Within(target))
+                    {
+                        float scale = 1.0f;
+                        if (Get(action.Data, "scale") != null && float.TryParse(Text(action.Data, "scale"), NumberStyles.Float, CultureInfo.InvariantCulture, out float scVal))
+                            scale = scVal;
+                        Add(new(InitialAppearanceEffect.Active, target, "m_IsActive", Active: scale > 0.001f),
+                            new(InitialAppearanceEffect.Active, target, "m_IsActive", Active: true));
+                    }
+                }
+                else if (action.Class == "FxFloatAction")
+                {
+                    string prop = Text(action.Data, "name");
+                    if (!string.IsNullOrWhiteSpace(prop))
+                    {
+                        float val = 1f;
+                        if (Get(action.Data, "value") != null && float.TryParse(Text(action.Data, "value"), NumberStyles.Float, CultureInfo.InvariantCulture, out float fVal))
+                            val = fVal;
+                        long target = 0;
+                        if (Get(action.Data, "obj") is YamlMappingNode r) target = ReferenceNode(r);
+                        if (target == 0) target = feature.Owner != 0 ? feature.Owner : context.AvatarRootId;
+                        Add(new(InitialAppearanceEffect.Shape, target, prop, Weight: 0f),
+                            new(InitialAppearanceEffect.Shape, target, prop, Weight: val));
+                    }
+                }
                 else Report("ACTION", "Action '" + action.Class + "' has no faithful wardrobe runtime adapter.", feature.Source);
             }
             if (bindings.Count == 0) Report("EMPTY", "Toggle has no complete supported bindings.", feature.Source);
@@ -364,6 +391,89 @@ public static partial class VrcFuryInitialAppearance
             if (Boolean(feature.Data, "enableIcon", false, feature.Source, Report))
                 Report("ICON", "Authored Toggle icon is not converted in this first slice; labels/grouping are retained.", feature.Source, InitialAppearanceSeverity.Info);
             controls.Add(new(identity, path, defaultOn, bindings.AsReadOnly(), icon));
+        }
+
+        foreach (var feature in features.Where(item => item.Class == "Modes"))
+        {
+            token.ThrowIfCancellationRequested();
+            string groupName = Text(feature.Data, "name");
+            if (string.IsNullOrWhiteSpace(groupName)) groupName = "Modes";
+            var modesSeq = Get(feature.Data, "modes") as YamlSequenceNode;
+            if (modesSeq == null || modesSeq.Children.Count == 0) continue;
+            int modeIdx = 0;
+            foreach (var mNode in modesSeq.Children)
+            {
+                if (mNode is not YamlMappingNode mMap) continue;
+                string modeName = Text(mMap, "name");
+                if (string.IsNullOrWhiteSpace(modeName)) modeName = "Mode " + modeIdx;
+                string path = groupName + "/" + modeName;
+                string identity = feature.Source.ToString(CultureInfo.InvariantCulture) + ":" + feature.Rid.ToString(CultureInfo.InvariantCulture) + ":" + modeIdx;
+                bool defaultOn = modeIdx == 0;
+                var bindings = new List<AvatarWardrobeBinding>();
+                if (Get(mMap, "actions") is YamlSequenceNode actSeq)
+                {
+                    foreach (var aNode in actSeq.Children)
+                    {
+                        if (aNode is not YamlMappingNode aMap) continue;
+                        long target = 0;
+                        if (Get(aMap, "obj") is YamlMappingNode r) target = ReferenceNode(r);
+                        if (target != 0 && Within(target))
+                        {
+                            int mode = Integer(aMap, "mode", 0, feature.Source, Report);
+                            bool active = mode == 0;
+                            bindings.Add(new(new(InitialAppearanceEffect.Active, target, "m_IsActive", Active: !active),
+                                             new(InitialAppearanceEffect.Active, target, "m_IsActive", Active: active)));
+                        }
+                    }
+                }
+                controls.Add(new(identity, path, defaultOn, bindings.AsReadOnly(), ""));
+                modeIdx++;
+            }
+        }
+
+        foreach (var feature in features.Where(item => item.Class == "Puppet"))
+        {
+            token.ThrowIfCancellationRequested();
+            string path = Text(feature.Data, "name");
+            if (string.IsNullOrWhiteSpace(path)) path = "Puppet";
+            string identity = feature.Source.ToString(CultureInfo.InvariantCulture) + ":" + feature.Rid.ToString(CultureInfo.InvariantCulture);
+            var bindings = new List<AvatarWardrobeBinding>();
+            foreach (var action in feature.Actions)
+            {
+                if (action.Class == "BlendShapeAction")
+                {
+                    string shape = Text(action.Data, "blendShape");
+                    float weight = 100;
+                    if (Get(action.Data, "blendShapeValue") != null && float.TryParse(Text(action.Data, "blendShapeValue"), NumberStyles.Float, CultureInfo.InvariantCulture, out float w))
+                        weight = w;
+                    bool all = Boolean(action.Data, "allRenderers", true, feature.Source, Report);
+                    long selected = 0;
+                    if (!all && Get(action.Data, "renderer") is YamlMappingNode rNode &&
+                        long.TryParse(Text(rNode, "fileID"), NumberStyles.Integer, CultureInfo.InvariantCulture, out long rId))
+                        selected = rId;
+                    var targets = context.Renderers.Where(item => Within(item.Value.GameObjectId) && (all || item.Key == selected) && item.Value.Shapes.ContainsKey(shape)).ToArray();
+                    foreach (var target in targets)
+                    {
+                        bindings.Add(new(new(InitialAppearanceEffect.Shape, target.Key, shape, Weight: target.Value.Shapes[shape]),
+                                         new(InitialAppearanceEffect.Shape, target.Key, shape, Weight: weight)));
+                    }
+                }
+                else if (action.Class == "ObjectToggleAction")
+                {
+                    long target = 0;
+                    if (Get(action.Data, "obj") is YamlMappingNode oNode &&
+                        long.TryParse(Text(oNode, "fileID"), NumberStyles.Integer, CultureInfo.InvariantCulture, out long oId))
+                        target = oId;
+                    if (target != 0 && Within(target))
+                    {
+                        int mode = Integer(action.Data, "mode", 0, feature.Source, Report);
+                        bindings.Add(new(new(InitialAppearanceEffect.Active, target, "m_IsActive", Active: mode != 0),
+                                         new(InitialAppearanceEffect.Active, target, "m_IsActive", Active: mode == 0)));
+                    }
+                }
+            }
+            if (bindings.Count > 0)
+                controls.Add(new(identity, path, true, bindings.AsReadOnly(), "", false, true, AvatarParameterType.Float));
         }
         return Result();
     }

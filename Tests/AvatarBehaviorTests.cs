@@ -708,5 +708,79 @@ MonoBehaviour:
             check(plan.CanBuild, "HeadChopHead plan failed to build.");
             check(plan.VisibleInFirstPersonObjectIds.Contains(15), "Expected HeadAccessory (15) in VisibleInFirstPersonObjectIds.");
         });
+
+        test("ModularAvatarMoveTo compiles target GameObject and humanoid bone bindings", () =>
+        {
+            string yaml = @"--- !u!1 &1
+GameObject:
+  m_Name: AvatarRoot
+--- !u!4 &2
+Transform:
+  m_GameObject: {fileID: 1}
+  m_Father: {fileID: 0}
+--- !u!1 &20
+GameObject:
+  m_Name: Hat
+--- !u!4 &21
+Transform:
+  m_GameObject: {fileID: 20}
+  m_Father: {fileID: 2}
+--- !u!1 &30
+GameObject:
+  m_Name: HeadBone
+--- !u!4 &31
+Transform:
+  m_GameObject: {fileID: 30}
+  m_Father: {fileID: 2}
+--- !u!114 &40
+MonoBehaviour:
+  m_GameObject: {fileID: 20}
+  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.MoveToScriptGuid + @"}
+  target: {fileID: 30}
+  bone: 10
+  preserveWorldTransform: 1
+";
+            var plan = AvatarBehaviorPlanner.Compile(yaml, 1);
+            check(plan.CanBuild, "MoveTo plan failed to build.");
+            check(plan.MoveToBindings.Count == 1, $"Expected 1 MoveTo binding, got {plan.MoveToBindings.Count}.");
+            var mt = plan.MoveToBindings[0];
+            check(mt.SourceObjectFileId == 20, $"Expected source 20, got {mt.SourceObjectFileId}.");
+            check(mt.DestinationObjectFileId == 30, $"Expected dest 30, got {mt.DestinationObjectFileId}.");
+            check(mt.HumanoidBone == 10, $"Expected bone 10, got {mt.HumanoidBone}.");
+            check(mt.PreserveWorldTransform, "Expected PreserveWorldTransform true.");
+        });
+
+        test("ModularAvatarWorldFixedObject and WorldScaleObject compile world anchors", () =>
+        {
+            string yaml = @"--- !u!1 &1
+GameObject:
+  m_Name: AvatarRoot
+--- !u!4 &2
+Transform:
+  m_GameObject: {fileID: 1}
+  m_Father: {fileID: 0}
+--- !u!1 &22
+GameObject:
+  m_Name: Prop
+--- !u!4 &23
+Transform:
+  m_GameObject: {fileID: 22}
+  m_Father: {fileID: 2}
+--- !u!114 &41
+MonoBehaviour:
+  m_GameObject: {fileID: 22}
+  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.WorldFixedObjectScriptGuid + @"}
+--- !u!114 &42
+MonoBehaviour:
+  m_GameObject: {fileID: 22}
+  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.WorldScaleObjectScriptGuid + @"}
+";
+            var plan = AvatarBehaviorPlanner.Compile(yaml, 1);
+            check(plan.CanBuild, "World anchors plan failed to build.");
+            check(plan.WorldFixedBindings.Count == 1, $"Expected 1 WorldFixed binding, got {plan.WorldFixedBindings.Count}.");
+            check(plan.WorldScaleBindings.Count == 1, $"Expected 1 WorldScale binding, got {plan.WorldScaleBindings.Count}.");
+            check(plan.WorldFixedBindings[0].TargetObjectFileId == 22, "Wrong target object for WorldFixed.");
+            check(plan.WorldScaleBindings[0].TargetObjectFileId == 22, "Wrong target object for WorldScale.");
+        });
     }
 }

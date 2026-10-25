@@ -59,7 +59,11 @@ public enum ModularAvatarComponentKind
     FloorAdjuster,
     VisibleHeadAccessory,
     ConvertConstraints,
-    MaterialSwap
+    MaterialSwap,
+    MoveTo,
+    WorldFixedObject,
+    WorldScaleObject,
+    PBBlocker
 }
 
 public sealed class ModularAvatarComponentDefinition
@@ -176,6 +180,10 @@ public static class AvatarPackageIndex
     public const string VisibleHeadAccessoryScriptGuid = "33dac8cfeaeb4c399ddd90597f849f70";
     public const string ConvertConstraintsScriptGuid = "e362b3df8a3d478c82bf5ffe18f622e6";
     public const string MaterialSwapScriptGuid = "b259b73280ead4e4fbbdafc5e29175d1";
+    public const string MoveToScriptGuid = "e461f38d38bf4d1b82cb05c09a80e140";
+    public const string WorldFixedObjectScriptGuid = "4031d25b90f4435987f6111f6c449553";
+    public const string WorldScaleObjectScriptGuid = "945f8e65893a4b679469550785f269a8";
+    public const string PBBlockerScriptGuid = "a5bf908a199a4648845ebe2fd3b5a4bd";
     public const string VrcFuryShowInFirstPersonScriptGuid = "7d465e07b92c48db912e2e20f6621536";
 
     // Verified VRCFury component script GUIDs across versions.
@@ -226,7 +234,11 @@ public static class AvatarPackageIndex
             [FloorAdjusterScriptGuid] = ModularAvatarComponentKind.FloorAdjuster,
             [VisibleHeadAccessoryScriptGuid] = ModularAvatarComponentKind.VisibleHeadAccessory,
             [ConvertConstraintsScriptGuid] = ModularAvatarComponentKind.ConvertConstraints,
-            [MaterialSwapScriptGuid] = ModularAvatarComponentKind.MaterialSwap
+            [MaterialSwapScriptGuid] = ModularAvatarComponentKind.MaterialSwap,
+            [MoveToScriptGuid] = ModularAvatarComponentKind.MoveTo,
+            [WorldFixedObjectScriptGuid] = ModularAvatarComponentKind.WorldFixedObject,
+            [WorldScaleObjectScriptGuid] = ModularAvatarComponentKind.WorldScaleObject,
+            [PBBlockerScriptGuid] = ModularAvatarComponentKind.PBBlocker
         };
 
     public static AvatarPackageManifest ParseFile(string filePath, IReadOnlyDictionary<string, string> prefabs = null)

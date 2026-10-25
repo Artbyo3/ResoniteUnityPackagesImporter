@@ -214,21 +214,31 @@
         },
         {
           "name": "VRCPhysBone",
-          "status": "missing",
+          "status": "partial",
           "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCPhysBone",
-          "reason": "Roots/ignore/endpoints, forces/curves, limits, collision, stretch/squish, grab/pose and generated state; approximate until measured.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "PhysBone chains compile to FrooxEngine native DynamicBone chains with length, radius, damping, and elasticity.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarPhysBonePlanner.cs",
+            "UnityPackageImporter/Models/AvatarPhysBoneRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarPhysBoneTests.cs"
+          ]
         },
         {
           "name": "VRCPhysBoneCollider",
-          "status": "missing",
+          "status": "partial",
           "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCPhysBoneCollider",
-          "reason": "Shapes/offsets/radii, inside/outside and scale; no silent cross-user interaction.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "PhysBone colliders compile to FrooxEngine native DynamicBoneSphereCollider with shape dimensions and offsets.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarPhysBonePlanner.cs",
+            "UnityPackageImporter/Models/AvatarPhysBoneRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarPhysBoneTests.cs"
+          ]
         },
         {
           "name": "VRCPlayableLayerControl",
@@ -536,11 +546,16 @@
         {
           "name": "ModularAvatarMoveTo",
           "source": "Runtime/ModularAvatarMoveTo.cs",
-          "status": "missing",
-          "reason": "Staged reparent/reference remap and cycle checks.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "status": "partial",
+          "reason": "Hierarchy reparenting compiled to native FrooxEngine Slot SetParent calls with world position preservation.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "ModularAvatarObjectToggle",
@@ -699,20 +714,30 @@
         {
           "name": "ModularAvatarWorldFixedObject",
           "source": "Runtime/ModularAvatarWorldFixedObject.cs",
-          "status": "missing",
-          "reason": "World anchoring, authority/cleanup/permissions.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "status": "partial",
+          "reason": "World-anchored object binding compiled to reparent under root world space with transform preservation.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "ModularAvatarWorldScaleObject",
           "source": "Runtime/ModularAvatarWorldScaleObject.cs",
-          "status": "missing",
-          "reason": "Effective size across avatar scale changes.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "status": "partial",
+          "reason": "World-scale object binding compiled with native FrooxEngine CopyGlobalScale constraints to counter avatar root scaling.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "VertexFilterByAxisComponent",
@@ -1074,12 +1099,16 @@
         },
         {
           "name": "Modes",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/Modes.cs",
-          "reason": "Legacy exclusive modes; normalize without executing migration.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "VRCFury Modes multi-state selection compiles to discrete active/inactive wardrobe controls with mutually exclusive state switching.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryWardrobeTests.cs"
+          ]
         },
         {
           "name": "MoveMenuItem",
@@ -1128,12 +1157,17 @@
         },
         {
           "name": "Puppet",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/Puppet.cs",
-          "reason": "Continuous bounded native controls. Continuous 1D/2D authored stops/defaults. Down/up/splay via native menu puppet controls.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "VRCFury Puppet float parameter compiles to continuous wardrobe controls driving float parameters and blendshapes.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs",
+            "UnityPackageImporter/Models/VrcFuryInitialAppearance.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryWardrobeTests.cs"
+          ]
         },
         {
           "name": "RemoveBlinking",
@@ -1455,12 +1489,16 @@
         },
         {
           "name": "FxFloatAction",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/StateAction/FxFloatAction.cs",
-          "reason": "Shared parameter writes/defaults/scope.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "VRCFury FxFloatAction compiles to wardrobe shape and float property bindings.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryWardrobeTests.cs"
+          ]
         },
         {
           "name": "MaterialAction",
@@ -1525,12 +1563,16 @@
         },
         {
           "name": "ScaleAction",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/StateAction/ScaleAction.cs",
-          "reason": "Animated/compensated scale with finite bounds.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "VRCFury ScaleAction compiles to wardrobe visibility and scale toggle bindings.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryWardrobeTests.cs"
+          ]
         },
         {
           "name": "ShaderInventoryAction",

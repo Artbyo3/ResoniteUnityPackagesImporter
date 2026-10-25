@@ -443,6 +443,84 @@ internal static class VrcFuryWardrobeTests
             check(control.Bindings.Count == 2, $"Expected 2 bindings, got {control.Bindings.Count}");
             check(control.Bindings.All(b => b.On.Property == "_Color" && b.On.Weight == 0.8f && b.Off.Weight == 0f), "Wrong MaterialPropertyAction binding values");
         });
+
+        test("Wardrobe compiles ScaleAction and FxFloatAction", () =>
+        {
+            var planScale = Compile(Toggle(0, "Scale", "obj: {fileID: 10}, scale: 1.5", actionType: "ScaleAction"));
+            check(planScale.CanBuild && planScale.Controls.Count == 1, Describe(planScale));
+            check(planScale.Controls[0].Bindings.Count == 1, "Expected 1 scale binding.");
+
+            var planFloat = Compile(Toggle(0, "FxFloat", "name: Blush, value: 0.75", actionType: "FxFloatAction"));
+            check(planFloat.CanBuild && planFloat.Controls.Count == 1, Describe(planFloat));
+            check(planFloat.Controls[0].Bindings.Count == 1, "Expected 1 float binding.");
+            check(planFloat.Controls[0].Bindings[0].On.Weight == 0.75f, "Expected float weight 0.75.");
+        });
+
+        test("Wardrobe compiles Modes feature to multi-state wardrobe controls", () =>
+        {
+            string modesFeature = @"--- !u!114 &999
+MonoBehaviour:
+  m_GameObject: {fileID: 1}
+  m_Script: {fileID: 11500000, guid: " + VrcFuryInitialAppearance.ScriptGuid + @"}
+  content: {rid: 2000}
+  references:
+    version: 2
+    RefIds:
+      - rid: 2000
+        type: {class: Modes, ns: VF.Model.Feature, asm: VRCFury}
+        data:
+          name: Outfits
+          modes:
+            - name: Casual
+              actions:
+                - className: ObjectToggleAction
+                  obj: {fileID: 10}
+                  mode: 0
+            - name: Formal
+              actions:
+                - className: ObjectToggleAction
+                  obj: {fileID: 11}
+                  mode: 0
+";
+            var plan = VrcFuryInitialAppearance.CompileWardrobe(Scene(modesFeature), Context());
+            check(plan.CanBuild, Describe(plan));
+            check(plan.Controls.Count == 2, $"Expected 2 mode controls, got {plan.Controls.Count}.");
+            check(plan.Controls[0].Path == "Outfits/Casual", $"Expected Outfits/Casual, got {plan.Controls[0].Path}.");
+            check(plan.Controls[0].DefaultOn, "Expected Casual to be DefaultOn.");
+            check(plan.Controls[1].Path == "Outfits/Formal", $"Expected Outfits/Formal, got {plan.Controls[1].Path}.");
+            check(!plan.Controls[1].DefaultOn, "Expected Formal not DefaultOn.");
+        });
+
+        test("Wardrobe compiles Puppet feature to float parameter control", () =>
+        {
+            string puppetFeature = @"--- !u!114 &998
+MonoBehaviour:
+  m_GameObject: {fileID: 1}
+  m_Script: {fileID: 11500000, guid: " + VrcFuryInitialAppearance.ScriptGuid + @"}
+  content: {rid: 2001}
+  references:
+    version: 2
+    RefIds:
+      - rid: 2001
+        type: {class: Puppet, ns: VF.Model.Feature, asm: VRCFury}
+        data:
+          name: Ears
+          slider: 0.5
+          actions:
+            - rid: 2002
+      - rid: 2002
+        type: {class: BlendShapeAction, ns: VF.Model.StateAction, asm: VRCFury}
+        data:
+          blendShape: Fit
+          blendShapeValue: 75
+";
+            var plan = VrcFuryInitialAppearance.CompileWardrobe(Scene(puppetFeature), Context());
+            check(plan.CanBuild, Describe(plan));
+            check(plan.Controls.Count == 1, $"Expected 1 puppet control, got {plan.Controls.Count}.");
+            check(plan.Controls[0].Path == "Ears", $"Expected path Ears, got {plan.Controls[0].Path}.");
+            check(plan.Controls[0].ParameterType == AvatarParameterType.Float, "Expected Float parameter type.");
+            check(plan.Controls[0].Bindings.Count > 0, "Expected puppet bindings.");
+        });
     }
 
     private static string ObjectAction(long target, int mode = 0) => "version: 1, obj: {fileID: " + target + "}, mode: " + mode;

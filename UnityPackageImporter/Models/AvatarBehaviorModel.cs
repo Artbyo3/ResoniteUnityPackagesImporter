@@ -65,6 +65,24 @@ internal sealed record AvatarWorldConstraintBinding(
     long TargetObjectFileId
 );
 
+internal sealed record AvatarMoveToBinding(
+    long FeatureSourceId,
+    long SourceObjectFileId,
+    long DestinationObjectFileId,
+    int HumanoidBone = -1,
+    bool PreserveWorldTransform = true
+);
+
+internal sealed record AvatarWorldFixedBinding(
+    long FeatureSourceId,
+    long TargetObjectFileId
+);
+
+internal sealed record AvatarWorldScaleBinding(
+    long FeatureSourceId,
+    long TargetObjectFileId
+);
+
 internal sealed record AvatarBehaviorPlan
 {
     public IReadOnlyList<AvatarBreathingBinding> BreathingBindings { get; init; } = Array.Empty<AvatarBreathingBinding>();
@@ -74,6 +92,9 @@ internal sealed record AvatarBehaviorPlan
     public IReadOnlyList<AvatarMeshSettingsBinding> MeshSettingsBindings { get; init; } = Array.Empty<AvatarMeshSettingsBinding>();
     public IReadOnlyList<AvatarBoneConstraintBinding> BoneConstraintBindings { get; init; } = Array.Empty<AvatarBoneConstraintBinding>();
     public IReadOnlyList<AvatarWorldConstraintBinding> WorldConstraintBindings { get; init; } = Array.Empty<AvatarWorldConstraintBinding>();
+    public IReadOnlyList<AvatarMoveToBinding> MoveToBindings { get; init; } = Array.Empty<AvatarMoveToBinding>();
+    public IReadOnlyList<AvatarWorldFixedBinding> WorldFixedBindings { get; init; } = Array.Empty<AvatarWorldFixedBinding>();
+    public IReadOnlyList<AvatarWorldScaleBinding> WorldScaleBindings { get; init; } = Array.Empty<AvatarWorldScaleBinding>();
     public IReadOnlyList<long> VisibleInFirstPersonObjectIds { get; init; } = Array.Empty<long>();
     public float? FloorAdjustmentY { get; init; }
     public long FloorAdjusterSourceId { get; init; }

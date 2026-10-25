@@ -295,7 +295,9 @@ internal sealed class PreparedImportItem
                     if (behaviorPlan.CanBuild && (behaviorPlan.BreathingBindings.Count > 0 || behaviorPlan.BlinkingBindings.Count > 0 ||
                         behaviorPlan.TalkingBindings.Count > 0 || behaviorPlan.VisemeBindings.Count > 0 ||
                         behaviorPlan.MeshSettingsBindings.Count > 0 || behaviorPlan.VisibleInFirstPersonObjectIds.Count > 0 ||
-                        behaviorPlan.FloorAdjustmentY.HasValue))
+                        behaviorPlan.FloorAdjustmentY.HasValue || behaviorPlan.BoneConstraintBindings.Count > 0 ||
+                        behaviorPlan.WorldConstraintBindings.Count > 0 || behaviorPlan.MoveToBindings.Count > 0 ||
+                        behaviorPlan.WorldFixedBindings.Count > 0 || behaviorPlan.WorldScaleBindings.Count > 0))
                     {
                         await AvatarBehaviorRuntime.BuildAsync(behaviorPlan, root, existingIUnityObjects, token);
                         ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Info,
