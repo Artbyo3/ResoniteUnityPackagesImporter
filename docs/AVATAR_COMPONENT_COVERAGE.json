@@ -159,12 +159,17 @@
         },
         {
           "name": "VRCHeadChop",
-          "status": "missing",
+          "status": "partial",
           "source": "docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCHeadChop",
-          "reason": "Local first-person visibility/scale, preserve remote/mirror.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "HeadChop and target bones compile into first-person visibility settings.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+            "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+          ],
+          "tests": [
+            "Tests/AvatarBehaviorTests.cs"
+          ]
         },
         {
           "name": "VRCIKFollower",
@@ -603,11 +608,15 @@
         {
           "name": "ModularAvatarPBBlocker",
           "source": "Runtime/ModularAvatarPBBlocker.cs",
-          "status": "missing",
-          "reason": "Native chain exclusion, no component deletion needed.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "status": "partial",
+          "reason": "Excludes specified bones and descendant hierarchies from parent PhysBone simulation chains.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/AvatarPhysBonePlanner.cs"
+          ],
+          "tests": [
+            "Tests/AvatarPhysBoneTests.cs"
+          ]
         },
         {
           "name": "ModularAvatarPlatformFilter",
@@ -1121,12 +1130,16 @@
         },
         {
           "name": "ObjectState",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/ObjectState.cs",
-          "reason": "Legacy ACTIVATE/DEACTIVATE reversible; DELETE destructive. No implicit migrations. Do not execute; warn/block dependent behavior as appropriate.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Compiles authored object state (ACTIVATE / DEACTIVATE) into initial appearance resting states.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryInitialAppearance.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryInitialAppearanceTests.cs"
+          ]
         },
         {
           "name": "OGBIntegration",
@@ -1294,12 +1307,16 @@
         },
         {
           "name": "Toes",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/Feature/Toes.cs",
-          "reason": "Down/up/splay via native menu puppet controls.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Compiles foot toe bone curl and splay into continuous wardrobe parameter controls.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryWardrobeTests.cs"
+          ]
         },
         {
           "name": "Toggle",
@@ -1603,12 +1620,16 @@
         },
         {
           "name": "WorldDropAction",
-          "status": "missing",
+          "status": "partial",
           "source": "Runtime/Model/StateAction/WorldDropAction.cs",
-          "reason": "Drop/reset with permissions/lifecycle.",
-          "runtime": false,
-          "evidence": [],
-          "tests": []
+          "reason": "Compiles prop world-drop into wardrobe toggle active states.",
+          "runtime": true,
+          "evidence": [
+            "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs"
+          ],
+          "tests": [
+            "Tests/VrcFuryWardrobeTests.cs"
+          ]
         }
       ]
     },

@@ -1412,9 +1412,9 @@
       "framework": "vrcfury",
       "name": "Toes",
       "type": "Toes",
-      "status": "missing",
-      "outcome": "Configure toe-related behavior. Not translated.",
-      "reason": "The current importer does not recreate this behavior. Importing its meshes or textures is not equivalent to executing it. A Resonite-native equivalent needs design and validation before it can be promised.",
+      "status": "limited",
+      "outcome": "Foot toe bone curl and splay compile into continuous wardrobe parameter controls.",
+      "reason": "Compiles foot toe bone curl and splay into continuous wardrobe parameter controls.",
       "legacy": false,
       "work": "unplanned",
       "issue": null,
@@ -1423,8 +1423,11 @@
         "revision": "6bd33f4cb453df816c943a335e47f64e6a37e188",
         "path": "com.vrcfury.vrcfury/Runtime/Model/Feature/Toes.cs"
       },
-      "evidence": [],
-      "summary": "Essential for 1:1 avatar appearance/behavior; scheduled for native Resonite compilation."
+      "evidence": [
+        "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs",
+        "Tests/VrcFuryWardrobeTests.cs"
+      ],
+      "summary": "Compiles foot toe curl and splay into continuous wardrobe parameter controls."
     },
     {
       "id": "vrcfury-vrcfuryhaptictouchsender",

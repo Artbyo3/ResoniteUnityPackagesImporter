@@ -271,6 +271,21 @@ internal static class AvatarBehaviorPlanner
             }
         }
 
+        // 4. Scan VRChat SDK components
+        foreach (var (mbFileId, body) in monoBehaviours)
+        {
+            token.ThrowIfCancellationRequested();
+            long ownerGo = ParseFileId(Get(body, "m_GameObject"));
+            if (!IsOwnedGameObject(ownerGo)) continue;
+
+            string idClass = Text(body, "m_EditorClassIdentifier") + " " + Text(body, "m_Name");
+            if (idClass.Contains("VRCHeadChop", StringComparison.OrdinalIgnoreCase) ||
+                idClass.Contains("HeadChop", StringComparison.OrdinalIgnoreCase))
+            {
+                CompileVrcHeadChop(mbFileId, body, ownerGo, IsOwnedGameObject, visibleInFirstPersonObjectIds);
+            }
+        }
+
         return new AvatarBehaviorPlan
         {
             BreathingBindings = breathingBindings.AsReadOnly(),
@@ -930,6 +945,26 @@ internal static class AvatarBehaviorPlanner
         if (isOwnedGo(target) && !visibleInFirstPersonObjectIds.Contains(target))
         {
             visibleInFirstPersonObjectIds.Add(target);
+        }
+    }
+
+    private static IEnumerable<YamlNode> Sequence(YamlMappingNode? mapping, string key) =>
+        Get(mapping, key) is YamlSequenceNode sequence ? sequence.Children : Array.Empty<YamlNode>();
+
+    private static void CompileVrcHeadChop(
+        long sourceId,
+        YamlMappingNode body,
+        long ownerGo,
+        Func<long, bool> isOwnedGo,
+        List<long> visibleInFirstPersonObjectIds)
+    {
+        if (isOwnedGo(ownerGo) && !visibleInFirstPersonObjectIds.Contains(ownerGo))
+            visibleInFirstPersonObjectIds.Add(ownerGo);
+        foreach (var targetNode in Sequence(body, "targetBones"))
+        {
+            long target = ParseFileId(targetNode);
+            if (target != 0 && isOwnedGo(target) && !visibleInFirstPersonObjectIds.Contains(target))
+                visibleInFirstPersonObjectIds.Add(target);
         }
     }
 }

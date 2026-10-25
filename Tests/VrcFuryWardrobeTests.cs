@@ -521,6 +521,36 @@ MonoBehaviour:
             check(plan.Controls[0].ParameterType == AvatarParameterType.Float, "Expected Float parameter type.");
             check(plan.Controls[0].Bindings.Count > 0, "Expected puppet bindings.");
         });
+
+        test("Wardrobe compiles WorldDropAction to active toggle binding", () =>
+        {
+            var plan = Compile(Toggle(0, "Drop", "obj: {fileID: 10}", actionType: "WorldDropAction"));
+            check(plan.CanBuild && plan.Controls.Count == 1, Describe(plan));
+            check(plan.Controls[0].Bindings.Count == 1, "Expected 1 WorldDrop binding.");
+            check(!plan.Controls[0].Bindings[0].Off.Active && plan.Controls[0].Bindings[0].On.Active, "Expected off=false, on=true.");
+        });
+
+        test("Wardrobe compiles Toes feature to continuous toe curl control", () =>
+        {
+            string toesFeature = @"--- !u!114 &997
+MonoBehaviour:
+  m_GameObject: {fileID: 1}
+  m_Script: {fileID: 11500000, guid: " + VrcFuryInitialAppearance.ScriptGuid + @"}
+  content: {rid: 2005}
+  references:
+    version: 2
+    RefIds:
+      - rid: 2005
+        type: {class: Toes, ns: VF.Model.Feature, asm: VRCFury}
+        data: {}
+";
+            var plan = VrcFuryInitialAppearance.CompileWardrobe(Scene(toesFeature), Context());
+            check(plan.CanBuild, Describe(plan));
+            check(plan.Controls.Count == 1, $"Expected 1 toes control, got {plan.Controls.Count}.");
+            check(plan.Controls[0].Path == "Toes", $"Expected path Toes, got {plan.Controls[0].Path}.");
+            check(plan.Controls[0].ParameterType == AvatarParameterType.Float, "Expected Float parameter type.");
+            check(plan.Controls[0].Bindings.Count > 0, "Expected toes bindings.");
+        });
     }
 
     private static string ObjectAction(long target, int mode = 0) => "version: 1, obj: {fileID: " + target + "}, mode: " + mode;

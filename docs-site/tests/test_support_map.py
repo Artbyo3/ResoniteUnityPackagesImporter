@@ -68,7 +68,8 @@ class SupportMapTests(unittest.TestCase):
         self.assertEqual({entry["type"] for entry in partial}, {
             "VRCAvatarDescriptor", "VRCPhysBone", "VRCPhysBoneCollider",
             "VRCAimConstraint", "VRCLookAtConstraint", "VRCParentConstraint",
-            "VRCPositionConstraint", "VRCRotationConstraint", "VRCScaleConstraint"
+            "VRCPositionConstraint", "VRCRotationConstraint", "VRCScaleConstraint",
+            "VRCHeadChop"
         })
         desc = next(entry for entry in partial if entry["type"] == "VRCAvatarDescriptor")
         self.assertIn("Tests/AvatarViewpointTests.cs", desc["evidence"])
@@ -77,8 +78,8 @@ class SupportMapTests(unittest.TestCase):
         body = render_support_map("vrchat")
         parsed = InventoryParser(body)
         self.assertEqual(len(parsed.rows), 17)
-        self.assertEqual(len(parsed.segments), 9)
-        self.assertIn('<span data-support-partial>9</span>', body)
+        self.assertEqual(len(parsed.segments), 10)
+        self.assertIn('<span data-support-partial>10</span>', body)
         self.assertIn(("not-applicable", "not-applicable"), parsed.rows)
         self.assertIn(("legacy", "legacy"), parsed.rows)
         self.assertEqual(set(parsed.accordion_names), {"support-components-vrchat"})
@@ -161,7 +162,7 @@ class SupportMapTests(unittest.TestCase):
             self.assertNotIn('support-state--supported', body)
 
     def test_collection_excludes_not_applicable_and_legacy(self):
-        for scope, total, partial, excluded, legacy in [("ma", 17, 16, 5, 0), ("vrcfury", 22, 16, 9, 9), ("all", 39, 32, 14, 9)]:
+        for scope, total, partial, excluded, legacy in [("ma", 17, 16, 5, 0), ("vrcfury", 22, 17, 9, 9), ("all", 39, 33, 14, 9)]:
             with self.subTest(scope=scope):
                 body = render_support_map(scope, self.data)
                 parsed = InventoryParser(body)

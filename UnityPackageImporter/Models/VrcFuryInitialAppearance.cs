@@ -422,7 +422,7 @@ public static partial class VrcFuryInitialAppearance
                 {
                     var extraActions = feature.Class switch
                     {
-                        "Puppet" => Actions(Get(feature.Data, "actions") != null ? feature.Data : Get(feature.Data, "state")),
+                        "Puppet" or "Toes" => Actions(Get(feature.Data, "actions") != null ? feature.Data : Get(feature.Data, "state")),
                         _ => Array.Empty<Managed>()
                     };
                     features.Add(new(component.Id, Reference(component.Body, "m_GameObject"), feature.Class, feature.Data, extraActions, rootId));

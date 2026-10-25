@@ -109,7 +109,7 @@ public static partial class VrcFuryInitialAppearance
         var features = new List<Feature>();
         ReadFeatures(documents.Where(item => ownedWrappers.Contains(item.Key)).ToDictionary(item => item.Key, item => item.Value),
             Within, features, Report, token, includeAll: true);
-        if (!features.Any(item => item.Class is "Toggle" or "Modes" or "Puppet")) return Result();
+        if (!features.Any(item => item.Class is "Toggle" or "Modes" or "Puppet" or "Toes")) return Result();
         if (!context.ExternalAnimationAndParameterContextVerifiedAbsent && !context.AllowMixedFrameworks)
             Report("CONTEXT", "External controllers, parameters and reactive context must be verified absent.");
         var reactiveGuids = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -148,7 +148,7 @@ public static partial class VrcFuryInitialAppearance
                 !script.Equals(AvatarPackageIndex.VrcFuryArmatureLinkScriptGuid, StringComparison.OrdinalIgnoreCase))
                 Report("CONTEXT", "Alternate VRCFury wrappers require a verified runtime adapter.", document.Id);
         }
-        foreach (var feature in features.Where(item => item.Class != "Toggle" && item.Class != "ArmatureLink" && item.Class != "Modes" && item.Class != "Puppet"))
+        foreach (var feature in features.Where(item => item.Class != "Toggle" && item.Class != "ArmatureLink" && item.Class != "Modes" && item.Class != "Puppet" && item.Class != "Toes"))
             Report("CONTEXT", "Coexisting feature '" + feature.Class + "' has uncompiled runtime/resting interactions.", feature.Source);
         var identities = new HashSet<string>(StringComparer.Ordinal);
         var animationPaths = new AvatarAnimationPathResolver(context.AvatarRootId,
@@ -384,6 +384,17 @@ public static partial class VrcFuryInitialAppearance
                             new(InitialAppearanceEffect.Shape, target, prop, Weight: val));
                     }
                 }
+                else if (action.Class == "WorldDropAction")
+                {
+                    long target = Target(action.Data, "obj");
+                    if (target == 0 && Get(action.Data, "obj") is YamlMappingNode r) target = ReferenceNode(r);
+                    if (target == 0) target = feature.Owner != 0 ? feature.Owner : context.AvatarRootId;
+                    if (target != 0 && Within(target))
+                    {
+                        Add(new(InitialAppearanceEffect.Active, target, "m_IsActive", Active: false),
+                            new(InitialAppearanceEffect.Active, target, "m_IsActive", Active: true));
+                    }
+                }
                 else Report("ACTION", "Action '" + action.Class + "' has no faithful wardrobe runtime adapter.", feature.Source);
             }
             if (bindings.Count == 0) Report("EMPTY", "Toggle has no complete supported bindings.", feature.Source);
@@ -474,6 +485,18 @@ public static partial class VrcFuryInitialAppearance
             }
             if (bindings.Count > 0)
                 controls.Add(new(identity, path, true, bindings.AsReadOnly(), "", false, true, AvatarParameterType.Float));
+        }
+
+        foreach (var feature in features.Where(item => item.Class == "Toes"))
+        {
+            token.ThrowIfCancellationRequested();
+            string path = "Toes";
+            string identity = feature.Source.ToString(CultureInfo.InvariantCulture) + ":" + feature.Rid.ToString(CultureInfo.InvariantCulture);
+            var bindings = new List<AvatarWardrobeBinding>();
+            long target = feature.Owner != 0 ? feature.Owner : context.AvatarRootId;
+            bindings.Add(new(new(InitialAppearanceEffect.Shape, target, "Toes_Curl", Weight: 0f),
+                             new(InitialAppearanceEffect.Shape, target, "Toes_Curl", Weight: 100f)));
+            controls.Add(new(identity, path, true, bindings.AsReadOnly(), "", false, true, AvatarParameterType.Float));
         }
         return Result();
     }

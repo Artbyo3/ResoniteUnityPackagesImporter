@@ -261,14 +261,16 @@
       "framework": "vrchat",
       "name": "Head Chop",
       "type": "VRCHeadChop",
-      "status": "re-evaluation",
-      "summary": "Under review for native Resonite runtime equivalence; secondary to core visual mesh/dynamics transfer.",
-      "outcome": "VRChat Head Chop targets and first-person visibility settings are not translated.",
-      "reason": "Native avatar creation does not imply that authored SDK head-hiding rules were converted.",
+      "status": "limited",
+      "summary": "Head chop and target bones compile into first-person visibility settings.",
+      "outcome": "Head chop target bones are tagged and translated into first-person visibility settings.",
+      "reason": "Translates authored head chop targets into native first-person visibility tags. Dynamic camera-relative scaling remains limited.",
       "work": "unplanned",
       "issue": null,
       "evidence": [
-        "UnityPackageImporter/FrooxEngineRepresentation/GameObjectTypes/MonoBehaviour.cs"
+        "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs",
+        "Tests/AvatarBehaviorTests.cs"
       ],
       "legacy": false,
       "source": {

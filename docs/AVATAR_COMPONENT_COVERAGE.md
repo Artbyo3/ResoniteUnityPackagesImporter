@@ -5,13 +5,13 @@ Partial receives one component credit only because a documented functional subse
 
 | Catalog | Implemented / total | Coverage | Full | Partial | Indexed only | Missing | Excluded | Runtime subsets |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Base VRChat SDK types | 9 / 28 | 32.1% | 0 | 9 | 3 | 16 | 0 | 9 |
-| Modular Avatar components | 18 / 40 | 45.0% | 0 | 18 | 1 | 18 | 3 | 16 |
-| VRCFury feature models | 19 / 56 | 33.9% | 0 | 19 | 0 | 29 | 8 | 17 |
-| VRCFury action models | 9 / 19 | 47.4% | 0 | 9 | 0 | 10 | 0 | 9 |
+| Base VRChat SDK types | 10 / 28 | 35.7% | 0 | 10 | 3 | 15 | 0 | 10 |
+| Modular Avatar components | 19 / 40 | 47.5% | 0 | 19 | 1 | 17 | 3 | 17 |
+| VRCFury feature models | 21 / 56 | 37.5% | 0 | 21 | 0 | 27 | 8 | 19 |
+| VRCFury action models | 10 / 19 | 52.6% | 0 | 10 | 0 | 9 | 0 | 10 |
 | VRCFury wrapper components | 0 / 12 | 0.0% | 0 | 0 | 1 | 5 | 6 | 0 |
 
-VRCFury combined concrete authoring-type coverage: 28 / 87 = 32.2% (feature models + action models + wrapper components). The breakdown stays visible rather than changing denominators silently.
+VRCFury combined concrete authoring-type coverage: 31 / 87 = 35.6% (feature models + action models + wrapper components). The breakdown stays visible rather than changing denominators silently.
 
 ## Base VRChat SDK types
 
@@ -33,7 +33,7 @@ Source revision: Avatar SDK3 type inventory in AVATAR_CONVERSION_SCOPE.md, 2026-
 | VRCContactSender | missing | no | Typed volumes/shapes/transforms/tags. |  |  | docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCContactSender |
 | VRCExpressionParameters | indexed | no | Exact typed AST declarations/defaults/saved/sync metadata and pure shared-state model; no installed SDK/MA shared parameter runtime or saved restoration. | UnityPackageImporter/Models/ExpressionMenuParser.cs, UnityPackageImporter/Models/AvatarParameterState.cs | Tests/AvatarWardrobeStateTests.cs | docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCExpressionParameters |
 | VRCExpressionsMenu | indexed | no | Exact AST control structure, ordered puppet parameters/label names and external references; hierarchy/display subset only. Uncompiled controls remain disabled; no runtime credit. | UnityPackageImporter/Models/ExpressionMenuParser.cs | Tests/ExpressionMenuStructureTests.cs | docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCExpressionsMenu |
-| VRCHeadChop | missing | no | Local first-person visibility/scale, preserve remote/mirror. |  |  | docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCHeadChop |
+| VRCHeadChop | partial | yes | HeadChop and target bones compile into first-person visibility settings. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCHeadChop |
 | VRCIKFollower | missing | no | Explicit legacy attachment migration. |  |  | docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCIKFollower |
 | VRCLookAtConstraint | partial | yes | LookAt constraints compiled to native FrooxEngine LookAt components with cycle detection and rotation offset support. | UnityPackageImporter/Models/AvatarConstraintPlanner.cs, UnityPackageImporter/Models/AvatarConstraintRuntime.cs | Tests/AvatarConstraintTests.cs | docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCLookAtConstraint |
 | VRCParentConstraint | partial | yes | Parent constraints compiled to native FrooxEngine CopyGlobalTransform components with cycle detection and source weighting. | UnityPackageImporter/Models/AvatarConstraintPlanner.cs, UnityPackageImporter/Models/AvatarConstraintRuntime.cs | Tests/AvatarConstraintTests.cs | docs/AVATAR_CONVERSION_SCOPE.md sections 1-2: VRCParentConstraint |
@@ -76,7 +76,7 @@ Source revision: f21ad465bb623e841b532a66aa555dbcddf2db47. 40 concrete Runtime a
 | ModularAvatarObjectToggle | partial | yes | Deterministic initial visibility and independent Boolean-toggle reactive runtime with baseline restoration; multi-state/shared-parameter reactive conditions pending. | UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs, UnityPackageImporter/Models/ModularAvatarWardrobeCompiler.cs, UnityPackageImporter/Models/AvatarWardrobeRuntime.cs | Tests/ModularAvatarInitialAppearanceTests.cs, Tests/ModularAvatarWardrobeTests.cs | Runtime/ReactiveObjects/ModularAvatarObjectToggle.cs |
 | ModularAvatarOutfitRoot | indexed | no | Only indexed/default metadata is interpreted; no corresponding native runtime behavior. Identification/selection metadata, not dressing runtime by itself. | UnityPackageImporter/Models/AvatarPackageIndex.cs |  | Runtime/ModularAvatarOutfitRoot.cs |
 | ModularAvatarParameters | partial | yes | Scoped parameter remapping, internal parameter isolation and default values for Modular Avatar initial appearance and toggle compilation; saved/synced persistence and multi-writer arbitration pending. | UnityPackageImporter/Models/AvatarPackageIndex.cs, UnityPackageImporter/Models/ModularAvatarInitialAppearance.cs, UnityPackageImporter/Models/ModularAvatarWardrobeCompiler.cs | Tests/ModularAvatarInitialAppearanceTests.cs, Tests/ModularAvatarWardrobeTests.cs | Runtime/ModularAvatarParameters.cs |
-| ModularAvatarPBBlocker | missing | no | Native chain exclusion, no component deletion needed. |  |  | Runtime/ModularAvatarPBBlocker.cs |
+| ModularAvatarPBBlocker | partial | yes | Excludes specified bones and descendant hierarchies from parent PhysBone simulation chains. | UnityPackageImporter/Models/AvatarPhysBonePlanner.cs | Tests/AvatarPhysBoneTests.cs | Runtime/ModularAvatarPBBlocker.cs |
 | ModularAvatarPlatformFilter | missing | no | Resonite target, not automatically PC/Android; explicit output exclusion, immutable source/dependency reports. |  |  | Runtime/ModularAvatarPlatformFilter.cs |
 | ModularAvatarReactiveMove | missing | no | Reactive constraints, channels, world-fix and transitions. |  |  | Runtime/ReactiveObjects/ModularAvatarReactiveMove.cs |
 | ModularAvatarRemoveVertexColor | missing | no | Pending isolated-copy vertex-color stripping honoring DontRemove overrides; preserve source mesh channels. |  |  | Runtime/RemoveVertexColor.cs |
@@ -131,7 +131,7 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 56 concrete top-level
 | MmdCompatibility | excluded | no | VRChat MMD conventions excluded; preserve usable assets. |  |  | Runtime/Model/Feature/MmdCompatibility.cs |
 | Modes | partial | yes | VRCFury Modes multi-state selection compiles to discrete active/inactive wardrobe controls with mutually exclusive state switching. | UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs | Tests/VrcFuryWardrobeTests.cs | Runtime/Model/Feature/Modes.cs |
 | MoveMenuItem | missing | no | Relocation/identity/cycle checks; blank destination deletes a control and requires an explicit output-removal policy. Diagnose removal intent; do not silently discard controls/references. |  |  | Runtime/Model/Feature/MoveMenuItem.cs |
-| ObjectState | missing | no | Legacy ACTIVATE/DEACTIVATE reversible; DELETE destructive. No implicit migrations. Do not execute; warn/block dependent behavior as appropriate. |  |  | Runtime/Model/Feature/ObjectState.cs |
+| ObjectState | partial | yes | Compiles authored object state (ACTIVATE / DEACTIVATE) into initial appearance resting states. | UnityPackageImporter/Models/VrcFuryInitialAppearance.cs | Tests/VrcFuryInitialAppearanceTests.cs | Runtime/Model/Feature/ObjectState.cs |
 | OGBIntegration | missing | no | Separate specialized adapter, no auto-activation/substitution. |  |  | Runtime/Model/Feature/OGBIntegration.cs |
 | OGBIntegration2 | missing | no | Separate specialized adapter, no auto-activation/substitution. |  |  | Runtime/Model/Feature/OGBIntegration2.cs |
 | OverrideMenuSettings | missing | no | Native presentation where meaningful. |  |  | Runtime/Model/Feature/OverrideMenuSettings.cs |
@@ -148,7 +148,7 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 56 concrete top-level
 | Slot4Fix | excluded | no | Deprecated upstream no-op for old Unity issue. |  |  | Runtime/Model/Feature/Slot4Fix.cs |
 | SpsOptions | missing | no | Optional specialized interaction; settings alone not parity. |  |  | Runtime/Model/Feature/SpsOptions.cs |
 | Talking | partial | yes | Native voice-activity actions mapped to FrooxEngine speech drivers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/Talking.cs |
-| Toes | missing | no | Down/up/splay via native menu puppet controls. |  |  | Runtime/Model/Feature/Toes.cs |
+| Toes | partial | yes | Compiles foot toe bone curl and splay into continuous wardrobe parameter controls. | UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs | Tests/VrcFuryWardrobeTests.cs | Runtime/Model/Feature/Toes.cs |
 | Toggle | partial | yes | Independent native Boolean visibility/blendshape/material and constant-animation-clip controls; mixed controllers, saved/exclusive/transitions/sliders pending. | UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs, UnityPackageImporter/Models/AvatarWardrobeRuntime.cs | Tests/VrcFuryWardrobeTests.cs | Runtime/Model/Feature/Toggle.cs |
 | TPSIntegration | missing | no | Legacy/current specialized intent; no literal Unity shader protocol. |  |  | Runtime/Model/Feature/TPSIntegration.cs |
 | TPSIntegration2 | missing | no | Legacy/current specialized intent; no literal Unity shader protocol. |  |  | Runtime/Model/Feature/TPSIntegration2.cs |
@@ -182,7 +182,7 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 19 concrete Action-de
 | ShaderInventoryAction | missing | no | SCSS shader inventory needs specific material adapter. |  |  | Runtime/Model/StateAction/ShaderInventoryAction.cs |
 | SmoothLoopAction | missing | no | Loop timing/composition/transitions. |  |  | Runtime/Model/StateAction/SmoothLoopAction.cs |
 | SpsOnAction | missing | no | Optional specialized interaction enablement. |  |  | Runtime/Model/StateAction/SpsOnAction.cs |
-| WorldDropAction | missing | no | Drop/reset with permissions/lifecycle. |  |  | Runtime/Model/StateAction/WorldDropAction.cs |
+| WorldDropAction | partial | yes | Compiles prop world-drop into wardrobe toggle active states. | UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs | Tests/VrcFuryWardrobeTests.cs | Runtime/Model/StateAction/WorldDropAction.cs |
 
 ## VRCFury wrapper components
 

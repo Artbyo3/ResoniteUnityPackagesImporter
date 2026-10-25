@@ -782,5 +782,33 @@ MonoBehaviour:
             check(plan.WorldFixedBindings[0].TargetObjectFileId == 22, "Wrong target object for WorldFixed.");
             check(plan.WorldScaleBindings[0].TargetObjectFileId == 22, "Wrong target object for WorldScale.");
         });
+
+        test("VRCHeadChop compiles target bones into visible first-person IDs", () =>
+        {
+            string yaml = @"--- !u!1 &1
+GameObject:
+  m_Name: AvatarRoot
+--- !u!4 &2
+Transform:
+  m_GameObject: {fileID: 1}
+  m_Father: {fileID: 0}
+--- !u!1 &15
+GameObject:
+  m_Name: HeadBone
+--- !u!4 &25
+Transform:
+  m_GameObject: {fileID: 15}
+  m_Father: {fileID: 2}
+--- !u!114 &95
+MonoBehaviour:
+  m_GameObject: {fileID: 15}
+  m_EditorClassIdentifier: VRCHeadChop
+  targetBones:
+    - {fileID: 15}
+";
+            var plan = AvatarBehaviorPlanner.Compile(yaml, 1);
+            check(plan.CanBuild, "VRCHeadChop plan failed to build.");
+            check(plan.VisibleInFirstPersonObjectIds.Contains(15), "Expected HeadBone (15) in VisibleInFirstPersonObjectIds.");
+        });
     }
 }
