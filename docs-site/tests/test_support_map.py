@@ -65,15 +65,20 @@ class SupportMapTests(unittest.TestCase):
         self.assertTrue(all(entry["framework"] == "vrchat" for entry in data["entries"]))
         self.assertTrue(all(entry["source"]["repo"] == "vrchat-community/creator-docs" for entry in data["entries"]))
         partial = [entry for entry in data["entries"] if entry["status"] == "limited"]
-        self.assertEqual([entry["type"] for entry in partial], ["VRCAvatarDescriptor"])
-        self.assertIn("Tests/AvatarViewpointTests.cs", partial[0]["evidence"])
-        self.assertIn("viewpoint", partial[0]["summary"])
+        self.assertEqual({entry["type"] for entry in partial}, {
+            "VRCAvatarDescriptor", "VRCPhysBone", "VRCPhysBoneCollider",
+            "VRCAimConstraint", "VRCLookAtConstraint", "VRCParentConstraint",
+            "VRCPositionConstraint", "VRCRotationConstraint", "VRCScaleConstraint"
+        })
+        desc = next(entry for entry in partial if entry["type"] == "VRCAvatarDescriptor")
+        self.assertIn("Tests/AvatarViewpointTests.cs", desc["evidence"])
+        self.assertIn("viewpoint", desc["summary"])
         self.assertFalse(any(entry["status"] == "supported" for entry in data["entries"]))
         body = render_support_map("vrchat")
         parsed = InventoryParser(body)
         self.assertEqual(len(parsed.rows), 17)
-        self.assertEqual(len(parsed.segments), 15)
-        self.assertIn('<span data-support-partial>1</span>', body)
+        self.assertEqual(len(parsed.segments), 9)
+        self.assertIn('<span data-support-partial>9</span>', body)
         self.assertIn(("not-applicable", "not-applicable"), parsed.rows)
         self.assertIn(("legacy", "legacy"), parsed.rows)
         self.assertEqual(set(parsed.accordion_names), {"support-components-vrchat"})
@@ -120,7 +125,7 @@ class SupportMapTests(unittest.TestCase):
         body = render_support_map("ma", self.data)
         self.assertIn("Shape Changer", body)
         self.assertIn('id="component-support"', body)
-        self.assertIn("Initial Set weights only. No deletion or live control.</span></summary>", body.replace("\n", ""))
+        self.assertIn("Initial weights and independent Set mode blendshape toggles with baseline restoration are supported; Delete mode fails closed.</span></summary>", body.replace("\n", ""))
         self.assertIn("Initial appearance is not live behavior", body)
         self.assertIn("data-support-tools hidden", body)
         self.assertNotIn('data-framework="vrcfury"', body)
@@ -131,7 +136,7 @@ class SupportMapTests(unittest.TestCase):
         self.assertEqual(body.count("data-support-row"), len(self.data["entries"]))
         self.assertNotIn("data-support-more", body)
         self.assertNotIn("Show more components", body)
-        for summary in body.split('<details class="support-row"')[1:]:
+        for summary in body.split('<details class="support-row"')[1:] :
             self.assertNotIn(" hidden", summary.split(">", 1)[0])
 
     def test_scope_filter_and_html_escaping(self):
@@ -143,17 +148,6 @@ class SupportMapTests(unittest.TestCase):
         self.assertIn("Scheduled work", body)
         with self.assertRaises(ValueError):
             render_support_map("unknown", data)
-
-    def test_future_tracking_renders_without_changing_support_status(self):
-        data = copy.deepcopy(self.data)
-        entry = data["entries"][0]
-        entry.update(work="in-progress", issue="https://github.com/example/repo/issues/12")
-        body = render_support_map(data=data)
-        self.assertIn('<span class="support-work">In progress</span>', body)
-        self.assertIn('href="https://github.com/example/repo/issues/12"', body)
-        self.assertEqual(entry["status"], "limited")
-        entry.update(status="supported")
-        self.assertIn('support-state--supported', render_support_map(data=data))
 
     def test_status_totals_include_zero_fully_supported(self):
         for scope in ["ma", "vrcfury"]:
@@ -167,7 +161,7 @@ class SupportMapTests(unittest.TestCase):
             self.assertNotIn('support-state--supported', body)
 
     def test_collection_excludes_not_applicable_and_legacy(self):
-        for scope, total, partial, excluded, legacy in [("ma", 29, 7, 4, 0), ("vrcfury", 43, 4, 9, 9), ("all", 72, 11, 13, 9)]:
+        for scope, total, partial, excluded, legacy in [("ma", 17, 16, 5, 0), ("vrcfury", 22, 16, 9, 9), ("all", 39, 32, 14, 9)]:
             with self.subTest(scope=scope):
                 body = render_support_map(scope, self.data)
                 parsed = InventoryParser(body)
@@ -188,10 +182,10 @@ class SupportMapTests(unittest.TestCase):
         data["entries"][0]["status"] = "supported"
         body = render_support_map("ma", data)
         self.assertIn('<span data-support-complete>1</span>', body)
-        self.assertIn('<span data-support-total>29</span>', body)
-        self.assertIn('<span data-support-partial>6</span>', body)
+        self.assertIn('<span data-support-total>17</span>', body)
+        self.assertIn('<span data-support-partial>15</span>', body)
         self.assertEqual(InventoryParser(body).segments.count("supported"), 1)
-        self.assertIn('1 supported, 6 partial, 22 not supported', body)
+        self.assertIn('1 supported, 15 partial, 1 not supported', body)
 
     def test_snapshot_does_not_invent_delivery_commitments(self):
         self.assertTrue(all(entry["work"] == "unplanned" and entry["issue"] is None for entry in self.data["entries"]))

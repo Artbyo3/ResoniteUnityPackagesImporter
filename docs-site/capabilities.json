@@ -843,7 +843,8 @@
       },
       "evidence": [
         "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
-        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs",
+        "Tests/AvatarBehaviorTests.cs"
       ],
       "summary": "Blink cycle blendshapes and animation curves mapped to native eyelid drivers."
     },
@@ -911,7 +912,8 @@
       },
       "evidence": [
         "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
-        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs",
+        "Tests/AvatarBehaviorTests.cs"
       ],
       "summary": "Chest blendshape or bone-scale breathing oscillation driven via native FrooxEngine Wiggler."
     },
@@ -1164,7 +1166,8 @@
       },
       "evidence": [
         "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
-        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs",
+        "Tests/AvatarBehaviorTests.cs"
       ],
       "summary": "Suppresses descriptor eyelid blinking in favor of custom avatar eye drivers."
     },
@@ -1399,7 +1402,8 @@
       },
       "evidence": [
         "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
-        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs",
+        "Tests/AvatarBehaviorTests.cs"
       ],
       "summary": "Voice-activity blendshapes and object toggles driven via native FrooxEngine speech drivers."
     },
@@ -1478,7 +1482,8 @@
       },
       "evidence": [
         "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
-        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs"
+        "UnityPackageImporter/Models/AvatarBehaviorRuntime.cs",
+        "Tests/AvatarBehaviorTests.cs"
       ],
       "summary": "Multi-channel phoneme blendshapes mapped directly to FrooxEngine DirectVisemeDriver."
     },

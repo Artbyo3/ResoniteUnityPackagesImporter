@@ -52,7 +52,7 @@ def render_support_map(scope="all", data=None):
     counts = Counter(entry["status"] for entry in entries if not entry["legacy"])
     escape = html.escape
     release = load_release_baseline()
-    evidence_base = "https://github.com/\" + release[\"repository\"] + \"/blob/\" + release[\"revision\"] + \"/"
+    evidence_base = f"https://github.com/{release['repository']}/blob/{release['revision']}/"
     applicable = [entry for entry in entries if entry["status"] in {"supported", "limited", "missing"} and not entry["legacy"]]
     numbers = {entry["id"]: index for index, entry in enumerate(applicable, 1)}
     grouped_rows = {"collection": [], "re-evaluation": [], "not-applicable": [], "legacy": []}
