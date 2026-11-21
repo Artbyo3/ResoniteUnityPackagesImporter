@@ -24,7 +24,7 @@ foreach ($file in $manifest.files) {
     $pending += $file
 }
 
-# Check exclusive access to every destination before replacing anything.
+
 foreach ($file in $pending) {
     $handle = [System.IO.File]::Open($file.target, 'Open', 'ReadWrite', 'None')
     $handle.Dispose()
@@ -41,8 +41,8 @@ try {
             if ((Get-FileHash -LiteralPath $temporary -Algorithm SHA256).Hash -ne $file.newHash) {
                 throw "Staged copy did not verify: $temporary"
             }
-            # PowerShell can marshal $null as an empty string for this overload.
-            # Use an explicit backup path instead, alongside the original backup.
+
+
             [System.IO.File]::Replace($temporary, $file.target, ($file.backup + '.replace'))
             $changed += $file
         }

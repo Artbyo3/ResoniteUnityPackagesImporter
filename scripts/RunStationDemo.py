@@ -9,7 +9,7 @@ from FindResoniteLink import DEFAULT_SECONDS, DiscoveryError, resolve_port
 sys.stdout.reconfigure(encoding='utf-8')
 
 def load_japanese_messages():
-    """Use the same station copy; unknown details keep their original wording."""
+
     folder = Path(__file__).resolve().parents[1] / "localization" / "station"
     if not (folder / "en.json").exists() or not (folder / "ja.json").exists():
         return {}
@@ -20,7 +20,7 @@ def load_japanese_messages():
 async def run_demo(port: int):
     uri = f"ws://localhost:{port}/"
     print(f"Connecting to ResoniteLink at {uri}...")
-    
+
     async with websockets.connect(uri, max_size=50*1024*1024) as ws:
         c = 0
         async def send(msg):
@@ -34,7 +34,7 @@ async def run_demo(port: int):
                         raise RuntimeError(f"ResoniteLink rejected {msg['$type']}: {r}")
                     return r
 
-        # 1. Dynamically locate the Station Prototype under Root
+
         print("Discovering '[UnityPackage Station Prototype]'...")
         root_data = await send({"$type": "getSlot", "slotId": "Root", "depth": 2, "includeComponentData": False})
         station_id = None
@@ -50,7 +50,7 @@ async def run_demo(port: int):
         print(f"Found Station Prototype: {station_id}. Scanning components...")
         station_deep = await send({"$type": "getSlot", "slotId": station_id, "depth": 10, "includeComponentData": True})
 
-        # Component IDs to discover
+
         pedestal_arc_comp = None
         pedestal_smooth_comp = None
         phase_text_comp = None
@@ -87,7 +87,7 @@ async def run_demo(port: int):
             if sname == "Native Import Animation":
                 native_animation_slot = node.get("id")
 
-            # Rainbow Stencil Arc & SmoothValue
+
             if sname == "Rainbow Stencil Writer Slot":
                 for comp in (node.get("components") or []):
                     ctype = comp.get("componentType", "")
@@ -96,7 +96,7 @@ async def run_demo(port: int):
                     elif "SmoothValue<float>" in ctype:
                         pedestal_smooth_comp = comp.get("id")
 
-            # Disclosure Text Slots
+
             if sname == "Server Crasher":
                 for comp in (node.get("components") or []):
                     if "Text" in comp.get("componentType", ""):
@@ -107,25 +107,25 @@ async def run_demo(port: int):
                     if "Text" in comp.get("componentType", ""):
                         file_text_comp = comp.get("id")
 
-            # Data Count & Total
+
             if sname == "Data":
                 int_fields = [comp.get("id") for comp in (node.get("components") or []) if "ValueField<int>" in comp.get("componentType", "")]
                 if len(int_fields) >= 2:
                     data_count_comp, data_total_comp = int_fields[0], int_fields[1]
 
-            # Success / Fail flags
+
             if sname == "Border":
                 bool_fields = [comp.get("id") for comp in (node.get("components") or []) if "ValueField<bool>" in comp.get("componentType", "")]
                 if len(bool_fields) >= 2:
                     has_completed_comp, has_failed_comp = bool_fields[0], bool_fields[1]
 
-            # Final Message Driver
+
             if sname == "Final Message":
                 for comp in (node.get("components") or []):
                     if "BooleanValueDriver<string>" in comp.get("componentType", ""):
                         msg_driver_comp = comp.get("id")
 
-            # Canvas Animation Drivers
+
             if sname == "Canvas":
                 for comp in (node.get("components") or []):
                     ctype = comp.get("componentType", "")
@@ -158,8 +158,8 @@ async def run_demo(port: int):
         if not all([pedestal_arc_comp, pedestal_smooth_comp, phase_text_comp, file_text_comp, data_count_comp, data_total_comp, has_completed_comp, has_failed_comp, msg_driver_comp, canvas_scale_driver, canvas_pos_driver, canvas_copy_comp]):
             raise RuntimeError("Required lifecycle components are missing; no demo changes were made.")
 
-        # The demo owns visibility. Disabled ValueCopy still holds its drive,
-        # so release its Target as well. Keep its Source for later integration.
+
+
         if canvas_copy_comp:
             await send({
                 "$type": "updateComponent",
@@ -183,8 +183,8 @@ async def run_demo(port: int):
         async def set_localized_string(component_id, member, value):
             field_id = component_data[component_id]["members"][member]["id"]
             driver = localized_strings.get(field_id)
-            # Localization owns the visible field. Update both source values,
-            # so language switching continues to work during a demo stage.
+
+
             members = ({"FalseValue": {"$type": "string", "value": value},
                         "TrueValue": {"$type": "string", "value": japanese_messages.get(value, value)}}
                        if driver else {member: {"$type": "string", "value": value}})
@@ -238,11 +238,11 @@ async def run_demo(port: int):
                     "entityId": canvas_scale_driver,
                     "data": {"id": canvas_scale_driver, "members": {"State": {"$type": "bool", "value": visible}}}
                 })
-            # The existing position ValueCopy follows the scale driver's State.
+
 
         async def dismiss_card():
-            # Speed 10 is responsive during loading. Speed 3 was measured live
-            # to reduce a full ring to ~0.02 degrees after two seconds.
+
+
             await set_pedestal_arc(0.0, speed=3.0)
             await set_card_visible(False)
             await asyncio.sleep(2.0)
@@ -253,18 +253,18 @@ async def run_demo(port: int):
         print(f">>> RUNNING STATION LIFECYCLE DEMO (PORT {port})")
         print("=======================================================\n")
 
-        # Step 0: Initial state
+
         await set_outcome(success=False, fail=False)
         await set_card_visible(True)
         await set_pedestal_arc(0, speed=10.0)
         await set_hud("Initializing Import Pipeline...", "package_manifest.json", 0, 120)
         await asyncio.sleep(2.0)
 
-        # ------------------------------------------------------------------
-        # STAGE 1: PROGRESS TO SUCCESS (0% -> 100%)
-        # ------------------------------------------------------------------
+
+
+
         print(">>> 1. Loading Assets (0% -> 100%)...")
-        # Deliberately chunky targets demonstrate native frame-by-frame smoothing.
+
         for t in (0.0, 0.05, 0.12, 0.25, 0.38, 0.55, 0.72, 0.88, 1.0):
             arc_deg = t * 360.0
             count = int(t * 120)
@@ -286,25 +286,25 @@ async def run_demo(port: int):
             await set_hud(phase, file_name, count, 120)
             await asyncio.sleep(0.4)
 
-        # ------------------------------------------------------------------
-        # SUCCESS STATE: TURNS GREEN (CARD & PEDESTAL CELEBRATE)
-        # ------------------------------------------------------------------
+
+
+
         print(">>> 2. SUCCESS! Turning GREEN with Completion Banner & Full 360 Ring...")
         await set_pedestal_arc(360.0)
         await set_outcome(success=True, fail=False, msg_text="Import Completed Successfully")
-        # Hold full 360 ring and completion banner so the user clearly sees success
+
         await asyncio.sleep(3.5)
 
-        # ------------------------------------------------------------------
-        # SMOOTH EXIT: CARD SLIDES DOWN & PEDESTAL RING DISSOLVES TO 0 (CLEAN SHOWROOM)
-        # ------------------------------------------------------------------
+
+
+
         print(">>> 3. Smooth Exit: Card slides away, Pedestal ring smoothly dissolves to 0...")
-        # Trigger card disappear and smooth ring decay simultaneously
+
         await dismiss_card()
 
-        # ------------------------------------------------------------------
-        # STAGE 2: LOADING TO ERROR (0% -> 50%)
-        # ------------------------------------------------------------------
+
+
+
         print(">>> 4. Starting Second Run: Loading towards Failure...")
         await set_outcome(success=False, fail=False)
         await set_hud("Re-importing Package...", "package_manifest.json", 0, 120)
@@ -328,18 +328,18 @@ async def run_demo(port: int):
             await set_hud(phase, file_name, count, 120)
             await asyncio.sleep(0.12)
 
-        # ------------------------------------------------------------------
-        # FAILURE STATE: TURNS RED (CARD & PEDESTAL HALTED)
-        # ------------------------------------------------------------------
+
+
+
         print(">>> 5. FAILURE! Turning RED with Error Banner...")
         await set_outcome(success=False, fail=True, msg_text="Import Failed: Unsupported Shader Bytecode")
-        # Demo-only delay before simulating a user dismissal. A real failed
-        # import must remain visible until the user dismisses it.
+
+
         await asyncio.sleep(4.0)
 
-        # ------------------------------------------------------------------
-        # ERROR DISMISS: CARD SLIDES AWAY & PEDESTAL RING DISSOLVES TO 0
-        # ------------------------------------------------------------------
+
+
+
         print(">>> 6. Error Dismiss: Card slides away, Pedestal ring smoothly dissolves to 0...")
         await dismiss_card()
 
@@ -349,8 +349,8 @@ async def run_demo(port: int):
         await set_pedestal_arc(0.0, speed=10.0)
         await set_card_visible(False)
 
-        # An accepted write can still be overridden by another field drive.
-        # Confirm the actual final state before reporting success.
+
+
         for component_id, member, expected in (
             (canvas_scale_driver, "State", False),
             (canvas_pos_driver, "State", False),

@@ -26,7 +26,7 @@ foreach ($source in $distributionFiles.Values) {
     if (-not (Test-Path -LiteralPath $source -PathType Leaf)) { throw "Missing distribution file: $source" }
 }
 
-# Read version from assembly
+
 $assemblyVersion = [System.Reflection.AssemblyName]::GetAssemblyName($distributionFiles['rml_mods/UnityPackageImporter.dll']).Version
 $versionStr = "$($assemblyVersion.Major).$($assemblyVersion.Minor).$($assemblyVersion.Build)"
 if (-not $ReleaseTag) { $ReleaseTag = "v$versionStr" }
@@ -70,8 +70,8 @@ try {
     }
     [System.IO.Compression.ZipFile]::CreateFromDirectory($stagingDir, $temporaryZip)
 
-    # Audit the actual archive before replacing the previous candidate. This
-    # allowlist excludes engine assemblies, debug symbols and private sources.
+
+
     $archive = [System.IO.Compression.ZipFile]::OpenRead($temporaryZip)
     try {
         if ($archive.Entries.Count -ne $distributionFiles.Count) { throw 'Unexpected distribution entry count.' }
@@ -112,8 +112,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Resolute submission preparation failed.' }
 }
 finally {
-    # Only remove this invocation's unique scratch paths, after checking their
-    # resolved absolute locations remain inside the explicit output directory.
+
+
     Assert-DistributionChild $stagingDir
     if (Test-Path -LiteralPath $stagingDir) { Remove-Item -LiteralPath $stagingDir -Recurse -Force }
     Assert-DistributionChild $temporaryZip

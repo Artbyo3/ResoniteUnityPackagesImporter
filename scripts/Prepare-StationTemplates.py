@@ -1,4 +1,4 @@
-"""Validate and seal native UI exports without retaining account metadata."""
+
 import argparse
 import hashlib
 import json
@@ -74,7 +74,7 @@ def validate_package(path, shared_from=None):
 
 
 def rehydrate_to_temporary(package, donor_paths):
-    """Restore shared content-addressed assets into a temp archive before validation."""
+
     with zipfile.ZipFile(package) as archive:
         names = set(archive.namelist())
         if 'R-Main.record' not in names:
@@ -116,7 +116,7 @@ def rehydrate_to_temporary(package, donor_paths):
 
 
 def deduplicate_shared_assets(station_path, secondary_path):
-    """Omit a secondary template's assets that are already bundled in station."""
+
     with zipfile.ZipFile(station_path) as station_zip:
         station_assets = {
             name: station_zip.getinfo(name).file_size
@@ -147,7 +147,7 @@ def deduplicate_shared_assets(station_path, secondary_path):
 
 
 def validate_native_packages(packages, game_directory=None):
-    """Check typed object references; ZIP hashes cannot detect missing providers."""
+
     root = Path(__file__).resolve().parents[1]
     game_directory = game_directory or Path(r'C:\Program Files (x86)\Steam\steamapps\common\Resonite')
     command = ['dotnet', 'run', '--project', str(root / 'Tools/UITemplateTool'),
@@ -240,7 +240,7 @@ def prepare(directory, backup_directory, game_directory=None):
                 validation_paths.append(package)
         for path in validation_paths:
             validate_package(path)
-        # Fail before metadata, contract bytes, or the manifest are changed.
+
         validate_native_packages(validation_paths, game_directory)
         for package, temp in list(rehydrated_temps.items()):
             _replace_file(temp, package)
@@ -257,8 +257,8 @@ def prepare(directory, backup_directory, game_directory=None):
     for name in TEMPLATE_NAMES[1:]:
         deduplicate_shared_assets(directory / 'station.ResonitePackage', directory / (name + '.ResonitePackage'))
     for package, contract in prepared_inputs:
-        # Match the repository's LF attributes before hashing. A checkout must
-        # not change contract bytes and invalidate the embedded manifest.
+
+
         original = contract.read_bytes()
         normalized = original.replace(b'\r\n', b'\n')
         if normalized != original:

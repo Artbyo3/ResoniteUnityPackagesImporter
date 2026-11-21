@@ -1,9 +1,4 @@
-"""One-shot local discovery using ResoniteLink's native UDP announcements.
 
-Protocol reference: Yellow-Dog-Man/ResoniteLink, LinkSessionListener.cs and
-Models/ResoniteLinkSession.cs (verified against official library 0.13.1).
-This helper never enables Link, scans ports, or changes the world.
-"""
 
 import argparse
 import asyncio
@@ -17,7 +12,7 @@ import time
 
 
 ANNOUNCEMENT_PORT = 12512
-DEFAULT_SECONDS = 12.0  # Native announcements are sent every ten seconds.
+DEFAULT_SECONDS = 12.0
 
 
 class DiscoveryError(RuntimeError):
@@ -32,8 +27,8 @@ class LinkSession:
 
     @property
     def url(self):
-        # Resonite's local listener validates the Host header; using the
-        # numeric loopback address can produce HTTP 400 on a valid Link port.
+
+
         return f"ws://localhost:{self.port}/"
 
 
@@ -48,7 +43,7 @@ def local_ipv4_addresses():
 
 
 def decode_announcement(data, sender_ip, local_addresses):
-    """Reject unrelated packets and LAN peers; preserve native close signals."""
+
     try:
         address = ipaddress.ip_address(sender_ip)
         if address.version != 4 or not (address.is_loopback or sender_ip in local_addresses):
@@ -65,8 +60,8 @@ def decode_announcement(data, sender_ip, local_addresses):
             return None
         if port == 0 or port > 65535:
             return None
-        # Native closure announcements require only the ID and negative port;
-        # a missing/null name must not leave an old positive endpoint eligible.
+
+
         if port < 0 or name is None:
             name = ""
         if not isinstance(name, str):
@@ -95,8 +90,8 @@ def discover_sessions(seconds=DEFAULT_SECONDS):
             listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             listener.bind(("0.0.0.0", ANNOUNCEMENT_PORT))
             deadline = time.monotonic() + seconds
-            # Collect for the entire window: the first announcement may not be
-            # the only open world. State exists only for this one invocation.
+
+
             while (remaining := deadline - time.monotonic()) > 0:
                 listener.settimeout(remaining)
                 try:
@@ -137,7 +132,7 @@ async def resolve_port(port=None, *, selector=None, seconds=DEFAULT_SECONDS):
 
 
 async def verify_session(session):
-    """Read session metadata before any caller is allowed to change the world."""
+
     import websockets
 
     try:

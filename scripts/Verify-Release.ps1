@@ -29,7 +29,7 @@ try {
             '--ui-bundle', 'UnityPackageImporter/bin/Release/UnityPackageImporter.dll', 'UnityPackageImporter/UI/Templates')
     }
     else {
-        # A stale DLL must never stand in for this invocation's failed build.
+
         Write-Host 'FAIL UI bundle audit (Release build failed; audit not run)'
     }
 }
