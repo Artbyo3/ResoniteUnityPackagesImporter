@@ -21,7 +21,7 @@ RequiresInstallation (#63 step 1).
 
 ## Next actionable dependency
 
-- Owner's consolidated live test of installed `DF35C43D` (after full restart).
+- Owner's consolidated live test of installed `93E760CB` (after full restart).
   The last native gate on `5DE646C0` showed 24 errors from two transform-only idle
   clips entering the static appearance compiler; see
   [action diagnostics](IMPORT_ACTION_DIAGNOSTICS.md). The next native report must
@@ -44,8 +44,8 @@ RequiresInstallation (#63 step 1).
 
 ## Installed versus live-verified
 
-- Installed 2026-10-26 by the owner's request: Release DLL SHA-256
-  `DF35C43D82136AF79EA0644F990E530700E55837BC9E251B3ED3E13D484A527D`.
+- Installed and loaded, per the owner's live log of 2026-11-20: Release DLL SHA-256
+  `93E760CB82DD94B30B8C11847C1E7F3559F5B44F7CD5CD0351E6A792D59263E8`.
 - No live acceptance yet. The consolidated checklist in the ledger is the
   acceptance boundary: appearance/deformation, authored targets, wardrobe,
   breathing timing, nonuniform scale/driver ownership, owner/observer/reset/re-equip.
