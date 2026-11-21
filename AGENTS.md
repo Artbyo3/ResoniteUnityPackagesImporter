@@ -77,6 +77,15 @@ Commands:
 - Commit identity: Artbyo3 <Artbyo3@users.noreply.github.com>. Short imperative commit messages.
 - Before every push, scan the diff for usernames, local paths, emails and machine names. Delete scratch files and temporary scripts you created.
 
+## Agent working rules
+- Verify state before claiming it: merge, ship and commit state is checked against the live repo and the code, never from notes.
+- Commit hygiene: no Co-Authored-By trailers, no email addresses in commit messages, no personal paths or real names in any public file.
+- Scope lock: do exactly the listed changes and nothing else; anything else that looks wrong is reported, never silently fixed or built.
+- Finish inside the run: wait for your own builds and tests inside the run (foreground or poll loops); never end a turn with work still running behind it.
+- Never babysit external runs (CI, builds on other machines): dispatch, report the run ID and state, and end; Harbor watches from there.
+- One topic per PR and per commit series; keep changes reviewable.
+- AI involvement is disclosed, not hidden: keep the existing AI disclosure in README.md as it is.
+
 ## UI ownership rule (template vs code)
 - (A) If the in-world UI template can do it from its own UI state (look, layout, UI-only reactions, native animations), the template owns it and the C# code must not do it. Delete compensating code instead of adding more.
 - (B) If it depends on real data (counts, names, folders, import results), the code owns it. The template must not hold fixture or fake-data logic.
