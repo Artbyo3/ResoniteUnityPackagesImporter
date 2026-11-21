@@ -68,6 +68,7 @@ public sealed record InitialAppearanceRenderer(long GameObjectId, IReadOnlyDicti
 public sealed class InitialAppearanceContext
 {
     public long AvatarRootId { get; init; }
+    public AuthoredAppearanceHierarchy? AuthoredHierarchy { get; init; }
     public IReadOnlyDictionary<long, InitialAppearanceRenderer> Renderers { get; init; } = new Dictionary<long, InitialAppearanceRenderer>();
     public bool ExternalAnimationAndParameterContextVerifiedAbsent { get; init; }
     public bool AllowMixedFrameworks { get; init; }
@@ -83,7 +84,7 @@ public sealed class InitialAppearanceResult
     public bool CanApply => !HasUnsupportedContext && Diagnostics.All(item => item.Severity != InitialAppearanceSeverity.Error);
 }
 
-/// <summary>Static subset based on modular-avatar f21ad465bb623e841b532a66aa555dbcddf2db47.</summary>
+
 public static partial class ModularAvatarInitialAppearance
 {
     public const string ObjectToggleGuid = "a162bb8ec7e24a5abcf457887f1df3fa";
@@ -130,7 +131,7 @@ public static partial class ModularAvatarInitialAppearance
     public static bool ContainsReactiveComponents(string composedYaml, CancellationToken token = default) =>
         Read(composedYaml, token).Values.Any(item => IsReactive(Script(item)));
 
-    /// <summary>Computes a stable static snapshot with authored fallbacks, not transient simulator proxy states.</summary>
+
     public static InitialAppearanceResult Evaluate(string composedYaml, InitialAppearanceContext context, CancellationToken token = default)
     {
         ArgumentNullException.ThrowIfNull(context);

@@ -1,19 +1,19 @@
-/*
- * Private Resonite engine members accessed via reflection.
- * After each Resonite update, check that these still exist with the same signatures;
- * ReflectedMembers lists all dependencies for the startup compatibility check.
- *
- * - FrooxEngine.ModelImporter.PreprocessScene(Assimp.Scene)                      [static]
- * - FrooxEngine.ModelImporter.ImportNode(Assimp.Node, Slot, ModelImportData)     [static, returns IEnumerator<Context>]
- * - FrooxEngine.ModelImporter.SetupDraggable(Slot, solver, pos, rot, weight)     [static, 5 args; exact types not pinned in this file]
- * - FrooxEngine.SkinnedMeshRenderer.SetupBlendShapes()                           [instance]
- * - FrooxEngine.ModelImporter+ModelImportData.TryGetSlot(Assimp.Node)            [instance]
- * - FrooxEngine.ModelImporter+ModelImportData.TryGetBoneMapping(StaticMesh)      [instance]
- * - FrooxEngine.ModelImporter+ModelImportData(string, Assimp.Scene, Slot, Slot,
- *       ModelImportSettings, IProgressIndicator)                                 [constructor]
- *
- * Verified version: EngineCompatibilityCheck.LastVerifiedResoniteVersion.
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 using System;
 using System.Collections.Generic;
@@ -68,8 +68,8 @@ public static class FrooxInternalBridge
         _modelImportDataType?.GetConstructor(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance,
             null, new[] { typeof(string), typeof(Assimp.Scene), typeof(Slot), typeof(Slot), typeof(ModelImportSettings), typeof(IProgressIndicator) }, null);
 
-    // One entry per reflected engine dependency. Reuse the members used by the hooks,
-    // so the startup check and the feature cannot disagree about lookup flags/signatures.
+
+
     internal static readonly (string Name, MemberInfo Member)[] ReflectedMembers =
     {
         ("AssetHelper.ImportExtension", ImportExtensionType),

@@ -4,7 +4,7 @@ using UnityPackageImporter.Importing;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>Compatibility entry points for callers during the module migration.</summary>
+
 public static class AvatarBuildPlanner
 {
     public static AvatarBuildPlan CreatePlan(AvatarPackageManifest manifest, string avatarName = "") =>

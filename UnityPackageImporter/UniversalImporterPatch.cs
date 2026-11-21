@@ -42,7 +42,7 @@ internal static class UniversalImporterPatch
         {
             UnityPackageImporter.Msg("Start import of unity packages.");
             var slot = world.AddSlot("Unity Package Import");
-            // Identity session transform preserves authored scene coordinates and units.
+
             slot.PersistentSelf = false;
             var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             slot.StartGlobalTask(async () =>
@@ -53,14 +53,14 @@ internal static class UniversalImporterPatch
             __state = completion.Task;
         }
 
-        // Leave non-package files to the native importer and combine both tasks
-        // in Postfix so mixed drops complete only after both import paths finish.
+
+
 
         files = notUnityPackage;
         if (notUnityPackage.Count == 0)
         {
             __result = __state ?? Task.CompletedTask;
-            return false; // We have only unity packages, so don't run the rest and make some random model import dialogue
+            return false;
         }
         return true;
     }

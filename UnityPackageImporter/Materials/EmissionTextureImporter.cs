@@ -17,7 +17,7 @@ internal static class EmissionTextureImporter
     {
         await default(ToWorld);
         owner.importer.Session?.Check();
-        target.Target = null; // Null emission map is dark in Xiexe; never replace a missing mask with white.
+        target.Target = null;
         setReady?.Invoke(false);
         if (plan.UnsupportedReason != null)
         {
@@ -76,7 +76,7 @@ internal static class EmissionTextureImporter
         target.Target = result;
         setReady?.Invoke(result != null);
         if (result != null) return;
-        // Re-snapshot after async work so a companion racing this registration is not lost.
+
         var missing = plan.Inputs.Select(i => i.Guid).Distinct(StringComparer.OrdinalIgnoreCase)
             .Where(g => !owner.importer.AssetIDDict.ContainsKey(g)).ToArray();
         if (missing.Length == 0)

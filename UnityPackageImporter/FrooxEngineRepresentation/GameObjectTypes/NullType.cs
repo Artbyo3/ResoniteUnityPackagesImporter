@@ -14,9 +14,9 @@ public class NullType : IUnityObject
     public Dictionary<string, ulong> m_PrefabInstance { get; set; }
 
 
- #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+ #pragma warning disable CS1998
     public async Task InstanciateAsync(IUnityStructureImporter importer)
-#pragma warning restore CS1998 
+#pragma warning restore CS1998
     {
         if (instanciated) return;
 

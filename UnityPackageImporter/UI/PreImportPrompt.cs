@@ -19,8 +19,8 @@ internal sealed class PreImportPrompt
     private PreImportPrompt(StationTemplate ui, IReadOnlyList<string> files)
     {
         template = ui;
-        // The filename fitter owns the visible Text.Content. Update its full source
-        // so the approved fitting behavior uses the actual package name.
+
+
         var filenameSource = ui.Get<ValueField<string>>("filenameSource");
         filenameSource.Value.Value = files.Count == 1 ? Path.GetFileName(files[0]) : LocalizationManager.GetString("packagesCount", files.Count);
         ui.LocaleChanged += locale =>

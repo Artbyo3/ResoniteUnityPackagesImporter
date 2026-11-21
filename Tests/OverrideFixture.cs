@@ -1,5 +1,5 @@
 #nullable disable
-#pragma warning disable CS0649 // These fields are intentionally populated by reflection in the tests.
+#pragma warning disable CS0649
 internal class OverrideFixture
 {
     public TestBounds m_AABB;

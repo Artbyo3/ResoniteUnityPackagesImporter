@@ -14,24 +14,47 @@ namespace UnityPackageImporter.Models;
 internal sealed record UnityStaticCurve(string Path, int ClassId, string Attribute, float Value);
 internal sealed class UnityStaticClipResult
 {
+    internal bool RequiresTransformPlayback { get; init; }
+    internal IReadOnlyList<string> TransformPaths { get; init; } = Array.Empty<string>();
     internal IReadOnlyList<UnityStaticCurve> Curves { get; init; } = Array.Empty<UnityStaticCurve>();
     internal IReadOnlyList<InitialAppearanceDiagnostic> Diagnostics { get; init; } = Array.Empty<InitialAppearanceDiagnostic>();
-    internal bool CanApply => Diagnostics.All(item => item.Severity != InitialAppearanceSeverity.Error);
+    internal bool CanApply => !RequiresTransformPlayback && Diagnostics.All(item => item.Severity != InitialAppearanceSeverity.Error);
 }
 
 internal static class UnityStaticAnimationClip
 {
     internal static UnityStaticClipResult? Resolve(IReadOnlyDictionary<string, string> assets, string guid, long fileId,
-        CancellationToken token = default)
+        CancellationToken token = default, Action<string?>? captureSource = null)
     {
         token.ThrowIfCancellationRequested();
         if (!assets.TryGetValue(guid, out string? path) ||
-            !string.Equals(Path.GetExtension(path), ".anim", StringComparison.OrdinalIgnoreCase) || !File.Exists(path)) return null;
-        return Parse(File.ReadAllText(path), fileId, token);
+            !string.Equals(Path.GetExtension(path), ".anim", StringComparison.OrdinalIgnoreCase) || !File.Exists(path))
+        {
+            captureSource?.Invoke(null);
+            return null;
+        }
+        string yaml = File.ReadAllText(path);
+        captureSource?.Invoke(yaml);
+        return Parse(yaml, fileId, token);
     }
 
     private static readonly Regex Header = new(@"^--- !u!(?<class>\d+) &(?<id>-?\d+)(?: stripped)?[ \t]*\r?$", RegexOptions.Multiline | RegexOptions.CultureInvariant);
-    private static readonly string[] UnsupportedCurves = { "m_PositionCurves", "m_RotationCurves", "m_EulerCurves", "m_EulerEditorCurves", "m_ScaleCurves", "m_CompressedRotationCurves", "m_PPtrCurves", "m_Events" };
+    private static readonly string[] UnsupportedCurves = { "m_CompressedRotationCurves", "m_PPtrCurves", "m_Events" };
+    private static readonly (string Name, bool IsRotation)[] StandardVectorContainers =
+    {
+        ("m_PositionCurves", false),
+        ("m_ScaleCurves", false),
+        ("m_RotationCurves", true),
+        ("m_EulerCurves", false)
+    };
+    private static readonly HashSet<string> TransformFloatAttributes = new(StringComparer.Ordinal)
+    {
+        "m_LocalPosition.x", "m_LocalPosition.y", "m_LocalPosition.z",
+        "m_LocalScale.x", "m_LocalScale.y", "m_LocalScale.z",
+        "m_LocalRotation.x", "m_LocalRotation.y", "m_LocalRotation.z", "m_LocalRotation.w",
+        "localEulerAnglesRaw.x", "localEulerAnglesRaw.y", "localEulerAnglesRaw.z",
+        "localEulerAnglesBaked.x", "localEulerAnglesBaked.y", "localEulerAnglesBaked.z"
+    };
 
     internal static UnityStaticClipResult Parse(string yaml, long fileId, CancellationToken token = default)
     {
@@ -116,6 +139,273 @@ internal static class UnityStaticAnimationClip
             if (node != null && (node is not YamlSequenceNode sequence || sequence.Children.Count != 0))
                 Error("STATIC_CLIP_BINDING_UNSUPPORTED", "Static appearance clips cannot contain unsupported transforms, object curves or events: " + field + ".");
         }
+        bool hasTransform = false;
+        bool hasAppearance = false;
+        var transformPaths = new HashSet<string>(StringComparer.Ordinal);
+        var validRuntimeEulerPaths = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var (containerName, isRotation) in StandardVectorContainers)
+        {
+            token.ThrowIfCancellationRequested();
+            var node = Get(clip, containerName);
+            if (node == null) continue;
+            if (node is not YamlSequenceNode sequence)
+            {
+                Error("STATIC_CLIP_FORMAT", containerName + " must be a curve sequence.");
+                continue;
+            }
+            if (sequence.Children.Count == 0) continue;
+            hasTransform = true;
+            foreach (var item in sequence)
+            {
+                token.ThrowIfCancellationRequested();
+                if (item is not YamlMappingNode entry)
+                {
+                    Error("STATIC_CLIP_FORMAT", "A vector curve binding is malformed.");
+                    continue;
+                }
+                if (Get(entry, "path") is not YamlScalarNode)
+                {
+                    Error("STATIC_CLIP_FORMAT", "A vector binding has invalid path.");
+                    continue;
+                }
+                string path = Text(entry, "path");
+                transformPaths.Add(path);
+                if (!ValidPath(path))
+                {
+                    Error("STATIC_CLIP_BINDING_UNSUPPORTED", "Binding path cannot start with a slash or contain relative segments.");
+                    continue;
+                }
+                var classIdNode = Get(entry, "classID");
+                if (classIdNode != null && (!int.TryParse(Text(entry, "classID"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int cid) || cid != 4))
+                {
+                    Error("STATIC_CLIP_BINDING_UNSUPPORTED", "Vector transform curves must target Transform (classID 4).");
+                    continue;
+                }
+                var scriptReference = Get(entry, "script");
+                bool scripted = scriptReference != null && (scriptReference is not YamlMappingNode script || Text(script, "fileID") != "0" || Text(script, "guid").Length != 0);
+                if (scripted)
+                {
+                    Error("STATIC_CLIP_BINDING_UNSUPPORTED", "Vector transform curves cannot target scripts.");
+                    continue;
+                }
+                if (Get(entry, "curve") is not YamlMappingNode curve || Get(curve, "m_Curve") is not YamlSequenceNode keys || keys.Children.Count == 0)
+                {
+                    Error("STATIC_CLIP_FORMAT", "A vector binding has no serialized keyframes.");
+                    continue;
+                }
+                float lastTime = float.NegativeInfinity;
+                string[] requiredComponents = isRotation ? new[] { "x", "y", "z", "w" } : new[] { "x", "y", "z" };
+                bool bindingValid = true;
+                foreach (var keyNode in keys)
+                {
+                    if (keyNode is not YamlMappingNode key || !Number(key, "time", out float time) || time <= lastTime)
+                    {
+                        Error("STATIC_CLIP_FORMAT", "Keyframe times must be finite and strictly increasing.");
+                        bindingValid = false;
+                        break;
+                    }
+                    lastTime = time;
+                    if (Get(key, "value") is not YamlMappingNode valMapping)
+                    {
+                        Error("STATIC_CLIP_FORMAT", "Vector keyframe value must be a mapping.");
+                        bindingValid = false;
+                        break;
+                    }
+                    bool valuesValid = true;
+                    foreach (string comp in requiredComponents)
+                    {
+                        if (!Number(valMapping, comp, out _))
+                        {
+                            Error("STATIC_CLIP_FORMAT", "Vector keyframe component values must be finite.");
+                            valuesValid = false;
+                            break;
+                        }
+                    }
+                    if (!valuesValid) { bindingValid = false; break; }
+                    bool slopesValid = true;
+                    foreach (string tangent in new[] { "inSlope", "outSlope" })
+                    {
+                        var slopeNode = Get(key, tangent);
+                        if (slopeNode == null) continue;
+                        if (slopeNode is not YamlMappingNode slopeMapping)
+                        {
+                            Error("STATIC_CLIP_FORMAT", "Vector slope field must be a mapping.");
+                            slopesValid = false;
+                            break;
+                        }
+                        foreach (string comp in requiredComponents)
+                        {
+                            if (Get(slopeMapping, comp) != null && !Number(slopeMapping, comp, out _))
+                            {
+                                Error("STATIC_CLIP_FORMAT", "Vector slope field component values must be finite.");
+                                slopesValid = false;
+                                break;
+                            }
+                        }
+                        if (!slopesValid) break;
+                    }
+                    if (!slopesValid) { bindingValid = false; break; }
+                }
+                if (bindingValid && containerName == "m_EulerCurves")
+                    validRuntimeEulerPaths.Add(path);
+            }
+        }
+        var eulerEditorNode = Get(clip, "m_EulerEditorCurves");
+        if (eulerEditorNode != null)
+        {
+            if (eulerEditorNode is not YamlSequenceNode eulerEditorSequence)
+                Error("STATIC_CLIP_FORMAT", "m_EulerEditorCurves must be a curve sequence.");
+            else
+            {
+                foreach (var item in eulerEditorSequence)
+                {
+                    token.ThrowIfCancellationRequested();
+                    if (item is not YamlMappingNode entry)
+                    {
+                        Error("STATIC_CLIP_FORMAT", "An Euler editor curve binding is malformed.");
+                        continue;
+                    }
+                    if (Get(entry, "path") is not YamlScalarNode)
+                    {
+                        Error("STATIC_CLIP_FORMAT", "An Euler editor binding has invalid path.");
+                        continue;
+                    }
+                    string path = Text(entry, "path");
+                    transformPaths.Add(path);
+                    if (!ValidPath(path))
+                    {
+                        Error("STATIC_CLIP_BINDING_UNSUPPORTED", "Euler editor curve path cannot start with a slash or contain relative segments.");
+                        continue;
+                    }
+                    var scriptReference = Get(entry, "script");
+                    bool scripted = scriptReference != null && (scriptReference is not YamlMappingNode script || Text(script, "fileID") != "0" || Text(script, "guid").Length != 0);
+                    if (scripted)
+                    {
+                        Error("STATIC_CLIP_BINDING_UNSUPPORTED", "Euler editor curves cannot target scripts.");
+                        continue;
+                    }
+                    if (Get(entry, "curve") is not YamlMappingNode curve || Get(curve, "m_Curve") is not YamlSequenceNode keys)
+                    {
+                        Error("STATIC_CLIP_FORMAT", "An Euler editor binding has no serialized curve mapping or keyframe sequence.");
+                        continue;
+                    }
+                    var attributeNode = Get(entry, "attribute");
+                    if (attributeNode != null)
+                    {
+                        string attribute = Text(entry, "attribute");
+                        if (attribute is not ("m_LocalEulerAngles.x" or "m_LocalEulerAngles.y" or "m_LocalEulerAngles.z"))
+                        {
+                            Error("STATIC_CLIP_BINDING_UNSUPPORTED", "Scalar Euler editor curves only recognize m_LocalEulerAngles.xyz.");
+                            continue;
+                        }
+                        var classIdNode = Get(entry, "classID");
+                        if (classIdNode == null || !int.TryParse(Text(entry, "classID"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int cid) || cid != 4)
+                        {
+                            Error("STATIC_CLIP_BINDING_UNSUPPORTED", "Scalar Euler editor curves must target Transform (classID 4).");
+                            continue;
+                        }
+                        if (keys.Children.Count == 0)
+                        {
+                            if (!validRuntimeEulerPaths.Contains(path))
+                            {
+                                Error("STATIC_CLIP_BINDING_UNSUPPORTED", "Empty Euler editor curve placeholder has no corresponding runtime m_EulerCurves path: " + path);
+                                continue;
+                            }
+                        }
+                        else
+                        {
+                            hasTransform = true;
+                            float lastTime = float.NegativeInfinity;
+                            foreach (var keyNode in keys)
+                            {
+                                if (keyNode is not YamlMappingNode key || !Number(key, "time", out float time) || time <= lastTime ||
+                                    !Number(key, "value", out _))
+                                {
+                                    Error("STATIC_CLIP_FORMAT", "Keyframe times must be finite and strictly increasing, with finite values.");
+                                    break;
+                                }
+                                lastTime = time;
+                                bool slopesValid = true;
+                                foreach (string tangent in new[] { "inSlope", "outSlope" })
+                                {
+                                    if (Get(key, tangent) != null && !Number(key, tangent, out _))
+                                    {
+                                        Error("STATIC_CLIP_FORMAT", "Keyframe tangents must be finite numbers when present.");
+                                        slopesValid = false;
+                                        break;
+                                    }
+                                }
+                                if (!slopesValid) break;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        var classIdNode = Get(entry, "classID");
+                        if (classIdNode != null && (!int.TryParse(Text(entry, "classID"), NumberStyles.Integer, CultureInfo.InvariantCulture, out int cid) || cid != 4))
+                        {
+                            Error("STATIC_CLIP_BINDING_UNSUPPORTED", "Vector transform curves must target Transform (classID 4).");
+                            continue;
+                        }
+                        if (keys.Children.Count == 0)
+                        {
+                            Error("STATIC_CLIP_FORMAT", "A vector binding has no serialized keyframes.");
+                            continue;
+                        }
+                        hasTransform = true;
+                        float lastTime = float.NegativeInfinity;
+                        foreach (var keyNode in keys)
+                        {
+                            if (keyNode is not YamlMappingNode key || !Number(key, "time", out float time) || time <= lastTime)
+                            {
+                                Error("STATIC_CLIP_FORMAT", "Keyframe times must be finite and strictly increasing.");
+                                break;
+                            }
+                            lastTime = time;
+                            if (Get(key, "value") is not YamlMappingNode valMapping)
+                            {
+                                Error("STATIC_CLIP_FORMAT", "Vector keyframe value must be a mapping.");
+                                break;
+                            }
+                            bool valuesValid = true;
+                            foreach (string comp in new[] { "x", "y", "z" })
+                            {
+                                if (!Number(valMapping, comp, out _))
+                                {
+                                    Error("STATIC_CLIP_FORMAT", "Vector keyframe component values must be finite.");
+                                    valuesValid = false;
+                                    break;
+                                }
+                            }
+                            if (!valuesValid) break;
+                            bool slopesValid = true;
+                            foreach (string tangent in new[] { "inSlope", "outSlope" })
+                            {
+                                var slopeNode = Get(key, tangent);
+                                if (slopeNode == null) continue;
+                                if (slopeNode is not YamlMappingNode slopeMapping)
+                                {
+                                    Error("STATIC_CLIP_FORMAT", "Vector slope field must be a mapping.");
+                                    slopesValid = false;
+                                    break;
+                                }
+                                foreach (string comp in new[] { "x", "y", "z" })
+                                {
+                                    if (Get(slopeMapping, comp) != null && !Number(slopeMapping, comp, out _))
+                                    {
+                                        Error("STATIC_CLIP_FORMAT", "Vector slope field component values must be finite.");
+                                        slopesValid = false;
+                                        break;
+                                    }
+                                }
+                                if (!slopesValid) break;
+                            }
+                            if (!slopesValid) break;
+                        }
+                    }
+                }
+            }
+        }
         foreach (string field in new[] { "m_FloatCurves", "m_EditorCurves" })
         {
             token.ThrowIfCancellationRequested();
@@ -136,13 +426,20 @@ internal static class UnityStaticAnimationClip
                     continue;
                 }
                 string path = Text(binding, "path"), attribute = Text(binding, "attribute");
-                bool supported = classId == 1 && attribute == "m_IsActive" ||
-                    classId == 137 && attribute.StartsWith("blendShape.", StringComparison.Ordinal) && attribute.Length > "blendShape.".Length;
                 var scriptReference = Get(binding, "script");
                 bool scripted = scriptReference != null && (scriptReference is not YamlMappingNode script || Text(script, "fileID") != "0" || Text(script, "guid").Length != 0);
-                if (!supported || path.StartsWith("/", StringComparison.Ordinal) || path.Split('/').Any(segment => segment is "." or "..") || scripted)
+                bool badPath = !ValidPath(path);
+                bool isAppearance = (classId == 1 && attribute == "m_IsActive") ||
+                    (classId == 137 && attribute.StartsWith("blendShape.", StringComparison.Ordinal) && attribute.Length > "blendShape.".Length);
+                bool isTransform = classId == 4 && TransformFloatAttributes.Contains(attribute);
+                if (!isAppearance && !isTransform)
                 {
                     Error("STATIC_CLIP_BINDING_UNSUPPORTED", "Only component-relative object activation and named skinned blendshape bindings are supported.");
+                    continue;
+                }
+                if (badPath || scripted)
+                {
+                    Error("STATIC_CLIP_BINDING_UNSUPPORTED", "Binding path cannot start with a slash, contain relative segments, or reference scripts.");
                     continue;
                 }
                 if (Get(binding, "curve") is not YamlMappingNode curve || Get(curve, "m_Curve") is not YamlSequenceNode keys || keys.Children.Count == 0)
@@ -150,49 +447,97 @@ internal static class UnityStaticAnimationClip
                     Error("STATIC_CLIP_FORMAT", "A float binding has no serialized keyframes.");
                     continue;
                 }
-                float? value = null;
-                float lastTime = float.NegativeInfinity;
-                bool valid = true;
-                foreach (var keyNode in keys)
+                if (isAppearance)
                 {
-                    if (keyNode is not YamlMappingNode key || !Number(key, "time", out float time) || time <= lastTime ||
-                        !Number(key, "value", out float weight))
+                    hasAppearance = true;
+                    float? value = null;
+                    float lastTime = float.NegativeInfinity;
+                    bool valid = true;
+                    foreach (var keyNode in keys)
                     {
-                        Error("STATIC_CLIP_FORMAT", "Keyframe times must be finite and strictly increasing, with finite values.");
-                        valid = false;
-                        break;
-                    }
-                    lastTime = time;
-                    if (value.HasValue && value.Value != weight)
-                    {
-                        Error("STATIC_CLIP_TIME_VARYING", "Time-varying curves cannot be converted by selecting an arbitrary first frame.");
-                        valid = false;
-                        break;
-                    }
-                    value = weight;
-                    foreach (string tangent in new[] { "inSlope", "outSlope" })
-                        if (Get(key, tangent) != null && (!Number(key, tangent, out float slope) || slope != 0))
+                        if (keyNode is not YamlMappingNode key || !Number(key, "time", out float time) || time <= lastTime ||
+                            !Number(key, "value", out float weight))
                         {
-                            Error("STATIC_CLIP_TIME_VARYING", "Nonzero or non-finite tangents are not a proven constant resting curve.");
+                            Error("STATIC_CLIP_FORMAT", "Keyframe times must be finite and strictly increasing, with finite values.");
                             valid = false;
+                            break;
                         }
+                        lastTime = time;
+                        if (value.HasValue && value.Value != weight)
+                        {
+                            Error("STATIC_CLIP_TIME_VARYING", "Time-varying curves cannot be converted by selecting an arbitrary first frame.");
+                            valid = false;
+                            break;
+                        }
+                        value = weight;
+                        foreach (string tangent in new[] { "inSlope", "outSlope" })
+                            if (Get(key, tangent) != null && (!Number(key, tangent, out float slope) || slope != 0))
+                            {
+                                Error("STATIC_CLIP_TIME_VARYING", "Nonzero or non-finite tangents are not a proven constant resting curve.");
+                                valid = false;
+                            }
+                    }
+                    if (!valid || !value.HasValue) continue;
+                    if (attribute == "m_IsActive" && value.Value is not (0 or 1))
+                    {
+                        Error("STATIC_CLIP_ACTIVE_VALUE", "An activation snapshot must explicitly be zero or one.");
+                        continue;
+                    }
+                    var result = new UnityStaticCurve(path, classId, attribute, value.Value);
+                    var identity = (path, classId, attribute);
+                    if (curves.TryGetValue(identity, out var existing) && existing.Value != result.Value)
+                        Error("STATIC_CLIP_CONFLICT", "Runtime/editor curves disagree on one appearance binding.");
+                    else curves[identity] = result;
                 }
-                if (!valid || !value.HasValue) continue;
-                if (attribute == "m_IsActive" && value.Value is not (0 or 1))
+                else if (isTransform)
                 {
-                    Error("STATIC_CLIP_ACTIVE_VALUE", "An activation snapshot must explicitly be zero or one.");
-                    continue;
+                    hasTransform = true;
+                    transformPaths.Add(path);
+                    float lastTime = float.NegativeInfinity;
+                    foreach (var keyNode in keys)
+                    {
+                        if (keyNode is not YamlMappingNode key || !Number(key, "time", out float time) || time <= lastTime ||
+                            !Number(key, "value", out _))
+                        {
+                            Error("STATIC_CLIP_FORMAT", "Keyframe times must be finite and strictly increasing, with finite values.");
+                            break;
+                        }
+                        lastTime = time;
+                        bool slopesValid = true;
+                        foreach (string tangent in new[] { "inSlope", "outSlope" })
+                        {
+                            if (Get(key, tangent) != null && !Number(key, tangent, out _))
+                            {
+                                Error("STATIC_CLIP_FORMAT", "Keyframe tangents must be finite numbers when present.");
+                                slopesValid = false;
+                                break;
+                            }
+                        }
+                        if (!slopesValid) break;
+                    }
                 }
-                var result = new UnityStaticCurve(path, classId, attribute, value.Value);
-                var identity = (path, classId, attribute);
-                if (curves.TryGetValue(identity, out var existing) && existing.Value != result.Value)
-                    Error("STATIC_CLIP_CONFLICT", "Runtime/editor curves disagree on one appearance binding.");
-                else curves[identity] = result;
             }
         }
-        return new() { Curves = diagnostics.Count == 0 ? curves.Values.ToArray() : Array.Empty<UnityStaticCurve>(), Diagnostics = diagnostics };
+        if (hasAppearance && hasTransform)
+            Error("STATIC_CLIP_BINDING_UNSUPPORTED", "Static appearance clips cannot mix appearance and transform bindings.");
+        bool hasErrors = diagnostics.Any(item => item.Severity == InitialAppearanceSeverity.Error);
+        bool requiresTransformPlayback = false;
+        if (!hasErrors && hasTransform && !hasAppearance)
+        {
+            requiresTransformPlayback = true;
+            diagnostics.Add(new(InitialAppearanceSeverity.Warning, "STATIC_CLIP_TRANSFORM_PLAYBACK_PENDING",
+                "Transform-only animation requires runtime playback; no pose sampled and native runtime not implemented.", fileId));
+        }
+        return new()
+        {
+            RequiresTransformPlayback = requiresTransformPlayback,
+            TransformPaths = requiresTransformPlayback ? transformPaths.OrderBy(path => path, StringComparer.Ordinal).ToArray() : Array.Empty<string>(),
+            Curves = (!hasErrors && !requiresTransformPlayback && hasAppearance) ? curves.Values.ToArray() : Array.Empty<UnityStaticCurve>(),
+            Diagnostics = diagnostics
+        };
     }
 
+    private static bool ValidPath(string path) => !path.Contains('\\') && (path.Length == 0 || !path.Split('/').Any(segment => segment is "" or "." or ".."));
     private static YamlNode? Get(YamlMappingNode body, string key) => body.Children.TryGetValue(key, out var node) ? node : null;
     private static string Text(YamlMappingNode body, string key) => (Get(body, key) as YamlScalarNode)?.Value ?? "";
     private static bool Number(YamlMappingNode body, string key, out float value) =>

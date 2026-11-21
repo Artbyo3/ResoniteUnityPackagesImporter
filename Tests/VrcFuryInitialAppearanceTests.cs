@@ -8,6 +8,107 @@ internal static class VrcFuryInitialAppearanceTests
 
     internal static void Register(Action<string, Action> test, Action<bool, string> check)
     {
+        test("VRCF resolved model aliases restore child control scope and preserve inherited inactive state", () =>
+        {
+            string yaml = ModelScene(Graph());
+            var result = VrcFuryInitialAppearance.Evaluate(yaml, ModelContext());
+            check(result.CanApply && result.Writes.Count == 1 && result.Writes[0].TargetId == 3 && !result.Writes[0].Active, Describe(result));
+            check(!result.ActiveSelf[3] && result.ActiveSelf[1], "The resolved source active states or child feature scope were lost.");
+        });
+        test("VRCF resolved model baseline retains inactive targets when no action changes them", () =>
+        {
+            var result = VrcFuryInitialAppearance.Evaluate(ModelScene(""), ModelContext());
+            check(result.CanApply && !result.ActiveSelf[3] && result.Writes.Count == 0, Describe(result));
+        });
+        test("VRCF wardrobe and mixed composer retain resolved model scope and baseline", () =>
+        {
+            string yaml = ModelScene(Graph(flags: "name: Clothes/Body"));
+            var plan = VrcFuryInitialAppearance.CompileWardrobe(yaml, ModelContext());
+            check(plan.CanBuild && plan.Controls.Count == 1 && plan.Controls[0].Bindings[0].On.TargetId == 3 &&
+                !plan.Controls[0].Bindings[0].Off.Active, string.Join("; ", plan.Diagnostics.Select(item => item.Code + ": " + item.Message)));
+            var mixed = AvatarWardrobeComposer.Compose(yaml, ModelContext());
+            check(mixed.CanBuild && mixed.Controls.Count == 1 && mixed.Controls[0].Bindings[0].On.TargetId == 3,
+                string.Join("; ", mixed.Diagnostics.Select(item => item.Code + ": " + item.Message)));
+        });
+        test("VRCF model paths include unaliased ancestors without borrowing another instance", () =>
+        {
+            string yaml = ModelScene(Graph("ApplyDuringUpload", "AnimationClipAction", "clip: {version: 1, id: '" + ClipGuid + ":7400000'}"));
+            var result = VrcFuryInitialAppearance.Evaluate(yaml, ModelContext(), (_, id) => UnityStaticAnimationClip.Parse(Clip("Mesh/Body", 1, "m_IsActive", 1), id));
+            check(result.CanApply && result.Writes.Single().TargetId == 3 && result.Writes.Single().Active, Describe(result));
+            var foreign = VrcFuryInitialAppearance.Evaluate(ModelScene(Graph(actionData: "version: 1, obj: {fileID: 10}, mode: 0")), ModelContext());
+            check(!foreign.CanApply && foreign.Writes.Count == 0 && foreign.Diagnostics.Any(item => item.Code == "VRCFURY_INITIAL_TARGET"), Describe(foreign));
+        });
+        test("VRCF model hydration cannot hide explicit malformed active state", () =>
+        {
+            string yaml = ModelScene(Graph()).Replace("GameObject:\n  m_CorrespondingSourceObject: {fileID: 1001", "GameObject:\n  m_IsActive: invalid\n  m_CorrespondingSourceObject: {fileID: 1001", StringComparison.Ordinal);
+            var result = VrcFuryInitialAppearance.Evaluate(yaml, ModelContext());
+            check(!result.CanApply && result.Writes.Count == 0 && result.Diagnostics.Any(item => item.Code == "VRCFURY_INITIAL_ACTIVE"), Describe(result));
+        });
+        test("VRCF partial model Transform ownership conflicts still block all writes", () =>
+        {
+            string yaml = ModelScene(Graph()).Replace("Transform:\n  m_CorrespondingSourceObject: {fileID: 1004", "Transform:\n  m_GameObject: {fileID: 9}\n  m_CorrespondingSourceObject: {fileID: 1004", StringComparison.Ordinal);
+            var result = VrcFuryInitialAppearance.Evaluate(yaml, ModelContext());
+            check(!result.CanApply && result.Writes.Count == 0 && result.Diagnostics.Any(item => item.Code == "VRCFURY_INITIAL_SOURCE_GRAPH_CONFLICT"), Describe(result));
+        });
+        test("VRCF absent model Transform evidence stays fail closed even with a partial snapshot", () =>
+        {
+            var context = new InitialAppearanceContext
+            {
+                AvatarRootId = 1,
+                AuthoredHierarchy = new AuthoredAppearanceHierarchy(new[] { new AuthoredAppearanceObject(1, 0, "Avatar", true) }, Array.Empty<KeyValuePair<long, long>>())
+            };
+            var result = VrcFuryInitialAppearance.Evaluate(ModelScene(Graph()), context);
+            check(!result.CanApply && result.Writes.Count == 0 && result.Diagnostics.Any(item => item.Code == "VRCFURY_INITIAL_SOURCE_GRAPH_INCOMPLETE"), Describe(result));
+        });
+        test("VRCF complete stripped fields cannot contradict the resolved model graph", () =>
+        {
+            foreach (string fields in new[]
+            {
+                "  m_GameObject: {fileID: 9}\n  m_Father: {fileID: 0}\n",
+                "  m_GameObject: {fileID: 1}\n  m_Father: {fileID: 109}\n",
+                "  m_GameObject: {fileID: 1}\n  m_Father: {fileID: invalid}\n",
+                "  m_GameObject: {fileID: 1}\n  m_Father: {fileID: 999999}\n"
+            })
+            {
+                string yaml = ModelScene(Graph()).Replace("Transform:\n  m_CorrespondingSourceObject: {fileID: 1004", "Transform:\n" + fields + "  m_CorrespondingSourceObject: {fileID: 1004", StringComparison.Ordinal);
+                var result = VrcFuryInitialAppearance.Evaluate(yaml, ModelContext());
+                check(!result.CanApply && result.Writes.Count == 0 && result.Diagnostics.Any(item => item.Code == "VRCFURY_INITIAL_SOURCE_GRAPH_CONFLICT"), Describe(result));
+            }
+        });
+        test("VRCF matching complete stripped fields retain verified ownership", () =>
+        {
+            string yaml = ModelScene(Graph()).Replace("Transform:\n  m_CorrespondingSourceObject: {fileID: 1004", "Transform:\n  m_GameObject: {fileID: 1}\n  m_Father: {fileID: 0}\n  m_CorrespondingSourceObject: {fileID: 1004", StringComparison.Ordinal);
+            var result = VrcFuryInitialAppearance.Evaluate(yaml, ModelContext());
+            check(result.CanApply && result.Writes.Single().TargetId == 3, Describe(result));
+        });
+        test("VRCF stripped parents must be local Transforms rather than unrelated components", () =>
+        {
+            foreach (int componentClass in new[] { 137, 114 })
+            {
+                string yaml = ModelScene(Graph()).Replace("Transform:\n  m_CorrespondingSourceObject: {fileID: 2004",
+                    "Transform:\n  m_GameObject: {fileID: 3}\n  m_Father: {fileID: 999}\n  m_CorrespondingSourceObject: {fileID: 2004", StringComparison.Ordinal) +
+                    "--- !u!" + componentClass + " &999\nComponent:\n  m_GameObject: {fileID: -1}\n";
+                var result = VrcFuryInitialAppearance.Evaluate(yaml, ModelContext());
+                check(!result.CanApply && result.Writes.Count == 0 && result.Diagnostics.Any(item => item.Code == "VRCFURY_INITIAL_SOURCE_GRAPH_CONFLICT"), Describe(result));
+            }
+        });
+        test("VRCF stripped model aliases report missing source evidence without assuming visibility or ownership", () =>
+        {
+            string yaml = Scene(Graph()).Replace(Node(1, 0, "Avatar", true),
+                "--- !u!1 &1 stripped\nGameObject:\n  m_CorrespondingSourceObject: {fileID: 1001, guid: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}\n  m_PrefabInstance: {fileID: 500}\n" +
+                "--- !u!4 &101 stripped\nTransform:\n  m_CorrespondingSourceObject: {fileID: 1004, guid: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}\n  m_PrefabInstance: {fileID: 500}\n");
+            var result = VrcFuryInitialAppearance.Evaluate(yaml, Context());
+            check(!result.CanApply && result.Writes.Count == 0, "Incomplete model aliases authorized appearance writes.");
+            check(result.Diagnostics.Any(diagnostic => diagnostic.Code == "VRCFURY_INITIAL_SOURCE_GRAPH_INCOMPLETE" && diagnostic.SourceId == 101 && diagnostic.Severity == InitialAppearanceSeverity.Error) &&
+                result.Diagnostics.Any(diagnostic => diagnostic.Code == "VRCFURY_INITIAL_SOURCE_STATE_INCOMPLETE" && diagnostic.SourceId == 1 && diagnostic.Severity == InitialAppearanceSeverity.Error),
+                "Missing inherited metadata was mislabeled as malformed source or lost its exact alias identity.");
+        });
+        test("VRCF explicitly malformed active state remains a validation error rather than missing inheritance", () =>
+        {
+            var result = VrcFuryInitialAppearance.Evaluate(Scene(Graph()).Replace("m_IsActive: 1", "m_IsActive: invalid"), Context());
+            check(!result.CanApply && result.Diagnostics.Any(diagnostic => diagnostic.Code == "VRCFURY_INITIAL_ACTIVE") &&
+                !result.Diagnostics.Any(diagnostic => diagnostic.Code == "VRCFURY_INITIAL_SOURCE_STATE_INCOMPLETE"), "Malformed authored state was confused with a stripped alias.");
+        });
         test("VRCF initial TurnOn establishes off default even when defaultOn is false", () =>
         {
             var result = Evaluate(Graph());
@@ -174,6 +275,48 @@ internal static class VrcFuryInitialAppearanceTests
 
     private static void RegisterAssets(Action<string, Action> test, Action<bool, string> check)
     {
+        test("VRCF deferred transform playback rejects missing ambiguous and malformed owned paths", () =>
+        {
+            string action = "version: 0, clip: {version: 1, id: '" + ClipGuid + ":7400000'}";
+            string yaml = Scene(Graph("Toggle", "AnimationClipAction", action, "defaultOn: 1"));
+            foreach (string scenario in new[] { "MissingObject", "Body//Missing", "Body/", "Body\\Missing", "ambiguous" })
+            {
+                string path = scenario == "ambiguous" ? "Body" : scenario;
+                string source = scenario == "ambiguous" ? yaml + Node(5, 1, "Body", true) : yaml;
+                string clip = Clip(path, 4, "localEulerAnglesRaw.y", 15);
+                var result = VrcFuryInitialAppearance.Evaluate(source, Context(),
+                    (_, identity) => UnityStaticAnimationClip.Parse(clip, identity));
+                check(!result.CanApply && result.Writes.Count == 0 && result.Diagnostics.Any(item =>
+                    item.Severity == InitialAppearanceSeverity.Error && item.Code is "VRCFURY_INITIAL_CLIP_PATH" or "STATIC_CLIP_BINDING_UNSUPPORTED"),
+                    "Deferred playback accepted unverified target " + scenario + ": " + Describe(result));
+            }
+        });
+        test("VRCF deferred transform playback validates unaliased captured model targets without pose writes", () =>
+        {
+            string action = "version: 0, clip: {version: 1, id: '" + ClipGuid + ":7400000'}";
+            string clip = Clip("Mesh", 4, "localEulerAnglesRaw.y", 15);
+            var parsed = UnityStaticAnimationClip.Parse(clip, 7400000);
+            var result = VrcFuryInitialAppearance.Evaluate(ModelScene(Graph("Toggle", "AnimationClipAction", action, "defaultOn: 1")),
+                ModelContext(), (_, _) => parsed);
+            check(parsed.TransformPaths.SequenceEqual(new[] { "Mesh" }) && result.CanApply && result.Writes.Count == 0,
+                "Captured model hierarchy did not prove the deferred target: " + Describe(result));
+        });
+        test("VRCF runtime transform Toggles are not mistaken for malformed static upload poses", () =>
+        {
+            string clip = "--- !u!74 &7400000\nAnimationClip:\n  m_EditorCurves:\n  - path: Body\n    classID: 4\n    script: {fileID: 0}\n    attribute: localEulerAnglesRaw.y\n    curve:\n      m_Curve: [{time: 0, value: 0, inSlope: 15, outSlope: 15}, {time: 1, value: -15, inSlope: 0, outSlope: 0}]\n";
+            string action = "version: 0, clip: {version: 1, id: '" + ClipGuid + ":7400000'}";
+            var runtime = VrcFuryInitialAppearance.Evaluate(Scene(Graph("Toggle", "AnimationClipAction", action, "defaultOn: 1")), Context(),
+                (_, identity) => UnityStaticAnimationClip.Parse(clip, identity));
+            check(runtime.CanApply && runtime.Writes.Count == 0 && runtime.Diagnostics.Any(item => item.Code == "STATIC_CLIP_TRANSFORM_PLAYBACK_PENDING" && item.Severity == InitialAppearanceSeverity.Warning),
+                "Runtime-only motion corrupted static appearance or masqueraded as a failed source hierarchy.");
+            var build = VrcFuryInitialAppearance.Evaluate(Scene(Graph("ApplyDuringUpload", "AnimationClipAction", action)), Context(),
+                (_, identity) => UnityStaticAnimationClip.Parse(clip, identity));
+            check(!build.CanApply && build.Writes.Count == 0 && build.Diagnostics.Any(item => item.Code == "VRCFURY_INITIAL_CLIP_TRANSFORM_BUILD_ACTION_UNSUPPORTED"),
+                "A required authored build-time pose was silently treated as optional runtime playback.");
+            var malformed = VrcFuryInitialAppearance.Evaluate(Scene(Graph("Toggle", "AnimationClipAction", action, "defaultOn: 1")), Context(),
+                (_, identity) => UnityStaticAnimationClip.Parse(clip.Replace("value: -15", "value: .nan", StringComparison.Ordinal), identity));
+            check(!malformed.CanApply && malformed.Writes.Count == 0, "Malformed runtime motion was downgraded to pending playback.");
+        });
         test("VRCF material wrapper exact id modern objRef and legacy migration", () =>
         {
             foreach (string wrapper in new[]
@@ -238,6 +381,23 @@ internal static class VrcFuryInitialAppearanceTests
     private static string Clip(string path, int classId, string attribute, float value) =>
         "--- !u!74 &7400000\nAnimationClip:\n  m_FloatCurves:\n  - curve:\n      m_Curve: [{time: 0, value: " + value.ToString(CultureInfo.InvariantCulture) + "}]\n    path: '" + path + "'\n    classID: " + classId + "\n    attribute: '" + attribute + "'\n";
     private static InitialAppearanceResult Evaluate(string component) => VrcFuryInitialAppearance.Evaluate(Scene(component), Context());
+    private static string ModelAlias(long objectId, long transformId, long sourceId) =>
+        "--- !u!1 &" + objectId + " stripped\nGameObject:\n  m_CorrespondingSourceObject: {fileID: " + sourceId + ", guid: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}\n  m_PrefabInstance: {fileID: 500}\n" +
+        "--- !u!4 &" + transformId + " stripped\nTransform:\n  m_CorrespondingSourceObject: {fileID: " + (sourceId + 3) + ", guid: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa}\n  m_PrefabInstance: {fileID: 500}\n";
+    private static string ModelScene(string component) => Scene(component)
+        .Replace(Node(1, 0, "Avatar", true), ModelAlias(1, 101, 1001), StringComparison.Ordinal)
+        .Replace(Node(3, 1, "Body", true), ModelAlias(3, 103, 2001), StringComparison.Ordinal);
+    private static InitialAppearanceContext ModelContext() => new()
+    {
+        AvatarRootId = 1,
+        ExternalAnimationAndParameterContextVerifiedAbsent = true,
+        AuthoredHierarchy = new AuthoredAppearanceHierarchy(new[]
+        {
+            new AuthoredAppearanceObject(1, 0, "Avatar", true),
+            new AuthoredAppearanceObject(-1, 1, "Mesh", true),
+            new AuthoredAppearanceObject(3, -1, "Body", false)
+        }, new Dictionary<long, long> { [101] = 1, [103] = 3 })
+    };
     private static int Bit(bool value) => value ? 1 : 0;
     private static string Describe(InitialAppearanceResult result) => string.Join("; ", result.Diagnostics.Select(item => item.Code + ": " + item.Message));
     private static InitialAppearanceContext Context() => new()

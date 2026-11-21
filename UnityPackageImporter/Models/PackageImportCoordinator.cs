@@ -11,8 +11,8 @@ using static global::UnityPackageImporter.UnityPackageImporter;
 
 namespace UnityPackageImporter.Models;
 
-// Owns package extraction and the prompt/station lifecycle. Individual project
-// imports handle models and materials; the mod entry point only registers hooks.
+
+
 internal static class PackageImportCoordinator
 {
     internal static string[] ExtractPackage(string file, CancellationToken cancellationToken = default, ImportReportContext reports = null)
@@ -23,7 +23,7 @@ internal static class PackageImportCoordinator
         try { return ExtractPackageCore(file, cancellationToken, reports); }
         catch (System.Exception error) when (error is not System.OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            // The public extraction entry point can run without any station/session.
+
             if (standalone) ImportReportService.Record(reports, error, error);
             throw;
         }
@@ -60,9 +60,9 @@ internal static class PackageImportCoordinator
         if (request == null) return false;
         try
         {
-            // Include extraction in the owner's drain, not only the eventual
-            // material assignments. No-match releases this lease before the
-            // package is offered as an unrelated ordinary import.
+
+
+
             using var operation = request.Enter();
             await default(ToBackground);
             reports.Stage = ImportReportStage.Extraction;
@@ -74,9 +74,9 @@ internal static class PackageImportCoordinator
         }
         catch (System.OperationCanceledException) when (request.Token.IsCancellationRequested)
         {
-            // Closing the owner already schedules its cleanup. Consume the
-            // cancelled drop; do not create a new station or clean a borrowed
-            // session from inside its own outstanding operation.
+
+
+
             return true;
         }
     }
@@ -108,8 +108,8 @@ internal static class PackageImportCoordinator
         {
             await default(ToWorld);
             session?.Check();
-            // Explicit content dumping remains the engine's ordinary, independent
-            // import flow. BatchImport destroys its launcher: never give it staging.
+
+
             var launcher = world.AddSlot("Unity Package Contents", false);
             launcher.GlobalPosition = slot.GlobalPosition;
             var dump = Config.GetValue(ImportPrefab)
@@ -201,7 +201,7 @@ internal static class PackageImportCoordinator
         }
         catch (System.OperationCanceledException) when (session?.Token.IsCancellationRequested == true)
         {
-            // Import was cancelled by user; clean up session staging.
+
             await default(ToWorld);
             await session.CleanupAsync();
         }

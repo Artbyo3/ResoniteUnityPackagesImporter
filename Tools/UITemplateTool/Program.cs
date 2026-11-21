@@ -173,7 +173,7 @@ internal static class NativeTemplateCleanup
                         }
                     }
             } while (changed);
-            // Any unexpected dependency aborts instead of leaving a broken graph.
+
             foreach (var (key, value) in Values(tree))
                 if (key == "Data" && value.Value is string target && removed.Contains(target))
                     throw new InvalidDataException($"A retained component still references the retired layout ({target}; {removedDrivers} drivers selected).");

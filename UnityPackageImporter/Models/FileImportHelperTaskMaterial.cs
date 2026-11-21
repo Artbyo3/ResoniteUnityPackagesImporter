@@ -29,29 +29,29 @@ public class FileImportHelperTaskMaterial
     public static string materialNameIdentifyEndingPrefab = " - Material";
     private static readonly HashSet<string> LilToonGuids = new(StringComparer.OrdinalIgnoreCase)
     {
-        "efa77a80ca0344749b4f19fdd5891cbe", // lilToon main VRChat shader
-        "9294844b15dca184d914a632279b24e1", // lilToon standard / opaque
-        "3c79b10c7e0b2784aaa4c2f8dd17d55e", // lts_trans_o (transparent outline)
-        "c462372f7fb70584eb2e3a09fb2215c0", // lts_cutout
-        "2ee4f828a274151478546b5a37466dd2", // lts_trans
-        "c1630c1e8555238479e000fbc9822a10", // lts_o (opaque outline)
-        "850fc1e041d8e1346be7f5244dc049fa", // lts_twopass
-        "4f82b88126eecde47bc9548f0bc2e54a", // lts_multi
-        "51b2dee0ab07bd84d8147601ff89e511", // lilToon wings/effects variant
-        "165365ab7100a044ca85fc8c33548a62", // lilToon cutout variant (face_alpha, tights, etc.)
+        "efa77a80ca0344749b4f19fdd5891cbe",
+        "9294844b15dca184d914a632279b24e1",
+        "3c79b10c7e0b2784aaa4c2f8dd17d55e",
+        "c462372f7fb70584eb2e3a09fb2215c0",
+        "2ee4f828a274151478546b5a37466dd2",
+        "c1630c1e8555238479e000fbc9822a10",
+        "850fc1e041d8e1346be7f5244dc049fa",
+        "4f82b88126eecde47bc9548f0bc2e54a",
+        "51b2dee0ab07bd84d8147601ff89e511",
+        "165365ab7100a044ca85fc8c33548a62",
     };
 
     private static readonly HashSet<string> LilToonCutoutGuids = new(StringComparer.OrdinalIgnoreCase)
     {
-        "c462372f7fb70584eb2e3a09fb2215c0", // lts_cutout
-        "165365ab7100a044ca85fc8c33548a62", // lilToon cutout variant
+        "c462372f7fb70584eb2e3a09fb2215c0",
+        "165365ab7100a044ca85fc8c33548a62",
     };
 
     private static readonly HashSet<string> LilToonTransparentGuids = new(StringComparer.OrdinalIgnoreCase)
     {
-        "3c79b10c7e0b2784aaa4c2f8dd17d55e", // lts_trans_o
-        "2ee4f828a274151478546b5a37466dd2", // lts_trans
-        "850fc1e041d8e1346be7f5244dc049fa", // lts_twopass
+        "3c79b10c7e0b2784aaa4c2f8dd17d55e",
+        "2ee4f828a274151478546b5a37466dd2",
+        "850fc1e041d8e1346be7f5244dc049fa",
     };
 
     public FileImportHelperTaskMaterial(string myID, string file, UnityProjectImporter importer, bool forceToon = false)
@@ -67,7 +67,7 @@ public class FileImportHelperTaskMaterial
         matslot = assetsRoot.FindChildOrAdd(Path.GetFileNameWithoutExtension(this.file) + " [" + myID + (forceToon ? "-toon" : "") + "]" + materialNameIdentifyEndingPrefab);
     }
 
-    // To assign a material to a missing material during import if the fbx doesn't have a definition for it
+
     public FileImportHelperTaskMaterial(UnityProjectImporter importer)
     {
         importer.Session?.Check();
@@ -126,7 +126,7 @@ public class FileImportHelperTaskMaterial
             return await LilToonMaterialConverter.ConvertAsync(this, data, shaderName, generic: !isLilToon);
         }
 
-        // Standard / PBS Metallic fallback
+
         {
             UnityPackageImporter.Msg("Importing Standard/PBS material: " + Path.GetFileNameWithoutExtension(file));
             await default(ToWorld);
@@ -226,7 +226,7 @@ public class FileImportHelperTaskMaterial
         if (importer.AssetIDDict.TryGetValue(data.ShaderGuid, out var shaderPath) &&
             Path.GetExtension(shaderPath).Equals(".shader", StringComparison.OrdinalIgnoreCase))
         {
-            // Read only the declaration, never execute shader code.
+
             foreach (var line in File.ReadLines(shaderPath).Take(128))
             {
                 var match = System.Text.RegularExpressions.Regex.Match(line, "^\\s*Shader\\s+\"([^\"]+)\"");
@@ -251,9 +251,9 @@ public class FileImportHelperTaskMaterial
         var texture = await ImportTextureVariant(guid, multiplyRgbByAlpha, normalMap, transform, clamp, mipmaps);
         await default(ToWorld);
         importer.Session?.Check();
-        // The asset index may have changed while the first attempt was
-        // completing. Do not leave a newly resolvable field waiting for another
-        // companion package merely because it missed the resolution snapshot.
+
+
+
         if (texture == null && importer.AssetIDDict.ContainsKey(guid))
         {
             texture = await ImportTextureVariant(guid, multiplyRgbByAlpha, normalMap, transform, clamp, mipmaps);
@@ -270,7 +270,7 @@ public class FileImportHelperTaskMaterial
             cancellation.ThrowIfCancellationRequested();
             importer.Session?.Check();
             if (matslot.IsDestroyed || target.IsDisposed) return true;
-            // A user may have assigned a replacement in the meantime.
+
             if (target.Target != null) return true;
             target.Target = restored;
             return true;
@@ -291,9 +291,9 @@ public class FileImportHelperTaskMaterial
         importer.Session?.Check();
         if (texture == null && importer.AssetIDDict.ContainsKey(idtarget))
         {
-            // A missing attempt can finish after companion invalidation. Retry
-            // that key once now that its source is available, retaining any
-            // successful or still-running attempt started by another caller.
+
+
+
             importer.TextureImports.RetryUnsuccessful(key);
             texture = await importer.TextureImports.GetOrAdd(key,
                 () => ImportTextureCore(idtarget, multiplyRgbByAlpha, normalMap, transform, clamp, mipmaps));

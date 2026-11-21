@@ -174,18 +174,18 @@ public static class AvatarStateReconstructor
         var matchedSlotNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var slotList = candidateSlotNames?.ToList() ?? new List<string>();
 
-        // 1. Animation Clip lookup (exact or fuzzy/token)
+
         AnimClipData matchedClip = null;
         if (clips != null)
         {
             if (clips.TryGetValue(controlName, out matchedClip) ||
                 (!string.IsNullOrEmpty(parameterName) && clips.TryGetValue(parameterName, out matchedClip)))
             {
-                // Exact match
+
             }
             else
             {
-                // Fuzzy / substring / token match on clips
+
                 string ctrlNorm = NormalizeName(controlName);
                 var ctrlTokens = TokenizeName(controlName);
 
@@ -236,7 +236,7 @@ public static class AvatarStateReconstructor
             return matchedSlotNames.ToList();
         }
 
-        // 2. Direct Slot Name Normalized match
+
         string ctrlNormalized = NormalizeName(controlName);
         if (ctrlNormalized.Length >= 3)
         {
@@ -256,7 +256,7 @@ public static class AvatarStateReconstructor
             return matchedSlotNames.ToList();
         }
 
-        // 3. Token & Synonym Cluster Match
+
         var tokens = TokenizeName(controlName);
         if (tokens.Count > 0)
         {

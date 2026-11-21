@@ -29,7 +29,7 @@ internal static class AvatarComponentCoverageTests
         test("Component coverage pins concrete counts not grouped markdown rows", () =>
         {
             var catalog = Catalog();
-            var expected = new Dictionary<string, (int Total, int Implemented)> { ["vrc-sdk"] = (28, 10), ["ma"] = (40, 19), ["vrcf-features"] = (56, 21), ["vrcf-actions"] = (19, 10), ["vrcf-wrappers"] = (12, 0) };
+            var expected = new Dictionary<string, (int Total, int Implemented)> { ["vrc-sdk"] = (28, 10), ["ma"] = (40, 19), ["vrcf-features"] = (56, 21), ["vrcf-actions"] = (19, 8), ["vrcf-wrappers"] = (12, 0) };
             check(catalog.Groups.Count == expected.Count, "Catalog groups changed; review the denominator policy.");
             foreach (var group in catalog.Groups)
                 check(expected.TryGetValue(group.Id, out var count) && group.Entries.Count == count.Total && group.Implemented == count.Implemented,
@@ -62,15 +62,23 @@ internal static class AvatarComponentCoverageTests
         {
             string report = Catalog().RenderMarkdown();
             check(report.Contains("19 / 40 | 47.5%", StringComparison.Ordinal) && report.Contains("21 / 56 | 37.5%", StringComparison.Ordinal) &&
-                report.Contains("10 / 19 | 52.6%", StringComparison.Ordinal) && report.Contains("10 / 28 | 35.7%", StringComparison.Ordinal), "Coverage scores were not rendered transparently.");
+                report.Contains("8 / 19 | 42.1%", StringComparison.Ordinal) && report.Contains("10 / 28 | 35.7%", StringComparison.Ordinal), "Coverage scores were not rendered transparently.");
             check(report.Contains("Indexed only", StringComparison.Ordinal) && report.Contains("not live-test certification", StringComparison.Ordinal) &&
-                report.Contains("31 / 87 = 35.6%", StringComparison.Ordinal), "Coverage must disclose its numerator and combined VRCFury count.");
+                report.Contains("29 / 87 = 33.3%", StringComparison.Ordinal), "Coverage must disclose its numerator and combined VRCFury count.");
+        });
+        test("Component coverage visibility substitutes do not earn scale or world-drop credit", () =>
+        {
+            var entries = Catalog().Groups.Single(group => group.Id == "vrcf-actions").Entries;
+            foreach (string name in new[] { "ScaleAction", "WorldDropAction" })
+            {
+                var entry = entries.Single(entry => entry.Name == name);
+                check(entry.Status == "missing" && !entry.Runtime, "Unimplemented action received behavior credit: " + name);
+            }
         });
         test("Component coverage checked-in report matches catalog", () =>
         {
             string rendered = Catalog().RenderMarkdown().Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd();
             string mdPath = Path.Combine(RepositoryRoot(), "docs", "AVATAR_COMPONENT_COVERAGE.md");
-            File.WriteAllText(mdPath, Catalog().RenderMarkdown());
             string saved = File.ReadAllText(mdPath).Replace("\r\n", "\n", StringComparison.Ordinal).TrimEnd();
             check(saved == rendered, "Regenerate the component coverage report after catalog changes.");
         });

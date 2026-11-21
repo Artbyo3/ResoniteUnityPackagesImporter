@@ -6,7 +6,7 @@ namespace UnityPackageImporter.Models;
 
 internal sealed record ImportReportPresentation(string Report, Uri IssueUrl, bool FullReportIncluded);
 
-// Builds a reviewable draft, never submits an issue or opens a browser.
+
 internal static class ImportIssueDraft
 {
     internal const string NewIssueUrl = "https://github.com/Artbyo3/ResoniteUnityPackagesImporter/issues/new";
@@ -25,7 +25,7 @@ internal static class ImportIssueDraft
         if (complete.Length <= MaximumUrlCharacters)
             return new(report, new Uri(complete), true);
 
-        // Do not silently truncate a diagnostic report to fit a browser URL.
+
         string summary = "The full diagnostic report is too long for this link. In Resonite, use Copy report, then paste it below before submitting.\n\n" +
             "Report format: " + ImportFailureReport.FormatVersion + "\nMod version: " + sanitizer.Clean(data.Environment.ModVersion) +
             "\nResonite version: " + sanitizer.Clean(data.Environment.ResoniteVersion) +
@@ -38,7 +38,7 @@ internal static class ImportIssueDraft
         string compact = prefix + Uri.EscapeDataString(introduction + summary);
         if (compact.Length > MaximumUrlCharacters)
         {
-            // Even unusual version strings cannot make the link unbounded.
+
             compact = prefix + Uri.EscapeDataString("Use Copy report in Resonite and paste the diagnostic report here. Review it before submitting.");
         }
         return new(report, new Uri(compact), false);

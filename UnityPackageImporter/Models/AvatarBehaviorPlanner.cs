@@ -60,7 +60,7 @@ internal static class AvatarBehaviorPlanner
 
         token.ThrowIfCancellationRequested();
 
-        // 1. Index GameObjects, Transforms, and Renderers
+
         var gameObjectToTransform = new Dictionary<long, long>();
         var transformToGameObject = new Dictionary<long, long>();
         var transformParents = new Dictionary<long, long>();
@@ -81,7 +81,7 @@ internal static class AvatarBehaviorPlanner
 
             if (tagStr.EndsWith("!1") || tagStr == "GameObject")
             {
-                // GameObject
+
             }
             else if (tagStr.EndsWith("!4") || tagStr == "Transform" || tagStr.EndsWith("!224") || tagStr == "RectTransform")
             {
@@ -106,7 +106,7 @@ internal static class AvatarBehaviorPlanner
             }
         }
 
-        // Descendant check
+
         bool IsDescendant(long candidateTransform, long targetAncestorTransform)
         {
             var seen = new HashSet<long>();
@@ -142,7 +142,7 @@ internal static class AvatarBehaviorPlanner
         bool hasBlockBlinking = false;
         bool hasBlockVisemes = false;
 
-        // 2. Scan VRCFury components
+
         foreach (var (mbFileId, body) in monoBehaviours)
         {
             token.ThrowIfCancellationRequested();
@@ -163,7 +163,7 @@ internal static class AvatarBehaviorPlanner
                 continue;
             }
 
-            // Check records for action blockers
+
             foreach (var record in graph.Records.Values)
             {
                 var type = Get(record, "type") as YamlMappingNode;
@@ -231,7 +231,7 @@ internal static class AvatarBehaviorPlanner
             }
         }
 
-        // 3. Scan Modular Avatar components
+
         foreach (var (mbFileId, body) in monoBehaviours)
         {
             token.ThrowIfCancellationRequested();
@@ -271,7 +271,7 @@ internal static class AvatarBehaviorPlanner
             }
         }
 
-        // 4. Scan VRChat SDK components
+
         foreach (var (mbFileId, body) in monoBehaviours)
         {
             token.ThrowIfCancellationRequested();

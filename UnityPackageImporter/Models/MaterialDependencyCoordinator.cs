@@ -67,8 +67,8 @@ internal static class MaterialDependencyCoordinator
     }
 }
 
-// A dropped package belongs to the request that was waiting when it arrived.
-// It must not migrate to another station while extraction is in progress.
+
+
 internal sealed class MaterialDependencyRequest
 {
     private readonly MaterialDependencySession owner;
@@ -89,8 +89,8 @@ internal sealed class MaterialDependencyRequest
         Token.ThrowIfCancellationRequested();
         await default(ToWorld);
         Token.ThrowIfCancellationRequested();
-        // Back, Continue, or another station taking over discards this request.
-        // A stale drop must not unexpectedly open a new independent import.
+
+
         if (!owner.IsCurrentRequest(generation)) return true;
         if (!owner.CanUse(assets?.Keys))
         {
@@ -101,8 +101,8 @@ internal sealed class MaterialDependencyRequest
     }
 }
 
-// Only an explicit request arms the next package. Its extraction and resolution
-// belong to the existing import session, without creating a second station.
+
+
 internal sealed class MaterialDependencySession
 {
     private readonly UnityProjectImporter importer;

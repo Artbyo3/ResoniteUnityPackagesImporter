@@ -13,7 +13,7 @@ internal sealed record NestedPrefabCapabilities(bool CanDefer, IReadOnlyCollecti
 {
     private static readonly Regex Header = new(@"^--- !u!(?<class>[0-9]+) &-?[0-9]+(?: stripped)?[ \t]*\r?$", RegexOptions.Multiline);
 
-    // Missing dependencies and unrecognizable files cannot establish mesh-free capability.
+
     internal static NestedPrefabCapabilities Scan(string sourceGuid, Func<string, string?> readPrefab)
     {
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);

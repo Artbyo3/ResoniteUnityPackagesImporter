@@ -19,7 +19,7 @@ internal static class AvatarWardrobeRuntime
 {
     internal static async Task<bool> BuildAsync(AvatarWardrobePlan wardrobe, Slot avatarRoot,
         IReadOnlyDictionary<ulong, IUnityObject> objects, UnityProjectImporter project,
-        CancellationToken token)
+        CancellationToken token, AuthoredAppearanceSnapshot? authoredSnapshot = null)
     {
         ArgumentNullException.ThrowIfNull(wardrobe);
         if (!wardrobe.CanBuild) return false;
@@ -130,14 +130,20 @@ internal static class AvatarWardrobeRuntime
                     if (off.Effect != on.Effect || off.TargetId != on.TargetId || off.Property != on.Property ||
                         !keys.Add((on.Effect, on.TargetId, on.Property)))
                         throw new InvalidOperationException("Wardrobe bindings have ambiguous field ownership.");
-                    if (!objects.TryGetValue(unchecked((ulong)on.TargetId), out var entry))
+                    bool hasSource = objects.TryGetValue(unchecked((ulong)on.TargetId), out var entry);
+                    if (!hasSource && on.Effect != InitialAppearanceEffect.Active)
                         throw new InvalidOperationException("Wardrobe destination no longer exists.");
                     if (on.Effect == InitialAppearanceEffect.Active)
                     {
-                        if (entry is not UnityGameObject game || game.frooxEngineSlot == null ||
-                            game.frooxEngineSlot == avatarRoot || !PreparedImportItem.Contains(avatarRoot, game.frooxEngineSlot))
+                        Slot? target = entry is UnityGameObject game ? game.frooxEngineSlot : null;
+                        if (authoredSnapshot != null)
+                        {
+                            if (!authoredSnapshot.TryGetSlot(on.TargetId, out var captured) || hasSource && target != captured)
+                                throw new InvalidOperationException("Wardrobe visibility target disagrees with its captured source instance.");
+                            target = captured;
+                        }
+                        if (target == null || target.IsDestroyed || target == avatarRoot || !PreparedImportItem.Contains(avatarRoot, target))
                             throw new InvalidOperationException("Wardrobe visibility target is not an owned child object.");
-                        Slot target = game.frooxEngineSlot;
                         var field = target.ActiveSelf_Field;
                         if (!destinations.Add(field) || field.IsDriven || field.IsLinked)
                             throw new InvalidOperationException("Wardrobe visibility target is already driven.");

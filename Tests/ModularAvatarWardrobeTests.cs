@@ -83,7 +83,7 @@ internal static class ModularAvatarWardrobeTests
             check(bindings.Single(b => b.On.Effect == InitialAppearanceEffect.Material).On.Material!.Guid == baseMat &&
                 bindings.Single(b => b.On.Effect == InitialAppearanceEffect.Material).Off.Material!.Guid == altMat, "Inverted MaterialSetter failed.");
 
-            // Authored inactive HatMesh (m_IsActive: 0) with Active: 0 must restore baseline false when off and stay false when on
+
             string inactiveSame = SimpleScene(reactiveComponents: "502",
                 extraObjects: ObjectToggle(path: "HatMesh", target: 4, active: 0, inverted: 0));
             var planInactiveSame = ModularAvatarInitialAppearance.CompileWardrobe(inactiveSame, Context());
@@ -91,7 +91,7 @@ internal static class ModularAvatarWardrobeTests
             var bSame = planInactiveSame.Controls.Single().Bindings.Single();
             check(!bSame.Off.Active && !bSame.On.Active, "Authored inactive target with Active: 0 must not become active when off.");
 
-            // Authored inactive HatMesh (m_IsActive: 0) with Active: 1 and m_inverted: 1 must be active when off and restore baseline false when on
+
             string inactiveInverted = SimpleScene(reactiveComponents: "502",
                 extraObjects: ObjectToggle(path: "HatMesh", target: 4, active: 1, inverted: 1));
             var planInactiveInv = ModularAvatarInitialAppearance.CompileWardrobe(inactiveInverted, Context());
@@ -221,19 +221,19 @@ internal static class ModularAvatarWardrobeTests
             string MakeParam(string extraFields = "", int syncType = 3) =>
                 "--- !u!114 &600\nMonoBehaviour:\n  m_GameObject: {fileID: 2}\n  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.ParametersScriptGuid + "}\n  parameters:\n  - nameOrPrefix: Jacket\n    remapTo: ''\n    internalParameter: 0\n    isPrefix: 0\n    syncType: " + syncType + "\n" + extraFields;
 
-            // 1. saved: 1 reports MA_WARDROBE_OPTION
+
             string savedYaml = SimpleScene(reactiveComponents: "600,502", extraObjects: MakeParam("    saved: 1\n") + ObjectToggle());
             var savedPlan = ModularAvatarInitialAppearance.CompileWardrobe(savedYaml, Context());
             check(!savedPlan.CanBuild && savedPlan.Diagnostics.Any(d => d.Code == "MA_WARDROBE_OPTION" && d.Message.Contains("saved")),
                 "Expected MA_WARDROBE_OPTION for saved: 1, got: " + Describe(savedPlan));
 
-            // 2. localOnly: 1 reports MA_WARDROBE_OPTION
+
             string localYaml = SimpleScene(reactiveComponents: "600,502", extraObjects: MakeParam("    localOnly: 1\n") + ObjectToggle());
             var localPlan = ModularAvatarInitialAppearance.CompileWardrobe(localYaml, Context());
             check(!localPlan.CanBuild && localPlan.Diagnostics.Any(d => d.Code == "MA_WARDROBE_OPTION" && d.Message.Contains("localOnly")),
                 "Expected MA_WARDROBE_OPTION for localOnly: 1, got: " + Describe(localPlan));
 
-            // 3. syncType: 0 (NotSynced) reports MA_WARDROBE_OPTION
+
             string unSyncedComp =
                 "--- !u!114 &600\nMonoBehaviour:\n  m_GameObject: {fileID: 2}\n  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.ParametersScriptGuid + "}\n  parameters:\n  - nameOrPrefix: Jacket\n    remapTo: ''\n    internalParameter: 0\n    isPrefix: 0\n    syncType: 0\n";
             string unSyncedYaml = SimpleScene(reactiveComponents: "600,502", extraObjects: unSyncedComp + ObjectToggle());
@@ -241,7 +241,7 @@ internal static class ModularAvatarWardrobeTests
             check(!unSyncedPlan.CanBuild && unSyncedPlan.Diagnostics.Any(d => d.Code == "MA_WARDROBE_OPTION" && d.Message.Contains("localOnly")),
                 "Expected MA_WARDROBE_OPTION for syncType: 0, got: " + Describe(unSyncedPlan));
 
-            // 4. saved: 0 and localOnly: 0 (syncType: 3) compiles cleanly and populates Saved: false, Synced: true
+
             string cleanYaml = SimpleScene(reactiveComponents: "600,502", extraObjects: MakeParam("    saved: 0\n    localOnly: 0\n") + ObjectToggle());
             var cleanPlan = ModularAvatarInitialAppearance.CompileWardrobe(cleanYaml, Context());
             check(cleanPlan.CanBuild && cleanPlan.Controls.Count == 1, Describe(cleanPlan));
@@ -250,7 +250,7 @@ internal static class ModularAvatarWardrobeTests
             var paramDecl = cleanPlan.SharedState!.Parameters.Definitions.Values.Single();
             check(!paramDecl.Saved && paramDecl.Synced && paramDecl.Type == AvatarParameterType.Bool, "Parameter declaration must have Saved == false, Synced == true, Type == Bool");
 
-            // 5. syncType: 1 (Int) preserves Int parameter type
+
             string intYaml = SimpleScene(reactiveComponents: "600,502", extraObjects: MakeParam(syncType: 1) + ObjectToggle());
             var intPlan = ModularAvatarInitialAppearance.CompileWardrobe(intYaml, Context());
             check(intPlan.CanBuild && intPlan.Controls.Count == 1, Describe(intPlan));
@@ -259,7 +259,7 @@ internal static class ModularAvatarWardrobeTests
             var intDecl = intPlan.SharedState!.Parameters.Definitions.Values.Single();
             check(intDecl.Type == AvatarParameterType.Int, "Shared parameter must declare Int");
 
-            // 6. syncType: 2 (Float) preserves Float parameter type
+
             string floatYaml = SimpleScene(reactiveComponents: "600,502", extraObjects: MakeParam(syncType: 2) + ObjectToggle());
             var floatPlan = ModularAvatarInitialAppearance.CompileWardrobe(floatYaml, Context());
             check(floatPlan.CanBuild && floatPlan.Controls.Count == 1, Describe(floatPlan));
@@ -271,7 +271,7 @@ internal static class ModularAvatarWardrobeTests
 
         test("MA wardrobe permits coexisting VRCFury ArmatureLink structural component", () =>
         {
-            // Standalone VRCFury ArmatureLink component
+
             string furyArmatureComp =
                 "--- !u!114 &700\nMonoBehaviour:\n  m_GameObject: {fileID: 2}\n  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VrcFuryArmatureLinkScriptGuid + "}\n" +
                 "  propBone: {fileID: 2}\n  linkTo:\n  - useBone: 1\n    bone: 0\n    useObj: 0\n    obj: {fileID: 0}\n    offset: ''\n";
@@ -286,7 +286,7 @@ internal static class ModularAvatarWardrobeTests
             var plan = ModularAvatarInitialAppearance.CompileWardrobe(yaml, Context(!maRuntimeContext));
             check(plan.CanBuild && plan.Controls.Count == 1, Describe(plan));
 
-            // Full VRCFury component containing RefIds ArmatureLink
+
             string furyRefIdsComp =
                 "--- !u!114 &701\nMonoBehaviour:\n  m_GameObject: {fileID: 2}\n  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VrcFuryFullScriptGuid + "}\n" +
                 "  config:\n    features: [{rid: 101}]\n  references:\n    version: 2\n    RefIds:\n    - rid: 101\n      type: {class: ArmatureLink, ns: VF.Model.Feature, asm: VRCFury}\n      data:\n        version: 7\n        propBone: {fileID: 2}\n        linkTo:\n        - useBone: 1\n          bone: 0\n          useObj: 0\n          obj: {fileID: 0}\n          offset: ''\n";
@@ -301,7 +301,7 @@ internal static class ModularAvatarWardrobeTests
             var planRefIds = ModularAvatarInitialAppearance.CompileWardrobe(yamlRefIds, Context(!maRuntimeContextRefIds));
             check(planRefIds.CanBuild && planRefIds.Controls.Count == 1, Describe(planRefIds));
 
-            // Verify the import gate fails closed when an unsupported VRCFury feature is present
+
             string furyUnsupportedComp =
                 "--- !u!114 &702\nMonoBehaviour:\n  m_GameObject: {fileID: 2}\n  m_Script: {fileID: 11500000, guid: " + AvatarPackageIndex.VrcFuryFullScriptGuid + "}\n" +
                 "  config:\n    features: [{rid: 101}, {rid: 102}]\n  references:\n    version: 2\n    RefIds:\n" +

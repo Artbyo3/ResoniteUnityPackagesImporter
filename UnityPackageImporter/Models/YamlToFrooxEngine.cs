@@ -17,11 +17,12 @@ public class YamlToFrooxEngine
     internal static Dictionary<ulong, IUnityObject> ParseText(string text)
     {
         var deserializer = new DeserializerBuilder()
+            .WithTypeConverter(new UnityFileIdConverter())
             .WithNodeTypeResolver(new UnityNodeTypeResolver())
             .IgnoreUnmatchedProperties()
             .Build();
-        // Unity's optional "stripped" header suffix is not part of the YAML tag.
-        // Normalize it in memory so the extracted package cache remains immutable.
+
+
         string yaml = AvatarPackageIndex.NormalizeDocumentHeaders(text);
         var classes = new Dictionary<ulong, int?>();
         var documents = UnityYamlDocumentParser.Parse<UnityEngineObjectWrapper>(yaml, deserializer, (id, kind) => classes[id] = kind);

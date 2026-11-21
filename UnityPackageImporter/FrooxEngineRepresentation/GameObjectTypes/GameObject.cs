@@ -34,8 +34,8 @@ public class GameObject: IUnityObject
         }
         else if (frooxEngineSlot != null)
         {
-            // If being instanciated through prefab import while still in prefab hashes.
-            // Since it will have modifications done to it but have an in world object still.
+
+
             frooxEngineSlot.ActiveSelf = m_IsActive == 1 ? true : false;
             frooxEngineSlot.Name = m_Name;
         }
@@ -93,7 +93,7 @@ public class GameObject: IUnityObject
 
         if (m_Name != null)
             result.AppendLine("m_Name: " + m_Name.ToString());
-        else 
+        else
             result.AppendLine("m_Name: null");
 
         if (frooxEngineSlot != null)

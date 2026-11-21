@@ -14,9 +14,9 @@ public class Component : IUnityObject
     public SourceObj m_CorrespondingSourceObject { get; set; }
     public Dictionary<string, ulong> m_PrefabInstance { get; set; }
 
-    #pragma warning disable CS1998 // Async method lacks 'await' operators and will run synchronously
+    #pragma warning disable CS1998
     public async Task InstanciateAsync(IUnityStructureImporter importer) {
-    #pragma warning restore CS1998 // Async method lacks 'await' operators and will run synchronously
+    #pragma warning restore CS1998
         if (!instanciated)
         {
             instanciated = true;
@@ -24,7 +24,7 @@ public class Component : IUnityObject
         }
     }
 
-    //a detailed to string for debugging.
+
     public override string ToString()
     {
         StringBuilder result = new StringBuilder();
@@ -53,5 +53,5 @@ public class Component : IUnityObject
 
 
         return result.ToString();
-    }  
+    }
 }

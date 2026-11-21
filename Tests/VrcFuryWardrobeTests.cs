@@ -444,12 +444,8 @@ internal static class VrcFuryWardrobeTests
             check(control.Bindings.All(b => b.On.Property == "_Color" && b.On.Weight == 0.8f && b.Off.Weight == 0f), "Wrong MaterialPropertyAction binding values");
         });
 
-        test("Wardrobe compiles ScaleAction and FxFloatAction", () =>
+        test("Wardrobe compiles FxFloatAction", () =>
         {
-            var planScale = Compile(Toggle(0, "Scale", "obj: {fileID: 10}, scale: 1.5", actionType: "ScaleAction"));
-            check(planScale.CanBuild && planScale.Controls.Count == 1, Describe(planScale));
-            check(planScale.Controls[0].Bindings.Count == 1, "Expected 1 scale binding.");
-
             var planFloat = Compile(Toggle(0, "FxFloat", "name: Blush, value: 0.75", actionType: "FxFloatAction"));
             check(planFloat.CanBuild && planFloat.Controls.Count == 1, Describe(planFloat));
             check(planFloat.Controls[0].Bindings.Count == 1, "Expected 1 float binding.");
@@ -522,13 +518,28 @@ MonoBehaviour:
             check(plan.Controls[0].Bindings.Count > 0, "Expected puppet bindings.");
         });
 
-        test("Wardrobe compiles WorldDropAction to active toggle binding", () =>
+        foreach (string actionType in new[] { "ScaleAction", "WorldDropAction" })
         {
-            var plan = Compile(Toggle(0, "Drop", "obj: {fileID: 10}", actionType: "WorldDropAction"));
-            check(plan.CanBuild && plan.Controls.Count == 1, Describe(plan));
-            check(plan.Controls[0].Bindings.Count == 1, "Expected 1 WorldDrop binding.");
-            check(!plan.Controls[0].Bindings[0].Off.Active && plan.Controls[0].Bindings[0].On.Active, "Expected off=false, on=true.");
-        });
+            foreach (string payload in new[] { "obj: {fileID: 10}, scale: 1.5", "obj: {fileID: 1}, scale: 0", "obj: {fileID: 0}" })
+                test("Wardrobe rejects visibility substitutes for " + actionType + " " + payload, () =>
+                {
+                    var plan = Compile(Toggle(0, "Unsupported", payload, actionType: actionType));
+                    check(!plan.CanBuild && plan.SharedState == null, Describe(plan));
+                    check(plan.Diagnostics.Any(item => item.Code == "VRCFURY_WARDROBE_ACTION" &&
+                        item.Message.Contains(actionType, StringComparison.Ordinal)), Describe(plan));
+                    check(plan.Controls.All(control => control.Bindings.Count == 0), "Unsupported action emitted native property bindings.");
+                });
+            test("Wardrobe rejects mixed supported controls with " + actionType, () =>
+            {
+                var plan = Compile(Toggle(0, "Supported", ObjectAction(11)) +
+                    Toggle(1, "Unsupported", "obj: {fileID: 10}", actionType: actionType));
+                check(!plan.CanBuild && plan.SharedState == null, Describe(plan));
+                check(plan.Diagnostics.Any(item => item.Code == "VRCFURY_WARDROBE_ACTION" &&
+                    item.Message.Contains(actionType, StringComparison.Ordinal)), Describe(plan));
+                check(plan.Controls.SelectMany(control => control.Bindings).All(binding => binding.On.TargetId != 10),
+                    "Unsupported action leaked a visibility substitute into a mixed plan.");
+            });
+        }
 
         test("Wardrobe compiles Toes feature to continuous toe curl control", () =>
         {

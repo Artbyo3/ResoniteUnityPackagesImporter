@@ -132,7 +132,7 @@ internal static class AssetIdentityConflictTests
             var pathA = Path.Combine(root, "A.png");
             var pathB = Path.Combine(root, "B.png");
             File.WriteAllBytes(pathA, new byte[] { 1, 2, 3 });
-            File.WriteAllBytes(pathB, new byte[] { 1, 2, 4 }); // Different bytes!
+            File.WriteAllBytes(pathB, new byte[] { 1, 2, 4 });
 
             string meta = "fileFormatVersion: 2\nguid: conflict-payload-004\n";
             File.WriteAllText(pathA + ".meta", meta);
@@ -154,9 +154,9 @@ internal static class AssetIdentityConflictTests
             var pathA = Path.Combine(root, "A.png");
             var pathB = Path.Combine(root, "B.png");
             File.WriteAllBytes(pathA, new byte[] { 1, 2, 3 });
-            File.WriteAllBytes(pathB, new byte[] { 1, 2, 3 }); // Same payload
+            File.WriteAllBytes(pathB, new byte[] { 1, 2, 3 });
 
-            // Differing texture importer settings
+
             File.WriteAllText(pathA + ".meta", "fileFormatVersion: 2\nguid: conflict-meta-005\nTextureImporter:\n  sRGBTexture: 1\n");
             File.WriteAllText(pathB + ".meta", "fileFormatVersion: 2\nguid: conflict-meta-005\nTextureImporter:\n  sRGBTexture: 0\n");
 
@@ -318,7 +318,7 @@ internal static class AssetIdentityConflictTests
                 assets,
                 conflicts,
                 companionAssets,
-                isAssetAssignedOrCached: _ => false); // Not assigned
+                isAssetAssignedOrCached: _ => false);
 
             check(result.ConflictedGuids.Contains("unassigned-guid-012"), "Conflict was not tracked.");
             check(conflicts.Contains("unassigned-guid-012"), "Conflicted GUID set missing entry.");

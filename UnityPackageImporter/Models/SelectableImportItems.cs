@@ -4,10 +4,10 @@ using System.Collections.Generic;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>
-/// Tracks the import items that are still selectable in the station. Items leave
-/// this list only when the operation that owns them consumes their source.
-/// </summary>
+
+
+
+
 internal sealed class SelectableImportItems<T> where T : class
 {
     private readonly List<T> entries = new();

@@ -6,7 +6,7 @@ using UnityPackageImporter.Models;
 
 namespace UnityPackageImporter.Importing;
 
-/// <summary>Composition point: framework order is explicit and stable. Adapters emit; shared rules validate once all contributions exist.</summary>
+
 internal static class AvatarPlanComposer
 {
     internal static AvatarBuildPlan Create(AvatarPackageManifest manifest, string avatarName)

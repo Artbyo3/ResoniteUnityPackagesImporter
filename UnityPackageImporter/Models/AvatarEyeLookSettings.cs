@@ -13,7 +13,7 @@ namespace UnityPackageImporter.Models;
 
 public sealed record AvatarEyeLookSettings(
     bool HasSettings,
-    int EyelidType, // 0: None, 1: Blendshapes, 2: Bones
+    int EyelidType,
     UnityAssetReference? EyelidsMesh,
     IReadOnlyList<int> EyelidBlendShapeIndices,
     UnityAssetReference? LeftEyeTransform,

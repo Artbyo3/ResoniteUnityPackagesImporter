@@ -95,8 +95,8 @@ internal static class ImportLifetimeTests
                         return null;
                     }
                 });
-                // A tuple prevents Task.Run from unwrapping the drain task: the held
-                // operations are intentionally released only after the race settles.
+
+
                 var close = Task.Run(() =>
                 {
                     start.Wait();

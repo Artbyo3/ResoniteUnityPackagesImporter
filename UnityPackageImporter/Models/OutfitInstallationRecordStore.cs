@@ -40,10 +40,10 @@ internal sealed class InstallationRecordHandle
                              SchemaVersion == OutfitInstallIdentity.CurrentSchemaVersion;
 }
 
-/// <summary>
-/// Manages persistent outfit installation records, ownership metadata, and toggle controls
-/// attached to target avatar rigs in FrooxEngine.
-/// </summary>
+
+
+
+
 internal static class OutfitInstallationRecordStore
 {
     public const string RecordsSlotName = "Unity Package Importer";

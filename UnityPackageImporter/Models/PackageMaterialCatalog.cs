@@ -13,7 +13,7 @@ internal sealed record PackageMaterialChoice(
     string PackagePath,
     (float r, float g, float b, float a) BaseColor = default);
 
-/// <summary>Indexes serialized Unity materials for an explicit, per-slot picker.</summary>
+
 internal sealed class PackageMaterialCatalog
 {
     private readonly PackageMaterialChoice[] choices;
@@ -56,7 +56,7 @@ internal sealed class PackageMaterialCatalog
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or
                                                YamlDotNet.Core.YamlException or InvalidDataException)
             {
-                // An unreadable optional candidate should not fail the avatar import.
+
             }
         }
 
@@ -106,7 +106,7 @@ internal sealed class PackageMaterialCatalog
                 return string.Join("/", relative);
         }
 
-        // Keep a useful package-relative display path when an asset is outside Assets.
+
         return segments.Length <= 2 ? string.Join("/", segments) : string.Join("/", segments[^2..]);
     }
 
@@ -116,11 +116,11 @@ internal sealed class PackageMaterialCatalog
         return slash < 0 ? "" : packagePath[..slash];
     }
 
-    /// <summary>
-    /// Orders material picker choices so the slot's current material is always the first card,
-    /// deduplicating catalog entries. If the current material is not in the catalog (e.g. runtime/missing),
-    /// a runtime-material choice without a GUID is placed first.
-    /// </summary>
+
+
+
+
+
     public static IReadOnlyList<PackageMaterialChoice> OrderPickerChoices(
         string? currentGuid,
         string currentName,
@@ -145,7 +145,7 @@ internal sealed class PackageMaterialCatalog
         }
         else
         {
-            // Runtime-material choice (no GUID: no thumbnail lookup)
+
             result.Add(new PackageMaterialChoice("", currentName, "", "", currentColor));
         }
 

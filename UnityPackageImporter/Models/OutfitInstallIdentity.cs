@@ -17,12 +17,12 @@ public enum OutfitInstallMatch
     UpdateAvailable
 }
 
-/// <summary>
-/// Stable source identity for an installed outfit. The Unity prefab GUID
-/// identifies the outfit across package exports; the content hash identifies
-/// the revision of the prefab and its reachable imported dependencies without
-/// storing machine-specific source paths. Unity editor execution is not implied.
-/// </summary>
+
+
+
+
+
+
 public sealed class OutfitInstallIdentity
 {
     public const int CurrentSchemaVersion = 1;
@@ -76,8 +76,8 @@ public sealed class OutfitInstallIdentity
 
         void ReadReferences(string path)
         {
-            // Only serialized Unity YAML can contain asset GUID references.
-            // This avoids scanning binary models/textures or shader source as text.
+
+
             using var reader = new StreamReader(path, Encoding.UTF8, true);
             char[] header = new char[5];
             if (reader.ReadBlock(header, 0, header.Length) != header.Length) return;
@@ -118,9 +118,9 @@ public sealed class OutfitInstallIdentity
         if (!NormalizeGuid(installedPrefabGuid).Equals(NormalizeGuid(PrefabGuid), StringComparison.Ordinal))
             return OutfitInstallMatch.None;
 
-        // Legacy records hashed only the prefab. Their dependency revision is
-        // unknown, so they intentionally remain UpdateAvailable instead of being
-        // silently migrated to Current with unverified textures or mesh data.
+
+
+
         return NormalizeHash(installedContentHash).Equals(NormalizeHash(ContentHash), StringComparison.Ordinal)
             ? OutfitInstallMatch.Current
             : OutfitInstallMatch.UpdateAvailable;

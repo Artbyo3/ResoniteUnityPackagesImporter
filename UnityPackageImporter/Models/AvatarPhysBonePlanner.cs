@@ -44,12 +44,12 @@ public static class AvatarPhysBonePlanner
 
         token.ThrowIfCancellationRequested();
 
-        // 1. Index GameObjects, Transforms, and Components
-        var gameObjects = new Dictionary<long, YamlMappingNode>(); // gameObjectId -> node
-        var transformToGameObject = new Dictionary<long, long>(); // transformId -> gameObjectId
-        var gameObjectToTransform = new Dictionary<long, long>(); // gameObjectId -> transformId
-        var transformParents = new Dictionary<long, long>(); // transformId -> parentTransformId
-        var transformChildren = new Dictionary<long, List<long>>(); // transformId -> childTransformIds
+
+        var gameObjects = new Dictionary<long, YamlMappingNode>();
+        var transformToGameObject = new Dictionary<long, long>();
+        var gameObjectToTransform = new Dictionary<long, long>();
+        var transformParents = new Dictionary<long, long>();
+        var transformChildren = new Dictionary<long, List<long>>();
         var components = new List<(long Id, int ClassId, YamlMappingNode Body)>();
 
         foreach (var doc in stream.Documents)
@@ -62,11 +62,11 @@ public static class AvatarPhysBonePlanner
             long fileId = ParseHeaderId(rootNode);
             int classId = ParseClassId(tag, entry.Key);
 
-            if (classId == 1) // GameObject
+            if (classId == 1)
             {
                 gameObjects[fileId] = body;
             }
-            else if (classId == 4) // Transform
+            else if (classId == 4)
             {
                 long goId = ReferenceNode(Get(body, "m_GameObject"));
                 transformToGameObject[fileId] = goId;
@@ -81,13 +81,13 @@ public static class AvatarPhysBonePlanner
                     .ToList();
                 transformChildren[fileId] = children;
             }
-            else if (classId == 114) // MonoBehaviour
+            else if (classId == 114)
             {
                 components.Add((fileId, classId, body));
             }
         }
 
-        // Descendant check for transform hierarchy
+
         bool Descends(long childTrans, long ancestorTrans)
         {
             if (childTrans == 0 || ancestorTrans == 0) return false;
@@ -102,7 +102,7 @@ public static class AvatarPhysBonePlanner
 
         long avatarRootTransform = gameObjectToTransform.GetValueOrDefault(avatarRootId);
 
-        // 2. Parse Colliders
+
         var colliders = new List<AvatarPhysBoneColliderDefinition>();
         var colliderIds = new HashSet<long>();
 
@@ -126,7 +126,7 @@ public static class AvatarPhysBonePlanner
             long rootTransId = ReferenceNode(Get(body, "rootTransform"));
             if (rootTransId == 0) rootTransId = transId;
 
-            // Scope check: must descend from avatar root if root specified
+
             if (avatarRootTransform != 0 && rootTransId != 0 && !Descends(rootTransId, avatarRootTransform))
                 continue;
 
@@ -154,7 +154,7 @@ public static class AvatarPhysBonePlanner
             colliderIds.Add(compFileId);
         }
 
-        // 3. Parse ModularAvatarPBBlocker
+
         var blockerTransforms = new List<long>();
         foreach (var (_, _, body) in components)
         {
@@ -175,7 +175,7 @@ public static class AvatarPhysBonePlanner
             }
         }
 
-        // 4. Parse PhysBones
+
         var bones = new List<AvatarPhysBoneDefinition>();
 
         foreach (var (compFileId, _, body) in components)
@@ -198,7 +198,7 @@ public static class AvatarPhysBonePlanner
             long rootTransId = ReferenceNode(Get(body, "rootTransform"));
             if (rootTransId == 0) rootTransId = transId;
 
-            // Scope check: must descend from avatar root
+
             if (avatarRootTransform != 0 && rootTransId != 0 && !Descends(rootTransId, avatarRootTransform))
                 continue;
 
@@ -207,8 +207,8 @@ public static class AvatarPhysBonePlanner
                 .Where(id => id != 0)
                 .ToList();
 
-            // Apply Modular Avatar PBBlocker pass:
-            // For each blocker, if an ancestor is rootTransId, add blocker to ignores
+
+
             foreach (var blockerTrans in blockerTransforms)
             {
                 if (blockerTrans != rootTransId && Descends(blockerTrans, rootTransId) && !ignores.Contains(blockerTrans))

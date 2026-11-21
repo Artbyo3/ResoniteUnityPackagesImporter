@@ -9,7 +9,7 @@ internal static class LilToonEmissionPlan
     {
         var inputs = new List<TextureContribution>();
         var map = EmissionPlanInputs.Texture(data, "_EmissionMap", (int)data.Number("_EmissionMap_UVMode"));
-        // lilToon multiplies all RGBA channels of the blend mask. Its mask samples transformed main UV0.
+
         var mask = EmissionPlanInputs.Texture(data, "_EmissionBlendMask", 0);
         if (mask != null)
         {

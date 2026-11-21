@@ -5,7 +5,7 @@ using UnityPackageImporter.Models;
 
 namespace UnityPackageImporter.Frameworks.ModularAvatar;
 
-/// <summary>Translates only this framework's parsed settings into shared operations. No world mutation or cross-framework validation.</summary>
+
 internal static class ModularAvatarPlanAdapter
 {
     internal static void AppendOperations(IEnumerable<ModularAvatarComponentDefinition> components, IAvatarPlanSink plan)

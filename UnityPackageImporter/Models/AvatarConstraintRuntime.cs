@@ -53,7 +53,7 @@ public static class AvatarConstraintRuntime
             Slot? targetSlot = ResolveSlot(constraint.TargetTransformId) ?? ResolveSlot(constraint.GameObjectId);
             if (targetSlot == null || targetSlot.IsDestroyed) continue;
 
-            // Find primary source
+
             var primarySourceDef = constraint.Sources.OrderByDescending(s => s.Weight).FirstOrDefault();
             if (primarySourceDef == null) continue;
 

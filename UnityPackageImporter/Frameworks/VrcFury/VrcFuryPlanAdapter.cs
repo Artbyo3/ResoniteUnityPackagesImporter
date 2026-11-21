@@ -5,7 +5,7 @@ using UnityPackageImporter.Models;
 
 namespace UnityPackageImporter.Frameworks.VrcFury;
 
-/// <summary>Translates only this framework's parsed settings into shared operations. No world mutation or cross-framework validation.</summary>
+
 internal static class VrcFuryPlanAdapter
 {
     internal static void AppendOperations(IEnumerable<VrcFuryComponentDefinition> components, IAvatarPlanSink plan)
@@ -61,7 +61,8 @@ internal static class VrcFuryPlanAdapter
                         AlignPosition = link.AlignPosition,
                         AlignRotation = link.AlignRotation,
                         AlignScale = link.AlignScale,
-                        AutoScaleFactor = link.AutoScaleFactor
+                        AutoScaleFactor = link.AutoScaleFactor,
+                        UseAutomaticRootScaleRatio = link.UseAutomaticRootScaleRatio
                     };
                     operation = op;
                 }

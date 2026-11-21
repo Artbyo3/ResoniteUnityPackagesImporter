@@ -109,14 +109,19 @@ internal static class InitialAppearanceRuntime
         foreach (var item in prepared)
         {
             var write = item.Write;
-            if (!unityObjects.TryGetValue(unchecked((ulong)write.TargetId), out var ownedSource) ||
-                !importer.existingIUnityObjects.TryGetValue(unchecked((ulong)write.TargetId), out var importedSource) ||
-                !ReferenceEquals(ownedSource, importedSource)) return Reject();
             if (write.Effect == InitialAppearanceEffect.Active)
             {
-                if (!unityObjects.TryGetValue(unchecked((ulong)write.TargetId), out var entry) || entry is not UnityGameObject game ||
-                    game.frooxEngineSlot == null || !PreparedImportItem.Contains(avatarRoot, game.frooxEngineSlot)) return Reject();
-                var slot = game.frooxEngineSlot;
+                Slot slot;
+                var authoredSnapshot = AuthoredAppearanceSnapshot.For(importer);
+                if (unityObjects.TryGetValue(unchecked((ulong)write.TargetId), out var entry))
+                {
+                    if (entry is not UnityGameObject game || !importer.existingIUnityObjects.TryGetValue(unchecked((ulong)write.TargetId), out var imported) ||
+                        !ReferenceEquals(entry, imported) || game.frooxEngineSlot == null) return Reject();
+                    slot = game.frooxEngineSlot;
+                    if (authoredSnapshot != null && (!authoredSnapshot.TryGetSlot(write.TargetId, out var original) || original != slot)) return Reject();
+                }
+                else if (authoredSnapshot == null || !authoredSnapshot.TryGetSlot(write.TargetId, out slot)) return Reject();
+                if (slot.IsDestroyed || !PreparedImportItem.Contains(avatarRoot, slot)) return Reject();
                 var field = slot.ActiveSelf_Field;
                 if (field.IsLinked || field.IsDriven || !destinations.Add(field)) return Reject();
                 bool before = slot.ActiveSelf;
@@ -124,6 +129,9 @@ internal static class InitialAppearanceRuntime
                     () => !slot.IsDestroyed && PreparedImportItem.Contains(avatarRoot, slot) && slot.ActiveSelf == before && !field.IsLinked && !field.IsDriven));
                 continue;
             }
+            if (!unityObjects.TryGetValue(unchecked((ulong)write.TargetId), out var ownedSource) ||
+                !importer.existingIUnityObjects.TryGetValue(unchecked((ulong)write.TargetId), out var importedSource) ||
+                !ReferenceEquals(ownedSource, importedSource)) return Reject();
             if (!unityObjects.TryGetValue(unchecked((ulong)write.TargetId), out var source) || source is not UnitySkin renderer ||
                 !snapshots.ContainsKey(write.TargetId) || !Owned(renderer, unityObjects, avatarRoot)) return Reject();
             var native = renderer.createdMeshRenderer;

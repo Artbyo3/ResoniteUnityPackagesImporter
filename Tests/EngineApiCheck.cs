@@ -3,7 +3,7 @@ using System.Reflection.Metadata;
 using System.Reflection.PortableExecutable;
 using System.Collections.Immutable;
 
-// Reads assembly metadata without loading or running any game code.
+
 internal static class EngineApiCheck
 {
     public static int Run(string assemblyPath)
@@ -85,8 +85,8 @@ internal static class EngineApiCheck
                 (method.Attributes & (MethodAttributes.MemberAccessMask | MethodAttributes.Static)) == (MethodAttributes.Public | MethodAttributes.Static) &&
                 method.DecodeSignature(new TypeNames(), (object?)null).ReturnType == "String";
         });
-        // The existing seven model-method checks above plus these checks cover the
-        // bridge's entire startup inventory and the public engine version API.
+
+
         var expected = new (string Assembly, string Type, string Member, Func<MetadataReader, TypeDefinition, bool> Exists)[]
         {
             ("Elements.Assets", "Elements.Assets.AssetHelper+ImportExtension", "nonpublic nested type", (_, t) => (t.Attributes & TypeAttributes.VisibilityMask) != TypeAttributes.NestedPublic),
@@ -183,7 +183,7 @@ internal static class EngineApiCheck
                         var bytes = body.GetILBytes();
                         for (int i = 0; i < bytes.Length - 4; i++)
                         {
-                            if (bytes[i] == 0x72) // ldstr opcode
+                            if (bytes[i] == 0x72)
                             {
                                 int token = BitConverter.ToInt32(bytes, i + 1);
                                 var uHandle = System.Reflection.Metadata.Ecma335.MetadataTokens.UserStringHandle(token & 0xFFFFFF);

@@ -19,12 +19,12 @@ public static class ModelScaleHelper
         else Console.WriteLine("[WARN] " + message);
     }
 
-    /// <summary>
-    /// Reads the UnitScaleFactor from an FBX file.
-    /// Binary FBX stores UnitScaleFactor as a double ('D') property in GlobalSettings.
-    /// ASCII FBX stores it as a property line: P: "UnitScaleFactor", "double", "Number", "", 100
-    /// Returns 100.0 (meters) as the standard default if not found.
-    /// </summary>
+
+
+
+
+
+
     public static float GetFbxUnitScaleFactor(string? fbxPath)
     {
         if (string.IsNullOrEmpty(fbxPath) || !File.Exists(fbxPath))
@@ -33,17 +33,17 @@ public static class ModelScaleHelper
         try
         {
             using var stream = File.OpenRead(fbxPath);
-            // Read up to 1MB which contains FBX headers and GlobalSettings
+
             int toRead = (int)Math.Min(1024 * 1024, stream.Length);
             byte[] buffer = new byte[toRead];
             int read = stream.Read(buffer, 0, toRead);
             if (read <= 0) return 100f;
 
-            // Search for binary UnitScaleFactor
+
             int idx = FindBytes(buffer, read, UnitScaleFactorBytes);
             if (idx >= 0)
             {
-                // In binary FBX, the double value ('D') follows within ~80 bytes
+
                 for (int i = idx + UnitScaleFactorBytes.Length; i < Math.Min(read - 8, idx + 80); i++)
                 {
                     if (buffer[i] == (byte)'D')
@@ -57,7 +57,7 @@ public static class ModelScaleHelper
                 }
             }
 
-            // Search for ASCII UnitScaleFactor
+
             string text = Encoding.ASCII.GetString(buffer, 0, read);
             var match = AsciiUnitScaleRegex.Match(text);
             if (match.Success && float.TryParse(match.Groups[1].Value, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out float asciiVal))
@@ -76,12 +76,12 @@ public static class ModelScaleHelper
         return 100f;
     }
 
-    /// <summary>
-    /// Computes the effective scale factor matching Unity's ModelImporter behavior.
-    /// - If useFileScale is false, only globalScale applies.
-    /// - If useFileUnits is true, Unity normalizes the FBX file units to meters (unitScaleFactor / 100.0).
-    /// - If useFileUnits is false, Unity assumes centimeters (0.01 multiplier).
-    /// </summary>
+
+
+
+
+
+
     public static float CalculateEffectiveScale(float globalScale, bool useFileUnits, bool useFileScale, float unitScaleFactor)
     {
         if (!float.IsFinite(globalScale) || globalScale <= 0f)

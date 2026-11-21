@@ -6,7 +6,7 @@ using System.IO;
 namespace UnityPackageImporter.Models;
 
 internal enum ReportModelFormat { Unknown, Fbx, FbxBinary, Obj, Dae, Gltf, Glb, Blend }
-internal enum ReportModelPhase { Unknown, Initialize, Decode, Metadata, Preprocess, Nodes, Bindings, Identifiers }
+internal enum ReportModelPhase { Unknown, Initialize, Decode, Metadata, Preprocess, Nodes, Bindings, Identifiers, Materials }
 internal enum ReportModelProcessing { JoinIdenticalVertices, ImproveCacheLocality, PopulateArmatureData, GenerateUVCoords, FindInstances, FlipWindingOrder, LimitBoneWeights }
 internal sealed record ReportModelFacts(ReportModelFormat Format, long? Bytes = null, uint? Version = null, bool UnrecognizedVersion = false);
 internal sealed record ReportModelFailure(string AssetKey, ReportModelFacts Facts, string BackendVersion,
@@ -38,7 +38,7 @@ internal static class ReportModelFactsReader
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException)
         {
-            // Optional header facts remain unavailable; the original import error is retained.
+
             return new(format, bytes);
         }
         return new(format, bytes);

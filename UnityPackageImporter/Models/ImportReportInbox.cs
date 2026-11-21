@@ -1,7 +1,7 @@
 #nullable enable
 namespace UnityPackageImporter.Models;
 
-// One import, one panel. Closing acknowledges even reports still being hashed.
+
 internal sealed class ImportReportInbox
 {
     private readonly object gate = new();

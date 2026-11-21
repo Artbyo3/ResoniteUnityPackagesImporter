@@ -28,7 +28,7 @@ public class SourceObj
         }
         catch (NullReferenceException)
         {
-            // Guard against uninitialized state in debug string formatting.
+
             result.AppendLine("fileID: null");
         }
 
@@ -38,7 +38,7 @@ public class SourceObj
         }
         catch (NullReferenceException)
         {
-            // guid may be null when constructing debug output for incomplete source objects.
+
             result.AppendLine("guid: null");
         }
 
@@ -48,7 +48,7 @@ public class SourceObj
         }
         catch (NullReferenceException)
         {
-            // Guard against uninitialized state in debug string formatting.
+
             result.AppendLine("type: null");
         }
 

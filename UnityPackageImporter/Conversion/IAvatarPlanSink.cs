@@ -3,7 +3,7 @@ using UnityPackageImporter.Models;
 
 namespace UnityPackageImporter.Conversion;
 
-/// <summary>Append-only contribution boundary. Adapters cannot inspect, reorder, execute or remove another framework's work.</summary>
+
 internal interface IAvatarPlanSink
 {
     void AddOperation(AvatarBuildOperation operation);

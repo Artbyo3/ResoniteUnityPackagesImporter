@@ -31,7 +31,7 @@ public static class AvatarPhysBoneRuntime
         await default(ToWorld);
         token.ThrowIfCancellationRequested();
 
-        // Slot lookup helper
+
         Slot? ResolveSlot(long fileId)
         {
             if (fileId == 0) return null;
@@ -47,7 +47,7 @@ public static class AvatarPhysBoneRuntime
             return null;
         }
 
-        // 1. Build Colliders
+
         var createdColliders = new Dictionary<long, IDynamicBoneCollider>();
 
         foreach (var colDef in plan.Colliders)
@@ -73,14 +73,14 @@ public static class AvatarPhysBoneRuntime
             createdColliders[colDef.ComponentId] = sphere;
         }
 
-        // 2. Build Bone Chains
+
         foreach (var boneDef in plan.Bones)
         {
             token.ThrowIfCancellationRequested();
             Slot? rootBoneSlot = ResolveSlot(boneDef.RootTransformId) ?? ResolveSlot(boneDef.GameObjectId);
             if (rootBoneSlot == null || rootBoneSlot.IsDestroyed) continue;
 
-            // Resolve ignored slots
+
             var ignoredSlots = new HashSet<Slot>();
             foreach (long ignoreId in boneDef.IgnoreTransformIds)
             {
@@ -101,7 +101,7 @@ public static class AvatarPhysBoneRuntime
             chain.DynamicPlayerCollision.Value = boneDef.AllowCollision;
             chain.CollideWithOwnBody.Value = boneDef.AllowCollision;
 
-            // Wire static colliders
+
             foreach (long colId in boneDef.ColliderIds)
             {
                 if (createdColliders.TryGetValue(colId, out var colliderComp) && colliderComp is DynamicBoneSphereCollider sphereCol)
@@ -110,7 +110,7 @@ public static class AvatarPhysBoneRuntime
                 }
             }
 
-            // Setup hierarchy
+
             chain.SetupFromChildren(rootBoneSlot, false, slot => !ignoredSlots.Contains(slot));
         }
 

@@ -7,6 +7,12 @@
     <DefineConstants>$(DefineConstants);REGRESSION_TESTS</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../UnityPackageImporter/Models/InitialAppearanceReplay.cs" Link="InitialAppearanceReplay.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AppearanceReplayStore.cs" Link="AppearanceReplayStore.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AppearanceReplayByteStream.cs" Link="AppearanceReplayByteStream.cs" />
+    <Compile Include="../UnityPackageImporter/Models/UnitySerializedSkinData.cs" Link="UnitySerializedSkinData.cs" />
+    <Compile Include="../UnityPackageImporter/Models/UnityBuiltinMeshes.cs" Link="UnityBuiltinMeshes.cs" />
+    <EmbeddedResource Include="../UnityPackageImporter/Models/BuiltinMeshes/*.mesh.txt" LogicalName="UnityPackageImporter.Models.BuiltinMeshes.%(Filename)%(Extension)" />
     <Compile Include="../UnityPackageImporter/EngineCompatibilityCheck.cs" Link="EngineCompatibilityCheck.cs" />
     <Compile Remove="ModelUnits/**/*.cs" />
     <Compile Remove="Textures/**/*.cs" />
@@ -27,6 +33,7 @@
     <Compile Include="../UnityPackageImporter/Models/ImportIssueDraft.cs" Link="ImportIssueDraft.cs" />
     <Compile Include="../UnityPackageImporter/Models/ImportReportInbox.cs" Link="ImportReportInbox.cs" />
     <Compile Include="../UnityPackageImporter/Models/ReportFailureDetails.cs" Link="ReportFailureDetails.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ModelImportFailureState.cs" Link="ModelImportFailureState.cs" />
     <Compile Include="../UnityPackageImporter/Models/ReportAliases.cs" Link="ReportAliases.cs" />
     <Compile Include="../UnityPackageImporter/Models/ReportModelFacts.cs" Link="ReportModelFacts.cs" />
     <Compile Include="../UnityPackageImporter/PackageInputFormat.cs" Link="PackageInputFormat.cs" />
@@ -90,6 +97,8 @@
     <Compile Include="../UnityPackageImporter/Models/UnityStaticAnimationClip.cs" Link="UnityStaticAnimationClip.cs" />
     <Compile Include="../UnityPackageImporter/Models/VrcFuryManagedReferenceGraph.cs" Link="VrcFuryManagedReferenceGraph.cs" />
     <Compile Include="../UnityPackageImporter/Models/VrcFuryInitialAppearance.cs" Link="VrcFuryInitialAppearance.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AuthoredAppearanceHierarchy.cs" Link="AuthoredAppearanceHierarchy.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AuthoredAppearanceGraphCapture.cs" Link="AuthoredAppearanceGraphCapture.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarWardrobePlan.cs" Link="AvatarWardrobePlan.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarParameterState.cs" Link="AvatarParameterState.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarVisemeSettings.cs" Link="AvatarVisemeSettings.cs" />
@@ -110,11 +119,14 @@
     <Compile Include="../UnityPackageImporter/Models/SkinBindingTransfer.cs" Link="SkinBindingTransfer.cs" />
     <Compile Include="../UnityPackageImporter/Models/HierarchyIdentity.cs" Link="HierarchyIdentity.cs" />
     <Compile Include="../UnityPackageImporter/Models/ImportActionPolicy.cs" Link="ImportActionPolicy.cs" />
+    <Compile Include="../UnityPackageImporter/Models/ImportActionDiagnostics.cs" Link="ImportActionDiagnostics.cs" />
     <Compile Include="../UnityPackageImporter/Models/PrefabAssemblySelection.cs" Link="PrefabAssemblySelection.cs" />
     <Compile Include="../UnityPackageImporter/FrooxEngineRepresentation/SourceObj.cs" Link="SourceObj.cs" />
     <Compile Include="../UnityPackageImporter/Models/UnityPackageAssetIndex.cs" Link="UnityPackageAssetIndex.cs" />
     <Compile Include="../UnityPackageImporter/Models/UnityYamlDocumentParser.cs" Link="UnityYamlDocumentParser.cs" />
+    <Compile Include="../UnityPackageImporter/Models/UnityFileIdConverter.cs" Link="UnityFileIdConverter.cs" />
     <Compile Include="../UnityPackageImporter/Models/ModelMetaParser.cs" Link="ModelMetaParser.cs" />
+    <Compile Include="../UnityPackageImporter/Models/AuthoredHumanoidTargets.cs" Link="AuthoredHumanoidTargets.cs" />
     <Compile Include="../UnityPackageImporter/Models/ThumbnailTaskCache.cs" Link="ThumbnailTaskCache.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarConversionOperations.cs" Link="AvatarConversionOperations.cs" />
     <Compile Include="../UnityPackageImporter/Models/AvatarBuildPlanner.cs" Link="AvatarBuildPlanner.cs" />

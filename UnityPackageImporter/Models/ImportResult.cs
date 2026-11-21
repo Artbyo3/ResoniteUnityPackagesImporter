@@ -14,7 +14,7 @@ internal static class ImportResultScope
     internal static ImportOwnership Operation(AvatarBuildOperation operation, string sourcePath,
         Func<long, ImportOwnership> resolve)
     {
-        // IDs from a prefab file cannot be interpreted as scene IDs.
+
         if (!string.Equals(operation.Source.SourcePath, sourcePath, StringComparison.OrdinalIgnoreCase))
             return ImportOwnership.Unknown;
         var ids = new List<long> { operation.Source.GameObjectFileId };
@@ -35,14 +35,14 @@ internal static class ImportResultScope
         }
         var scopes = ids.Where(id => id != 0).Distinct().Select(resolve).ToArray();
         if (scopes.Contains(ImportOwnership.Owned)) return ImportOwnership.Owned;
-        // A scene-wide bone/path lookup can affect another avatar. Until the
-        // executor retains that resolved identity, do not claim isolation.
+
+
         if (scopes.Length == 0 || implicitTarget || scopes.Contains(ImportOwnership.Unknown)) return ImportOwnership.Unknown;
         return ImportOwnership.Other;
     }
 }
 
-// Machine-readable reasons are separate from presentation, package names and exceptions.
+
 internal enum ImportResultIssue
 {
     SourceUnavailable,
@@ -65,7 +65,7 @@ internal enum ImportResultIssue
     MissingNestedPrefabs
 }
 
-// Immutable snapshot; never cache it across awaits, material recovery or native creation.
+
 internal sealed class ImportResult
 {
     internal IReadOnlyList<ImportResultIssue> Issues { get; }
@@ -117,8 +117,8 @@ internal sealed class ImportResult
             throw new InvalidOperationException("This import is not ready for the requested action. Review its import status before creating or installing it.");
     }
 
-    // Only the installer calls this, after its duplicate passes validation and
-    // its owned transaction commits. The reusable source snapshot is unchanged.
+
+
     internal ImportResult ForInstalledCopy(bool optionalControlsFailed = false)
     {
         Require(ImportOutputAction.InstallOutfit);
@@ -145,8 +145,8 @@ internal sealed class ImportResult
         int operations = 0, completed = 0;
         if (plan != null)
         {
-            // Unattributed plan errors are conservatively source-wide. Operation
-            // errors are scoped below; a failed sibling does not invalidate completed work.
+
+
             if (plan.Diagnostics.Any(d => d.Severity == AvatarOperationSeverity.Error))
             {
                 ready = false;
@@ -185,8 +185,8 @@ internal sealed class ImportResult
         if (missingNestedPrefabs > 0) issues.Add(ImportResultIssue.MissingNestedPrefabs);
         if (unsupportedFeatures > 0) issues.Add(ImportResultIssue.UnsupportedFeatures);
         if (optionalControlsFailed) issues.Add(ImportResultIssue.OptionalControlsFailed);
-        // This snapshot feeds world-visible UI and receipts. Protect the output
-        // boundary even if a future warning producer bypasses the catalog.
+
+
         var warnings = materialWarnings?.Where(w => !string.IsNullOrWhiteSpace(w))
             .Select(ImportFailureReport.Sanitize).Distinct().ToArray() ?? Array.Empty<string>();
         if (warnings.Length > 0) issues.Add(ImportResultIssue.MaterialEffectsLimited);

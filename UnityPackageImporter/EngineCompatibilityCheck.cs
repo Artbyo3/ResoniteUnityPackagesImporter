@@ -4,7 +4,7 @@ using System.Reflection;
 
 namespace UnityPackageImporter;
 
-// Engine-independent diagnostics; the bridge supplies the actual reflected members.
+
 internal static class EngineCompatibilityCheck
 {
     internal const string LastVerifiedResoniteVersion = "2026.9.18.82";

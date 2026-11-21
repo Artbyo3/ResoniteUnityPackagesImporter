@@ -53,8 +53,8 @@ internal sealed class StationTemplate
             }
             bindings.Add(pair.Key, target);
         }
-        // These native references remap on duplication/export. Future UI edits can move a control
-        // without losing its role; its immutable package contract remains the migration fallback.
+
+
         var metadata = root.Children.SingleOrDefault(child => child.Name == "Importer UI Bindings") ?? root.AddSlot("Importer UI Bindings");
         foreach (var pair in bindings)
         {
@@ -196,7 +196,7 @@ internal static class StationTemplateLoader
         string devDirectory = UnityPackageImporter.Config.GetValue(UnityPackageImporter.uiTemplateDevelopmentDirectory);
         if (!string.IsNullOrWhiteSpace(devDirectory))
         {
-            // Explicit opt-in only. Each new instance reads the current export, never a stale cached object.
+
             package = await File.ReadAllBytesAsync(Path.Combine(devDirectory, name + ".ResonitePackage"));
             contractData = await File.ReadAllBytesAsync(Path.Combine(devDirectory, name + ".bindings.json"));
             packageHash = Convert.ToHexString(SHA256.HashData(package));
@@ -253,13 +253,13 @@ internal static class StationTemplateLoader
         host.ActiveSelf = false;
         try
         {
-            // Native package import loads the saved root INTO the supplied slot. Keep a
-            // separate wrapper inactive: the saved root can overwrite its own Active field.
+
+
             var root = host.AddSlot("Template");
             var progress = new TemplateImportProgress();
             await PackageImporter.ImportPackage(cached, root, progress);
             await default(ToWorld);
-            // PackageImporter reports some failures through progress instead of throwing.
+
             if (progress.Failed)
                 throw new InvalidDataException("Resonite could not load the bundled " + name + " UI package.");
             if (root.IsDestroyed || root.Parent != host || root.Name != contract.RootName)
@@ -267,13 +267,13 @@ internal static class StationTemplateLoader
             var template = new StationTemplate(host, root, contract, packageHash);
             template.Root.GlobalPosition = position;
             template.Root.GlobalRotation = rotation;
-            // Preserve the template's authored scale; native import handles asset dependencies.
+
             template.Root.PersistentSelf = false;
 
             EnsureWorldFontFallbacks(world, root);
 
-            // Runtime selection/progress fills parameterized labels later. Clear
-            // their saved placeholder patterns before making the package visible.
+
+
             string activeLocale = LocalizationManager.DetectLocaleCode();
             foreach (string baseKey in contract.Bindings.Keys
                 .Where(key => key.StartsWith("locale.", StringComparison.Ordinal))
@@ -294,7 +294,7 @@ internal static class StationTemplateLoader
         }
         catch
         {
-            // Roll back the incomplete template host, then rethrow.
+
             await default(ToWorld);
             if (!host.IsDestroyed) host.Destroy();
             throw;

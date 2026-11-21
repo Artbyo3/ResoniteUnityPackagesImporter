@@ -9,8 +9,8 @@ namespace UnityPackageImporter.Models;
 
 internal sealed record SourceImportBatchResult<T>(IReadOnlyList<T> Succeeded, IReadOnlyList<T> Failed);
 
-// Preparation can publish intermediate state before an import finishes. The
-// batch outcome, not the presence of that state, controls output eligibility.
+
+
 internal static class SourceImportBatch
 {
     internal static async Task<SourceImportBatchResult<T>> RunAsync<T>(IEnumerable<T> sources,

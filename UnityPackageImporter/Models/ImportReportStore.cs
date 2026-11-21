@@ -14,8 +14,9 @@ internal static class ImportReportStore
     internal const string Prefix = "unity-import-report-";
     private static readonly SemaphoreSlim Gate = new(1, 1);
 
-    internal static async Task<string> WriteAsync(string directory, string report, DateTimeOffset time)
+    internal static async Task<string> WriteAsync(string directory, string report, DateTimeOffset time, int retainedReports = RetainedReports)
     {
+        if (retainedReports < 1 || retainedReports > 256) throw new ArgumentOutOfRangeException(nameof(retainedReports));
         byte[] bytes = new UTF8Encoding(false).GetBytes(report);
         if (bytes.Length > 128 * 1024) throw new InvalidDataException("Import report exceeds the storage limit.");
         await Gate.WaitAsync().ConfigureAwait(false);
@@ -35,7 +36,7 @@ internal static class ImportReportStore
             File.Move(temporary, path);
             temporary = null;
             foreach (string old in Directory.EnumerateFiles(directory, Prefix + "*.txt")
-                .Where(IsReportFile).OrderByDescending(Path.GetFileName, StringComparer.Ordinal).Skip(RetainedReports))
+                .Where(IsReportFile).OrderByDescending(Path.GetFileName, StringComparer.Ordinal).Skip(retainedReports))
             {
                 RejectLinks(old);
                 File.Delete(old);
@@ -59,10 +60,11 @@ internal static class ImportReportStore
                 throw new IOException("The report directory contains a link or reparse point.");
     }
 
-    // Reporting has its own observed failure boundary; it must not replace an import error.
-    internal static async Task<bool> SaveBestEffortAsync(Func<Task> write, Action<string> failed)
+
+    internal static async Task<bool> SaveBestEffortAsync(Func<Task> write, Action<string> failed, CancellationToken token = default)
     {
         try { await write().ConfigureAwait(false); return true; }
+        catch (OperationCanceledException) when (token.IsCancellationRequested) { throw; }
         catch (Exception error)
         {
             failed(error.GetType().Name);

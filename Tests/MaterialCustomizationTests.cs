@@ -118,18 +118,18 @@ internal static class MaterialCustomizationTests
             byte[] rgba = MaterialThumbnailGenerator.RenderOrbRgba(data, assets, null);
             Check(rgba.Length == 128 * 128 * 4, "RGBA buffer should be 128x128x4 bytes.");
 
-            // Corner (0, 0) should be transparent
+
             int cornerAlpha = rgba[3];
             Check(cornerAlpha == 0, $"Corner pixel should be fully transparent, got {cornerAlpha}.");
 
-            // Center (63, 63) should be opaque red
+
             int centerIdx = (63 * 128 + 63) * 4;
             int centerR = rgba[centerIdx + 0];
             int centerA = rgba[centerIdx + 3];
             Check(centerA > 250, $"Center pixel should be fully opaque, got {centerA}.");
             Check(centerR > 100, $"Center pixel should have strong red component, got {centerR}.");
 
-            // Key light specular highlight is near top-left of center (e.g. 50, 50)
+
             int highIdx = (50 * 128 + 50) * 4;
             int shadowIdx = (75 * 128 + 75) * 4;
             int highR = rgba[highIdx + 0];
@@ -160,7 +160,7 @@ internal static class MaterialCustomizationTests
             var data = UnityMaterialData.Parse(yaml);
             var assets = new Dictionary<string, string> { ["tex-guid"] = @"C:\cache\blue_tex.png" };
 
-            // Mock 2x2 cyan texture
+
             byte[] mockRgba = new byte[]
             {
                 0, 255, 255, 255,   0, 255, 255, 255,
@@ -239,10 +239,10 @@ internal static class MaterialCustomizationTests
             }
             Check(threwCanceled, "First caller should observe OperationCanceledException when callerToken is canceled.");
 
-            // Complete the background task
+
             tcs.SetResult(expectedUri);
 
-            // Second caller comes in after cancellation
+
             var secondTask = cache.GetOrLoadThumbnailAsync("guid-cancel", _ => Task.FromResult<Uri?>(null));
             var secondResult = secondTask.GetAwaiter().GetResult();
             Check(secondResult == expectedUri, "Subsequent caller should receive result once background task completes.");
@@ -258,11 +258,11 @@ internal static class MaterialCustomizationTests
             {
                 int attempt = Interlocked.Increment(ref attempts);
                 if (attempt == 1) throw new InvalidOperationException("Simulated transient generator fault");
-                if (attempt == 2) return Task.FromResult<Uri?>(null); // transient null return
+                if (attempt == 2) return Task.FromResult<Uri?>(null);
                 return Task.FromResult<Uri?>(expectedUri);
             };
 
-            // Attempt 1: Throws
+
             bool threwFault = false;
             try
             {
@@ -274,11 +274,11 @@ internal static class MaterialCustomizationTests
             }
             Check(threwFault, "Attempt 1 should propagate exception.");
 
-            // Attempt 2: Returns null
+
             var result2 = cache.GetOrLoadThumbnailAsync("guid-fault", failingGenerator).GetAwaiter().GetResult();
             Check(result2 == null, "Attempt 2 should return null without caching it.");
 
-            // Attempt 3: Succeeds
+
             var result3 = cache.GetOrLoadThumbnailAsync("guid-fault", failingGenerator).GetAwaiter().GetResult();
             Check(result3 == expectedUri, "Attempt 3 should succeed after previous fault and null were safely evicted.");
             Check(attempts == 3, $"Should have invoked generator 3 times, got {attempts}.");
@@ -288,7 +288,7 @@ internal static class MaterialCustomizationTests
         {
             var cache = new ThumbnailTaskCache();
 
-            // Rapid switching across 10 folders/search queries
+
             for (int i = 0; i < 10; i++)
             {
                 using var cts = new CancellationTokenSource();
@@ -299,12 +299,12 @@ internal static class MaterialCustomizationTests
                     return new Uri($"resdb:///{id}");
                 }, cts.Token);
 
-                // Cancel rapidly
+
                 cts.Cancel();
                 try { task.GetAwaiter().GetResult(); } catch (OperationCanceledException) { }
             }
 
-            // Stable navigation settles and requests all 3 materials
+
             var stable1 = cache.GetOrLoadThumbnailAsync("mat-0", id => Task.FromResult<Uri?>(new Uri($"resdb:///{id}"))).GetAwaiter().GetResult();
             var stable2 = cache.GetOrLoadThumbnailAsync("mat-1", id => Task.FromResult<Uri?>(new Uri($"resdb:///{id}"))).GetAwaiter().GetResult();
             var stable3 = cache.GetOrLoadThumbnailAsync("mat-2", id => Task.FromResult<Uri?>(new Uri($"resdb:///{id}"))).GetAwaiter().GetResult();
@@ -340,7 +340,7 @@ internal static class MaterialCustomizationTests
             var choice3 = new PackageMaterialChoice("guid-3", "Material Three", "Materials", "Assets/Materials/Material Three.mat");
             var catalog = new[] { choice1, choice2, choice3 };
 
-            // Scenario A: current material matches choice2
+
             var orderedMatching = PackageMaterialCatalog.OrderPickerChoices(
                 currentGuid: "guid-2",
                 currentName: "Material Two",
@@ -354,7 +354,7 @@ internal static class MaterialCustomizationTests
             Check(orderedMatching[1].Guid == "guid-1", "Remaining choices follow");
             Check(orderedMatching[2].Guid == "guid-3", "Remaining choices follow");
 
-            // Scenario B: current material is not in catalog (runtime/missing)
+
             var orderedNonMatching = PackageMaterialCatalog.OrderPickerChoices(
                 currentGuid: "unknown-guid",
                 currentName: "Custom Runtime Material",

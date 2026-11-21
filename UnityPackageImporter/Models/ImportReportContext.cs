@@ -9,13 +9,14 @@ using UnityPackageImporter.Extractor;
 
 namespace UnityPackageImporter.Models;
 
-// Import-local diagnostics. No global log subscription or native world references.
+
 internal sealed class ImportReportContext
 {
     private readonly object gate = new();
     private readonly Dictionary<ReportWarningCategory, int> warningCounts = new();
     private readonly List<ReportWarning> warnings = new();
     private readonly List<ReportObjectFailure> failures = new();
+    private readonly Dictionary<(ReportObjectType Type, ReportFailureReason Reason), int> sourceFailureGroups = new();
     private readonly List<ReportModelFailure> modelFailures = new();
     private int modelFailureCount;
     private readonly HashSet<object> reported = new(ReferenceEqualityComparer.Instance);
@@ -61,6 +62,11 @@ internal sealed class ImportReportContext
         lock (gate)
         {
             sourceFailures++;
+            var type = Enum.IsDefined(failure.Type) ? failure.Type : ReportObjectType.Other;
+            var reason = failure.Exceptions?.FirstOrDefault()?.Reason ?? ReportFailureReason.Unknown;
+            if (!Enum.IsDefined(reason)) reason = ReportFailureReason.Unknown;
+            var key = (type, reason);
+            sourceFailureGroups[key] = sourceFailureGroups.GetValueOrDefault(key) + 1;
             if (failures.Count < 32) failures.Add(IncludeNames ? failure : failure with { Name = null });
         }
         Warning(ReportWarningCategory.Reconstruction, ReportDiagnosticCode.ObjectReconstructionFailed, failure.Id, sourceKey: failure.SourceKey);
@@ -125,7 +131,9 @@ internal sealed class ImportReportContext
             }
             return new(Environment, SessionId, DateTimeOffset.UtcNow, stage ?? Stage, exceptions,
                 Array.Empty<ReportPackage>(), packageCount, result, counts, samples.ToArray(), sourceFailures, failures.ToArray(), IncludeNames, truncated,
-                modelFailures.ToArray(), modelFailureCount, Guid.NewGuid());
+                modelFailures.ToArray(), modelFailureCount, Guid.NewGuid(), sourceFailureGroups
+                    .OrderBy(pair => pair.Key.Type).ThenBy(pair => pair.Key.Reason)
+                    .Select(pair => new ReportSourceFailureGroup(pair.Key.Type, pair.Key.Reason, pair.Value)).ToArray());
         }
     }
 
@@ -163,7 +171,7 @@ internal sealed class ImportReportContext
             }
             catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
             {
-                // Metadata is optional. ReadAsync will retain an explicit unavailable status.
+
                 initialLength = null;
             }
         }

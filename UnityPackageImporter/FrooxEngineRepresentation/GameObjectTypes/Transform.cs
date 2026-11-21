@@ -10,28 +10,28 @@ using UnityPackageImporter.Models;
 namespace UnityPackageImporter.FrooxEngineRepresentation.GameObjectTypes;
 
 public class Transform: IUnityObject
-{    
+{
     public TransformFloat4 m_LocalRotation;
     public TransformFloat3 m_LocalPosition;
     public TransformFloat3 m_LocalScale;
-    public TransformFloat3 m_LocalEulerAnglesHint; // This is an error supressor. this does nothing don't use it. - @989onan
+    public TransformFloat3 m_LocalEulerAnglesHint;
 
     public ulong id { get; set; }
     public int m_RootOrder;
     public bool instanciated {  get; set; }
-    
+
     public Dictionary<string, ulong> m_PrefabInstance { get; set; }
 
-    public ulong m_FatherID; //this is used during instanciation, and should never be used elsewhere. besides, you'll never need this for attaching components or anything - @989onan 
-    public ulong m_GameObjectID; //use this when trying to find the parent gameobject of a component that points to a transform.
+    public ulong m_FatherID;
+    public ulong m_GameObjectID;
     public Dictionary<string, ulong> m_GameObject;
     public Dictionary<string, ulong> m_Father;
-    public GameObject parentHashedGameObj; //instanciated on Transforms imported by FBXs. We can use this to find our parent game object via the prefab file hashing system.
+    public GameObject parentHashedGameObj;
 
     public SourceObj m_CorrespondingSourceObject { get; set; }
 
 
-    // This is the magic that allows us to construct an entire game object prefab with just yaml parsing.
+
     public async Task InstanciateAsync(IUnityStructureImporter importer)
     {
         if (instanciated) return;
@@ -53,7 +53,7 @@ public class Transform: IUnityObject
                 PrefabInstance prefab = PrefabInstanceObject as PrefabInstance;
                 if (prefab == null)
                 {
-                    throw new InvalidDataException($"Transform {id} references prefab instance {prefabInstanceId}, but it could not be resolved. Cannot reconstruct object hierarchy.");
+                    throw ReportFailureDetails.Tag(new InvalidDataException($"Transform {id} references prefab instance {prefabInstanceId}, but it could not be resolved. Cannot reconstruct object hierarchy."), ReportFailureReason.PrefabInstanceUnresolved);
                 }
 
                 await default(ToWorld);
@@ -65,7 +65,7 @@ public class Transform: IUnityObject
                     Transform alreadydefined = (targetObj as Transform);
                     if (alreadydefined == null)
                     {
-                        throw new InvalidDataException($"Transform {id} resolved target {m_CorrespondingSourceObject.fileID}, but target is not a Transform. Cannot reconstruct object hierarchy.");
+                        throw ReportFailureDetails.Tag(new InvalidDataException($"Transform {id} resolved target {m_CorrespondingSourceObject.fileID}, but target is not a Transform. Cannot reconstruct object hierarchy."), ReportFailureReason.PrefabTargetUnresolved);
                     }
 
                     this.parentHashedGameObj = alreadydefined.parentHashedGameObj;
@@ -78,8 +78,9 @@ public class Transform: IUnityObject
                             actual.m_CorrespondingSourceObject.fileID != 0 &&
                             alreadydefined.parentHashedGameObj?.m_CorrespondingSourceObject != null)
                         {
-                            if (actual.m_CorrespondingSourceObject.fileID == alreadydefined.parentHashedGameObj.m_CorrespondingSourceObject.fileID
-                                && string.Equals(actual.m_CorrespondingSourceObject.guid, alreadydefined.parentHashedGameObj.m_CorrespondingSourceObject.guid, StringComparison.OrdinalIgnoreCase))
+                            if (actual.m_PrefabInstance != null && actual.m_PrefabInstance.TryGetValue("fileID", out ulong ownerInstance) &&
+                                PrefabObjectLookup.IsSameInstanceAlias(actual.m_CorrespondingSourceObject, ownerInstance,
+                                    alreadydefined.parentHashedGameObj.m_CorrespondingSourceObject, prefabInstanceId))
                             {
                                 UnityPackageImporter.Msg("transform import stage 1.5");
                                 this.parentHashedGameObj = actual;
@@ -90,7 +91,7 @@ public class Transform: IUnityObject
 
                     if (this.parentHashedGameObj == null)
                     {
-                        throw new InvalidDataException($"Transform {id} could not find its associated GameObject in prefab hierarchy. Cannot reconstruct object hierarchy.");
+                        throw ReportFailureDetails.Tag(new InvalidDataException($"Transform {id} could not find its associated GameObject in prefab hierarchy. Cannot reconstruct object hierarchy."), ReportFailureReason.HierarchyGameObjectUnresolved);
                     }
 
                     UnityPackageImporter.Msg("transform import stage 3");
@@ -130,7 +131,7 @@ public class Transform: IUnityObject
             }
             else
             {
-                throw new InvalidDataException($"Transform {id} has prefab source {m_CorrespondingSourceObject.guid} but could not find its PrefabInstance. Hierarchy integrity cannot be guaranteed.");
+                throw ReportFailureDetails.Tag(new InvalidDataException($"Transform {id} has prefab source {m_CorrespondingSourceObject.guid} but could not find its PrefabInstance. Hierarchy integrity cannot be guaranteed."), ReportFailureReason.PrefabInstanceUnresolved);
             }
             instanciated = true;
 
@@ -159,7 +160,7 @@ public class Transform: IUnityObject
                 if (m_LocalScale != null)
                     parentobj.frooxEngineSlot.LocalScale = new float3(m_LocalScale.x, m_LocalScale.y, m_LocalScale.z);
             }
-            
+
             await default(ToBackground);
             if (importer.existingIUnityObjects.TryGetValue(m_FatherID, out IUnityObject foundobjectparent) && foundobjectparent.GetType() == typeof(Transform))
             {
@@ -177,24 +178,24 @@ public class Transform: IUnityObject
                     }
                     else
                     {
-                        throw new InvalidDataException($"Transform {id} could not parent slot to parent GameObject {parentTransform.m_GameObjectID} (slot is null). Hierarchy would be split.");
+                        throw ReportFailureDetails.Tag(new InvalidDataException($"Transform {id} could not parent slot to parent GameObject {parentTransform.m_GameObjectID} (slot is null). Hierarchy would be split."), ReportFailureReason.HierarchyParentUnresolved);
                     }
                 }
                 else if(parentTransform.parentHashedGameObj?.frooxEngineSlot != null && parentobj.frooxEngineSlot != null)
                 {
-                    //if this transform was instanciated through the FileImportTaskScene class, we parent ourselves to it's game object here, which is filled by the FileImportTaskScene class.
+
                     await default(ToWorld);
                     parentobj.frooxEngineSlot.SetParent(parentTransform.parentHashedGameObj.frooxEngineSlot, false);
                     await default(ToBackground);
                 }
                 else
                 {
-                    throw new InvalidDataException($"Transform {id} could not find parent transform's GameObject (parent transform {parentTransform.id}). Hierarchy would be split.");
+                    throw ReportFailureDetails.Tag(new InvalidDataException($"Transform {id} could not find parent transform's GameObject (parent transform {parentTransform.id}). Hierarchy would be split."), ReportFailureReason.HierarchyParentUnresolved);
                 }
             }
             else
             {
-                //this is to solve a problem where the root of prefabs can be called their game object name
+
                 if(m_FatherID == 0 && parentobj.frooxEngineSlot != null)
                 {
                     await default(ToWorld);
@@ -203,13 +204,13 @@ public class Transform: IUnityObject
                 }
                 else if (m_FatherID != 0)
                 {
-                    throw new InvalidDataException($"Transform {id} specifies parent transform fileID {m_FatherID}, but parent does not exist. Hierarchy would be split.");
+                    throw ReportFailureDetails.Tag(new InvalidDataException($"Transform {id} specifies parent transform fileID {m_FatherID}, but parent does not exist. Hierarchy would be split."), ReportFailureReason.HierarchyParentMissing);
                 }
             }
         }
         else
         {
-            throw new InvalidDataException($"Transform {id} did not find its associated GameObject {m_GameObjectID}. Cannot reconstruct object hierarchy.");
+            throw ReportFailureDetails.Tag(new InvalidDataException($"Transform {id} did not find its associated GameObject {m_GameObjectID}. Cannot reconstruct object hierarchy."), ReportFailureReason.HierarchyGameObjectUnresolved);
         }
     }
 

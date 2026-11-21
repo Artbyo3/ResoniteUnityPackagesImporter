@@ -22,26 +22,26 @@ public static class ContextMenuBuilder
 
         await default(ToWorld);
 
-        // 1. Create a dedicated container slot for the menu hierarchy under avatar root
+
         var menuRootSlot = avatarRoot.AddSlot("Expressions Menu");
         menuRootSlot.OrderOffset = 1000;
 
-        // 2. Setup ContextMenuItemSource for the root
+
         var rootItemSource = menuRootSlot.AttachComponent<ContextMenuItemSource>();
         rootItemSource.Label.Value = string.IsNullOrEmpty(rootMenu.Name) ? "Avatar Menu" : rootMenu.Name;
         rootItemSource.Color.Value = new colorX(0.45f, 0.5f, 0.95f, 1f);
 
-        // Keep the menu owned by this descriptor's avatar root. Sharing it with
-        // prefab/import ancestors makes multi-avatar packages leak menus between avatars.
+
+
         var rootComp1 = avatarRoot.AttachComponent<RootContextMenuItem>();
         rootComp1.Item.Target = rootItemSource;
 
-        // 3. Setup root submenu container
+
         var rootSubmenu = menuRootSlot.AttachComponent<ContextMenuSubmenu>();
         var rootItemsSlot = menuRootSlot.AddSlot("Items");
         rootSubmenu.ItemsRoot.Target = rootItemsSlot;
 
-        // 4. Build controls recursively
+
         bool complete = await BuildMenuLevelAsync(rootMenu, rootItemsSlot, bindings, importer);
 
         UnityPackageImporter.Msg($"Built Expressions Menu on '{avatarRoot.Name}'; all controls bound: {complete}");
@@ -64,7 +64,7 @@ public static class ContextMenuBuilder
                 subItemSource.Label.Value = control.Name;
                 subItemSource.Color.Value = new colorX(0.35f, 0.65f, 0.85f, 1f);
 
-                // Assign icon if available
+
                 if (!string.IsNullOrEmpty(control.IconGuid))
                 {
                     await AttachMenuIconAsync(subSlot, subItemSource, control.IconGuid, importer);
@@ -83,7 +83,7 @@ public static class ContextMenuBuilder
                 itemSource.Label.Value = control.Name;
                 itemSource.Color.Value = new colorX(0.85f, 0.9f, 0.95f, 1f);
 
-                // Assign icon if available
+
                 if (!string.IsNullOrEmpty(control.IconGuid))
                 {
                     await AttachMenuIconAsync(itemSlot, itemSource, control.IconGuid, importer);

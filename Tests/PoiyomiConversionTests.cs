@@ -102,7 +102,7 @@ internal static class PoiyomiConversionTests
             Near(normal.Apply(0.5f, 0.5f, 0.5f, 1).r, 0.375f);
             d.Numbers["_ShadowStrength"] = 0;
             Near(TexturePixelTransform.ShadowTint(d, true).Apply(0, 0, 0, 0).r, 1);
-            Near(skin.Apply(1, 1, 1, 1).r, 0.5f); // Recipe captures settings, not a mutable material.
+            Near(skin.Apply(1, 1, 1, 1).r, 0.5f);
         });
         test("Texture recipe cache identity includes tint strength mode and is culture independent", () =>
         {

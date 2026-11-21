@@ -29,18 +29,19 @@ public static class AvatarWardrobeComposer
         var mixedContext = new InitialAppearanceContext
         {
             AvatarRootId = context.AvatarRootId,
+            AuthoredHierarchy = context.AuthoredHierarchy,
             Renderers = context.Renderers,
             ExternalAnimationAndParameterContextVerifiedAbsent = false,
             AllowMixedFrameworks = true
         };
 
-        // 1. Compile VRCFury wardrobe toggles
+
         var vrcfPlan = VrcFuryInitialAppearance.CompileWardrobe(yaml, mixedContext, clipResolver, token);
 
-        // 2. Compile Modular Avatar wardrobe toggles
+
         var maPlan = ModularAvatarInitialAppearance.CompileWardrobe(yaml, mixedContext, token);
 
-        // Collect diagnostics from both framework compilers
+
         diagnostics.AddRange(vrcfPlan.Diagnostics);
         diagnostics.AddRange(maPlan.Diagnostics);
 
@@ -58,7 +59,7 @@ public static class AvatarWardrobeComposer
             };
         }
 
-        // 3. Multi-framework Control Validation & Property Writer Arbitration
+
         var usedPaths = new HashSet<string>(StringComparer.Ordinal);
         var submenus = new HashSet<string>(StringComparer.Ordinal);
         var identities = new HashSet<string>(StringComparer.Ordinal);
@@ -96,7 +97,7 @@ public static class AvatarWardrobeComposer
             validControls.Add(control);
         }
 
-        // Check if any control path collides with an ancestor/descendant submenu
+
         foreach (var control in validControls)
         {
             if (submenus.Contains(control.Path))
@@ -105,8 +106,8 @@ public static class AvatarWardrobeComposer
             }
         }
 
-        // 4. Property Multi-Writer Conflict Arbitration
-        // Every property key: (Effect, TargetId, Property)
+
+
         var propertyWriters = new Dictionary<AvatarPropertyKey, AvatarWardrobeControl>();
         var propertyConflicts = new HashSet<AvatarPropertyKey>();
 
@@ -129,7 +130,7 @@ public static class AvatarWardrobeComposer
             }
         }
 
-        // 5. Construct Unified Shared State & Parameter Catalog
+
         bool hasErrors = diagnostics.Any(d => d.Severity == InitialAppearanceSeverity.Error) || propertyConflicts.Count > 0;
         AvatarWardrobeGraph? sharedState = null;
         if (!hasErrors && validControls.Count > 0)

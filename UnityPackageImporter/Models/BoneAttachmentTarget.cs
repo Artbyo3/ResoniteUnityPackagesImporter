@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>Resolves an adapter's requested target without silently weakening an explicit path.</summary>
+
 internal static class BoneAttachmentTarget
 {
     public static T? Resolve<T>(IEnumerable<T> candidates, string? requestedPath, string? inferredName,

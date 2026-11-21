@@ -10,8 +10,6 @@ Vector3D Point(Matrix4x4 m, Vector3D v) => new(m.A1*v.X+m.A2*v.Y+m.A3*v.Z+m.A4,
 void Near(Vector3D actual, Vector3D expected, string reason) => Check((actual-expected).Length() < 0.002f * Math.Max(1, expected.Length()), reason + $" actual={actual}, expected={expected}");
 Matrix4x4 Translation(float x, float y, float z) => Matrix4x4.FromTranslation(new Vector3D(x,y,z));
 Matrix4x4 Scale(float x, float y, float z) => Matrix4x4.FromScaling(new Vector3D(x,y,z));
-// Use an explicit column-vector product as an independent oracle. AssimpNet's
-// operator composition order is reversed relative to this notation.
 Matrix4x4 Product(params Matrix4x4[] matrices)
 {
     float[,] Read(Matrix4x4 m) => new[,] {{m.A1,m.A2,m.A3,m.A4},{m.B1,m.B2,m.B3,m.B4},{m.C1,m.C2,m.C3,m.C4},{m.D1,m.D2,m.D3,m.D4}};

@@ -1,5 +1,5 @@
-// CPU adaptation of lilToon's ltspass_bakeramp.shader and the SDK's vertical
-// shadow-mask expansion. MIT, lilxyzw and Yellow Dog Man Studios; see notices.
+
+
 using System;
 using System.IO;
 using System.Security.Cryptography;
@@ -24,7 +24,7 @@ internal static class LilToonRamp
             float indirect = Lerp(Linear(a), Linear(b), secondAmount);
             indirect = Lerp(indirect, Linear(c), thirdAmount);
             indirect = Lerp(indirect, 1, border * Linear(borderColor));
-            // The SDK expands its baked sRGB row from white at mask=0.
+
             return Lerp(1, Srgb(Lerp(indirect, 1, lit)), mask);
         }
         return (Channel(first.r, second.r, third.r, edge.r),
@@ -38,7 +38,7 @@ internal static class LilToonRamp
         for (int y = 0; y < size; y++)
             for (int x = 0; x < size; x++)
             {
-                // PNG rows run top to bottom; shader UV y runs bottom to top.
+
                 var color = Sample(data, (x + 0.5f) / size, 1 - (float)y / (size - 1));
                 int index = (y * size + x) * 4;
                 pixels[index] = Byte(color.r);
@@ -64,7 +64,7 @@ internal static class LilToonRamp
             try { File.Move(temporary, path); }
             catch (IOException) when (File.Exists(path))
             {
-                // Another thread already generated and moved the ramp texture into place.
+
             }
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }

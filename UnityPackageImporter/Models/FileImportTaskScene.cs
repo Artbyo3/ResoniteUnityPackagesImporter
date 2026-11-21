@@ -30,10 +30,12 @@ public class FileImportTaskScene
 
     private Slot targetSlot;
     public Slot FinishedFileSlot = null;
+    internal Slot ModelSceneRoot { get; private set; }
     private readonly object importLock = new();
     private Task importTask;
     private ReportModelPhase reportPhase = ReportModelPhase.Initialize;
     private PostProcessSteps reportProcessing;
+    private readonly ModelImportFailureState nativeImportFailures = new();
     private float3 globalPosition;
     private Dictionary<string, string[]> sourceBlendShapeNames = new(StringComparer.Ordinal);
     private readonly UnityMeshData serializedMesh;
@@ -45,7 +47,7 @@ public class FileImportTaskScene
             var names = scene.Meshes[node.MeshIndices[0]].MeshAnimationAttachments.Select(shape => shape.Name).ToArray();
             bool consistent = node.MeshIndices.All(index => scene.Meshes[index].MeshAnimationAttachments.Select(shape => shape.Name).SequenceEqual(names));
             if (!consistent || sourceBlendShapeNames.ContainsKey(node.Name))
-                sourceBlendShapeNames[node.Name] = null; // Ambiguous node/submesh mapping must not guess.
+                sourceBlendShapeNames[node.Name] = null;
             else sourceBlendShapeNames[node.Name] = names;
         }
         foreach (var child in node.Children) RecordBlendShapeNames(scene, child);
@@ -75,8 +77,8 @@ public class FileImportTaskScene
         serializedMesh = mesh ?? throw new ArgumentNullException(nameof(mesh));
     }
 
-    // https://stackoverflow.com/a/31492250
-    // https://stackoverflow.com/a/10789196
+
+
     public Task RunnerWrapper()
     {
         lock (importLock)
@@ -94,7 +96,8 @@ public class FileImportTaskScene
         try { await ImportFileMeshes(); }
         catch (Exception error) when (error is not OperationCanceledException || importer.Session?.Token.IsCancellationRequested != true)
         {
-            ImportReportService.ModelFailed(importer.Session?.Reports, assetID, file, error, reportProcessing.ToString(), reportPhase);
+            ImportReportService.ModelFailed(importer.Session?.Reports, assetID, file, error, reportProcessing.ToString(),
+                nativeImportFailures.MaterialFailure == null ? reportPhase : ReportModelPhase.Materials);
             throw;
         }
     }
@@ -160,7 +163,10 @@ public class FileImportTaskScene
         RecordBlendShapeNames(scene, scene.RootNode);
         UnityPackageImporter.Msg("making model import data for file: " + file);
 
-        this.data = FrooxInternalBridge.CreateModelImportData(file, scene, this.targetSlot, this.importTaskAssetSlot, ModelImportSettings.PBS(true, true, false, false, false, false), null);
+        var settings = ModelImportSettings.PBS(true, true, false, false, false, false);
+        var nativeMaterialMapper = settings.MaterialMapper;
+        settings.MaterialMapper = (slot, material, textures) => nativeImportFailures.MapMaterial(() => nativeMaterialMapper(slot, material, textures));
+        this.data = FrooxInternalBridge.CreateModelImportData(file, scene, this.targetSlot, this.importTaskAssetSlot, settings, null);
         this.importDialogue?.UpdateProgress(0f, "", "importing nodes into froox engine, file: " + Path.GetFileName(file));
 
         await default(ToWorld);
@@ -175,10 +181,11 @@ public class FileImportTaskScene
         UnityPackageImporter.Msg("retrieving scene root for file: " + Path.GetFileName(file));
 
         Slot sceneRootSlot = FrooxInternalBridge.TryGetSlot(data, scene.RootNode);
+        ModelSceneRoot = sceneRootSlot;
         await this.metafile.ScanFile(this, sceneRootSlot);
 
-        // Match native ImportModel ordering: finish hierarchy transforms, then
-        // bind and finalize every skin before exposing the template to copies.
+
+
         reportPhase = ReportModelPhase.Bindings;
         await InitializeSkinsAsync();
         await default(ToWorld);
@@ -193,14 +200,14 @@ public class FileImportTaskScene
 
         foreach (Slot childofroot in sceneRootSlot.Children)
         {
-            this.FILEID_To_Slot_Pairs.AddRange(RecusiveFileIDSlotFinder(childofroot, sceneRootSlot, this.assetID));//find each child slot of the whole thing
+            this.FILEID_To_Slot_Pairs.AddRange(RecusiveFileIDSlotFinder(childofroot, sceneRootSlot, this.assetID));
         }
 
 
 
         this.importDialogue?.UpdateProgress(0f, "", "Hashing skinned mesh renderers with XXHash64 for file: " + Path.GetFileName(file));
 
-        // This for statement thing is crazy. But it gets the job done - @989onan
+
         foreach (FrooxEngine.SkinnedMeshRenderer mesh in this.FinishedFileSlot.GetAllChildren().FindAll(slot => slot.GetComponent<FrooxEngine.SkinnedMeshRenderer>() != null).Select(slot => slot.GetComponent<FrooxEngine.SkinnedMeshRenderer>()))
         {
             UnityPackageImporter.Msg("scanning files for ids for mesh renderer "+mesh.Slot.Name);
@@ -210,7 +217,7 @@ public class FileImportTaskScene
             skinnedrenderer.m_CorrespondingSourceObject = identifier;
             skinnedrenderer.createdMeshRenderer = mesh;
             sourceBlendShapeNames.TryGetValue(mesh.Slot.Name, out skinnedrenderer.SourceBlendShapeNames);
-            skinnedrenderer.m_Mesh = this.FindSource(mesh.Slot.Name, UnityModelClassId.Mesh, mesh.Slot.Name); //this allows us to identify this object by mesh, which is useful for prefabs.
+            skinnedrenderer.m_Mesh = this.FindSource(mesh.Slot.Name, UnityModelClassId.Mesh, mesh.Slot.Name);
             skinnedrenderer.m_Mesh.guid = this.assetID;
             UnityPackageImporter.Msg("id for mesh \""+mesh.Slot.Name+"\" is \""+ skinnedrenderer.m_Mesh.ToString() + "\"files for ids for mesh renderer " + mesh.Slot.Name);
             UnityPackageImporter.Msg("id for skinned mesh renderer \"" + mesh.Slot.Name + "\" is \"" + identifier.ToString()+"\"");
@@ -221,7 +228,7 @@ public class FileImportTaskScene
     }
 
 
-    // This is trashy I know - @989onan
+
     public async Task<FileImportTaskScene> MakeCopyAndPopulatePrefabData()
     {
         FileImportTaskScene copy = new FileImportTaskScene(targetSlot, importer);
@@ -236,8 +243,9 @@ public class FileImportTaskScene
         copy.assetID = this.assetID;
         copy.sourceBlendShapeNames = this.sourceBlendShapeNames;
 
-        // Cleanup
+
         Slot Sceneroot = copy.targetSlot.GetChildrenWithTag("PREFABROOTTAG1234").First();
+        copy.ModelSceneRoot = Sceneroot;
         Sceneroot.Tag = null;
         await default(ToBackground);
 
@@ -250,10 +258,10 @@ public class FileImportTaskScene
 
         foreach (Slot childofroot in Sceneroot.Children)
         {
-            copy.FILEID_To_Slot_Pairs.AddRange(RecusiveFileIDSlotFinder(childofroot, Sceneroot, copy.assetID));//find each child slot of the whole thing
+            copy.FILEID_To_Slot_Pairs.AddRange(RecusiveFileIDSlotFinder(childofroot, Sceneroot, copy.assetID));
         }
 
-        // This for statement thing is crazy. But it gets the job done - @989onan
+
         foreach (FrooxEngine.SkinnedMeshRenderer mesh in copy.FinishedFileSlot.GetAllChildren().FindAll(slot => slot.GetComponent<FrooxEngine.SkinnedMeshRenderer>() != null).Select(slot => slot.GetComponent<FrooxEngine.SkinnedMeshRenderer>()))
         {
             UnityPackageImporter.Msg("giving a skinned mesh renderer materials for file: " + file);
@@ -263,7 +271,7 @@ public class FileImportTaskScene
             identifier.guid = copy.assetID;
             UnityPackageImporter.Msg("path for mesh \""+ mesh.Slot.Name + "\"" + identifier.ToString());
 
-            skinnedrenderer.m_Mesh = copy.FindSource(mesh.Slot.Name, UnityModelClassId.Mesh, mesh.Slot.Name); //this allows us to identify this object by mesh, which is useful for prefabs.
+            skinnedrenderer.m_Mesh = copy.FindSource(mesh.Slot.Name, UnityModelClassId.Mesh, mesh.Slot.Name);
 
             skinnedrenderer.createdMeshRenderer = mesh;
             copy.sourceBlendShapeNames.TryGetValue(mesh.Slot.Name, out skinnedrenderer.SourceBlendShapeNames);
@@ -272,13 +280,13 @@ public class FileImportTaskScene
             await ImportMeshReadiness.WaitAsync(new[] { mesh }, importer.Session?.Token ?? default);
             await default(ToWorld);
 
-            // Duplicate already remaps references inside the copied hierarchy.
-            // Searching by name here can replace a bone with an unrelated mesh
-            // or a same-named bone in a different armature.
+
+
+
             ValidateSkin(mesh, copy.FinishedFileSlot);
               FrooxInternalBridge.SetupBlendShapes(skinnedrenderer.createdMeshRenderer);
-              // Each prefab owns a separate list. Sparse Unity overrides must keep
-              // the copied mesh's defaults at all untouched indices.
+
+
               skinnedrenderer.m_BlendShapeWeights = new List<float>();
               if (skinnedrenderer.SourceBlendShapeNames != null)
                   foreach (var name in skinnedrenderer.SourceBlendShapeNames)
@@ -287,7 +295,7 @@ public class FileImportTaskScene
                       skinnedrenderer.m_BlendShapeWeights.Add(index >= 0 ? mesh.BlendShapeWeights[index] * 100f : 0f);
                   }
 
-            // We will replace these missing ones later with m_modifications
+
             List<string> materialnames = new List<string>();
 
             for (int i = 0; i < skinnedrenderer.createdMeshRenderer.Materials.Count; i++)
@@ -328,7 +336,7 @@ public class FileImportTaskScene
                     else
                     {
                         await default(ToWorld);
-                        materialtask = new FileImportHelperTaskMaterial(copy.importer); // Missing material for now. M_Modifications may modify later.
+                        materialtask = new FileImportHelperTaskMaterial(copy.importer);
                         await default(ToBackground);
                     }
                     await default(ToWorld);
@@ -406,10 +414,10 @@ public class FileImportTaskScene
             skin.SetupBones(mapping);
             ValidateSkin(skin, targetSlot);
             FrooxInternalBridge.SetupBlendShapes(skin);
-            // ImportNode starts skins in SlowRealtimeAccurate. Native ImportModel
-            // finishes every skin with its final bounds policy after binding.
-            // Do this on the template too: skins without YAML overrides may
-            // never be instantiated individually by the prefab importer.
+
+
+
+
             SkinnedBoundsPolicy.ApplyAfterBones(skin, "native FBX template finalization");
         }
         UnityPackageImporter.Msg($"Initialized native bone bindings for {skins.Length} imported skin(s).");
@@ -417,8 +425,8 @@ public class FileImportTaskScene
 
     private static IEnumerable<(string Name, Slot Bone)> BoneCandidates(Slot root)
     {
-        // Match the native fallback's candidate scope, but reject ambiguous
-        // names rather than selecting whichever same-named joint appears first.
+
+
         if (root.GetComponent<FrooxEngine.MeshRenderer>() != null) yield break;
         yield return (root.Name, root);
         foreach (var child in root.Children)
@@ -441,8 +449,8 @@ public class FileImportTaskScene
 
     private Task ImportNodeAsync(Node node, Slot targetSlot, object data)
     {
-        // Called on the world context. Native import must outlive a disappearing UI,
-        // while its completion must never depend on a disposed coroutine enumerator.
+
+
         var world = importer.world;
         var cancellationToken = importer.Session?.Token ?? CancellationToken.None;
         cancellationToken.ThrowIfCancellationRequested();
@@ -465,14 +473,14 @@ public class FileImportTaskScene
             if (cancellationToken.IsCancellationRequested || Volatile.Read(ref targetRemoved) != 0)
                 completion.TrySetCanceled(cancellationToken);
             else
-                completion.TrySetException(new InvalidOperationException("Engine model import was interrupted."));
+                completion.TrySetException(nativeImportFailures.Interrupted());
         }
 
         void Removed()
         {
             Interlocked.Exchange(ref targetRemoved, 1);
             if (!coroutine.IsNull) coroutine.Stop();
-            // World disposal clears the engine queues without running their callbacks.
+
             Finished(coroutine);
         }
 
@@ -485,7 +493,7 @@ public class FileImportTaskScene
         {
             coroutine = world.Coroutines.StartCoroutine(
                 ImportNodeWrapper(node, targetSlot, data, completion, cancellationToken,
-                    () => Volatile.Read(ref targetRemoved) != 0), Finished);
+                    () => Volatile.Read(ref targetRemoved) != 0, nativeImportFailures), Finished);
         }
         catch (Exception error)
         {
@@ -496,7 +504,8 @@ public class FileImportTaskScene
     }
 
     private static IEnumerator<Context> ImportNodeWrapper(Node node, Slot targetSlot, object data,
-        TaskCompletionSource<bool> completion, CancellationToken cancellationToken, Func<bool> targetRemoved)
+        TaskCompletionSource<bool> completion, CancellationToken cancellationToken, Func<bool> targetRemoved,
+        ModelImportFailureState nativeImportFailures)
     {
         try
         {
@@ -517,8 +526,8 @@ public class FileImportTaskScene
                     try
                     {
                         cancellationToken.ThrowIfCancellationRequested();
-                        // Only read the event flag here: native steps can resume on the
-                        // background context, where hierarchy inspection is inappropriate.
+
+
                         if (targetRemoved())
                             throw new OperationCanceledException("Model import target was removed.");
                         hasNext = steps.MoveNext();
@@ -535,7 +544,7 @@ public class FileImportTaskScene
         }
         finally
         {
-            completion.TrySetException(new InvalidOperationException("Engine model import was interrupted."));
+            completion.TrySetException(nativeImportFailures.Interrupted());
         }
     }
 
@@ -549,6 +558,7 @@ public class FileImportTaskScene
         calclatedobj.frooxEngineSlot = curnode;
         calclatedobj.m_CorrespondingSourceObject = FindSource(curnode.Name, UnityModelClassId.GameObject, "//RootNode/root" + FindSlotPath(curnode, Scene));
         calclatedobj.m_Name = curnode.Name;
+        calclatedobj.m_IsActive = curnode.ActiveSelf ? 1 : 0;
         if (!FILEID_into_Slot_Pairs.ContainsKey(calclatedobj.m_CorrespondingSourceObject))
         {
             FILEID_into_Slot_Pairs.Add(calclatedobj.m_CorrespondingSourceObject, calclatedobj);
@@ -558,12 +568,12 @@ public class FileImportTaskScene
         calclatedTransformobj.parentHashedGameObj = calclatedobj;
         calclatedTransformobj.m_CorrespondingSourceObject = FindSource(curnode.Name, UnityModelClassId.Transform, "//RootNode/root" + FindSlotPath(curnode, Scene));
 
-        // This is so m_modifications work - @989onan
+
         calclatedTransformobj.m_LocalPosition = new TransformFloat3(calclatedobj.frooxEngineSlot.LocalPosition.x, calclatedobj.frooxEngineSlot.LocalPosition.y, calclatedobj.frooxEngineSlot.LocalPosition.z);
         calclatedTransformobj.m_LocalScale = new TransformFloat3(calclatedobj.frooxEngineSlot.LocalScale.x, calclatedobj.frooxEngineSlot.LocalScale.y, calclatedobj.frooxEngineSlot.LocalScale.z);
         calclatedTransformobj.m_LocalRotation = new TransformFloat4(calclatedobj.frooxEngineSlot.LocalRotation.x, calclatedobj.frooxEngineSlot.LocalRotation.y, calclatedobj.frooxEngineSlot.LocalRotation.z, calclatedobj.frooxEngineSlot.LocalRotation.w);
 
-        //UnityPackageImporter.Msg($"{Calculated_fileidtransform} was made from transform \"{curnode.Name}\" with path \"{transformpath}\"");
+
         if (!FILEID_into_Slot_Pairs.ContainsKey(calclatedTransformobj.m_CorrespondingSourceObject))
         {
             FILEID_into_Slot_Pairs.Add(calclatedTransformobj.m_CorrespondingSourceObject, calclatedTransformobj);
@@ -618,10 +628,10 @@ public class FileImportTaskScene
         {
             string nummatch = item.Key.ToString();
 
-            // The format is: "{numident}+00002" or "{numident}+00012" and so on. So removing 5 chars gives us our identifier.
+
             if (thisname == item.Value && nummatch.Length > 5 && nummatch.Remove(nummatch.Length - 5).Equals(numident, StringComparison.Ordinal))
             {
-                sourceObj.fileID = item.Key; //In case it's already defined in the metafile, because unity is weird - @989onan
+                sourceObj.fileID = item.Key;
             }
         }
         return sourceObj;

@@ -35,7 +35,7 @@ internal static class LocalizationManagerTests
                     if (!messages.TryGetProperty(entry.Name, out var translated)) continue;
                     string expected = entry.Value.GetString()!;
                     string actual = translated.GetString()!;
-                    // Sorting allows grammatical reordering while preserving each argument's multiplicity.
+
                     var expectedArguments = Regex.Matches(expected, @"\{[0-9]+\}").Select(match => match.Value).Order();
                     var actualArguments = Regex.Matches(actual, @"\{[0-9]+\}").Select(match => match.Value).Order();
                     if (!expectedArguments.SequenceEqual(actualArguments))
@@ -216,7 +216,7 @@ internal static class LocalizationManagerTests
             string xxLoaded = LocalizationManager.GetStringForLocale("xx-YY", "loaded", 2, 8);
             Check(xxLoaded == "Custom 2 of 8", $"Expected 'Custom 2 of 8', got '{xxLoaded}'");
 
-            // Key not present in 'xx' should fall back to English
+
             string xxFallback = LocalizationManager.GetStringForLocale("xx", "customizeMaterials");
             Check(xxFallback == "<b>Customize Materials</b>", $"Expected '<b>Customize Materials</b>' as fallback, got '{xxFallback}'");
         });
@@ -228,7 +228,7 @@ internal static class LocalizationManagerTests
             int readCount = 0;
             var exceptions = new System.Collections.Concurrent.ConcurrentBag<Exception>();
 
-            // Concurrent readers
+
             var readerTasks = Enumerable.Range(0, 12).Select(_ => Task.Run(() =>
             {
                 while (!token.IsCancellationRequested)
@@ -257,7 +257,7 @@ internal static class LocalizationManagerTests
                 }
             })).ToArray();
 
-            // Concurrent writers: dynamic registration & reload
+
             var writerTask = Task.Run(async () =>
             {
                 int iteration = 0;
@@ -299,7 +299,7 @@ internal static class LocalizationManagerTests
             }
 
             Check(readCount > 100, $"Concurrent readers must successfully execute many reads, ran {readCount}.");
-            // Final check after reloads and registrations: English and Japanese must remain intact
+
             Check(LocalizationManager.GetEnglish("ready") == "Ready to import", "English ready must be valid after concurrent run.");
             Check(LocalizationManager.GetJapanese("ready") == "インポートの準備完了", "Japanese ready must be valid after concurrent run.");
         });

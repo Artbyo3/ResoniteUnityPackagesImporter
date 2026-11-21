@@ -11,7 +11,7 @@ internal enum TextureContributionKind { ColorWithAlpha, ScalarMask }
 internal sealed record TextureContribution(string Guid, int Uv, float ScaleX, float ScaleY, float OffsetX, float OffsetY,
     TextureContributionKind Kind, int Channel = 0, bool Invert = false);
 
-/// <summary>A static multiplication recipe in a single shared UV domain. Shader adapters describe; the baker evaluates.</summary>
+
 internal sealed class TextureCompositionPlan
 {
     internal IReadOnlyList<TextureContribution> Inputs { get; }
@@ -34,7 +34,7 @@ internal sealed class TextureCompositionPlan
             $"{i.Guid.ToLowerInvariant()}:{i.Uv}:{i.ScaleX:R}:{i.ScaleY:R}:{i.OffsetX:R}:{i.OffsetY:R}:{i.Kind}:{i.Channel}:{i.Invert}")));
     }
 
-    // Samples contain linear RGB and straight alpha. Output is linear RGB with alpha already included.
+
     internal (float r, float g, float b) Evaluate(Func<TextureContribution, (float r, float g, float b, float a)> sample)
     {
         if (UnsupportedReason != null) throw new NotSupportedException(UnsupportedReason);

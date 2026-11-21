@@ -3,11 +3,12 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Text.RegularExpressions;
 using YamlDotNet.RepresentationModel;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>Serialized material values, independent of shader conversion and engine objects.</summary>
+
 internal sealed class UnityMaterialData
 {
     public string? Name { get; private set; }
@@ -28,7 +29,10 @@ internal sealed class UnityMaterialData
     public static UnityMaterialData Parse(string yaml)
     {
         var stream = new YamlStream();
-        stream.Load(new StringReader(yaml));
+        string normalized = Regex.Replace(yaml,
+            @"(?m)^  stringTagMap:[ \t]*\r?\n    :[ \t]*\r?\n(?=  [^ \t\r\n]|\z)",
+            "  stringTagMap: {}\n", RegexOptions.CultureInvariant);
+        stream.Load(new StringReader(normalized));
         if (stream.Documents.Count != 1 || Child(stream.Documents[0].RootNode, "Material") is not YamlMappingNode material)
             throw new InvalidDataException("Expected one Unity Material document.");
         var data = new UnityMaterialData
@@ -50,7 +54,7 @@ internal sealed class UnityMaterialData
         foreach (var property in Properties(Child(saved, "m_Colors")))
         {
             var node = property.Value;
-            // Unity also serializes vector properties in this section.
+
             data.Colors[property.Key] = (
                 Number(Child(node, "r"), Number(Child(node, "x"), 0)),
                 Number(Child(node, "g"), Number(Child(node, "y"), 0)),

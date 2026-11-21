@@ -6,10 +6,15 @@ using UnityPackageImporter.FrooxEngineRepresentation;
 
 namespace UnityPackageImporter.Models;
 
-// Shared by stripped Transform, GameObject and SkinnedMeshRenderer references.
-// Keep this boundary engine-independent so the actual lookup can be regression tested.
+
+
 internal static class PrefabObjectLookup
 {
+    internal static bool IsSameInstanceAlias(SourceObj candidate, ulong candidateInstance, SourceObj expected, ulong expectedInstance) =>
+        candidateInstance != 0 && candidateInstance == expectedInstance && candidate != null && expected != null &&
+        candidate.fileID != 0 && candidate.fileID == expected.fileID && !string.IsNullOrEmpty(candidate.guid) &&
+        string.Equals(candidate.guid, expected.guid, StringComparison.OrdinalIgnoreCase);
+
     internal static bool TryFind<T>(SourceObj source, IDictionary<SourceObj, T> hashes,
         IDictionary<SourceObj, T> ancestorTargets, string prefabGuid, string resolvedFbxGuid,
         ISet<string> lineageGuids, out T result, out bool ambiguous) where T : class
@@ -18,7 +23,7 @@ internal static class PrefabObjectLookup
         ambiguous = false;
         if (source == null || hashes == null) return false;
 
-        // Preserve ordinary exact-reference precedence and the existing GUID checks.
+
         if (hashes.TryGetValue(source, out result)) return true;
         resolvedFbxGuid ??= prefabGuid;
         bool InLineage(string guid) => string.IsNullOrEmpty(guid) ||
@@ -37,7 +42,7 @@ internal static class PrefabObjectLookup
                  targets.TryGetValue(new SourceObj(source.fileID, resolvedFbxGuid, source.type), out found)) ||
                 targets.TryGetValue(new SourceObj(source.fileID, "", source.type), out found))
             {
-                // RegisterUniqueTarget retains null when derived aliases collide.
+
                 conflict = found == null;
                 return !conflict;
             }
@@ -57,12 +62,12 @@ internal static class PrefabObjectLookup
             return found != null;
         }
 
-        // Alias IDs are built by override replay with PrefabVariantResolver's shared
-        // derived-ID helper. Do not discard them before stripped references resolve.
+
+
         if (FindIn(hashes, out result, out ambiguous) || ambiguous) return !ambiguous;
         return FindIn(ancestorTargets, out result, out ambiguous);
     }
 
     internal static InvalidDataException UnresolvedTransform(ulong id, SourceObj source) =>
-        new($"Transform {id} could not resolve prefab target {source.fileID} in {source.guid}. Hierarchy integrity cannot be guaranteed.");
+        ReportFailureDetails.Tag(new InvalidDataException($"Transform {id} could not resolve prefab target {source.fileID} in {source.guid}. Hierarchy integrity cannot be guaranteed."), ReportFailureReason.PrefabTargetUnresolved);
 }

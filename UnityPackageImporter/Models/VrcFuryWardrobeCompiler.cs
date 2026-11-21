@@ -46,19 +46,7 @@ public static partial class VrcFuryInitialAppearance
         if (!documents.Values.Any(item => item.ClassId == 114 &&
             AvatarPackageIndex.RecognizedVrcFuryScriptGuids.Contains(Text(Get(item.Body, "m_Script") as YamlMappingNode, "guid"))))
             return Result();
-        var objects = documents.Values.Where(item => item.ClassId == 1).ToDictionary(item => item.Id);
-        var parents = new Dictionary<long, long>();
-        foreach (var transform in documents.Values.Where(item => item.ClassId is 4 or 224))
-        {
-            token.ThrowIfCancellationRequested();
-            long owner = Reference(transform.Body, "m_GameObject");
-            long father = Reference(transform.Body, "m_Father");
-            if (!objects.ContainsKey(owner) || parents.ContainsKey(owner))
-            { Report("HIERARCHY", "Missing or duplicate Transform ownership.", transform.Id); continue; }
-            if (father != 0 && (!documents.TryGetValue(father, out var parent) || parent.ClassId is not (4 or 224)))
-            { Report("HIERARCHY", "Missing parent Transform.", transform.Id); continue; }
-            parents.Add(owner, father == 0 ? 0 : Reference(documents[father].Body, "m_GameObject"));
-        }
+        var (objects, parents) = ReadHierarchy(documents, context, Report);
         bool Descends(long candidate, long ancestor)
         {
             var seen = new HashSet<long>();
@@ -357,18 +345,6 @@ public static partial class VrcFuryInitialAppearance
                         }
                     }
                 }
-                else if (action.Class == "ScaleAction")
-                {
-                    long target = Target(action.Data, "obj");
-                    if (target != 0 && Within(target))
-                    {
-                        float scale = 1.0f;
-                        if (Get(action.Data, "scale") != null && float.TryParse(Text(action.Data, "scale"), NumberStyles.Float, CultureInfo.InvariantCulture, out float scVal))
-                            scale = scVal;
-                        Add(new(InitialAppearanceEffect.Active, target, "m_IsActive", Active: scale > 0.001f),
-                            new(InitialAppearanceEffect.Active, target, "m_IsActive", Active: true));
-                    }
-                }
                 else if (action.Class == "FxFloatAction")
                 {
                     string prop = Text(action.Data, "name");
@@ -382,17 +358,6 @@ public static partial class VrcFuryInitialAppearance
                         if (target == 0) target = feature.Owner != 0 ? feature.Owner : context.AvatarRootId;
                         Add(new(InitialAppearanceEffect.Shape, target, prop, Weight: 0f),
                             new(InitialAppearanceEffect.Shape, target, prop, Weight: val));
-                    }
-                }
-                else if (action.Class == "WorldDropAction")
-                {
-                    long target = Target(action.Data, "obj");
-                    if (target == 0 && Get(action.Data, "obj") is YamlMappingNode r) target = ReferenceNode(r);
-                    if (target == 0) target = feature.Owner != 0 ? feature.Owner : context.AvatarRootId;
-                    if (target != 0 && Within(target))
-                    {
-                        Add(new(InitialAppearanceEffect.Active, target, "m_IsActive", Active: false),
-                            new(InitialAppearanceEffect.Active, target, "m_IsActive", Active: true));
                     }
                 }
                 else Report("ACTION", "Action '" + action.Class + "' has no faithful wardrobe runtime adapter.", feature.Source);

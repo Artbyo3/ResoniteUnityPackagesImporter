@@ -5,10 +5,13 @@ using UnityPackageImporter.Extractor;
 using UnityPackageImporter.Models;
 using UnityPackageImporter.UI;
 
+if (args.Length == 2 && args[0] == "--appearance-replay") return InitialAppearanceReplayAudit.Run(args[1]);
+if (args.Length >= 3 && args[0] == "--animation-clips") return AnimationClipSourceAudit.Run(long.Parse(args[1], System.Globalization.CultureInfo.InvariantCulture), args.Skip(2));
 if (args.Length == 2 && args[0] == "--engine-api") return EngineApiCheck.Run(args[1]);
 if (args.Length == 3 && args[0] == "--packages") return PackageAudit.Run(args[1], args[2]);
 if (args.Length == 3 && args[0] == "--dump-type") return EngineApiCheck.DumpType(args[1], args[2]);
 if (args.Length == 3 && args[0] == "--ui-bundle") return UITemplateAudit.Run(args[1], args[2]);
+if (args.Length >= 3 && args[0] == "--serialized-skin") return SerializedSkinNativeAudit.Run(args[1], args[2], args.Skip(3));
 if (args.Length == 2 && args[0] == "--component-coverage") return AvatarComponentCoverageTests.Print(args[1]);
 if (args.Length == 1 && args[0] == "--sample-import-report")
 {
@@ -428,7 +431,7 @@ Test("PrefabVariantResolver extracts ancestors with GUIDs and orders oldest firs
 Test("PrefabVariantResolver computes and reverses derived fileIDs from ancestor PrefabInstances", () =>
 {
     long piId = 5724301657929574975L;
-    long negativeBaseId = -2689840812872440437L; // TOP_Out.s
+    long negativeBaseId = -2689840812872440437L;
     long expectedDerivedNegative = 1574863555485863860L;
 
     long derived1 = PrefabVariantResolver.ComputeDerivedFileId(piId, negativeBaseId);
@@ -437,7 +440,7 @@ Test("PrefabVariantResolver computes and reverses derived fileIDs from ancestor 
     var (c1, c2) = PrefabVariantResolver.ReverseDerivedFileId(piId, expectedDerivedNegative);
     Check(c2 == negativeBaseId, "Reversed candidate 2 must match original negative base fileID.");
 
-    long positiveBaseId = 2089319128213806904L; // CHOCKER.s
+    long positiveBaseId = 2089319128213806904L;
     long expectedDerivedPositive = 6020765875543389447L;
 
     long derived2 = PrefabVariantResolver.ComputeDerivedFileId(piId, positiveBaseId);
@@ -446,7 +449,7 @@ Test("PrefabVariantResolver computes and reverses derived fileIDs from ancestor 
     var (c3, c4) = PrefabVariantResolver.ReverseDerivedFileId(piId, expectedDerivedPositive);
     Check(c3 == positiveBaseId, "Reversed candidate 1 must match original positive base fileID.");
 
-    long rootBaseId = 919132149155446097L; // Root GameObject
+    long rootBaseId = 919132149155446097L;
     long expectedDerivedRoot = 4877864411535988590L;
 
     long derived3 = PrefabVariantResolver.ComputeDerivedFileId(piId, rootBaseId);
@@ -643,44 +646,44 @@ Test("Sparse prefab override keeps source shape identity after stripping", () =>
 
 Test("CalculateEffectiveScale handles meter avatars and centimeter accessories", () =>
 {
-    // Avatars authored in meters (UnitScaleFactor = 100)
+
     Check(Math.Abs(ModelScaleHelper.CalculateEffectiveScale(1f, true, true, 100f) - 1.0f) < 1e-6f, "Avatar scale should be 1.0");
 
-    // Blender accessories / clothing exported with UnitScaleFactor = 1.0
+
     Check(Math.Abs(ModelScaleHelper.CalculateEffectiveScale(1f, true, true, 1.0f) - 0.01f) < 1e-6f, "Accessory scale should be 0.01");
 
-    // Millimeter FBX
+
     Check(Math.Abs(ModelScaleHelper.CalculateEffectiveScale(1f, true, true, 0.1f) - 0.001f) < 1e-6f, "Millimeter FBX scale should be 0.001");
 
-    // Custom globalScale
+
     Check(Math.Abs(ModelScaleHelper.CalculateEffectiveScale(2.5f, true, true, 1.0f) - 0.025f) < 1e-6f, "Custom globalScale should multiply correctly");
 
-    // useFileScale disabled
+
     Check(Math.Abs(ModelScaleHelper.CalculateEffectiveScale(2.0f, true, false, 1.0f) - 2.0f) < 1e-6f, "Disabled useFileScale should return globalScale");
 
-    // useFileUnits disabled (defaults to centimeters = 0.01)
+
     Check(Math.Abs(ModelScaleHelper.CalculateEffectiveScale(1.0f, false, true, 100f) - 0.01f) < 1e-6f, "Disabled useFileUnits should default to 0.01");
 });
 
 Test("GetFbxUnitScaleFactor parses binary and ASCII FBX formats", () => InTemp(root =>
 {
-    // 1. Binary FBX test
+
     var binPath = Path.Combine(root, "test_binary.fbx");
     using (var ms = new MemoryStream())
     {
         ms.Write(Encoding.ASCII.GetBytes("Kaydara FBX Binary  \0\x1a\0"));
-        ms.Write(new byte[100]); // padding
+        ms.Write(new byte[100]);
         ms.Write(Encoding.ASCII.GetBytes("UnitScaleFactor"));
         ms.Write(new byte[10]);
         ms.WriteByte((byte)'D');
-        ms.Write(BitConverter.GetBytes(1.0)); // 1.0 cm
+        ms.Write(BitConverter.GetBytes(1.0));
         ms.Write(new byte[100]);
         File.WriteAllBytes(binPath, ms.ToArray());
     }
     float parsedBin = ModelScaleHelper.GetFbxUnitScaleFactor(binPath);
     Check(Math.Abs(parsedBin - 1.0f) < 1e-5f, $"Binary UnitScaleFactor should be 1.0, got {parsedBin}");
 
-    // 2. ASCII FBX test
+
     var asciiPath = Path.Combine(root, "test_ascii.fbx");
     File.WriteAllText(asciiPath, @"
         Properties70: {
@@ -700,7 +703,7 @@ Test("Model scale factor and unit scaling handles meter avatars and centimeter a
         ms.Write(Encoding.ASCII.GetBytes("UnitScaleFactor"));
         ms.Write(new byte[10]);
         ms.WriteByte((byte)'D');
-        ms.Write(BitConverter.GetBytes(100.0)); // 100.0 cm = 1.0 m
+        ms.Write(BitConverter.GetBytes(100.0));
         ms.Write(new byte[50]);
         File.WriteAllBytes(meterFbx, ms.ToArray());
     }
@@ -717,7 +720,7 @@ Test("Model scale factor and unit scaling handles meter avatars and centimeter a
         ms.Write(Encoding.ASCII.GetBytes("UnitScaleFactor"));
         ms.Write(new byte[10]);
         ms.WriteByte((byte)'D');
-        ms.Write(BitConverter.GetBytes(1.0)); // 1.0 cm
+        ms.Write(BitConverter.GetBytes(1.0));
         ms.Write(new byte[50]);
         File.WriteAllBytes(cmFbx, ms.ToArray());
     }
@@ -1310,7 +1313,7 @@ Test("ResolveSlotNamesForControl direct and synonym matching", () =>
 
     var clips = new Dictionary<string, AnimClipData>();
 
-    // Test direct normalized matches
+
     var skirtSlots = AvatarStateReconstructor.ResolveSlotNamesForControl("Skirt", "C_7", clips, urukiCandidateSlots);
     Check(skirtSlots.Contains("C_skirt"), "Skirt must resolve to C_skirt");
 
@@ -1323,7 +1326,7 @@ Test("ResolveSlotNamesForControl direct and synonym matching", () =>
     var pouchSlots = AvatarStateReconstructor.ResolveSlotNamesForControl("Pouch", "C_3", clips, urukiCandidateSlots);
     Check(pouchSlots.Contains("C_pouch"), "Pouch must resolve to C_pouch");
 
-    // Test token and synonym cluster matches
+
     var armWarmerSlots = AvatarStateReconstructor.ResolveSlotNamesForControl("Arm Warmer", "C_15", clips, urukiCandidateSlots);
     Check(armWarmerSlots.Contains("C_warmers_top"), "Arm Warmer must resolve to C_warmers_top");
     Check(!armWarmerSlots.Contains("C_warmers_bottom"), "Arm Warmer must not resolve to C_warmers_bottom");
@@ -1512,8 +1515,12 @@ AvatarConstraintTests.Register(Test, Check);
 AvatarBehaviorTests.Register(Test, Check);
 ComposedInitialAppearanceTests.Register(Test, Check);
 UnityStaticAnimationClipTests.Register(Test, Check);
+TransformOnlyClipTests.Register(Test, Check);
+InitialAppearanceReplayTests.Register(Test, Check);
 VrcFuryFeatureGraphTests.Register(Test, Check);
 VrcFuryInitialAppearanceTests.Register(Test, Check);
+AuthoredAppearanceHierarchyTests.Register(Test, Check);
+AuthoredAppearanceGraphCaptureTests.Register(Test, Check);
 VrcFuryWardrobeTests.Register(Test, Check);
 AvatarWardrobeStateTests.Register(Test, Check);
 ExpressionMenuStructureTests.Register(Test, Check);
@@ -1522,7 +1529,9 @@ AvatarComponentCoverageTests.Register(Test, Check);
 AvatarAnimationPathResolverTests.Register(Test, Check);
 PrefabLocalSnapshotTests.Register(Test, Check);
 UnitySerializedMeshTests.Register(Test, Check);
+UnitySerializedSkinTests.Register(Test, Check);
 ModularAvatarRuntimeContractTests.Register(Test, Check);
+AuthoredHumanoidTargetsTests.Register(Test, Check);
 MaterialCustomizationTests.Register(Test);
 ThumbnailCacheTests.Register(Test);
 ImportFailureReportTests.Register(Test);
@@ -1530,6 +1539,7 @@ StructuredImportReportTests.Register(Test);
 ImportReportPanelTests.Register(Test);
 PanelSpawnPlacementTests.Register(Test);
 AnonymousReportDiagnosticsTests.Register(Test);
+ImportActionDiagnosticsTests.Register(Test, Check);
 ReusableDecisionPromptTests.Register(Test);
 LocalizationManagerTests.Register(Test);
 InitialToggleBindingTests.Register(Test);

@@ -40,7 +40,7 @@ internal static class PoiyomiRamp
             float center = d.Number("_ShadowBorder", 0.5f);
             float blur = Math.Max(0, d.Number("_ShadowBlur", 0.1f));
             float width = 2 * range * blur;
-            // Explicit step avoids NaN at a zero-width boundary (including range == 0).
+
             float edge = width == 0 ? (light >= range * center ? 1 : 0) :
                 Math.Clamp((light - range * (center - blur)) / width, 0, 1);
             pixel = Mix(pixel, border, border.a * influence * edge);
@@ -85,7 +85,7 @@ internal static class PoiyomiRamp
             try { File.Move(temporary, path); }
             catch (IOException) when (File.Exists(path))
             {
-                // Another thread already generated and moved the ramp texture into place.
+
             }
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }

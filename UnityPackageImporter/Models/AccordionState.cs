@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>Tracks at most one expanded entry independently of its display name.</summary>
+
 internal sealed class AccordionState<TKey> where TKey : notnull
 {
     private readonly HashSet<TKey> expanded;

@@ -22,6 +22,11 @@ public class UnitySceneImportTask: IUnityStructureImporter
     internal List<ulong> FailedObjectIds { get; } = new();
     internal NestedPrefabDeferrals NestedPrefabs { get; } = new();
     internal HashSet<ulong> UnsupportedNestedPrefabInstances { get; } = new();
+    private readonly HashSet<ulong> deferredMissingAliases = new();
+    internal string ComposedYaml { get; private set; }
+    internal AuthoredAppearanceSnapshot AppearanceSnapshot { get; private set; }
+    internal IReadOnlyDictionary<long, InitialAppearanceRenderer> AuthoredAppearanceRenderers { get; private set; } =
+        new Dictionary<long, InitialAppearanceRenderer>();
 
     private void ScanNestedPrefabs()
     {
@@ -49,19 +54,24 @@ public class UnitySceneImportTask: IUnityStructureImporter
         }
     }
 
-    internal bool IsDeferredObject(IUnityObject obj) =>
-        obj.m_PrefabInstance != null && obj.m_PrefabInstance.TryGetValue("fileID", out ulong instanceId) &&
-        NestedPrefabs.ShouldSkipObject(instanceId, obj.m_CorrespondingSourceObject?.fileID is not null and not 0);
+    internal bool IsDeferredObject(IUnityObject obj) => deferredMissingAliases.Contains(obj.id) ||
+        (obj.m_PrefabInstance != null && obj.m_PrefabInstance.TryGetValue("fileID", out ulong instanceId) &&
+        NestedPrefabs.ShouldSkipObject(instanceId, obj.m_CorrespondingSourceObject?.fileID is not null and not 0));
 
     internal bool TryDeferObject(IUnityObject obj)
     {
         if (!IsDeferredObject(obj)) return false;
         if (!obj.instanciated)
         {
-            ulong instanceId = obj.m_PrefabInstance["fileID"];
-            UnityPackageImporter.Warn(NestedPrefabs.TryGetMissingSource(instanceId, out string guid)
-                ? $"Skipped stripped object {obj.id}: " + NestedPrefabDeferrals.MissingSourceWarning(instanceId, guid)
-                : $"Deferred stripped object {obj.id}: its mesh-free nested prefab instance is not expanded.");
+            if (deferredMissingAliases.Contains(obj.id))
+                UnityPackageImporter.Warn($"Missing-prefab scene transform alias {obj.id} has no local object and no supported references; the missing source remains reported.");
+            else
+            {
+                ulong instanceId = obj.m_PrefabInstance["fileID"];
+                UnityPackageImporter.Warn(NestedPrefabs.TryGetMissingSource(instanceId, out string guid)
+                    ? $"Skipped stripped object {obj.id}: " + NestedPrefabDeferrals.MissingSourceWarning(instanceId, guid)
+                    : $"Deferred stripped object {obj.id}: its mesh-free nested prefab instance is not expanded.");
+            }
         }
         obj.instanciated = true;
         return true;
@@ -110,10 +120,13 @@ public class UnitySceneImportTask: IUnityStructureImporter
             progressIndicator?.UpdateProgress(0f, "", "now loading unity YAML objects for Scene.");
             await default(ToBackground);
 
-            this.Manifest = AvatarPackageIndex.ParseFile(
-                this.ID.Value,
-                this.unityProjectImporter?.ListOfPrefabs);
-            this.existingIUnityObjects = YamlToFrooxEngine.parseYaml(this.ID.Value);
+            var compositionDiagnostics = new PrefabCompositionDiagnostics();
+            ComposedYaml = UnityStructureComposition.Read(ID.Value, unityProjectImporter, compositionDiagnostics);
+            deferredMissingAliases.UnionWith(compositionDiagnostics.DeferredMissingAliases.Select(id => unchecked((ulong)id)));
+            if (compositionDiagnostics.MaterializedLocalObjects.Count > 0)
+                UnityPackageImporter.Warn($"Reconstructing {compositionDiagnostics.MaterializedLocalObjects.Count} fully serialized local scene objects whose source-prefab assets are unavailable; source warnings are retained.");
+            this.Manifest = AvatarPackageIndex.ParseText(ComposedYaml, ID.Value);
+            this.existingIUnityObjects = YamlToFrooxEngine.ParseText(ComposedYaml);
             ScanNestedPrefabs();
             int totalProgress = 0;
 
@@ -128,7 +141,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
             }
             totalProgress = Math.Max(totalProgress, 1);
 
-            // Instanciate everything else.
+
             int counter = 0;
             int progress = 0;
             await default(ToWorld);
@@ -208,7 +221,7 @@ public class UnitySceneImportTask: IUnityStructureImporter
             }
 
             UnityPackageImporter.Msg("Moving orphaned objects");
-            // Getting rid of objects that should go under the prefab slot.
+
             foreach (var obj in movethese)
             {
                 if (obj is FrooxEngineRepresentation.GameObjectTypes.GameObject gameobj && gameobj.frooxEngineSlot != null)
@@ -219,18 +232,31 @@ public class UnitySceneImportTask: IUnityStructureImporter
                 }
             }
 
-            // Milestone 1: Unified Avatar Conversion Architecture for Scene avatars
-            if (this.Manifest != null && (this.Manifest.ModularAvatarComponents.Count > 0 || this.Manifest.VrcFuryComponents.Count > 0))
+
+            if (this.Manifest != null)
             {
                 ConversionPlan = AvatarBuildPlanner.CreatePlan(this.Manifest, Path.GetFileName(ID.Value));
                 if (!ConversionPlan.HasErrors)
                 {
                     await default(ToWorld);
+                    if (Manifest.HasVrcFuryComponents)
+                        AppearanceSnapshot = AuthoredAppearanceSnapshot.Capture(this);
                     await AvatarBuildPlanExecutor.ExecutePlanAsync(
                         ConversionPlan,
                         this.CurrentStructureRootSlot,
                         this.existingIUnityObjects,
                         this,
+                        unityProjectImporter?.Session?.Token ?? default);
+                    AuthoredAppearanceRenderers = InitialAppearanceRuntime.CaptureRenderers(
+                        existingIUnityObjects, CurrentStructureRootSlot);
+                    await ModularAvatarInitialAppearanceAdapter.ApplyAsync(
+                        ComposedYaml, existingIUnityObjects, this, ConversionPlan,
+                        unityProjectImporter?.Session?.Token ?? default);
+                    await VrcFuryInitialAppearanceAdapter.ApplyAsync(
+                        ComposedYaml, existingIUnityObjects, this, ConversionPlan,
+                        unityProjectImporter?.Session?.Token ?? default);
+                    await BlendshapeInitialAppearanceAdapter.ApplyAsync(
+                        ComposedYaml, existingIUnityObjects, this, ConversionPlan,
                         unityProjectImporter?.Session?.Token ?? default);
                     await default(ToBackground);
                 }
@@ -243,8 +269,8 @@ public class UnitySceneImportTask: IUnityStructureImporter
             UnityPackageImporter.Msg("re-enabling skinned mesh renderers in scene \""+ID.Value+"\"");
 
             await default(ToWorld);
-            // Include skins inherited from FBX instances, even when the scene
-            // contains no individual YAML override for those renderers.
+
+
             var renderersToEnable = CurrentStructureRootSlot
                 .GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>();
             await SkinnedBoundsPolicy.StabilizeBeforeEnableAsync(

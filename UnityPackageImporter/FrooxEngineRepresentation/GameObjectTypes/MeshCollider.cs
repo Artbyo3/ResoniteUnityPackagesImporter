@@ -58,10 +58,10 @@ public class MeshCollider: IUnityObject
             await parentobj.InstanciateAsync(importer);
             await default(ToBackground);
 
-            // Heh the dictionary stuff in yamls are weird
+
             await default(ToWorld);
 
-            // ICollider does not define ColliderType.Value
+
             if (m_Convex == 1)
             {
                 var convexCollider = parentobj.frooxEngineSlot.AttachComponent<FrooxEngine.ConvexHullCollider>();

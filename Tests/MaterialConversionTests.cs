@@ -6,6 +6,32 @@ internal static class MaterialConversionTests
 {
     public static void Register(Action<string, Action> test)
     {
+        test("Material parser accepts Unity's sole empty tag-map sentinel without losing authored properties", () =>
+        {
+            foreach (string newline in new[] { "\n", "\r\n" })
+            {
+                string yaml = "Material:\n  m_Name: Sensor\n  stringTagMap:\n    : \n  m_CustomRenderQueue: 2000\n  m_SavedProperties:\n    m_Floats:\n    - _Metallic: 0.25\n".Replace("\n", newline);
+                var data = UnityMaterialData.Parse(yaml);
+                if (data.Name != "Sensor" || data.RenderType != null || data.RenderQueue != 2000 || data.Number("_Metallic") != 0.25f)
+                    throw new Exception("Empty tag-map normalization changed material values.");
+            }
+        });
+        test("Material parser still rejects duplicate tags and ambiguous empty tag maps", () =>
+        {
+            foreach (string tags in new[]
+            {
+                "    RenderType: Opaque\n    RenderType: Transparent\n",
+                "    : \n    RenderType: Transparent\n",
+                "    : \n    : \n"
+            })
+            {
+                bool rejected = false;
+                try { UnityMaterialData.Parse("Material:\n  stringTagMap:\n" + tags + "  m_SavedProperties: {}\n"); }
+                catch (YamlDotNet.Core.YamlException) { rejected = true; }
+                catch (ArgumentException error) when (error.ParamName == "parser") { rejected = true; }
+                if (!rejected) throw new Exception("Ambiguous YAML mapping was silently accepted.");
+            }
+        });
         test("Material parser reads Unity YAML, integer switches, reordered UVs and null textures", () =>
         {
             var data = UnityMaterialData.Parse("""

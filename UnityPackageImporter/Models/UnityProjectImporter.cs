@@ -29,6 +29,7 @@ public class UnityProjectImporter
     internal readonly AsyncImportCache<IAssetProvider<Material>> MaterialImports = new();
     internal readonly AsyncImportCache<StaticTexture2D> TextureImports = new();
     internal readonly AsyncImportCache<FrooxEngine.MeshRenderer> StaticMeshImports = new();
+    internal readonly AsyncImportCache<SerializedSkinMeshTemplate> SerializedSkinImports = new();
     internal readonly PendingAssetAssignments<StaticTexture2D> MissingTextureAssignments = new();
     private readonly Dictionary<SkinnedMeshRenderer, IAssetProvider<Material>[]> automaticMaterials = new();
     public Dictionary<string, FileImportTaskScene> SharedImportedFBXScenes = new Dictionary<string, FileImportTaskScene>();
@@ -61,8 +62,8 @@ public class UnityProjectImporter
         this.PackageNames = packageNames?.ToArray() ?? Array.Empty<string>();
         this.conflictedGuids = new HashSet<string>(conflictedGuids ?? Array.Empty<string>(), StringComparer.OrdinalIgnoreCase);
 
-        // Publish asset-index snapshots: a companion package must not mutate a
-        // dictionary while background material importers are reading it.
+
+
         this.ListOfPrefabs = new ReadOnlyDictionary<string, string>(ListOfPrefabs);
         this.mutableAssetIndex = new Dictionary<string, string>(AssetIDDict, StringComparer.OrdinalIgnoreCase);
         this.AssetIDDict = new ReadOnlyDictionary<string, string>(
@@ -361,6 +362,7 @@ public class UnityProjectImporter
         MaterialImports.RetryUnsuccessful();
         TextureImports.RetryUnsuccessful();
         StaticMeshImports.RetryUnsuccessful();
+        SerializedSkinImports.RetryUnsuccessful();
 
         List<MissingMaterialBinding> resolvable;
         lock (dependencyLock)
@@ -382,8 +384,8 @@ public class UnityProjectImporter
                 lock (dependencyLock)
                     materialPath = mutableAssetIndex[materialGuid];
 
-                // FileImportHelperTaskMaterial creates its asset slot in the constructor,
-                // so it must be constructed while holding the world update lock.
+
+
                 await default(ToWorld);
                 Session?.Check();
                 var materialTask = new FileImportHelperTaskMaterial(
@@ -452,7 +454,7 @@ public class UnityProjectImporter
         UnityPackageImporter.Msg("Start Project Importing for unitypackage");
         FrooxInternalBridge.ValidateModelImportApi();
 
-        // I feel so smart making the wait all import fbx tasks code. - @989onan
+
         await default(ToWorld);
         Station?.UpdateProgress(0.1f, "loadingMeshesAndMaterials", "");
         var fbx_tasks = FillFBXFiles().ToArray();
@@ -461,10 +463,10 @@ public class UnityProjectImporter
             await BoundedTaskScheduler.RunAsync(fbx_tasks, (task, _) => task.RunnerWrapper(), lifetime: Session?.Lifetime);
         Session?.Check();
         await default(ToBackground);
-        // Now we have a full list of meta files and prefabs regarding this import file list from our prefix (where ever this is even if not a unity package folder) we now begin the hard part *drums* making the files go onto the model!
+
         List<IUnityStructureImporter> unityImportTasks = new List<IUnityStructureImporter>();
-        // A bundled demonstration scene does not change the station's prefab
-        // selection flow. Only scene-only packages publish scenes automatically.
+
+
         var selectedPrefabs = PrefabAssemblySelection.Create(ListOfPrefabs);
         bool isClothingOrAvatar = selectedPrefabs.Count > 0;
 
@@ -480,9 +482,9 @@ public class UnityProjectImporter
         int counter = 0;
         int prefabTotal = selectedPrefabs.Count;
 
-        // Cardinal 90° yaw snap logic for avatars/clothing:
-        // Project forward gaze onto horizontal XZ plane and snap to nearest cardinal axis (0°, 90°, 180°, 270°)
-        // so that spawned items align strictly to World X or World Z with zero diagonal tilt.
+
+
+
         float3 rawForward = GlobalRotation * float3.Forward;
         float fx = rawForward.x;
         float fz = rawForward.z;
@@ -515,7 +517,7 @@ public class UnityProjectImporter
             float3 spawnPosition;
             if (isClothingOrAvatar)
             {
-                // Avatars & clothing: strictly lock into a single horizontal straight line aligned to the cardinal axis (1.15m spacing)
+
                 float spacing = 1.15f;
                 float3 right = snappedRotation * float3.Right;
                 float3 lineOffset = right * ((counter - (prefabTotal - 1) * 0.5f) * spacing);
@@ -523,7 +525,7 @@ public class UnityProjectImporter
             }
             else
             {
-                // Worlds and scenes: standard grid offset
+
                 spawnPosition = (GlobalRotation * UniversalImporter.GridOffset(ref counter, rowSize)) + GlobalPosition;
             }
             counter++;
@@ -575,15 +577,15 @@ public class UnityProjectImporter
             throw new InvalidDataException("No prefab or scene could be reconstructed. Review the import errors before retrying.");
         if (stationHandle != null)
         {
-            // A prepared item can exist before its source finishes. Only
-            // completed sources may participate in selection or automatic commit.
+
+
             var prefabTasks = outcomes.Succeeded.OfType<UnityPrefabImportTask>().ToList();
             var sceneTasks = outcomes.Succeeded.OfType<UnitySceneImportTask>().ToList();
             bool isPartial = outcomes.Failed.Count > 0 || prefabTasks.Any(t => t.IsPartialCompatibility) || sceneTasks.Any(t => t.IsPartialCompatibility);
             var preparedItems = sceneTasks.SelectMany(scene => scene.PreparedItems ?? Enumerable.Empty<PreparedImportItem>())
                 .Concat(prefabTasks.Select(prefab => prefab.PreparedItem))
                 .Where(item => item?.CurrentStructureRootSlot is { IsDestroyed: false }).ToList();
-            // Report every blocked item, including those the maintainer never selects.
+
             foreach (var item in preparedItems)
                 if (!item.ReadResult().StructureReady)
                     ImportReportService.Record(Session?.Reports, item, item: item, project: this, stage: ImportReportStage.Validation);
@@ -596,7 +598,7 @@ public class UnityProjectImporter
                 item.CurrentStructureRootSlot.GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>().Count > 0);
             if (AvatarImportSelection.AutoCommitScenes(hasAvatarDefinitions, hasAvatarOrOutfitItems))
             {
-                // Validate the entire automatic publication batch before releasing any scene.
+
                 var autoScenes = sceneTasks.Where(s => s.ScenePreparation != null).ToList();
                 foreach (var scene in autoScenes)
                 {

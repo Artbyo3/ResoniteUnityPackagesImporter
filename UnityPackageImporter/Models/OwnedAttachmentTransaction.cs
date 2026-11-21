@@ -4,11 +4,11 @@ using System.Collections.Generic;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>
-/// Tracks only objects created by an attachment operation. Enroll a cloned
-/// object before moving it outside the clone, so even a partially failed move
-/// can be rolled back. Original avatar and package objects are never enrolled.
-/// </summary>
+
+
+
+
+
 internal sealed class OwnedAttachmentTransaction<T> where T : class
 {
     private readonly List<T> objects = new();
@@ -35,7 +35,7 @@ internal sealed class OwnedAttachmentTransaction<T> where T : class
         var errors = new List<Exception>();
         if (completed) return errors;
         completed = true;
-        // Most recently moved child roots are handled before their owners.
+
         for (int i = objects.Count - 1; i >= 0; --i)
         {
             try { destroy(objects[i]); }

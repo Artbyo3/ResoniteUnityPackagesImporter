@@ -9,8 +9,8 @@ using Renderite.Shared;
 
 namespace UnityPackageImporter.Models;
 
-// Prepares the imported humanoid rig before the native avatar creation step.
-// Per-instance metadata avoids sharing live bone references between prefabs.
+
+
 internal static class HumanoidRigSetup
 {
     internal static async Task<ImportedHumanoidRig> SetupAsync(FileImportTaskScene task, Slot FBXRoot)
@@ -24,8 +24,8 @@ internal static class HumanoidRigSetup
         UnityPackageImporter.Msg("checking if this FBX is a humanoid");
         Slot taskSlot = FBXRoot;
 
-        // A shared FBX task can feed several prefabs concurrently. Bone Slots belong
-        // to this instance, so never rescan/mutate the template's metadata here.
+
+
         var instanceMetadata = new MetaDataFile();
         await instanceMetadata.ScanFile(task, FBXRoot);
         await default(ToWorld);
@@ -34,9 +34,9 @@ internal static class HumanoidRigSetup
         await instanceMetadata.GenerateComponents(biped);
         await default(ToWorld);
 
-        // Unity metadata supplies the imported biped mapping. The movement parent
-        // is an import-time IK reference space, owned by the returned preparation.
-        // Native avatar creation must release it before the prefab is committed.
+
+
+
         if (biped.IsBiped) {
 
             await default(ToWorld);
@@ -59,9 +59,9 @@ internal static class HumanoidRigSetup
             {
                 UnityPackageImporter.Msg("We have not set up vrik!");
 
-                // Put our stuff under a slot called rootnode so froox engine can set this model up as an avatar
+
                 await default(ToWorld);
-                Slot rootnode = FBXRoot; // Intentional - @989onan
+                Slot rootnode = FBXRoot;
 
                 UnityPackageImporter.Msg("Registering bones to rig.");
                 await default(ToWorld);
@@ -81,7 +81,7 @@ internal static class HumanoidRigSetup
                     }
                     catch (NullReferenceException)
                     {
-                        // Bone with a null Name is skipped; node remains BodyNode.NONE.
+
                     }
 
                     if (BodyNode.NONE != node)
@@ -144,7 +144,7 @@ internal static class HumanoidRigSetup
                 VRIK vrik = rootnode.AttachComponent<VRIK>(true, null);
                 vrik.Solver.SimulationSpace.Target = rootnode.Parent;
                 vrik.Solver.OffsetSpace.Target = rootnode.Parent;
-                //this is here to initialize our Rig's biped forward at the end of the import for VRIK later on.
+
                 biped.GuessForwardFlipped();
                 try
                 {
@@ -155,10 +155,10 @@ internal static class HumanoidRigSetup
                     UnityPackageImporter.Msg("Error when detecting hand rigs for model \"" + task.file + "\"");
                     UnityPackageImporter.Msg(e.Message,e.StackTrace);
                 }
-                vrik.Initiate();//create our vrik component using our custom biped rig as our humanoid. Since it's on the same slot.
+                vrik.Initiate();
 
-                //set our ik draggables up so people can play with the model and know it worked. - @989onan
-                //ps, stolen from FrooxEngine decompiled code.
+
+
                 Slot slot3 = biped[BodyNode.Head];
                 Slot slot4 = biped[BodyNode.Hips];
                 Slot slot5 = biped[BodyNode.LeftHand];
@@ -189,7 +189,7 @@ internal static class HumanoidRigSetup
         {
             UnityPackageImporter.Msg("this prefab is not biped. ");
         }
-        // A failed metadata candidate must not leave an empty rig behind.
+
         await default(ToWorld);
         if (!biped.IsBiped) biped.Destroy();
         await default(ToBackground);

@@ -97,6 +97,69 @@ MonoBehaviour:
             check(plan.Operations.Count == 2 && plan.Operations.Select(operation => operation.Source.ComponentFileId).Distinct().Count() == 2, "Nested operations were collapsed by raw source fileID.");
         }, ("outfit", Native), ("avatar", Native + "--- !u!114 &4\nMonoBehaviour:\n  m_GameObject: {fileID: 1}\n  m_Script: {fileID: 542108242, guid: 67cc4cb7839cd3741b63733d5adf0442, type: 3}\n")));
 
+        test("Scene composition preserves settings and instance parent aliases across composite prefabs", () => Sources(paths =>
+        {
+            string settings = "--- !u!29 &900\nOcclusionCullingSettings:\n  m_OcclusionBakeSettings:\n    smallestOccluder: 5\n";
+            string yaml = settings + Instance(100, "native") + Alias(101, 1, 1, 100, "native") + Alias(102, 4, 2, 100, "native") +
+                Instance(200, "native", Change(1, "m_Name", "Accessory"), parent: 102) + Alias(201, 1, 1, 200, "native") + Alias(202, 4, 2, 200, "native");
+            var documents = Documents(UnityPrefabComposer.Compose(yaml, paths));
+            check(documents.Count == 7 && documents.ContainsKey(900), "Scene settings or expanded instance objects were omitted.");
+            check(Ref(documents[202], "m_Father") == 102 && Ref(documents[102], "m_Father") == 0,
+                "The child instance lost its exact scene parent transform alias.");
+            check(Ref(documents[202], "m_GameObject") == 201 && ((YamlScalarNode)documents[201]["m_Name"]).Value == "Accessory",
+                "Scene instance ownership or its authored name override was lost.");
+            check(!documents.Values.Any(body => body.Children.ContainsKey("m_SourcePrefab")), "Included composite prefab was left unresolved.");
+        }, ("native", Native)));
+
+        test("Scene composition scopes inherited descriptors and skin bones to each instance", () => Sources(paths =>
+        {
+            string yaml = Instance(100, "avatar") + Alias(101, 1, 1, 100, "avatar") + Alias(102, 4, 2, 100, "avatar") +
+                Instance(200, "avatar") + Alias(201, 1, 1, 200, "avatar") + Alias(202, 4, 2, 200, "avatar");
+            string output = UnityPrefabComposer.Compose(yaml, paths);
+            var manifest = AvatarPackageIndex.ParseText(output, "SyntheticScene.unity");
+            check(manifest.Avatars.Select(avatar => avatar.GameObjectFileId).Order().SequenceEqual(new long[] { 101, 201 }) &&
+                manifest.Avatars.All(avatar => avatar.SourcePath == "SyntheticScene.unity"), "Descriptors were not remapped to independent scene avatar roots.");
+            var documents = Documents(output);
+            foreach (var skin in documents.Values.Where(body => body.Children.ContainsKey("m_Bones")))
+            {
+                long owner = Ref(skin, "m_GameObject");
+                long bone = long.Parse(((YamlScalarNode)((YamlMappingNode)((YamlSequenceNode)skin["m_Bones"])[0])["fileID"]).Value!, CultureInfo.InvariantCulture);
+                check((owner == 101 && bone == 102) || (owner == 201 && bone == 202), "Repeated scene skin borrowed a bone from the other avatar.");
+                check(((YamlScalarNode)((YamlMappingNode)skin["m_Mesh"])["guid"]).Value == "mesh-source", "External mesh identity changed during scene expansion.");
+            }
+            check(documents.Values.Count(body => body.Children.ContainsKey("m_Bones")) == 2, "A scene skin renderer was lost.");
+        }, ("avatar", Native + "--- !u!114 &4\nMonoBehaviour:\n  m_GameObject: {fileID: 1}\n  m_Script: {fileID: 542108242, guid: 67cc4cb7839cd3741b63733d5adf0442, type: 3}\n" +
+            "--- !u!137 &5\nSkinnedMeshRenderer:\n  m_GameObject: {fileID: 1}\n  m_Mesh: {fileID: 4300000, guid: mesh-source, type: 3}\n  m_Bones:\n  - {fileID: 2}\n")));
+
+        test("Scene composite accessories retain the native model root and exact stripped parents", () => Sources(paths =>
+        {
+            const long modelRoot = 919132149155446097;
+            const long modelTransform = -8679921383154817045;
+            var models = new Dictionary<string, IReadOnlyDictionary<long, int>>
+            {
+                ["fbx"] = new Dictionary<long, int> { [modelRoot] = 1, [modelTransform] = 4 }
+            };
+            string yaml = Instance(100, "fbx") + Alias(101, 1, modelRoot, 100, "fbx") + Alias(102, 4, modelTransform, 100, "fbx") +
+                Instance(200, "native", parent: 102) + Alias(201, 1, 1, 200, "native") + Alias(202, 4, 2, 200, "native");
+            var documents = Documents(UnityPrefabComposer.Compose(yaml, paths, models));
+            check(documents.ContainsKey(100) && Ref(documents[101], "m_PrefabInstance") == 100 &&
+                Ref(documents[102], "m_CorrespondingSourceObject") == modelTransform,
+                "Scene expansion replaced the real FBX instance or changed native root correspondence.");
+            check(!documents.ContainsKey(200) && Ref(documents[202], "m_Father") == 102 && Ref(documents[202], "m_GameObject") == 201,
+                "Composite content could not retain its exact stripped model parent and scene-local identity.");
+            check(documents.Values.Count(body => body.Children.ContainsKey("m_SourcePrefab")) == 1,
+                "The included composite was left for unsupported runtime expansion.");
+        }, ("native", Native)));
+
+        test("Scene composition retains absent source provenance beside expanded instances", () => Sources(paths =>
+        {
+            string output = UnityPrefabComposer.Compose(Instance(100, "native") + Instance(200, "missing"), paths);
+            var documents = Documents(output);
+            check(documents.Count == 4 && documents.ContainsKey(200) &&
+                ((YamlScalarNode)((YamlMappingNode)documents[200]["m_SourcePrefab"])["guid"]).Value == "missing",
+                "Scene expansion hid an absent dependency or omitted its included sibling.");
+        }, ("native", Native)));
+
         test("Native prefab overrides retain scalars external references and array paths", () => Sources(paths =>
         {
             string changes = Change(1, "m_Name", "Dressed Avatar") + Change(3, "settings.Array.data[0].enabled", "0") +

@@ -34,8 +34,6 @@ internal static class NativeTexturePipelineChecks
         }
         try
         {
-            // The previous positional arguments pass a negative size limit and a zero scale.
-            // This reproduces the failure using the actual native codec, independently of any avatar.
             string legacySource = Source(512, 4);
             bool reproduced = false;
             try

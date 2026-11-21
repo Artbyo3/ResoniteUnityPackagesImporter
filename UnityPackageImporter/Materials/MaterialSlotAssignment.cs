@@ -6,11 +6,17 @@ using System.Threading.Tasks;
 
 namespace UnityPackageImporter.Materials;
 
-/// <summary>Resolve one material before assigning its original index. Conversion failure never creates an extra slot.</summary>
+
 internal static class MaterialSlotAssignment
 {
-    /// <summary>Decide whether a nonnegative source index replaces an existing slot or appends.</summary>
+
     internal static bool ReplacesExistingSlot(int index, int count) => index < count;
+
+    internal static void EnsureSlotCount<T>(System.Collections.Generic.IList<T> slots, int count, Func<T> createFallback)
+    {
+        if (count < 0) throw new ArgumentOutOfRangeException(nameof(count));
+        while (slots.Count < count) slots.Add(createFallback());
+    }
 
     internal static async Task AssignAsync<T>(int index, Func<Task<T>> resolve, Func<Exception, Task<T>> fallback,
         Func<int, T, Task> assign, CancellationToken cancellation = default) where T : class

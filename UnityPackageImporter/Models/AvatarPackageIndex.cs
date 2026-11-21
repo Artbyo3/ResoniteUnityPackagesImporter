@@ -43,7 +43,7 @@ public sealed class VrcAvatarDefinition
         BaseAnimationLayers.FirstOrDefault(layer => layer.LayerType == 5)?.AnimatorController;
 }
 
-// Unity descriptor coordinates, before the imported GameObject transform is applied.
+
 public readonly record struct UnityPosition(float X, float Y, float Z);
 
 public enum ModularAvatarComponentKind
@@ -113,6 +113,7 @@ public sealed class VrcFuryArmatureLinkDefinition
     public bool AlignRotation { get; init; }
     public bool AlignScale { get; init; }
     public bool AutoScaleFactor { get; init; } = true;
+    public bool UseAutomaticRootScaleRatio { get; init; }
     public bool KeepOffsets { get; init; }
     public IReadOnlyList<(string Code, string Message, bool IsError)> SemanticDiagnostics { get; init; } = Array.Empty<(string, string, bool)>();
 }
@@ -145,26 +146,26 @@ public sealed class AvatarPackageManifest
         VrcFuryComponents.Sum(c => c.UnsupportedFeatures.Count);
     public bool HasUnsupportedVrcFuryFeatures => UnsupportedVrcFuryFeatureCount > 0;
 
-    // Components such as Bone Proxy are also valid inside ordinary avatar and
-    // model prefabs. Merge Armature is the reliable signal that this prefab is
-    // intended to be installed onto another avatar as clothing.
+
+
+
     public bool IsModularAvatarAttachment =>
         Avatars.Count == 0 &&
         ModularAvatarComponents.Any(component => component.Kind == ModularAvatarComponentKind.MergeArmature);
 
-    // Preserve the importer's historic humanoid setup for ordinary prefab
-    // models while keeping it disabled for actual Merge Armature attachments.
+
+
     public bool ShouldSetUpHumanoid => !IsModularAvatarAttachment;
 }
 
-/// <summary>
-/// Builds a read-only semantic index from Unity text YAML. This intentionally does
-/// not need the Unity editor or Modular Avatar assemblies, so package inspection
-/// stays deterministic and safe.
-/// </summary>
+
+
+
+
+
 public static class AvatarPackageIndex
 {
-    // VRChat SDK3 avatar descriptor script used by current avatar packages.
+
     public const long VrcAvatarDescriptorScriptFileId = 542108242;
     public const string VrcAvatarDescriptorScriptGuid = "67cc4cb7839cd3741b63733d5adf0442";
 
@@ -186,7 +187,7 @@ public static class AvatarPackageIndex
     public const string PBBlockerScriptGuid = "a5bf908a199a4648845ebe2fd3b5a4bd";
     public const string VrcFuryShowInFirstPersonScriptGuid = "7d465e07b92c48db912e2e20f6621536";
 
-    // Verified VRCFury component script GUIDs across versions.
+
     public const string VrcFuryFullScriptGuid = "d9e94e501a2d4c95bff3d5601013d923";
     public const string VrcFuryScriptGuid = "e011eed4b7a4cf848a61cb4f56f3458d";
     public const string VrcFuryLegacyScriptGuid = "46fb26db4e6e4774caee952b7bcfda88";
@@ -327,8 +328,8 @@ public static class AvatarPackageIndex
             var menu = ReadReference(document.Lines, "expressionsMenu");
             var parameters = ReadReference(document.Lines, "expressionParameters");
             bool hasDescriptorShape = menu != null && parameters != null;
-            // The GUID identifies the SDK assembly, not a component type. Seats
-            // and other SDK behaviours share it; the local file ID selects the type.
+
+
             bool knownDescriptor = script.Guid.Equals(VrcAvatarDescriptorScriptGuid, StringComparison.OrdinalIgnoreCase) &&
                 script.FileId == VrcAvatarDescriptorScriptFileId;
             if (knownDescriptor || hasDescriptorShape)
@@ -827,6 +828,7 @@ public static class AvatarPackageIndex
             AlignRotation = semantics.AlignRotation,
             AlignScale = semantics.AlignScale,
             AutoScaleFactor = semantics.AutoScaleFactor,
+            UseAutomaticRootScaleRatio = semantics.UseAutomaticRootScaleRatio,
             KeepOffsets = !semantics.AlignPosition || !semantics.AlignRotation || !semantics.AlignScale,
             SemanticDiagnostics = parseDiagnostics.AsReadOnly()
         };

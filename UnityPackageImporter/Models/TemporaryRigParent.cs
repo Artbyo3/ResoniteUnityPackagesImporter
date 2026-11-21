@@ -3,8 +3,8 @@ using System.Collections.Generic;
 
 namespace UnityPackageImporter.Models;
 
-// Tracks a parent created by this import, not an object selected by its name.
-// The ownership/handoff rules are independent of the engine hierarchy API.
+
+
 internal sealed class TemporaryRigParent<T> where T : class
 {
     private readonly T parent;
@@ -42,8 +42,8 @@ internal sealed class TemporaryRigParent<T> where T : class
         if (cursor == null)
             throw new InvalidOperationException("The temporary rig parent is outside the completed avatar.");
 
-        // The engine adapter preserves world transforms and destroys only the
-        // empty parent. Mark complete only after that operation succeeds.
+
+
         promoteChildren(parent, destination);
         completed = true;
     }

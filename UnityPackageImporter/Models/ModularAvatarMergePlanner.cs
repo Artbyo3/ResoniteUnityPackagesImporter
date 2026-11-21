@@ -4,15 +4,15 @@ using System.Linq;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>
-/// Produces an immutable, reviewable Merge Armature plan. Matching follows
-/// Modular Avatar's direct-child, prefix/suffix-aware zip merge behavior.
-/// It does not mutate either hierarchy.
-/// </summary>
+
+
+
+
+
 public static class ModularAvatarMergePlanner
 {
-    // MA AvatarObjectReference stores this marker for the avatar root; ordinary
-    // referencePath values are exact paths relative to that root.
+
+
     public static T ResolveTarget<T>(T avatarRoot, IEnumerable<T> candidates,
         string referencePath, string sourceName, string prefix, string suffix,
         Func<T, string> name, Func<T, string> relativePath) where T : class

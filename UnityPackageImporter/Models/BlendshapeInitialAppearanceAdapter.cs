@@ -23,7 +23,7 @@ internal static class BlendshapeInitialAppearanceAdapter
         roots = Array.Empty<(long, Slot)>();
         objects = new Dictionary<long, BlendshapeAppearanceObject>();
         renderers = new Dictionary<long, BlendshapeAppearanceRenderer>();
-        var manifest = importer is UnityPrefabImportTask prefab ? prefab.Manifest : null;
+        var manifest = UnityStructureComposition.ManifestFor(importer);
         var stage = importer.CurrentStructureRootSlot;
         roots = (manifest?.Avatars ?? Array.Empty<VrcAvatarDefinition>()).Select(avatar =>
             (Id: avatar.GameObjectFileId, Slot: unityObjects.TryGetValue(unchecked((ulong)avatar.GameObjectFileId), out var entry) && entry is UnityGameObject game ? game.frooxEngineSlot : null))

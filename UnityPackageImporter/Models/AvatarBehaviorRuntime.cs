@@ -13,9 +13,9 @@ using UnitySkin = UnityPackageImporter.FrooxEngineRepresentation.GameObjectTypes
 
 namespace UnityPackageImporter.Models;
 
-public static class AvatarBehaviorRuntime
+internal static class AvatarBehaviorRuntime
 {
-    public static async Task BuildAsync(
+    internal static async Task BuildAsync(
         AvatarBehaviorPlan plan,
         Slot avatarRoot,
         IReadOnlyDictionary<ulong, IUnityObject> unityObjects,
@@ -38,7 +38,7 @@ public static class AvatarBehaviorRuntime
         if (avatarRoot.IsDestroyed || avatarRoot.GetComponentInParents<AvatarRoot>() == null)
             return;
 
-        // 1. Process Blinking
+
         if (plan.BlinkingBindings.Count > 0)
         {
             var eyeLinearDrivers = avatarRoot.GetComponentsInChildren<EyeLinearDriver>();
@@ -85,7 +85,7 @@ public static class AvatarBehaviorRuntime
             }
         }
 
-        // 2. Process Breathing
+
         if (plan.BreathingBindings.Count > 0)
         {
             Slot? breathingRoot = null;
@@ -125,10 +125,10 @@ public static class AvatarBehaviorRuntime
                             if (!field.IsDriven && !field.IsLinked)
                             {
                                 breathingRoot ??= avatarRoot.AddSlot("Breathing Driver");
-                                var driver = breathingRoot.AttachComponent<Wiggler<float>>();
-                                driver.Speed.Value = 1f / Math.Max(0.5f, breathing.PeriodSeconds);
-                                driver.Offset.Value = (breathing.MinWeight + breathing.MaxWeight) * 0.5f;
-                                driver.Magnitude.Value = (breathing.MaxWeight - breathing.MinWeight) * 0.5f;
+                                var driver = breathingRoot.AttachComponent<TimeSineDriver>();
+                                driver.Speed.Value = breathing.AngularSpeed;
+                                driver.Min.Value = breathing.MinWeight;
+                                driver.Max.Value = breathing.MaxWeight;
                                 driver.Target.ForceLink(field);
                             }
                         }
@@ -144,20 +144,33 @@ public static class AvatarBehaviorRuntime
                         boneSlot = uGo.frooxEngineSlot;
                     }
 
-                    if (boneSlot != null && PreparedImportItem.Contains(avatarRoot, boneSlot))
+                    if (boneSlot != null && PreparedImportItem.Contains(avatarRoot, boneSlot) &&
+                        !boneSlot.Scale_Field.IsDriven && !boneSlot.Scale_Field.IsLinked)
                     {
                         breathingRoot ??= avatarRoot.AddSlot("Breathing Driver");
-                        var driver = breathingRoot.AttachComponent<Wiggler<float3>>();
-                        driver.Speed.Value = 1f / Math.Max(0.5f, breathing.PeriodSeconds);
-                        driver.Offset.Value = new float3(1.025f, 1.025f, 1.025f);
-                        driver.Magnitude.Value = new float3(0.025f, 0.025f, 0.025f);
-                        driver.Target.ForceLink(boneSlot.Scale_Field);
+                        float3 baseline = boneSlot.LocalScale;
+                        var scaleDriver = breathingRoot.AttachComponent<Float3Driver>();
+                        Sync<float> DriveAxis(float baselineValue)
+                        {
+                            var value = breathingRoot.AttachComponent<ValueField<float>>();
+                            value.Value.Value = baselineValue;
+                            var driver = breathingRoot.AttachComponent<TimeSineDriver>();
+                            driver.Speed.Value = breathing.AngularSpeed;
+                            driver.Min.Value = baselineValue;
+                            driver.Max.Value = baselineValue * 1.05f;
+                            driver.Target.ForceLink(value.Value);
+                            return value.Value;
+                        }
+                        scaleDriver.X.Target = DriveAxis(baseline.x);
+                        scaleDriver.Y.Target = DriveAxis(baseline.y);
+                        scaleDriver.Z.Target = DriveAxis(baseline.z);
+                        scaleDriver.Target.ForceLink(boneSlot.Scale_Field);
                     }
                 }
             }
         }
 
-        // 3. Process Talking
+
         if (plan.TalkingBindings.Count > 0)
         {
             Slot? talkingRoot = null;
@@ -217,7 +230,7 @@ public static class AvatarBehaviorRuntime
             }
         }
 
-        // 4. Process Visemes
+
         if (plan.VisemeBindings.Count > 0)
         {
             foreach (var viseme in plan.VisemeBindings)
@@ -267,7 +280,7 @@ public static class AvatarBehaviorRuntime
             }
         }
 
-        // 5. Process MeshSettings (bounds & probe anchor)
+
         if (plan.MeshSettingsBindings.Count > 0)
         {
             foreach (var meshSetting in plan.MeshSettingsBindings)
@@ -291,7 +304,7 @@ public static class AvatarBehaviorRuntime
             }
         }
 
-        // 6. Process VisibleInFirstPerson
+
         if (plan.VisibleInFirstPersonObjectIds.Count > 0)
         {
             foreach (long goId in plan.VisibleInFirstPersonObjectIds)
@@ -306,7 +319,7 @@ public static class AvatarBehaviorRuntime
             }
         }
 
-        // 7. Process FloorAdjuster
+
         if (plan.FloorAdjustmentY.HasValue && Math.Abs(plan.FloorAdjustmentY.Value) > 0.0001f)
         {
             var bipedRig = avatarRoot.GetComponentInChildren<BipedRig>();
@@ -319,7 +332,7 @@ public static class AvatarBehaviorRuntime
                 }
             }
         }
-        // 8. Process BoneConstraint
+
         if (plan.BoneConstraintBindings.Count > 0)
         {
             var bipedRig = avatarRoot.GetComponentInChildren<BipedRig>();
@@ -341,7 +354,7 @@ public static class AvatarBehaviorRuntime
             }
         }
 
-        // 9. Process WorldConstraint
+
         if (plan.WorldConstraintBindings.Count > 0)
         {
             foreach (var wc in plan.WorldConstraintBindings)
@@ -357,7 +370,7 @@ public static class AvatarBehaviorRuntime
             }
         }
 
-        // 10. Process MoveTo
+
         if (plan.MoveToBindings.Count > 0)
         {
             var bipedRig = avatarRoot.GetComponentInChildren<BipedRig>();
@@ -391,7 +404,7 @@ public static class AvatarBehaviorRuntime
             }
         }
 
-        // 11. Process WorldFixed
+
         if (plan.WorldFixedBindings.Count > 0)
         {
             foreach (var wf in plan.WorldFixedBindings)
@@ -407,7 +420,7 @@ public static class AvatarBehaviorRuntime
             }
         }
 
-        // 12. Process WorldScale
+
         if (plan.WorldScaleBindings.Count > 0)
         {
             foreach (var ws in plan.WorldScaleBindings)

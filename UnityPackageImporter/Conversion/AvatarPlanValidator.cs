@@ -5,7 +5,7 @@ using UnityPackageImporter.Models;
 
 namespace UnityPackageImporter.Conversion;
 
-/// <summary>Validates shared operations after every framework has contributed, including cross-framework conflicts and dependencies.</summary>
+
 internal static class AvatarPlanValidator
 {
     internal static void Validate(AvatarBuildPlan plan)

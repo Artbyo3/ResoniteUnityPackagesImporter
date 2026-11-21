@@ -4,7 +4,7 @@ using System.Reflection.PortableExecutable;
 using System.Text.Json;
 using UnityPackageImporter.UI;
 
-// Inspect embedded resources without loading the mod or executing game code.
+
 internal static class UITemplateAudit
 {
     public static int Run(string assemblyPath, string templateDirectory)

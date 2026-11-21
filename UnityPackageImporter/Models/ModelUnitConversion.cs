@@ -4,9 +4,9 @@ using Assimp;
 
 namespace UnityPackageImporter.Models;
 
-// Convert the coordinate unit, not the authored object scale. For a uniform
-// unit conversion C, points become C*p and transforms become C*M*C^-1.
-// Thus translations change units while rotation/scale and bone weights do not.
+
+
+
 internal static class ModelUnitConversion
 {
     internal static void Apply(Scene scene, float factor)

@@ -8,9 +8,9 @@ using System.Runtime.CompilerServices;
 using Elements.Core;
 namespace HashDepot;
 
-/// <summary>
-/// XXHash implementation.
-/// </summary>
+
+
+
 public static class XXHash
 {
     private const ulong prime64v1 = 11400714785074694791ul;
@@ -20,12 +20,12 @@ public static class XXHash
     private const ulong prime64v5 = 2870177450012600261ul;
 
 
-    /// <summary>
-    /// Generate a 64-bit xxHash value.
-    /// </summary>
-    /// <param name="buffer">Input buffer.</param>
-    /// <param name="seed">Optional seed.</param>
-    /// <returns>Computed 64-bit hash value.</returns>
+
+
+
+
+
+
     public static ulong Hash64(ReadOnlySpan<byte> buffer, ulong seed = 0)
     {
         const int stripeLength = 32;

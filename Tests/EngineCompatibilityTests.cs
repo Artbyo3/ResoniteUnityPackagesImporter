@@ -24,7 +24,7 @@ internal static class EngineCompatibilityTests
 
         test("Engine compatibility: all missing members are reported even on a verified version", () =>
         {
-            // Reflection fixtures stand in for engine types without loading game code.
+
             var members = new (string Name, MemberInfo Member)[]
             {
                 ("Fixture.RenamedType", typeof(Fixture).GetNestedType("RenamedType")!),

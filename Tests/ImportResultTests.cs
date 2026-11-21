@@ -128,6 +128,16 @@ internal static class ImportResultTests
             try { AvatarPlanExecution.DeferSupportedInstallation(p); } catch (InvalidOperationException) { rejected = true; }
             check(rejected, "Completed work cannot be relabeled as awaiting installation.");
         });
+        test("A ready native rig cannot bypass unresolved scene reconstruction", () =>
+        {
+            var blocked = Result(native: NativeAvatarReadiness.Ready, unresolved: true, unsupported: 110);
+            check(blocked.NativeReadiness == NativeAvatarReadiness.Ready && !blocked.StructureReady &&
+                blocked.Issues.Contains(ImportResultIssue.OwnershipUnresolved), "Unresolved structure was incorrectly diagnosed as a missing rig or accepted.");
+            Blocked(blocked);
+            var resolved = Result(native: NativeAvatarReadiness.Ready, unsupported: 110);
+            check(resolved.CanPerform(ImportOutputAction.CreateAvatar) && resolved.IsPartial && resolved.UnsupportedFeatureCount == 110,
+                "After faithful reconstruction, optional unsupported features should remain visible without independently blocking creation.");
+        });
         test("Import result rejects completed operations with unresolved ownership", () =>
         {
             var p = Plan();

@@ -43,7 +43,7 @@ internal static class RgbaPng
         byte[] rawScanlines = new byte[height * rowBytes];
         for (int y = 0; y < height; y++)
             Buffer.BlockCopy(pixels, y * width * 4, rawScanlines, y * rowBytes + 1, width * 4);
-        // Compress scanlines with ZLib
+
         byte[] compressedData;
         using (var memStream = new MemoryStream())
         {
@@ -54,26 +54,26 @@ internal static class RgbaPng
             compressedData = memStream.ToArray();
         }
 
-        // Build PNG
+
         using var pngStream = new MemoryStream();
-        // PNG Signature
+
         pngStream.Write(new byte[] { 0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A });
 
-        // IHDR chunk
+
         byte[] ihdrData = new byte[13];
         WriteBigEndianInt32(ihdrData, 0, width);
         WriteBigEndianInt32(ihdrData, 4, height);
-        ihdrData[8] = 8; // Bit depth: 8
-        ihdrData[9] = 6; // Color type: RGBA
-        ihdrData[10] = 0; // Compression
-        ihdrData[11] = 0; // Filter
-        ihdrData[12] = 0; // Interlace
+        ihdrData[8] = 8;
+        ihdrData[9] = 6;
+        ihdrData[10] = 0;
+        ihdrData[11] = 0;
+        ihdrData[12] = 0;
         WritePngChunk(pngStream, "IHDR", ihdrData);
 
-        // IDAT chunk
+
         WritePngChunk(pngStream, "IDAT", compressedData);
 
-        // IEND chunk
+
         WritePngChunk(pngStream, "IEND", Array.Empty<byte>());
 
         return pngStream.ToArray();

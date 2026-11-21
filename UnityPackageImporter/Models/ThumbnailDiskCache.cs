@@ -36,17 +36,17 @@ internal static class ThumbnailDiskCache
             if (file.LastWriteTimeUtc >= oldestAllowedUtc && total <= maximumBytes) continue;
             try
             {
-                // Opening exclusively and deleting on close is atomic with respect to
-                // other readers/writers, even ones that permit FileShare.Delete.
-                // Cleanup runs before this process returns its first thumbnail path.
+
+
+
                 using (var handle = new FileStream(file.FullName, FileMode.Open, FileAccess.Read,
                            FileShare.None, 1, FileOptions.DeleteOnClose))
                     total -= handle.Length;
             }
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
             {
-                // A busy/inaccessible entry must survive; report the failed maintenance
-                // operation and leave its bytes in the budget.
+
+
                 reportFailure($"Thumbnail cache retained '{file.Name}': {exception.Message}");
             }
         }

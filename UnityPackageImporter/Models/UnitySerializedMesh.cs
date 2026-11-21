@@ -27,9 +27,25 @@ internal static class UnitySerializedMesh
     private sealed record Channel(int Stream, int Offset, int Format, int Dimension);
     private static YamlNode? Get(YamlMappingNode node, string key) => node.Children.TryGetValue(new YamlScalarNode(key), out var value) ? value : null;
     private static YamlMappingNode Map(YamlMappingNode node, string key) => Get(node, key) as YamlMappingNode ?? throw new InvalidDataException("Missing mesh mapping: " + key);
-    private static string Text(YamlMappingNode node, string key) => (Get(node, key) as YamlScalarNode)?.Value ?? "";
+    private static string Text(YamlMappingNode node, string key) => Get(node, key) switch
+    {
+        null => "",
+        YamlScalarNode scalar => scalar.Value ?? "",
+        _ => throw new InvalidDataException("Invalid mesh scalar: " + key)
+    };
     private static int Integer(YamlMappingNode node, string key) => int.TryParse(Text(node, key), NumberStyles.Integer, CultureInfo.InvariantCulture, out int value) ? value : throw new InvalidDataException("Invalid mesh integer: " + key);
-    private static IEnumerable<YamlNode> Items(YamlMappingNode node, string key) => (Get(node, key) as YamlSequenceNode)?.Children ?? Enumerable.Empty<YamlNode>();
+    private static IEnumerable<YamlNode> Items(YamlMappingNode node, string key) => Get(node, key) switch
+    {
+        null => Enumerable.Empty<YamlNode>(),
+        YamlSequenceNode sequence => sequence.Children,
+        _ => throw new InvalidDataException("Invalid mesh sequence: " + key)
+    };
+    private static YamlMappingNode? OptionalMap(YamlMappingNode node, string key) => Get(node, key) switch
+    {
+        null => null,
+        YamlMappingNode mapping => mapping,
+        _ => throw new InvalidDataException("Invalid mesh mapping: " + key)
+    };
     private static int Size(int format) => format switch { 0 or 10 or 11 => 4, 1 or 4 or 5 or 8 or 9 => 2, >= 2 and <= 7 => 1, _ => throw new InvalidDataException("Unsupported vertex format: " + format) };
     private static byte[] Hex(string value)
     {
@@ -38,19 +54,26 @@ internal static class UnitySerializedMesh
     }
 
     internal static UnityMeshData Parse(string yaml, long fileId)
+        => Parse(yaml, fileId, false, out _);
+
+    internal static UnityMeshData Parse(string yaml, long fileId, bool includeSkin, out UnitySerializedSkinData? skin)
     {
+        skin = null;
         var stream = new YamlStream();
         string normalized = Regex.Replace(AvatarPackageIndex.NormalizeDocumentHeaders(yaml), @"(?m)^(--- )!u!(\d+)", "$1!<tag:unity3d.com,2011:$2>");
         stream.Load(new StringReader(normalized));
         var matches = stream.Documents.Where(document => document.RootNode.Anchor.Value == fileId.ToString(CultureInfo.InvariantCulture)).ToArray();
         if (matches.Length != 1 || matches[0].RootNode is not YamlMappingNode root || Get(root, "Mesh") is not YamlMappingNode mesh)
             throw new InvalidDataException("Serialized mesh fileID is unavailable or ambiguous.");
-        if (Integer(mesh, "m_MeshCompression") != 0 || Items(mesh, "m_BindPose").Any() ||
-            Items(mesh, "m_BonesAABB").Any() || (Get(mesh, "m_Shapes") is YamlMappingNode shapes &&
-                new[] { "vertices", "shapes", "channels" }.Any(key => Items(shapes, key).Any())) ||
-            (Get(mesh, "m_StreamData") is YamlMappingNode external && !string.IsNullOrEmpty(Text(external, "path"))))
+        UnitySerializedSkinData.ValidateInfluenceStorage(mesh);
+        if (Integer(mesh, "m_MeshCompression") != 0 || (!includeSkin && (Items(mesh, "m_BindPose").Any() ||
+            Items(mesh, "m_BonesAABB").Any() || (OptionalMap(mesh, "m_Shapes") is YamlMappingNode shapes &&
+                new[] { "vertices", "shapes", "channels", "fullWeights" }.Any(key => Items(shapes, key).Any())))) ||
+            (OptionalMap(mesh, "m_StreamData") is YamlMappingNode external && !string.IsNullOrEmpty(Text(external, "path"))))
             throw new InvalidDataException("Compressed, streamed, or skinned serialized meshes require an unsupported decoder.");
         var vertex = Map(mesh, "m_VertexData");
+        if (includeSkin && Get(vertex, "serializedVersion") != null && Integer(vertex, "serializedVersion") != 3)
+            throw new InvalidDataException("Unsupported serialized skin vertex version.");
         int count = Integer(vertex, "m_VertexCount");
         if (count <= 0 || count > 10000000) throw new InvalidDataException("Invalid serialized mesh vertex count.");
         var channels = Items(vertex, "m_Channels").Select(node => node is YamlMappingNode channel ?
@@ -58,23 +81,29 @@ internal static class UnitySerializedMesh
             throw new InvalidDataException("Invalid vertex channel.")).ToArray();
         if (channels.Length < 1 || channels.Length > 14 || channels.Any(channel => channel.Stream < 0 || channel.Stream > 7 ||
             channel.Offset < 0 || channel.Offset > 4096 || channel.Dimension < 0 || channel.Dimension > 4) ||
-            channels[0].Dimension != 3 || channels.Skip(12).Any(channel => channel.Dimension != 0))
+            channels[0].Dimension != 3 || (!includeSkin && channels.Skip(12).Any(channel => channel.Dimension != 0)))
             throw new InvalidDataException("Unsupported vertex channel layout.");
         byte[] bytes = Hex(Text(vertex, "_typelessdata"));
         if (Integer(vertex, "m_DataSize") != bytes.Length) throw new InvalidDataException("Vertex data size does not match its buffer.");
         var strides = new int[8];
         foreach (var channel in channels.Where(channel => channel.Dimension > 0))
-            strides[channel.Stream] = Math.Max(strides[channel.Stream], checked(channel.Offset + channel.Dimension * Size(channel.Format)));
+        {
+            int channelEnd = channel.Offset + channel.Dimension * Size(channel.Format);
+            if (channels.Any(other => !ReferenceEquals(channel, other) && other.Dimension > 0 && other.Stream == channel.Stream &&
+                channel.Offset < other.Offset + other.Dimension * Size(other.Format) && other.Offset < channelEnd))
+                throw new InvalidDataException("Vertex attributes overlap within a stream.");
+            strides[channel.Stream] = Math.Max(strides[channel.Stream], channelEnd);
+        }
         var starts = new int[8];
-        int end = 0;
+        long end = 0;
         for (int index = 0; index < strides.Length; index++)
         {
-            starts[index] = end;
-            if (strides[index] != 0) end = checked((checked(end + checked(strides[index] * count)) + 15) & ~15);
+            if (strides[index] == 0) continue;
+            long streamEnd = end + (long)strides[index] * count;
+            if (streamEnd > bytes.Length) throw new InvalidDataException("Vertex streams exceed their serialized buffer.");
+            starts[index] = (int)end;
+            end = (streamEnd + 15) & ~15L;
         }
-        if (channels.Where(channel => channel.Dimension > 0).Any(channel =>
-            (long)starts[channel.Stream] + (long)strides[channel.Stream] * count > bytes.Length))
-            throw new InvalidDataException("Vertex streams exceed their serialized buffer.");
         Vector4[] ReadChannel(int channelIndex, params int[] allowedDimensions)
         {
             if (channelIndex >= channels.Length || channels[channelIndex].Dimension == 0) return Array.Empty<Vector4>();
@@ -123,6 +152,7 @@ internal static class UnitySerializedMesh
         }
         byte[] indices = Hex(Text(mesh, "m_IndexBuffer"));
         int indexSize = Integer(mesh, "m_IndexFormat") switch { 0 => 2, 1 => 4, _ => throw new InvalidDataException("Unsupported index format.") };
+        if (indices.Length % indexSize != 0) throw new InvalidDataException("Serialized index buffer ends with a partial element.");
         foreach (var node in Items(mesh, "m_SubMeshes"))
         {
             if (node is not YamlMappingNode submesh || Integer(submesh, "topology") != 0) throw new InvalidDataException("Only triangle mesh topology is supported.");
@@ -140,34 +170,22 @@ internal static class UnitySerializedMesh
             result.Submeshes.Add(triangles);
         }
         if (result.Submeshes.Count == 0 || !result.Submeshes.Any(submesh => submesh.Length > 0)) throw new InvalidDataException("Serialized mesh contains no triangles.");
+        if (includeSkin)
+        {
+            if (Integer(mesh, "serializedVersion") != 11)
+                throw new InvalidDataException("Unsupported serialized skin mesh version.");
+            if (channels.Length != 14 || channels[12].Dimension is < 1 or > 4 || channels[13].Dimension != channels[12].Dimension ||
+                channels[12].Format is not (0 or 1 or 2 or 4) || channels[13].Format is not (6 or 8 or 10))
+                throw new InvalidDataException("Serialized skin requires matching one-to-four weights and unsigned bone indices per vertex.");
+            skin = UnitySerializedSkinData.Decode(mesh, result, ReadChannel(12, 1, 2, 3, 4), ReadChannel(13, 1, 2, 3, 4));
+        }
         return result;
     }
 
     internal static UnityMeshData Builtin(string guid, long fileId)
     {
-        if (!string.Equals(guid, "0000000000000000e000000000000000", StringComparison.OrdinalIgnoreCase) || fileId != 10202)
-            throw new InvalidDataException("Unsupported built-in Unity mesh identity.");
-        var positions = new List<Vector3>();
-        var normals = new List<Vector3>();
-        var uv = new List<Vector3>();
-        var indices = new List<int>();
-        foreach (var normal in new[] { Vector3.UnitX, -Vector3.UnitX, Vector3.UnitY, -Vector3.UnitY, Vector3.UnitZ, -Vector3.UnitZ })
-        {
-            var horizontal = Math.Abs(normal.Y) > 0.5f ? Vector3.UnitX : Vector3.Normalize(Vector3.Cross(Vector3.UnitY, normal));
-            var vertical = Vector3.Cross(normal, horizontal);
-            int first = positions.Count;
-            foreach (var corner in new[] { new Vector2(0, 0), new Vector2(1, 0), new Vector2(1, 1), new Vector2(0, 1) })
-            {
-                positions.Add(normal * 0.5f + horizontal * (corner.X - 0.5f) + vertical * (corner.Y - 0.5f));
-                normals.Add(normal);
-                uv.Add(new Vector3(corner.X, corner.Y, 0));
-            }
-            indices.AddRange(new[] { first, first + 1, first + 2, first, first + 2, first + 3 });
-        }
-        var result = new UnityMeshData { Positions = positions.ToArray(), Normals = normals.ToArray() };
-        result.UV[0] = uv.ToArray();
-        result.UVDimensions[0] = 2;
-        result.Submeshes.Add(indices.ToArray());
-        return result;
+        if (!string.Equals(guid, "0000000000000000e000000000000000", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidDataException("Invalid built-in Unity mesh resource GUID.");
+        return UnityBuiltinMeshes.Load(fileId);
     }
 }

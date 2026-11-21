@@ -9,7 +9,7 @@ public sealed record AvatarPhysBoneColliderDefinition
     public long ComponentId { get; init; }
     public long GameObjectId { get; init; }
     public long RootTransformId { get; init; }
-    public int ShapeType { get; init; } // 0 = Sphere, 1 = Capsule, 2 = Plane
+    public int ShapeType { get; init; }
     public float Radius { get; init; }
     public float Height { get; init; }
     public UnityPosition Position { get; init; }
@@ -24,7 +24,7 @@ public sealed record AvatarPhysBoneDefinition
     public long RootTransformId { get; init; }
     public IReadOnlyList<long> IgnoreTransformIds { get; init; } = Array.Empty<long>();
     public UnityPosition EndpointPosition { get; init; }
-    public int MultiChildType { get; init; } // 0 = Ignore, 1 = First, 2 = Average
+    public int MultiChildType { get; init; }
     public float Pull { get; init; } = 0.2f;
     public float Spring { get; init; } = 0.2f;
     public float Stiffness { get; init; } = 0.2f;

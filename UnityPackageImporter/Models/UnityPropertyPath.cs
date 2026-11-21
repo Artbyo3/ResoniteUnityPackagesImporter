@@ -6,7 +6,7 @@ using System.Reflection;
 
 namespace UnityPackageImporter.Models;
 
-// Unity override paths traverse fields/properties, dictionary keys, and Array.data[n].
+
 internal static class UnityPropertyPath
 {
     private const int MaxArraySize = 65536;
@@ -65,7 +65,7 @@ internal static class UnityPropertyPath
             else throw new ArgumentException("Unsupported array override: " + operation);
             if (size < 0 || size > MaxArraySize) throw new ArgumentOutOfRangeException(nameof(scalar));
 
-            // Build a replacement so invalid values never remove an existing element.
+
             var replacement = type.IsArray ? (IList)Array.CreateInstance(elementType, size) : (IList)Activator.CreateInstance(type);
             for (int i = 0; i < size; i++)
             {

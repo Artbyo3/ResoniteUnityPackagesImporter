@@ -9,7 +9,7 @@ internal static class Utils
 {
     internal static string GenerateMD5(string filepath)
     {
-        // Credit to delta for this method https://github.com/XDelta/
+
         using var hasher = MD5.Create();
         using var stream = File.OpenRead(filepath);
         var hash = hasher.ComputeHash(stream);

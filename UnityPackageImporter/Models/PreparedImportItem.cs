@@ -13,8 +13,8 @@ using UnitySkin = UnityPackageImporter.FrooxEngineRepresentation.GameObjectTypes
 
 namespace UnityPackageImporter.Models;
 
-// A selectable output, not a source-file import task. Owns preparation through
-// native creation for both prefab models and individual scene avatars.
+
+
 internal sealed class PreparedImportItem
 {
     private readonly IUnityStructureImporter source;
@@ -53,9 +53,14 @@ internal sealed class PreparedImportItem
     internal static bool Contains(Slot root, Slot child) =>
         child != null && !child.IsDestroyed && (child == root || child.IsChildOf(root));
 
-    internal Slot ResolveGameObject(long id) =>
-        existingIUnityObjects.TryGetValue(unchecked((ulong)id), out var obj) && obj is UnityGameObject go
-            ? go.frooxEngineSlot : null;
+    internal Slot ResolveGameObject(long id)
+    {
+        if (existingIUnityObjects.TryGetValue(unchecked((ulong)id), out var obj))
+            return obj is UnityGameObject go ? go.frooxEngineSlot : null;
+        var snapshot = AuthoredAppearanceSnapshot.For(source);
+        return snapshot != null && snapshot.TryGetSlot(id, out var slot) && !slot.IsDestroyed && Contains(CurrentStructureRootSlot, slot)
+            ? slot : null;
+    }
 
     internal async Task PrepareHumanoidsAsync(bool includeAuthoredSkeleton = true)
     {
@@ -72,8 +77,8 @@ internal sealed class PreparedImportItem
 
         if (!includeAuthoredSkeleton || CurrentStructureRootSlot.GetComponentsInChildren<BipedRig>().Any(rig => rig.IsBiped)) return;
 
-        // Directly authored skeletons have no FBX PrefabInstance. Resolve their
-        // humanoid metadata through the skinned meshes, inside this item's scope.\
+
+
         var sources = existingIUnityObjects.Values.OfType<UnitySkin>()
             .Where(skin => skin.createdMeshRenderer != null &&
                 Contains(CurrentStructureRootSlot, skin.createdMeshRenderer.Slot))
@@ -147,7 +152,19 @@ internal sealed class PreparedImportItem
                 UnityPackageImporter.Warn("Failed to reconstruct expressions menu: " + ex);
             }
 
-            if (source is not UnityPrefabImportTask prefab || string.IsNullOrWhiteSpace(prefab.ComposedYaml)) continue;
+            string composedYaml = source switch
+            {
+                UnityPrefabImportTask prefab => prefab.ComposedYaml,
+                UnitySceneImportTask scene => scene.ComposedYaml,
+                _ => null
+            };
+            var authoredRenderers = source switch
+            {
+                UnityPrefabImportTask prefab => prefab.AuthoredAppearanceRenderers,
+                UnitySceneImportTask scene => scene.AuthoredAppearanceRenderers,
+                _ => new Dictionary<long, InitialAppearanceRenderer>()
+            };
+            if (string.IsNullOrWhiteSpace(composedYaml)) continue;
             await default(ToWorld);
             var token = Project.Session?.Token ?? default;
             try
@@ -155,12 +172,13 @@ internal sealed class PreparedImportItem
                 var context = new InitialAppearanceContext
                 {
                     AvatarRootId = avatar.GameObjectFileId,
-                    Renderers = prefab.AuthoredAppearanceRenderers,
+                    AuthoredHierarchy = AuthoredAppearanceSnapshot.For(source)?.Hierarchy,
+                    Renderers = authoredRenderers,
                     AllowMixedFrameworks = true
                 };
                 await default(ToBackground);
                 var composedWardrobe = AvatarWardrobeComposer.Compose(
-                    prefab.ComposedYaml,
+                    composedYaml,
                     context,
                     (guid, fileId) => UnityStaticAnimationClip.Resolve(Project.AssetIDDict, guid, fileId, token),
                     menu,
@@ -186,10 +204,11 @@ internal sealed class PreparedImportItem
                 }
                 else
                 {
-                    await AvatarWardrobeRuntime.BuildAsync(composedWardrobe, root, existingIUnityObjects, Project, token);
+                    await AvatarWardrobeRuntime.BuildAsync(composedWardrobe, root, existingIUnityObjects, Project, token,
+                        AuthoredAppearanceSnapshot.For(source));
                     ConversionPlan.AddDiagnostic(AvatarOperationSeverity.Info,
                         "Created " + composedWardrobe.Controls.Count + " exact native wardrobe toggles across unified framework composition. Native per-copy state is not VRChat saved-parameter restoration or re-wear reset parity.",
-                        avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "WARDROBE_COMPOSED_BUILT\");
+                        avatar.GameObjectFileId.ToString(System.Globalization.CultureInfo.InvariantCulture), "WARDROBE_COMPOSED_BUILT");
                 }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
@@ -208,7 +227,7 @@ internal sealed class PreparedImportItem
                 try
                 {
                     await BlendshapeInitialAppearanceAdapter.BuildRuntimeLinksAsync(
-                        prefab.ComposedYaml, avatar.GameObjectFileId, root, existingIUnityObjects, source, ConversionPlan, token);
+                        composedYaml, avatar.GameObjectFileId, root, existingIUnityObjects, source, ConversionPlan, token);
                 }
                 catch (Exception ex) when (ex is not OperationCanceledException)
                 {
@@ -223,7 +242,7 @@ internal sealed class PreparedImportItem
                 try
                 {
                     await default(ToBackground);
-                    var physBonePlan = AvatarPhysBonePlanner.Compile(prefab.ComposedYaml, avatar.GameObjectFileId, token);
+                    var physBonePlan = AvatarPhysBonePlanner.Compile(composedYaml, avatar.GameObjectFileId, token);
                     await default(ToWorld);
                     token.ThrowIfCancellationRequested();
                     foreach (var diagnostic in physBonePlan.Diagnostics)
@@ -253,7 +272,7 @@ internal sealed class PreparedImportItem
                 try
                 {
                     await default(ToBackground);
-                    var constraintPlan = AvatarConstraintPlanner.Compile(prefab.ComposedYaml, avatar.GameObjectFileId, token);
+                    var constraintPlan = AvatarConstraintPlanner.Compile(composedYaml, avatar.GameObjectFileId, token);
                     await default(ToWorld);
                     token.ThrowIfCancellationRequested();
                     foreach (var diagnostic in constraintPlan.Diagnostics)
@@ -283,7 +302,7 @@ internal sealed class PreparedImportItem
                 try
                 {
                     await default(ToBackground);
-                    var behaviorPlan = AvatarBehaviorPlanner.Compile(prefab.ComposedYaml, avatar.GameObjectFileId, token: token);
+                    var behaviorPlan = AvatarBehaviorPlanner.Compile(composedYaml, avatar.GameObjectFileId, token: token);
                     await default(ToWorld);
                     token.ThrowIfCancellationRequested();
                     foreach (var diagnostic in behaviorPlan.Diagnostics)
@@ -328,8 +347,8 @@ internal sealed class PreparedImportItem
 
         if (manifest.Avatars.Count == 0)
         {
-            // Preserve ordinary scene-model preparation without treating the
-            // whole scene as one avatar or publishing it through avatar creation.
+
+
             scene.ScenePreparation = new PreparedImportItem(scene, scene.CurrentStructureRootSlot,
                 manifest, scene.ConversionPlan, scene.IncompleteComponents, Path.GetFileName(scene.ID.Value), scene.FailedObjectIds);
             await scene.ScenePreparation.PrepareHumanoidsAsync(includeAuthoredSkeleton: false);
@@ -339,8 +358,8 @@ internal sealed class PreparedImportItem
         var candidates = new List<Slot>();
         foreach (var avatar in manifest.Avatars)
         {
-            // Inherited IDs are not scene IDs. Until reference remapping exists,
-            // do not accidentally select an unrelated object with a colliding ID.
+
+
             Slot root = string.Equals(avatar.SourcePath, manifest.SourcePath, StringComparison.OrdinalIgnoreCase)
                 ? Resolve(avatar.GameObjectFileId) : null;
             if (!Contains(scene.CurrentStructureRootSlot, root))
@@ -352,8 +371,8 @@ internal sealed class PreparedImportItem
         }
 
         var roots = AvatarImportSelection.IndependentRoots(candidates, Contains);
-        // Validate every root before moving any of them. Skin references must
-        // survive independently when the station closes and deletes other items.
+
+
         AvatarImportSelection.ValidateSkinOwnership(roots,
             scene.CurrentStructureRootSlot.GetComponentsInChildren<SkinnedMeshRenderer>()
                 .Select(skin => (skin.Slot, (IEnumerable<Slot>)skin.Bones.ToArray())), Contains);
@@ -369,8 +388,8 @@ internal sealed class PreparedImportItem
                 var scoped = AvatarImportSelection.Scope(manifest, Owns);
                 string name = scoped.Avatars.First().GameObjectName;
                 if (string.IsNullOrWhiteSpace(name)) name = root.Name;
-                // Preserve authored world transforms. Each output has a separate
-                // session envelope, so committing it cannot commit its scene siblings.
+
+
                 Slot wrapper = project.Session?.CreateStructure(name, root.GlobalPosition, root.GlobalRotation)
                     ?? project.world.AddSlot(name);
                 envelopes.Track(wrapper);
@@ -389,10 +408,10 @@ internal sealed class PreparedImportItem
         }
         catch
         {
-            // Roll back the scene preparation envelopes, then rethrow.
+
             await default(ToWorld);
-            // These wrappers were moved outside the original scene root.
-            // The source-level cleanup alone cannot reach them after a failure.
+
+
             var errors = envelopes.RollBack(slot =>
             {
                 if (!slot.IsDestroyed) slot.DestroyPreservingAssets();

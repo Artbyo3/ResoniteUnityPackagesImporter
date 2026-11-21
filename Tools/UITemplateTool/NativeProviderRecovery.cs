@@ -3,8 +3,8 @@ using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using Elements.Core;
 
-// Recovery consumes an explicit plan whose provider fields were compared with
-// the read-only live reference. Export-local GUIDs alone are never evidence.
+
+
 internal static class NativeProviderRecovery
 {
     private static DataTreeDictionary Dict(DataTreeNode n) => (DataTreeDictionary)n;

@@ -5,8 +5,8 @@ using UnityPackageImporter.Frameworks.ModularAvatar;
 using UnityPackageImporter.Frameworks.VrcFury;
 using UnityPackageImporter.Models;
 
-// Checks compiled dependencies, including fully qualified calls and compiler-generated lambdas.
-// This prevents a later adapter change from reaching the engine, UI, another adapter or the whole plan.
+
+
 internal static class PlanningBoundaryTests
 {
     internal static void Register(Action<string, Action> test)

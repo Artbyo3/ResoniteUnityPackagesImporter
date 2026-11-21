@@ -5,11 +5,11 @@ using System.Linq;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>
-/// Snapshots the authoritative attachment hierarchy. Previously installed outfit
-/// branches are excluded as entire subtrees, so another outfit cannot borrow
-/// bones whose lifetime belongs to a different installation.
-/// </summary>
+
+
+
+
+
 internal static class BoneAttachmentHierarchy
 {
     public static MergeHierarchyNode Snapshot<T>(T root, Func<T, IEnumerable<T>> children,

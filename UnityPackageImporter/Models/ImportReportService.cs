@@ -14,12 +14,42 @@ using UnityTypes = UnityPackageImporter.FrooxEngineRepresentation.GameObjectType
 
 namespace UnityPackageImporter.Models;
 
-// Capture on the world context, then write only immutable managed data off-thread.
+
 internal static class ImportReportService
 {
     private static readonly ConditionalWeakTable<ImportReportContext, ImportErrorReportPanel> Panels = new();
+    private static readonly Lazy<string> LoadedBuildHash = new(() => ImportActionDiagnostics.ReadBuildIdentity(() =>
+    {
+        using var file = File.OpenRead(typeof(ImportReportService).Assembly.Location);
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(file));
+    }, type => UnityPackageImporter.Warn("Loaded mod hash unavailable for diagnostics: " + type)));
+    internal static string LoadedBuildIdentity => LoadedBuildHash.Value;
 
-    // Called on the world context. Never fall back to a shared-world report slot.
+    internal static async Task<string?> SaveAppearanceReplayAsync(InitialAppearanceReplay replay, CancellationToken token)
+    {
+        string? path = null;
+        string directory = Path.Combine(Path.GetDirectoryName(UnityPackageImporter.cachePath), "diagnostics", "UnityPackageImporter", "appearance-replays");
+        await ImportReportStore.SaveBestEffortAsync(async () =>
+        {
+            path = await AppearanceReplayStore.WriteAsync(directory, replay, token).ConfigureAwait(false);
+        }, type => UnityPackageImporter.Warn("Could not save local appearance replay: " + type), token).ConfigureAwait(false);
+        return path;
+    }
+
+    internal static string CaptureActionGateEvidence(ImportReportContext context, PreparedImportItem item,
+        ImportResult result, ImportActionGate actionGate) => ImportActionDiagnostics.LocalEvidence(actionGate, result,
+            item.ConversionPlan, LoadedBuildHash.Value, context.SessionId, item.DisplayName, item.SourcePath, item.FailedObjectIds);
+
+    internal static void SaveActionGateEvidence(string evidence)
+    {
+        string directory = Path.Combine(Path.GetDirectoryName(UnityPackageImporter.cachePath), "diagnostics", "UnityPackageImporter", "action-gates");
+        _ = Task.Run(() => ImportReportStore.SaveBestEffortAsync(async () =>
+        {
+            await ImportReportStore.WriteAsync(directory, evidence, DateTimeOffset.UtcNow, retainedReports: 64).ConfigureAwait(false);
+        }, type => UnityPackageImporter.Warn("Could not save local action-gate evidence: " + type)));
+    }
+
+
     internal static void EnablePanel(ImportReportContext context)
     {
         var privateWorld = Userspace.UserspaceWorld;
@@ -32,7 +62,7 @@ internal static class ImportReportService
             RuntimeInformation.IsOSPlatform(OSPlatform.Windows) ? ReportOsFamily.Windows :
             RuntimeInformation.IsOSPlatform(OSPlatform.Linux) ? ReportOsFamily.Linux :
             RuntimeInformation.IsOSPlatform(OSPlatform.OSX) ? ReportOsFamily.MacOS : ReportOsFamily.Other,
-            locale ?? CultureInfo.CurrentUICulture.Name), files,
+            locale ?? CultureInfo.CurrentUICulture.Name, LoadedBuildHash.Value), files,
         UnityPackageImporter.Config?.GetValue(UnityPackageImporter.IncludeNamesInReports) == true);
 
     internal static ReportObjectFailure Object(IUnityObject obj, ImportOwnership ownership = ImportOwnership.Unknown, Exception error = null, bool includeNames = false, string sourceKey = null)
@@ -61,7 +91,7 @@ internal static class ImportReportService
     internal static void ModelFailed(ImportReportContext context, string assetKey, string path, Exception error, string processing, ReportModelPhase phase)
     {
         if (context == null) return;
-        // Failure-only metadata is bounded. An unavailable observation cannot replace the import error.
+
         string version = "unknown";
         try { version = Assimp.Unmanaged.AssimpLibrary.Instance.GetVersionAsVersion().ToString(); }
         catch (Exception metadataError)
@@ -83,9 +113,10 @@ internal static class ImportReportService
     }
 
     internal static void Record(ImportReportContext context, object identity, Exception error = null,
-        PreparedImportItem item = null, UnityProjectImporter project = null, ImportReportStage? stage = null)
+        PreparedImportItem item = null, UnityProjectImporter project = null, ImportReportStage? stage = null,
+        ImportActionGate actionGate = null)
     {
-        try { RecordCore(context, identity, error, item, project, stage); }
+        try { RecordCore(context, identity, error, item, project, stage, actionGate); }
         catch (Exception reportingError)
         {
             UnityPackageImporter.Warn("Could not schedule the local import report: " + reportingError.GetType().Name);
@@ -93,21 +124,26 @@ internal static class ImportReportService
     }
 
     private static void RecordCore(ImportReportContext context, object identity, Exception error,
-        PreparedImportItem item, UnityProjectImporter project, ImportReportStage? stage)
+        PreparedImportItem item, UnityProjectImporter project, ImportReportStage? stage, ImportActionGate actionGate)
     {
         if (context == null || !context.TryBeginReport(identity)) return;
         ReportResult result = null;
         try
         {
-            if (item != null) result = ImportResultAdapter.CaptureReport(item, project, context.IncludeNames);
+            if (item != null)
+            {
+                result = ImportResultAdapter.CaptureReport(item, project, context.IncludeNames);
+                if (actionGate != null) result = result with { MainActionGate = actionGate };
+            }
         }
         catch (Exception captureError)
         {
-            // A disposed/partial native graph must not prevent the original failure report.
+
             context.Warning(ReportWarningCategory.Reporting, ReportDiagnosticCode.SnapshotUnavailable);
             UnityPackageImporter.Warn("Import report snapshot unavailable: " + captureError.GetType().Name);
         }
         ImportReportData snapshot = context.Capture(error, result, stage);
+        if (item != null) UnityPackageImporter.Msg(ImportFailureReport.LocalItemSummary(snapshot, item.DisplayName ?? "<unnamed>"));
         var readPackages = context.CapturePackageReader();
         string directory = Path.Combine(Path.GetDirectoryName(UnityPackageImporter.cachePath), "reports", "UnityPackageImporter");
         var sanitizer = ReportSanitizer.ForCurrentUser();
@@ -120,7 +156,7 @@ internal static class ImportReportService
             var report = ImportIssueDraft.Build(snapshot with { Packages = packages }, sanitizer);
             panel?.Publish(revision, report);
             await ImportReportStore.WriteAsync(directory, report.Report, snapshot.Time).ConfigureAwait(false);
-            UnityPackageImporter.Msg("Import report saved locally in reports/UnityPackageImporter.");
+            UnityPackageImporter.Msg(ImportFailureReport.LocalLogSummary(snapshot));
         }, type => UnityPackageImporter.Warn("Could not save the local import report: " + type)));
     }
 }

@@ -6,7 +6,7 @@ using UnityPackageImporter.Models;
 
 namespace UnityPackageImporter.Materials;
 
-/// <summary>Immutable pixel processing recipe. Every output-affecting value participates in the cache key.</summary>
+
 internal sealed record TexturePixelTransform
 {
     private int R { get; init; } = 0;
@@ -20,7 +20,7 @@ internal sealed record TexturePixelTransform
     internal string Key => string.Create(CultureInfo.InvariantCulture,
         $"pixel-v1:{R}:{G}:{B}:{A}:{Tint}:{TintWhite}:{Color.r:R}:{Color.g:R}:{Color.b:R}:{Color.a:R}:{Strength:R}");
 
-    // 0..3 = RGBA, 4 = one, 5..9 = inverted RGBA/one (9 = zero).
+
     internal static TexturePixelTransform Swizzle(int r, int g, int b, int a)
     {
         foreach (int channel in new[] { r, g, b, a })
@@ -44,8 +44,8 @@ internal sealed record TexturePixelTransform
             (Channel(R), Channel(G), Channel(B), Channel(A));
     }
 
-    // Texture tinting operates on linear-light values, like the SDK's LDR processor.
-    // Packed material channels are data: swizzle/invert their stored values directly.
+
+
     internal (float r, float g, float b, float a) ApplyStored(float r, float g, float b, float a)
     {
         if (!Tint) return Apply(r, g, b, a);

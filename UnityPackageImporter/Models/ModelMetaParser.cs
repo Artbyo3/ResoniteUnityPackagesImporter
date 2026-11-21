@@ -9,6 +9,9 @@ namespace UnityPackageImporter.Models;
 
 internal sealed class ParsedModelMeta
 {
+    public string Guid { get; set; } = string.Empty;
+    public bool IsAuthoredHumanoid { get; set; }
+    public List<(string Name, string ParentName)> Skeleton { get; } = new();
     public float GlobalScale { get; set; } = 1f;
     public bool UseFileUnits { get; set; } = true;
     public bool UseFileScale { get; set; } = true;
@@ -19,10 +22,10 @@ internal sealed class ParsedModelMeta
 
 internal readonly record struct ExternalObjectRef(long FileId, string Guid, int Type);
 
-/// <summary>
-/// Structured YAML parser for Unity <c>.fbx.meta</c> (<c>ModelImporter</c>) files using
-/// <see cref="YamlStream"/> instead of fragile line-by-line indentation state machines.
-/// </summary>
+
+
+
+
 internal static class ModelMetaParser
 {
     internal static ParsedModelMeta ParseFile(string metaFilePath)
@@ -48,6 +51,23 @@ internal static class ModelMetaParser
                 return result;
 
             YamlMappingNode? importerNode = GetMapping(root, "ModelImporter") ?? root;
+            result.Guid = GetScalar(root, "guid") ?? string.Empty;
+            result.IsAuthoredHumanoid = GetScalar(importerNode, "animationType") == "3" &&
+                GetScalar(importerNode, "avatarSetup") == "1";
+            if (GetMapping(importerNode, "humanDescription") is YamlMappingNode description &&
+                GetNode(description, "skeleton") is YamlSequenceNode skeleton)
+            {
+                foreach (var item in skeleton.Children)
+                {
+                    if (item is not YamlMappingNode entry || GetScalar(entry, "name") is not string name ||
+                        GetScalar(entry, "parentName") is not string parentName)
+                    {
+                        result.IsAuthoredHumanoid = false;
+                        break;
+                    }
+                    result.Skeleton.Add((name, parentName));
+                }
+            }
             ReadScaleProperties(importerNode, result);
 
             if (GetMapping(importerNode, "meshes") is YamlMappingNode meshesNode)
@@ -95,7 +115,7 @@ internal static class ModelMetaParser
             }
             else if (GetMapping(importerNode, "externalObjects") is YamlMappingNode externalMap)
             {
-                // Support compact dictionary-style externalObjects if emitted by custom Unity tools
+
                 foreach (var entry in externalMap.Children)
                 {
                     if (entry.Key is YamlMappingNode firstMap && entry.Value is YamlMappingNode secondMap)
@@ -134,7 +154,9 @@ internal static class ModelMetaParser
         }
         catch (Exception)
         {
-            // Fall back to line-based recovery if a non-standard .meta file contains invalid YAML tokens
+            result.IsAuthoredHumanoid = false;
+            result.Skeleton.Clear();
+
             ParseFallbackLines(yamlContent, result);
         }
 

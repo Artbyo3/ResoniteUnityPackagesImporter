@@ -11,7 +11,7 @@ using UnityGameObject = UnityPackageImporter.FrooxEngineRepresentation.GameObjec
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>Bounded reversible INITIAL adapter. Unsupported contexts skip with diagnostics, never fake application.</summary>
+
 public static class ModularAvatarInitialAppearanceAdapter
 {
     public static InitialAppearanceResult EvaluateAndReport(string composedYaml, InitialAppearanceContext context,
@@ -43,7 +43,7 @@ public static class ModularAvatarInitialAppearanceAdapter
         plan.AddDiagnostic(AvatarOperationSeverity.Warning,
             "MA reversible INITIAL snapshots only for assembled avatar roots. No runtime menus, animations, drivers, " +
             "scene-wide or standalone-outfit conversion is claimed. Destructive entries are warning-skipped.", code: "MA_INITIAL_STATIC_ONLY");
-        var manifest = importer is UnityPrefabImportTask prefab ? prefab.Manifest : null;
+        var manifest = UnityStructureComposition.ManifestFor(importer);
         var stage = importer.CurrentStructureRootSlot;
         var roots = (manifest?.Avatars ?? Array.Empty<VrcAvatarDefinition>()).Select(avatar =>
             (Avatar: avatar, Slot: unityObjects.TryGetValue(unchecked((ulong)avatar.GameObjectFileId), out var entry) && entry is UnityGameObject game ? game.frooxEngineSlot : null))
@@ -51,7 +51,7 @@ public static class ModularAvatarInitialAppearanceAdapter
             .Select(root => (root.Avatar, Slot: root.Slot!)).ToArray();
         if (roots.Length == 0)
         {
-            plan.AddDiagnostic(AvatarOperationSeverity.Warning, "MA initial appearance skipped: no verified assembled avatar root in this prefab scope.", code: "MA_INITIAL_SCOPE_UNSUPPORTED");
+            plan.AddDiagnostic(AvatarOperationSeverity.Warning, "MA initial appearance skipped: no verified assembled avatar root in this import structure.", code: "MA_INITIAL_SCOPE_UNSUPPORTED");
             return;
         }
         foreach (var root in roots)

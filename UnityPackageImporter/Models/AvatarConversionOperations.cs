@@ -46,8 +46,8 @@ public sealed class AvatarOperationDiagnostic
 
 public sealed class AvatarBuildOperationSource
 {
-    public string Framework { get; init; } = ""; // "ModularAvatar", "VRCFury", or "Native"
-    public string ComponentType { get; init; } = ""; // e.g. "ModularAvatarMergeArmature", "VRCFuryArmatureLink"
+    public string Framework { get; init; } = "";
+    public string ComponentType { get; init; } = "";
     public long ComponentFileId { get; init; }
     public long GameObjectFileId { get; init; }
     public string GameObjectName { get; init; } = "";
@@ -96,7 +96,7 @@ public abstract class AvatarBuildOperation
     }
 }
 
-/// <summary>Resolves only declared targets; never invents a replacement target.</summary>
+
 public static class AvatarTargetResolution
 {
     public static IReadOnlyList<(int Bone, long? ObjectId, string Path, string Offset)> GetCandidates(AvatarBuildOperation operation) => operation.GetTargetCandidates();
@@ -132,7 +132,7 @@ public sealed class ArmatureMergeOperation : AvatarBuildOperation
     public string SourceArmatureRootName { get; init; } = "";
 
     public string TargetReferencePath { get; init; } = "";
-    public int TargetHumanoidBone { get; init; } = -1; // UnityEngine.HumanBodyBones numeric value (-1 if path/obj used)
+    public int TargetHumanoidBone { get; init; } = -1;
     public long? TargetObjectFileId { get; init; }
     public string TargetOffsetPath { get; init; } = "";
 
@@ -145,6 +145,7 @@ public sealed class ArmatureMergeOperation : AvatarBuildOperation
     public bool AlignRotation { get; init; }
     public bool AlignScale { get; init; }
     public bool AutoScaleFactor { get; init; } = true;
+    public bool UseAutomaticRootScaleRatio { get; init; }
 
     public List<MergeBoneMapping> Mappings { get; init; } = new();
     public List<RetainedBoneRoot> RetainedRoots { get; init; } = new();
@@ -195,8 +196,8 @@ public sealed class AvatarBuildPlan
     public bool HasWarnings => Diagnostics.Any(d => d.Severity == AvatarOperationSeverity.Warning) ||
                                Operations.Any(op => op.Diagnostics.Any(d => d.Severity == AvatarOperationSeverity.Warning));
 
-    // Assign before wiring dependencies. Directly constructed plans are still
-    // checked for duplicate IDs by GetOrderedOperations.
+
+
     internal void AddOperation(AvatarBuildOperation operation)
     {
         string baseId = operation.OperationId;
@@ -284,11 +285,11 @@ public sealed class AvatarBuildPlan
     }
 }
 
-/// <summary>
-/// Engine-independent execution boundary. Ordering errors, diagnostic failures,
-/// and exceptions all stop the plan; cancellation remains cancellation.
-/// The caller owns staged output and reads plan.HasErrors for its receipt.
-/// </summary>
+
+
+
+
+
 public static class AvatarPlanExecution
 {
     internal static void DeferSupportedInstallation(AvatarBuildPlan plan)

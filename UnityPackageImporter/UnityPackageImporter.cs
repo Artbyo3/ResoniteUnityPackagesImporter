@@ -55,19 +55,19 @@ public class UnityPackageImporter : ResoniteMod
         });
     }
 
-    // Kept as the existing public extraction entry point.
+
     public static string[] DecomposeUnityPackage(string file, CancellationToken cancellationToken = default)
         => PackageImportCoordinator.ExtractPackage(file, cancellationToken);
 
     private void AssetPatch(string extension)
     {
-        // Revised implementation using reflection to handle API changes
-        // same fix as the svg import mod.
+
+
         try
         {
             Debug($"Attempting to add {extension} support to import system");
 
-            // Get ImportExtension type via reflection since it's now a struct inside AssetHelper
+
             var importExtType = FrooxInternalBridge.ImportExtensionType;
 
             if (importExtType == null)
@@ -76,8 +76,8 @@ public class UnityPackageImporter : ResoniteMod
                 return;
             }
 
-            // Create an ImportExtension instance with reflection
-            // Constructor args: (string ext, bool autoImport)
+
+
             var constructor = FrooxInternalBridge.ImportExtensionConstructor;
             if (constructor == null)
             {
@@ -86,7 +86,7 @@ public class UnityPackageImporter : ResoniteMod
             }
             var importExt = constructor.Invoke(new object[] { extension, true });
 
-            // Get the associatedExtensions field via reflection
+
             var extensionsField = FrooxInternalBridge.AssociatedExtensionsField;
 
             if (extensionsField == null)
@@ -95,7 +95,7 @@ public class UnityPackageImporter : ResoniteMod
                 return;
             }
 
-            // Get the dictionary and add our extension to the Special asset class
+
             var extensions = extensionsField.GetValue(null);
             var dictType = extensions.GetType();
             var specialValue = dictType.GetMethod("get_Item").Invoke(extensions, new object[] { AssetClass.Special });
@@ -106,7 +106,7 @@ public class UnityPackageImporter : ResoniteMod
                 return;
             }
 
-            // Add our ImportExtension to the list
+
             specialValue.GetType().GetMethod("Add").Invoke(specialValue, new[] { importExt });
 
             Debug($"{extension} import extension added successfully");

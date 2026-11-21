@@ -25,7 +25,7 @@ internal static class HandCalibrationTests
             foreach (Quaternion hand in HandRotations())
             {
                 Quaternion reference = HandCalibration.GetReferenceRotation(hand, Vector3.UnitY, thumb, left);
-                // VRIKAvatar stores the wrist's rotation relative to its controller reference.
+
                 Quaternion offset = Quaternion.Inverse(reference) * hand;
                 Near(Vector3.Transform(Vector3.UnitY, offset), Vector3.UnitZ);
                 Near(Vector3.Transform(thumb, offset), left ? Vector3.UnitX : -Vector3.UnitX);
@@ -40,8 +40,8 @@ internal static class HandCalibrationTests
             foreach (Vector3 thumb in new[] { -Vector3.UnitX, Vector3.UnitX })
             {
                 Quaternion original = HandCalibration.GetReferenceRotation(wrist, Vector3.UnitY, thumb, left);
-                // An aligned solver slot changes the local coordinates, not the
-                // anatomical directions in world space. Re-express both inputs.
+
+
                 Quaternion alignedHand = wrist * alignedFrame;
                 Quaternion inverseFrame = Quaternion.Inverse(alignedFrame);
                 Quaternion aligned = HandCalibration.GetReferenceRotation(alignedHand,
@@ -74,8 +74,8 @@ internal static class HandCalibrationTests
                 Vector3 thumb = left ? -Vector3.UnitX : Vector3.UnitX;
                 Quaternion reference = HandCalibration.GetReferenceRotation(Quaternion.Identity, Vector3.UnitY, thumb, left);
                 Quaternion wristOffset = Quaternion.Inverse(reference);
-                // HandSimulator.Update uses LookRotation(Down, outward side).
-                // These native pose fixtures have forward down and up outward.
+
+
                 Quaternion simulatedHand = new(0.5f, left ? -0.5f : 0.5f,
                     left ? 0.5f : -0.5f, 0.5f);
                 Quaternion wrist = simulatedHand * wristOffset;

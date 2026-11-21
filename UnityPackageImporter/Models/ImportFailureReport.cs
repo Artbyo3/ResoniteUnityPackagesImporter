@@ -29,6 +29,20 @@ internal static class ImportFailureReport
     internal const int FormatVersion = 2;
     internal const int MaximumExceptions = 8;
 
+    internal static string LocalLogSummary(ImportReportData data) =>
+        "Import report saved locally in reports/UnityPackageImporter. Report token: " + data.ReportId.ToString("N") +
+        "; local import token: " + data.SessionId.ToString("N") + "; stage: " + data.Stage +
+        "; source failures: " + data.SourceFailures.ToString(CultureInfo.InvariantCulture) +
+        "; model failures: " + data.ModelFailureCount.ToString(CultureInfo.InvariantCulture) +
+          "; sampled source failures: " + data.SourceFailureDetails.Count.ToString(CultureInfo.InvariantCulture) + ".";
+
+    internal static string LocalItemSummary(ImportReportData data, string name) =>
+        "Local import item: " + name.Replace('\r', ' ').Replace('\n', ' ') +
+        "; report token: " + data.ReportId.ToString("N") +
+        "; structure ready: " + (data.Result?.StructureReady.ToString() ?? "unknown") +
+        "; native readiness: " + (data.Result?.NativeReadiness.ToString() ?? "unknown") +
+        "; issues: " + (data.Result == null ? "unknown" : string.Join(", ", data.Result.Issues)) + ".";
+
     internal static IReadOnlyList<ReportException> CaptureExceptions(Exception? error, out bool truncated)
     {
         var queue = new Queue<Exception>();
@@ -87,6 +101,8 @@ internal static class ImportFailureReport
 
         Line("Unity Package Import Report — report format " + FormatVersion);
         Line("Mod version: " + data.Environment.ModVersion);
+        Line("Loaded mod SHA256: " + (data.Environment.BuildSha256 is string hash &&
+            Regex.IsMatch(hash, @"\A[A-Fa-f0-9]{64}\z", RegexOptions.CultureInvariant) ? hash.ToUpperInvariant() : "unknown"));
         Line("Resonite version: " + data.Environment.ResoniteVersion);
         Line("Last verified version: " + data.Environment.VerifiedVersion);
         Line("Version matches last verified: " + Flag(data.Environment.ResoniteVersion == data.Environment.VerifiedVersion && data.Environment.ResoniteVersion != "Unknown"));
@@ -163,6 +179,16 @@ internal static class ImportFailureReport
             foreach (var failure in result.Objects.Take(32)) Object(failure);
             if (result.FailedObjects > result.Objects.Take(32).Count()) Line("Additional failed-object details omitted or unavailable.");
             Line("Plan diagnostics: " + Number(result.PlanDiagnosticCount));
+            Line("Plan errors: " + Number(result.PlanErrorCount));
+            Line("Plan warnings: " + Number(result.PlanWarningCount));
+            foreach (var diagnostic in (result.PlanDetails ?? Array.Empty<ReportPlanDiagnostic>()).Take(64))
+                Line("Plan diagnostic: " + diagnostic.Severity + "; code " + sanitizer.Token(diagnostic.Code) +
+                    "; source " + aliases.Object(diagnostic.SourceId));
+            if (result.MainActionGate is { } actionGate)
+            {
+                Line("Main action: " + actionGate.Action + "; enabled: " + Flag(actionGate.Enabled));
+                foreach (var blocker in actionGate.Blockers) Line("Main action blocker: " + blocker);
+            }
             foreach (string code in (result.PlanDiagnosticCodes ?? Array.Empty<string>()).Take(24)) Line("Plan code: " + sanitizer.Token(code));
             foreach (var operation in result.OperationDetails.Take(24))
             {
@@ -176,6 +202,12 @@ internal static class ImportFailureReport
 
         Line(); Line("Session source failures (may include other items)");
         Line("Count: " + Number(data.SourceFailures));
+        if (data.SourceFailureGroups != null)
+        {
+            Line("Source failure totals by type and cause (including omitted samples)");
+            foreach (var group in data.SourceFailureGroups)
+                Line($"{group.Type}; reason {group.Reason}; count {Number(group.Count)}");
+        }
         foreach (var failure in data.SourceFailureDetails.Take(32)) Object(failure);
         if (data.SourceFailures > data.SourceFailureDetails.Take(32).Count()) Line("Additional source-failure details omitted.");
         Line(); Line("Warning summary (session diagnostics and selected-result warnings)");

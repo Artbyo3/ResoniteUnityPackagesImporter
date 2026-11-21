@@ -6,8 +6,8 @@ namespace UnityPackageImporter.Models;
 
 internal static class BlendShapeDefaults
 {
-    // Unity stores percentage weights; Resonite uses unit weights. Preserve
-    // intentional negative weights and values beyond the normal range.
+
+
     public static void ApplyNamed(IReadOnlyList<float>? weights, IReadOnlyList<string>? sourceNames,
         Func<string, int> findIndex, Action<int, float> setWeight, Action<string> warn)
     {
@@ -32,7 +32,7 @@ internal static class BlendShapeDefaults
         {
             if (!float.IsFinite(weights[i])) { warn($"Non-finite blendshape weight at index {i} was skipped."); continue; }
             int targetIndex = findIndex(sourceNames[i]);
-            // The engine strips empty shapes. Their weights have no geometric effect.
+
             if (targetIndex >= 0) setWeight(targetIndex, weights[i] / 100f);
         }
     }

@@ -16,6 +16,7 @@ internal static class VrcFuryArmatureSemantics
         internal bool AlignRotation { get; set; }
         internal bool AlignScale { get; set; }
         internal bool AutoScaleFactor { get; set; }
+        internal bool UseAutomaticRootScaleRatio { get; set; }
         internal List<(string Code, string Message, bool IsError)> Diagnostics { get; } = new();
     }
 
@@ -82,11 +83,24 @@ internal static class VrcFuryArmatureSemantics
             else result.AutoScaleFactor = false;
         }
         bool needsScaling = result.AlignScale && (result.AutoScaleFactor && result.Recursive || !result.AutoScaleFactor && factor != 1);
-        if (needsScaling || fields.ContainsKey("skinRewriteScalingFactor") && factor != 1 || fields.ContainsKey("scalingFactorPowersOf10Only"))
+        result.UseAutomaticRootScaleRatio = result.Version == 7 && result.AlignScale && result.AutoScaleFactor && result.Recursive && !powersOfTen;
+        bool unsupportedScaling = needsScaling && !result.UseAutomaticRootScaleRatio;
+        if (unsupportedScaling || !result.UseAutomaticRootScaleRatio && (fields.ContainsKey("skinRewriteScalingFactor") && factor != 1 || fields.ContainsKey("scalingFactorPowersOf10Only")))
             result.Diagnostics.Add(("VRCFURY_UNSUPPORTED_SCALE_OPTIONS",
                 $"ArmatureLink scale options (skinRewriteScalingFactor={factor.ToString(CultureInfo.InvariantCulture)}, scalingFactorPowersOf10Only={powersOfTen}) are not implemented" +
-                (needsScaling ? "; scale alignment cannot be applied faithfully." : "; they have no effect while scale alignment does not use them."), needsScaling));
+                (unsupportedScaling ? "; scale alignment cannot be applied faithfully." : "; they have no effect while scale alignment does not use them."), unsupportedScaling));
         return result;
+    }
+
+    internal static bool TryAutomaticRootScaleRatio(float sourceRootScaleX, float targetRootScaleX, out float factor)
+    {
+        factor = 0;
+        if (!float.IsFinite(sourceRootScaleX) || !float.IsFinite(targetRootScaleX) || sourceRootScaleX == 0 || targetRootScaleX == 0)
+            return false;
+        float ratio = MathF.Abs(sourceRootScaleX) / MathF.Abs(targetRootScaleX);
+        if (!float.IsFinite(ratio) || ratio == 0) return false;
+        factor = ratio;
+        return true;
     }
 
     internal static (TPosition Position, TRotation Rotation, TScale Scale) SelectWorldTransform<TPosition, TRotation, TScale>(

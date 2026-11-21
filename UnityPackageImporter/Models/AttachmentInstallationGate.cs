@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>
-/// Serializes mutations of one avatar across stations. A weak key avoids
-/// retaining a destroyed avatar/world, and cancellation never releases another
-/// installation's lease. Callers revalidate their target after acquiring it.
-/// </summary>
+
+
+
+
+
 internal static class AttachmentInstallationGate
 {
     private static readonly ConditionalWeakTable<object, SemaphoreSlim> Gates = new();

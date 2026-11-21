@@ -32,8 +32,8 @@ internal static class MaterialThumbnailIdentity
 
     public static string Create(string materialGuid, string yaml, IReadOnlyDictionary<string, string> assetIndex)
     {
-        // Length-prefixed fields make the identity unambiguous. Include every referenced
-        // texture so renderer changes cannot accidentally omit a dependency from the key.
+
+
         using var buffer = new MemoryStream();
         using (var writer = new BinaryWriter(buffer, Encoding.UTF8, leaveOpen: true))
         {

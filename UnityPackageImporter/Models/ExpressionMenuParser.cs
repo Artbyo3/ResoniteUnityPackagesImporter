@@ -13,7 +13,7 @@ public class VrcMenuControl
 {
     public string Name = "";
     public string IconGuid = null;
-    public int Type = 102; // 0/101: Button, 1/102: Toggle, 2/103: SubMenu, 3/104: TwoAxis, 4/105: Radial
+    public int Type = 102;
     public string ParameterName = "";
     public float Value = 1f;
     public string SubMenuGuid = null;
@@ -37,7 +37,7 @@ public class VrcMenu
 public class VrcParameter
 {
     public string Name = "";
-    public int ValueType = 2; // 0: Int, 1: Float, 2: Bool
+    public int ValueType = 2;
     public float DefaultValue = 0f;
     public bool Saved = true;
     public bool Synced = true;

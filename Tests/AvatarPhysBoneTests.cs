@@ -105,7 +105,7 @@ internal static class AvatarPhysBoneTests
 
         test("ModularAvatarPBBlocker automatically excludes blocked branches from parent PhysBone", () =>
         {
-            // HairTip (104) has ModularAvatarBlocker, which descends from HairRoot (102)
+
             string yaml = BaseScene() + PhysBone(rootTransId: 102) + ModularAvatarBlocker(compId: 700, goId: 4);
             var plan = AvatarPhysBonePlanner.Compile(yaml, 1);
             check(plan.CanBuild, Describe(plan));
@@ -128,7 +128,7 @@ internal static class AvatarPhysBoneTests
         test("Multi-chain PhysBone simulation compiles complex avatar with 4 chains and 3 colliders", () =>
         {
             string multiChainScene = BaseScene() +
-                // Additional bones for Skirt, Ear, Tail
+
                 "--- !u!1 &5\nGameObject:\n  m_Name: Skirt\n  m_IsActive: 1\n  m_Component:\n  - component: {fileID: 105}\n" +
                 "--- !u!4 &105\nTransform:\n  m_GameObject: {fileID: 5}\n  m_Father: {fileID: 101}\n  m_Children: []\n" +
                 "--- !u!1 &6\nGameObject:\n  m_Name: Ear\n  m_IsActive: 1\n  m_Component:\n  - component: {fileID: 106}\n" +

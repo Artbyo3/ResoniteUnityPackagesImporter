@@ -4,8 +4,8 @@ using System.Runtime.Loader;
 using System.Text.Json;
 using Elements.Core;
 
-// The native format stores references AND ordinary strings as BSON strings.
-// Resolve the installed engine's declared field types before interpreting a GUID.
+
+
 internal sealed class NativePackageAudit
 {
     private readonly HashSet<string> ids = new(StringComparer.OrdinalIgnoreCase);
@@ -94,7 +94,7 @@ internal sealed class NativePackageAudit
                 ValidateUri(uri.ToString(), path);
             else if (scalar == typeof(Uri) && Value(data) is string url)
                 ValidateUri(url.TrimStart('@'), path);
-            // Sync<string> content may legitimately look exactly like a GUID.
+
             return;
         }
         Type? element = GenericBase(type, "FrooxEngine.SyncElementList`1");
@@ -110,7 +110,7 @@ internal sealed class NativePackageAudit
             if (declared.TryGetValue(pair.Key, out var fieldType))
                 ValidateNode(fieldType, pair.Value, path + "." + pair.Key);
             else
-                // Never silently approve an unresolved GUID in an unknown schema.
+
                 foreach (var (key, value) in Values(pair.Value))
                     if (key is "Data" or "Target" && Value(value) is string candidate && Guid.TryParse(candidate, out _) && !ids.Contains(candidate))
                         errors.Add(path + "." + pair.Key + " has an unresolved GUID in an unrecognized serialized field: " + candidate);
@@ -147,7 +147,7 @@ internal sealed class NativePackageAudit
                 errors.Add("Duplicate native object ID: " + id);
         string[] types = List(tree["Types"]).Children.Select(Text).ToArray();
         Slot(Dict(tree["Object"]), types, "");
-        // Native exports may store shared dependencies outside the Object tree.
+
         if (tree.Children.TryGetValue("Assets", out var bundled))
             foreach (var component in List(bundled).Children.Cast<DataTreeDictionary>())
             {

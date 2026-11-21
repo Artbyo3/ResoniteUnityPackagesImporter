@@ -13,10 +13,10 @@ using UnityGameObject = UnityPackageImporter.FrooxEngineRepresentation.GameObjec
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>
-/// Installs supported Modular Avatar attachments from the station. Installation
-/// operates on a duplicate so the source remains available for recovery.
-/// </summary>
+
+
+
+
 internal static class ModularAvatarAttachmentInstaller
 {
     private const string InstallerSlotName = "Modular Avatar Installer";
@@ -113,8 +113,8 @@ internal static class ModularAvatarAttachmentInstaller
             await default(ToWorld);
             if (installed == null || !installed.IsHealthy)
                 return (null, "Installation copy produced an incomplete or unhealthy result.");
-            // The installation is committed. Finish its optional controls even if the
-            // station closes now; do not report a completed outfit as cancelled.
+
+
             bool optionalControlsFailed = false;
             if (installOutfitMenu && !installed.RecordRoot.Children.Any(child => child.Name == "Outfit Controls"))
             {
@@ -185,8 +185,8 @@ internal static class ModularAvatarAttachmentInstaller
             }
 
             Slot sourceSlot = initialSlot;
-            // If the MergeArmature is placed on the attachment root or an outfit container,
-            // try to resolve to its child Armature if present!
+
+
             if (sourceSlot == attachmentRoot || !IsLikelyArmature(sourceSlot))
             {
                 var candidateArmature = sourceSlot.Children.FirstOrDefault(IsLikelyArmature)
@@ -434,8 +434,8 @@ internal static class ModularAvatarAttachmentInstaller
                     ?? throw new InvalidOperationException(
                         "The duplicated Bone Proxy source could not be resolved for '" +
                         binding.SourceSlot.Name + "'.");
-                // Preserve the authored pose in the target avatar's placement before
-                // merges or an earlier proxy can change this source's hierarchy.
+
+
                 return new BoneProxyBinding
                 {
                     Definition = binding.Definition,
@@ -447,7 +447,7 @@ internal static class ModularAvatarAttachmentInstaller
                 };
             }).ToList();
 
-            // Resolve index paths before removing any siblings from the duplicate.
+
             var copiedFootTag = installedRoot.Children.FirstOrDefault(child => child.Name == "Foot Level Tag");
             copiedFootTag?.Destroy();
             RemoveCopiedInstaller(installedRoot);
@@ -583,7 +583,7 @@ internal static class ModularAvatarAttachmentInstaller
         }
         catch
         {
-            // Roll back the outfit installation, then rethrow.
+
             await default(ToWorld);
             foreach (var cleanupError in transaction.RollBack(slot =>
                          { if (!slot.IsDestroyed) slot.Destroy(); }))
@@ -621,7 +621,7 @@ internal static class ModularAvatarAttachmentInstaller
             target = targetRig.Slot;
             subPath = "";
         }
-        else if (definition.BoneReference == 55) // UnityEngine.HumanBodyBones.LastBone
+        else if (definition.BoneReference == 55)
         {
             if (string.IsNullOrWhiteSpace(subPath)) return null;
             target = targetRig.Slot;
@@ -679,22 +679,22 @@ internal static class ModularAvatarAttachmentInstaller
 
         switch (definition.BoneProxyAttachmentMode)
         {
-            case 2: // AsChildKeepWorldPose
+            case 2:
                 source.SetParent(target, false);
                 source.GlobalPosition = originalPosition;
                 source.GlobalRotation = originalRotation;
                 break;
-            case 3: // AsChildKeepRotation
+            case 3:
                 source.SetParent(target, false);
                 source.GlobalPosition = target.GlobalPosition;
                 source.GlobalRotation = originalRotation;
                 break;
-            case 4: // AsChildKeepPosition
+            case 4:
                 source.SetParent(target, false);
                 source.GlobalPosition = originalPosition;
                 source.GlobalRotation = target.GlobalRotation;
                 break;
-            default: // Unset and AsChildAtRoot
+            default:
                 source.SetParent(target, false);
                 source.LocalPosition = new float3(0f, 0f, 0f);
                 source.LocalRotation = new floatQ(0f, 0f, 0f, 1f);
@@ -709,8 +709,8 @@ internal static class ModularAvatarAttachmentInstaller
 
     internal static BodyNode MapUnityHumanoidBone(int boneReference)
     {
-        // UnityEngine.HumanBodyBones numeric values are serialized into prefab
-        // YAML. Keep this mapping explicit so importing does not require Unity.
+
+
         return boneReference switch
         {
             0 => BodyNode.Hips,

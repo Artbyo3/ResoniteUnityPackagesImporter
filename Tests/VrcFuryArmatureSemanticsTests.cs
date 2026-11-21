@@ -75,11 +75,41 @@ internal static class VrcFuryArmatureSemanticsTests
             test("VRCFury rejects unknown serialized semantics: " + fields.Replace('\n', ' '), () =>
                 check(AvatarBuildPlanner.CreatePlan(Parse(fields)).HasErrors, "Unknown semantics must never mutate the world"));
         foreach (string options in new[] { "autoScaleFactor: 0\nskinRewriteScalingFactor: 2", "autoScaleFactor: 1\nscalingFactorPowersOf10Only: 1", "autoScaleFactor: 1\nscalingFactorPowersOf10Only: 0" })
-            test("VRCFury diagnoses active unsupported scaling: " + options.Replace('\n', ' '), () =>
+            test("VRCFury validates active scaling policy: " + options.Replace('\n', ' '), () =>
             {
                 var plan = AvatarBuildPlanner.CreatePlan(Parse("version: 7\nrecursive: 1\nalignScale: 1\n" + options));
-                check(plan.HasErrors && plan.Operations.Single().Diagnostics.Any(diagnostic => diagnostic.Code == "VRCFURY_UNSUPPORTED_SCALE_OPTIONS"), "Unsupported scale semantics were silently ignored");
+                if (options == "autoScaleFactor: 1\nscalingFactorPowersOf10Only: 0")
+                    check(!plan.HasErrors && plan.Operations.Single() is ArmatureMergeOperation { UseAutomaticRootScaleRatio: true },
+                        "Non-quantized automatic scaling must retain its explicit runtime scale policy, not silently use factor one.");
+                else
+                    check(plan.HasErrors && plan.Operations.Single().Diagnostics.Any(diagnostic => diagnostic.Code == "VRCFURY_UNSUPPORTED_SCALE_OPTIONS"), "Unsupported scale semantics were silently ignored");
             });
+        test("VRCFury automatic root scale preserves the authored non-quantized ratio across all mapped bones", () =>
+        {
+            var link = Parse("version: 7\nrecursive: 1\nalignScale: 1\nautoScaleFactor: 1\nscalingFactorPowersOf10Only: 0").AllVrcFuryArmatureLinks.Single();
+            check(link.UseAutomaticRootScaleRatio && !link.SemanticDiagnostics.Any(diagnostic => diagnostic.IsError), "Parsed link lost its supported scale policy.");
+            check(VrcFuryArmatureSemantics.TryAutomaticRootScaleRatio(3, 2, out float ratio) && ratio == 1.5f, "Automatic ratio was rounded or discarded.");
+            var rootTarget = new Vector3(2, 4, -8);
+            var childTarget = new Vector3(4, 6, 8);
+            check(rootTarget * ratio == new Vector3(3, 6, -12) && childTarget * ratio == new Vector3(6, 9, 12),
+                "Every target must use the one root-derived multiplier, preserving nonuniform target proportions and mirror signs.");
+        });
+        foreach (var scales in new[] { (3f, 2f), (-3f, 2f), (3f, -2f), (-3f, -2f), (0.03f, 2f) })
+            test($"VRCFury automatic root scale uses absolute X-axis ratio {scales}", () =>
+                check(VrcFuryArmatureSemantics.TryAutomaticRootScaleRatio(scales.Item1, scales.Item2, out float ratio) &&
+                    ratio == MathF.Abs(scales.Item1) / MathF.Abs(scales.Item2), "Root scale ratio differs from authored semantics."));
+        foreach (var scales in new[] { (0f, 1f), (1f, 0f), (float.NaN, 1f), (1f, float.NaN),
+            (float.PositiveInfinity, 1f), (1f, float.NegativeInfinity), (float.MaxValue, float.Epsilon), (float.Epsilon, float.MaxValue) })
+            test($"VRCFury automatic root scale rejects singular nonfinite or unrepresentable ratio {scales}", () =>
+                check(!VrcFuryArmatureSemantics.TryAutomaticRootScaleRatio(scales.Item1, scales.Item2, out float ratio) && ratio == 0,
+                    "Invalid automatic scaling must reject before native hierarchy changes."));
+        test("VRCFury automatic root scaling does not enable unsupported scale migrations or forced unit scale", () =>
+        {
+            foreach (string fields in new[] {
+                "version: 6\nlinkMode: 0\nkeepBoneOffsets2: 2\nskinRewriteScalingFactor: 0\nscalingFactorPowersOf10Only: 0",
+                "version: 7\nrecursive: 1\nalignScale: 1\nautoScaleFactor: 1\nscalingFactorPowersOf10Only: 0\nforceOneWorldScale: 1" })
+                check(AvatarBuildPlanner.CreatePlan(Parse(fields)).HasErrors, "The bounded root ratio policy enabled unsupported legacy or forced scale behavior.");
+        });
         test("VRCFury inactive scale options remain diagnostic without blocking attachment", () =>
         {
             var plan = AvatarBuildPlanner.CreatePlan(Parse("version: 7\nskinRewriteScalingFactor: 2\nscalingFactorPowersOf10Only: 0"));

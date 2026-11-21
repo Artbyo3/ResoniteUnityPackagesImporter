@@ -5,7 +5,7 @@ using System.Linq;
 
 namespace UnityPackageImporter.Models;
 
-// Source-independent ownership rules, kept free of engine types for regression tests.
+
 internal static class AvatarImportSelection
 {
     internal static IReadOnlyList<T> IndependentRoots<T>(IEnumerable<T> candidates,
@@ -50,7 +50,7 @@ internal static class AvatarImportSelection
 
     private static bool Local(string? path, string? source) => string.Equals(path, source, StringComparison.OrdinalIgnoreCase);
 
-    // Recognized but unresolved avatars must also remain staged, not leak into the world.
+
     internal static bool AutoCommitScenes(bool hasAvatarDefinitions, bool hasAvatarOrOutfitItems) =>
         !hasAvatarDefinitions && !hasAvatarOrOutfitItems;
 }

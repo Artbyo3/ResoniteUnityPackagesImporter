@@ -48,7 +48,7 @@ public static class AvatarConstraintPlanner
 
         token.ThrowIfCancellationRequested();
 
-        // 1. Index Transforms and Components
+
         var gameObjectToTransform = new Dictionary<long, long>();
         var transformToGameObject = new Dictionary<long, long>();
         var transformParents = new Dictionary<long, long>();
@@ -66,11 +66,11 @@ public static class AvatarConstraintPlanner
             int classId = ParseClassId(tag);
             string tagName = entry.Key is YamlScalarNode s ? (s.Value ?? "") : "";
 
-            if (classId == 1) // GameObject
+            if (classId == 1)
             {
-                // Indexed if needed
+
             }
-            else if (classId == 4) // Transform
+            else if (classId == 4)
             {
                 long goId = ReferenceNode(Get(body, "m_GameObject"));
                 transformToGameObject[fileId] = goId;
@@ -100,7 +100,7 @@ public static class AvatarConstraintPlanner
         long avatarRootTransform = gameObjectToTransform.GetValueOrDefault(avatarRootId);
 
         var constraints = new List<AvatarConstraintDefinition>();
-        var targetToSources = new Dictionary<long, List<long>>(); // targetTransformId -> list of sourceTransformIds for cycle check
+        var targetToSources = new Dictionary<long, List<long>>();
 
         foreach (var (fileId, classId, tagName, body) in rawComponents)
         {
@@ -119,7 +119,7 @@ public static class AvatarConstraintPlanner
                 constraintType = AvatarConstraintType.Aim;
             else if (classId == UnityScaleConstraintClassId || tagName.Equals("ScaleConstraint", StringComparison.OrdinalIgnoreCase))
                 constraintType = AvatarConstraintType.Scale;
-            else if (classId == 114) // MonoBehaviour (VRC SDK constraint)
+            else if (classId == 114)
             {
                 var script = Get(body, "m_Script") as YamlMappingNode;
                 string guid = Text(script, "guid");
@@ -147,11 +147,11 @@ public static class AvatarConstraintPlanner
             long goId = ReferenceNode(Get(body, "m_GameObject"));
             long targetTransId = gameObjectToTransform.GetValueOrDefault(goId);
 
-            // Scope check: target must descend from avatar root if root specified
+
             if (avatarRootTransform != 0 && targetTransId != 0 && !Descends(targetTransId, avatarRootTransform))
                 continue;
 
-            // Sources parsing
+
             var sources = new List<AvatarConstraintSource>();
             var sourcesSeq = Sequence(body, "m_Sources").Concat(Sequence(body, "Sources"));
             foreach (var item in sourcesSeq)
@@ -161,7 +161,7 @@ public static class AvatarConstraintPlanner
                 float srcWeight = ParseFloat(Text(srcMap, "weight") != "" ? Text(srcMap, "weight") : Text(srcMap, "Weight"), 1.0f);
                 if (srcTrans != 0)
                 {
-                    // Scope check for source: must also descend from avatar root if root specified
+
                     if (avatarRootTransform != 0 && !Descends(srcTrans, avatarRootTransform))
                     {
                         Report("EXTERNAL_SOURCE", $"Constraint source transform {srcTrans} is outside avatar hierarchy and was skipped.", fileId);
@@ -177,7 +177,7 @@ public static class AvatarConstraintPlanner
                 continue;
             }
 
-            // Check for direct self-reference
+
             if (sources.Any(s => s.SourceTransformId == targetTransId))
             {
                 Report("SELF_REFERENCE", $"Constraint on Transform {targetTransId} references itself as a source.", fileId, InitialAppearanceSeverity.Error);
@@ -223,7 +223,7 @@ public static class AvatarConstraintPlanner
             srcList.AddRange(sources.Select(s => s.SourceTransformId));
         }
 
-        // Cycle check across constraints
+
         foreach (var (target, srcs) in targetToSources)
         {
             foreach (var src in srcs)

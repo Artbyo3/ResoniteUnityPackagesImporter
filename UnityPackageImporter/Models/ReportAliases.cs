@@ -4,7 +4,7 @@ using System.Globalization;
 
 namespace UnityPackageImporter.Models;
 
-// Recreated for every report; original IDs/paths are keys only and never output.
+
 internal sealed class ReportAliases
 {
     private readonly Dictionary<(string, long), string> objects = new();

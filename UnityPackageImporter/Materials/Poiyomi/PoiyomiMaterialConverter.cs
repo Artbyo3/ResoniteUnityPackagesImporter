@@ -11,7 +11,7 @@ using UnityPackageImporter.Models;
 
 namespace UnityPackageImporter.Materials.Poiyomi;
 
-/// <summary>Maps serialized Poiyomi settings to native materials without executing package shaders.</summary>
+
 internal sealed class PoiyomiMaterialConverter
 {
     private readonly FileImportHelperTaskMaterial owner;

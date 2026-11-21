@@ -16,7 +16,7 @@ using UnityPackageImporter.UI;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>Builds per-slot material controls from the station's native scrollable popover rows.</summary>
+
 internal sealed class MaterialCustomizerController : IDisposable
 {
     private readonly StationTemplate ui;
@@ -72,7 +72,7 @@ internal sealed class MaterialCustomizerController : IDisposable
     private string lastBrowsedFolder = "";
     private int lastBrowseDepthIndex;
     private MaterialSlotBinding selectedSlot;
-    // Component references stay stable for this list's lifetime, including after renaming.
+
     private readonly AccordionState<MeshRenderer> accordionState = new(ReferenceEqualityComparer.Instance);
     private PreparedImportItem displayedItem;
     private IReadOnlyList<MaterialRendererBinding> renderers = Array.Empty<MaterialRendererBinding>();
@@ -617,8 +617,8 @@ internal sealed class MaterialCustomizerController : IDisposable
             if (slots.Count > 0) result.Add(new MaterialRendererBinding(renderer, RendererLabel(renderer.Slot), slots));
         }
 
-        // Safety fallback: if all renderers in this item hierarchy were inactive/disabled,
-        // fall back to including all renderers with materials so the list is not empty.
+
+
         if (result.Count == 0)
         {
             foreach (var renderer in skinned)
@@ -1217,12 +1217,12 @@ internal sealed class MaterialCustomizerController : IDisposable
         {
             try
             {
-                // Yield briefly so UI layout and opening transitions finish rendering smoothly at full framerate
+
                 await Task.Delay(100, cancellationToken);
                 if (cancellationToken.IsCancellationRequested) return;
 
-                // Capture this package's immutable index. A later selection or companion
-                // package must not change the source of an already shared task.
+
+
                 var assetIndex = importer.AssetIDDict;
                 var source = await MaterialThumbnailSource.CaptureAsync(materialGuid, assetIndex, cancellationToken);
                 if (source == null) return;
@@ -1234,7 +1234,7 @@ internal sealed class MaterialCustomizerController : IDisposable
                     if (string.IsNullOrEmpty(thumbPath)) return null;
 
                     if (importer.world.IsDestroyed) return null;
-                    // Keep the file open without delete sharing while LocalDB copies it.
+
                     using var thumbnailRead = File.OpenRead(thumbPath);
                     return await importer.world.Engine.LocalDB.ImportLocalAssetAsync(thumbPath, LocalDB.ImportLocation.Copy);
                 }, cancellationToken);
@@ -1255,7 +1255,7 @@ internal sealed class MaterialCustomizerController : IDisposable
             }
             catch (OperationCanceledException)
             {
-                // Thumbnail loading was cancelled; safe to ignore.
+
             }
             catch (Exception ex)
             {
@@ -1331,7 +1331,7 @@ internal sealed class MaterialCustomizerController : IDisposable
             string destination = string.IsNullOrEmpty(normalizedBrowsed) ? folderName : normalizedBrowsed + "/" + folderName;
             pooled.CurrentAction = () =>
             {
-                // Navigating into a subfolder updates the folder popover and plays the FolderSlide transition
+
                 browsedFolder = destination;
                 RefreshFolderRows(animateTransition: true);
             };

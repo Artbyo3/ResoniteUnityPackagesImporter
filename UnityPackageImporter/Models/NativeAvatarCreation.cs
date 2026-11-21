@@ -11,10 +11,10 @@ using UnityGameObject = UnityPackageImporter.FrooxEngineRepresentation.GameObjec
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>
-/// Supplies Unity calibration data to the engine's avatar creator. The caller owns
-/// the uncommitted envelope until this method succeeds, including after failures.
-/// </summary>
+
+
+
+
 internal static class NativeAvatarCreation
 {
     internal static NativeAvatarReadiness ReadReadiness(PreparedImportItem item)
@@ -31,7 +31,7 @@ internal static class NativeAvatarCreation
         try { ResolveViewpoint(item, rigs[0], reportFallback: false); }
         catch (InvalidOperationException)
         {
-            // Missing head/viewpoint indicates the avatar is not ready for native creation.
+
             return NativeAvatarReadiness.MissingViewpoint;
         }
         return NativeAvatarReadiness.Ready;
@@ -59,8 +59,8 @@ internal static class NativeAvatarCreation
         if (envelope.GetComponentInChildren<AvatarRoot>() != null)
             throw new InvalidOperationException("This import already contains native avatar setup and cannot be created again.");
 
-        // Match native readiness before its non-cancellable finalization begins.
-        // This keeps cancellation responsive during unfinished asset downloads.
+
+
         var meshes = envelope.GetComponentsInChildren<SkinnedMeshRenderer>();
         await ImportMeshReadiness.WaitAsync(meshes, cancellationToken);
         await default(ToWorld);
@@ -68,7 +68,7 @@ internal static class NativeAvatarCreation
 
         item.ReadResult().Require(ImportOutputAction.CreateAvatar);
 
-        // Capture the authored viewpoint before changing object-root boundaries.
+
         var viewpoint = ResolveViewpoint(item, rig);
         VRIK ik = rig.Slot.GetComponent<VRIK>();
         if (ik == null)
@@ -88,8 +88,8 @@ internal static class NativeAvatarCreation
                 ik.Solver.rightArm.WristToPalmAxis.Value, ik.Solver.rightArm.PalmToThumbAxis.Value,
                 Chirality.Right, "Right hand reference");
 
-            // The FBX's nested ObjectRoot would exclude sibling clothing/meshes.
-            // Let native creation own the complete imported prefab and its wrapper.
+
+
             for (Slot cursor = rig.Slot; cursor != envelope; cursor = cursor.Parent)
             {
                 if (cursor == null) throw new InvalidOperationException("The humanoid rig left its import session.");
@@ -100,10 +100,10 @@ internal static class NativeAvatarCreation
                 throw new InvalidOperationException("The native avatar root could not be bound to the complete imported prefab.");
 
             cancellationToken.ThrowIfCancellationRequested();
-            // No foot/pelvis tracker calibration was authored by Unity. Null uses
-            // the engine's default calibration instead of treating joints as trackers.
-            // Await native completion even if cancellation arrives: aborting the await
-            // could leave the engine mutating an envelope that cleanup has destroyed.
+
+
+
+
             var previousVisemeDrivers = envelope.GetComponentsInChildren<DirectVisemeDriver>().ToHashSet();
             var previousVisemeAnalyzers = envelope.GetComponentsInChildren<VisemeAnalyzer>().ToHashSet();
             var previousHeadSlots = envelope.GetComponentsInChildren<IAvatarObject>().Where(node => node.Node == BodyNode.Head)
@@ -119,9 +119,9 @@ internal static class NativeAvatarCreation
                 envelope.GetComponent<VRIKAvatar>() == null || envelope.GetComponent<AvatarGroup>() == null)
                 throw new InvalidOperationException("Native avatar creation did not finish. The import has not been released.");
 
-            // The native creator now owns the IK reference spaces. Retire only
-            // movement parents recorded by this prefab's import preparation,
-            // preserving authored slots, world transforms and renderer references.
+
+
+
             item.CompleteHumanoidHierarchy(envelope);
             AvatarVisemeRuntime.Apply(item, rig, envelope, previousVisemeDrivers, previousVisemeAnalyzers,
                 previousHeadSlots, authoredVisemeWeights, cancellationToken);
@@ -130,8 +130,8 @@ internal static class NativeAvatarCreation
                 await AvatarEyeLookRuntime.ApplyAsync(item, envelope, item.Manifest.Avatars[0].EyeLook, cancellationToken);
             }
 
-            // Native protection is attached to the root and renderers. Assign the
-            // importing user consistently before this object can leave staging.
+
+
             if (protectAvatar)
                 foreach (var protection in envelope.GetComponentsInChildren<SimpleAvatarProtection>())
                     protection.User.Target = envelope.World.LocalUser;
@@ -148,9 +148,9 @@ internal static class NativeAvatarCreation
     {
         var descriptors = item.Manifest?.Avatars
             .Select(definition => (Definition: definition, Root: ResolveDescriptorRoot(item, definition)))
-            // The importer can attach BipedRig either to the FBX child or to a
-            // prefab wrapper above the descriptor. Bone ownership identifies the
-            // descriptor correctly in both layouts.
+
+
+
             .Where(pair => pair.Root != null && Contains(pair.Root, rig[BodyNode.Head]) &&
                 Contains(pair.Root, rig[BodyNode.Hips]))
             .ToArray();
@@ -188,7 +188,7 @@ internal static class NativeAvatarCreation
             return (position, root.GlobalRotation);
         }
 
-        // Anatomical fallbacks when no authored viewpoint was resolved:
+
         Slot leftEye = rig.TryGetBone(BodyNode.LeftEye);
         Slot rightEye = rig.TryGetBone(BodyNode.RightEye);
 
@@ -260,8 +260,8 @@ internal static class NativeAvatarCreation
         if (hand == null || hand.IsDestroyed)
             throw new InvalidOperationException("The IK hand reference is missing. Use the native Avatar Creator to align the hands.");
 
-        // The axes are local to the solver hand, which can be an Aligned Hand
-        // slot rather than BipedRig's original wrist. Keep both in that space.
+
+
         floatQ handRotation = hand.GlobalRotation;
         var rotation = HandCalibration.GetReferenceRotation(
             new System.Numerics.Quaternion(handRotation.x, handRotation.y, handRotation.z, handRotation.w),
@@ -270,9 +270,9 @@ internal static class NativeAvatarCreation
         Slot reference = parent.AddSlot(name, false);
         reference.GlobalPosition = hand.GlobalPosition;
         reference.GlobalRotation = new floatQ(rotation.X, rotation.Y, rotation.Z, rotation.W);
-        // These are the engine AvatarCreator's default tool anchor positions.
-        // Plain calibration slots let native SetupAnchors create the real anchors
-        // without spawning the creator's editor widgets and display geometry.
+
+
+
         reference.AddSlot("Tooltip", false).LocalPosition = new float3(0f, 0f, 0.15f);
         reference.AddSlot("Grabber", false).LocalPosition = new float3(0f, -0.02f, 0.075f);
         reference.AddSlot("Shelf", false).LocalPosition = new float3(0f, 0.03f, 0.03f);

@@ -1,4 +1,4 @@
-"""Checks for package integrity and privacy before sealing the native UI bundle."""
+
 import hashlib
 import importlib.util
 import json
@@ -16,8 +16,8 @@ spec.loader.exec_module(bundle)
 
 class StationBundleTests(unittest.TestCase):
     def setUp(self):
-        # These tests isolate ZIP sealing; typed native reference fixtures are
-        # exercised by UITemplateTool --test-validation using the engine schema.
+
+
         patch = mock.patch.object(bundle, 'validate_native_packages')
         self.native_validator = patch.start()
         self.addCleanup(patch.stop)
@@ -166,7 +166,7 @@ class StationBundleTests(unittest.TestCase):
             self.assertEqual(error_zip.read('Assets/' + error_hash), error_main)
             self.assertNotIn('Assets/' + shared_hash, error_zip.namelist())
 
-        # Simulate re-exporting ONLY station.resonitepackage in-world while pre-import is already deduplicated.
+
         station_main_v2 = b'station root bson v2 after in-world UI edit'
         station_hash_v2 = hashlib.sha256(station_main_v2).hexdigest()
         (self.directory / 'station.ResonitePackage').unlink()
@@ -186,7 +186,7 @@ class StationBundleTests(unittest.TestCase):
             self.assertIn('Assets/' + pre_hash, pre_zip.namelist())
             self.assertNotIn('Assets/' + shared_hash, pre_zip.namelist())
 
-        # Re-export only the third template; all three still validate standalone.
+
         error_main_v2 = b'error report root bson v2 after UI edit'
         error_hash_v2 = hashlib.sha256(error_main_v2).hexdigest()
         (self.directory / 'error-report.ResonitePackage').unlink()

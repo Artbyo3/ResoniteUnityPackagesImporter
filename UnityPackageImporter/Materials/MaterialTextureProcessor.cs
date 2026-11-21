@@ -5,14 +5,14 @@ using Elements.Core;
 
 namespace UnityPackageImporter.Materials;
 
-/// <summary>Shared pixel-processing path. Decoding preserves source dimensions before any explicit resize policy.</summary>
+
 internal static class MaterialTextureProcessor
 {
     internal static void ProcessFile(string source, string destination, bool multiplyRgbByAlpha = false,
         TexturePixelTransform transform = null, Action checkCancellation = null)
     {
         checkCancellation?.Invoke();
-        // maxSize and sizeRatio are resizing parameters, not sentinel flags. Their defaults retain the source size.
+
         var bitmap = Bitmap2D.Load(source, generateMipmaps: false, alphaHandling: AlphaHandling.ForceRGBA);
         if (bitmap.Size.x <= 0 || bitmap.Size.y <= 0)
             throw new InvalidDataException("Decoded material texture has invalid dimensions.");

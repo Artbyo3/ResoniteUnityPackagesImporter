@@ -9,7 +9,7 @@ using System.Buffers.Binary;
 
 namespace UnityPackageImporter.Extractor;
 
-// Independent of the engine so archives can be tested without launching Resonite.
+
 public static class UnityPackageExtractor
 {
     private const string CompletionFile = ".unitypackage-complete-v2";
@@ -22,7 +22,7 @@ public static class UnityPackageExtractor
         CancellationToken cancellationToken = default, Action<int>? entriesObserved = null)
     {
         if (maxBytes <= 0 || maxEntries <= 0) throw new ArgumentOutOfRangeException(nameof(maxBytes));
-        // Serialize publication, including simultaneous imports of the same package.
+
         lock (ExtractionLock)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -48,7 +48,7 @@ public static class UnityPackageExtractor
                     cancellationToken.ThrowIfCancellationRequested();
                     var asset = Path.Combine(dir, "asset");
                     var pathname = Path.Combine(dir, "pathname");
-                    // Unity also serializes folders, which have no asset payload.
+
                     if (!File.Exists(asset)) continue;
                     if (!File.Exists(pathname)) throw new InvalidDataException("An asset has no pathname.");
                     if (new FileInfo(pathname).Length > 32768)
@@ -58,7 +58,7 @@ public static class UnityPackageExtractor
                     relative = Path.GetRelativePath(content, destination);
                     CopyAsset(asset, destination, relative, relativeFiles, destinations);
                     var meta = Path.Combine(dir, "asset.meta");
-                    // Cache contents must not depend on current import options.
+
                     if (File.Exists(meta))
                         CopyAsset(meta, destination + ".meta", relative + ".meta", relativeFiles, destinations);
                 }
@@ -66,7 +66,7 @@ public static class UnityPackageExtractor
                 File.WriteAllLines(Path.Combine(content, CompletionFile), relativeFiles.Select(path =>
                     new FileInfo(Path.Combine(content, path)).Length + "\t" + path));
                 cancellationToken.ThrowIfCancellationRequested();
-                // Never publish a partially extracted cache.
+
                 if (Directory.Exists(outputDir))
                 {
                     RejectReparsePoints(outputDir);
@@ -96,7 +96,7 @@ public static class UnityPackageExtractor
             try { path = AssetPath(root, line[(split + 1)..]); }
             catch (InvalidDataException)
             {
-                // Invalid asset path in marker indicates corrupted cache; safely treat as uncompleted.
+
                 return false;
             }
             RejectReparsePoints(path);
@@ -150,7 +150,7 @@ public static class UnityPackageExtractor
                     throw new InvalidDataException($"Unsupported archive entry type: {entry.EntryType}");
             }
         }
-        // Tar ends before gzip's trailer. Consume it to check CRC/truncation too.
+
         byte[] buffer = new byte[65536];
         while (bounded.Read(buffer) != 0) { }
         if (bounded.BytesRead < 512) throw PackageInputFormat.Error(PackageInputFailure.Corrupted);
@@ -175,8 +175,8 @@ public static class UnityPackageExtractor
         uint expectedCrc = BinaryPrimitives.ReadUInt32LittleEndian(footer);
         uint expectedBytes = BinaryPrimitives.ReadUInt32LittleEndian(footer[4..]);
         if (unchecked((uint)bytes) == expectedBytes && checksum == expectedCrc) return;
-        // Concatenated gzip members are valid. The final trailer describes only
-        // the final member, so validate its suffix without buffering package data.
+
+
         for (long suffix = expectedBytes; suffix <= bytes; suffix += 1L << 32)
         {
             token.ThrowIfCancellationRequested();
@@ -238,7 +238,7 @@ public static class UnityPackageExtractor
                 throw new IOException($"Cache path contains a link or reparse point: {current}");
     }
 
-    // Bound decompressed bytes (including headers) and allow cancellation during large files.
+
     private sealed class BoundedReadStream(Stream inner, long limit, CancellationToken cancellationToken) : Stream
     {
         private long read;

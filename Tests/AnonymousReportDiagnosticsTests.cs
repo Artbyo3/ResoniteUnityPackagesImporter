@@ -22,6 +22,169 @@ internal static class AnonymousReportDiagnosticsTests
 
     internal static void Register(Action<string, Action> test)
     {
+        foreach (var reason in new[] { ReportFailureReason.PrefabExpansionUnsupported, ReportFailureReason.PrefabParentMissing,
+            ReportFailureReason.PrefabParentUnresolved, ReportFailureReason.PrefabInstanceUnresolved,
+            ReportFailureReason.PrefabTargetUnresolved, ReportFailureReason.HierarchyGameObjectUnresolved,
+            ReportFailureReason.HierarchyParentMissing, ReportFailureReason.HierarchyParentUnresolved,
+            ReportFailureReason.SerializedSkinSourceUnsupported, ReportFailureReason.ModelSourceMissing,
+            ReportFailureReason.ModelTemplateUnavailable, ReportFailureReason.SkinRendererUnresolved,
+            ReportFailureReason.ModelImportInterrupted, ReportFailureReason.NativeMaterialMappingFailed,
+            ReportFailureReason.SerializedSkinDecodeRejected })
+            test("Explicit source failure reason survives anonymous capture: " + reason, () =>
+            {
+                var original = new InvalidDataException("synthetic-private-asset C:\\Users\\synthetic-account\\private.fbx");
+                var tagged = ReportFailureDetails.Tag(original, reason);
+                var captured = ImportFailureReport.CaptureExceptions(tagged, out bool truncated);
+                Check(ReferenceEquals(original, tagged) && captured.Count == 1 && !truncated && captured[0].Reason == reason,
+                    "Tagging must preserve exception identity and its exact typed reason.");
+                string report = ImportFailureReport.Build(StructuredImportReportTests.Sample() with { Exceptions = captured }, new ReportSanitizer());
+                Check(report.Contains("Reason: " + reason) && !report.Contains("synthetic-private") && !report.Contains("synthetic-account"),
+                    "The fixed diagnostic was lost or exposed raw source text.");
+            });
+        test("Untyped reconstruction text is not guessed into a specific diagnosis", () =>
+        {
+            var error = new InvalidDataException("Engine model import was interrupted. PrefabParentMissing");
+            Check(ReportFailureDetails.Classify(error) == ReportFailureReason.InvalidStructuredData, "Raw text was treated as authoritative evidence.");
+        });
+        test("Unknown or invalid explicit diagnostic tags are rejected", () =>
+        {
+            foreach (var reason in new[] { ReportFailureReason.Unknown, (ReportFailureReason)int.MaxValue })
+            {
+                bool rejected = false;
+                try { ReportFailureDetails.Tag(new InvalidOperationException(), reason); }
+                catch (ArgumentOutOfRangeException) { rejected = true; }
+                Check(rejected, "An invalid explicit diagnosis was accepted.");
+            }
+        });
+        foreach (var source in new (bool Included, string? Extension, ReportFailureReason Reason)[] {
+            (false, ".asset", ReportFailureReason.ModelSourceMissing),
+            (true, ".asset", ReportFailureReason.SerializedSkinSourceUnsupported),
+            (true, ".ASSET", ReportFailureReason.SerializedSkinSourceUnsupported),
+            (true, ".fbx", ReportFailureReason.ModelTemplateUnavailable),
+            (true, null, ReportFailureReason.ModelTemplateUnavailable) })
+            test($"Missing skin template classifies indexed source {source.Included} {source.Extension}", () =>
+                Check(ReportFailureDetails.MissingSkinSource(source.Included, source.Extension) == source.Reason,
+                    "An included serialized skin source was misdiagnosed as a missing dependency."));
+        test("Failure totals preserve a rare cause after the detailed sample limit", () =>
+        {
+            var context = new ImportReportContext(StructuredImportReportTests.Sample().Environment, Array.Empty<string>());
+            var common = new ReportException("InvalidDataException", null, Array.Empty<string>(), ReportFailureReason.SerializedSkinSourceUnsupported);
+            for (int index = 0; index < 100; index++)
+                context.ObjectFailed(new(ReportObjectType.SkinnedMeshRenderer, 137, index + 1, "private-mesh", Exceptions: new[] { common }));
+            var before = context.Capture(null, null);
+            context.ObjectFailed(new(ReportObjectType.Transform, 4, 1001, "private-transform", Exceptions: new[] {
+                common with { Reason = ReportFailureReason.HierarchyParentMissing } }));
+            var after = context.Capture(null, null);
+            Check(after.SourceFailures == 101 && after.SourceFailureDetails.Count == 32 && after.SourceFailureGroups!.Sum(group => group.Count) == 101,
+                "Failure counts were lost or detailed samples became unbounded.");
+            Check(before.SourceFailureGroups!.Count == 1 && before.SourceFailureGroups[0].Count == 100 && after.SourceFailureGroups.Count == 2,
+                "A later update mutated an earlier snapshot or lost the rare group.");
+            string report = ImportFailureReport.Build(after, new ReportSanitizer());
+            Check(report.Contains("Transform; reason HierarchyParentMissing; count 1") &&
+                report.Contains("SkinnedMeshRenderer; reason SerializedSkinSourceUnsupported; count 100") &&
+                !report.Contains("private-mesh") && !report.Contains("private-transform"), "Anonymous group totals lost rare evidence or leaked names.");
+        });
+        test("Concurrent failure grouping keeps exact totals independently of sample limits", () =>
+        {
+            var context = new ImportReportContext(StructuredImportReportTests.Sample().Environment, Array.Empty<string>());
+            Parallel.For(0, 200, index => context.ObjectFailed(new(ReportObjectType.Transform, 4, index + 1)));
+            var data = context.Capture(null, null);
+            Check(data.SourceFailureGroups!.Single() == new ReportSourceFailureGroup(ReportObjectType.Transform, ReportFailureReason.Unknown, 200) &&
+                data.SourceFailures == 200 && data.SourceFailureDetails.Count == 32, "Concurrent aggregation lost failures.");
+        });
+        test("Invalid enum values cannot create unbounded failure group keys", () =>
+        {
+            var context = new ImportReportContext(StructuredImportReportTests.Sample().Environment, Array.Empty<string>());
+            for (int index = 1; index <= 40; index++) context.ObjectFailed(new((ReportObjectType)(1000 + index), null, index,
+                Exceptions: new[] { new ReportException("Exception", null, Array.Empty<string>(), (ReportFailureReason)(1000 + index)) }));
+            Check(context.Capture(null, null).SourceFailureGroups!.Single() == new ReportSourceFailureGroup(ReportObjectType.Other, ReportFailureReason.Unknown, 40),
+                "Unknown external enum values created arbitrary aggregation keys.");
+        });
+        test("Local log correlates report snapshots without exposing session tokens in shareable reports", () =>
+        {
+            var context = new ImportReportContext(StructuredImportReportTests.Sample().Environment, new[] { "private-package" });
+            var first = context.Capture(null, null); var second = context.Capture(null, null);
+            string local = ImportFailureReport.LocalLogSummary(first);
+            Check(local.Contains(first.ReportId.ToString("N")) && local.Contains(context.SessionId.ToString("N")) &&
+                ImportFailureReport.LocalLogSummary(second).Contains(context.SessionId.ToString("N")) &&
+                !local.Contains("private-package"), "The local log lost safe correlation or exposed a package name.");
+            string shared = ImportFailureReport.Build(first, new ReportSanitizer());
+            Check(!shared.Contains(context.SessionId.ToString("N")) && !shared.Contains(first.Time.ToUniversalTime().ToString("O")),
+                "Local-only correlation or exact time escaped into the shareable report.");
+        });
+        test("Local item correlation explains readiness without adding names to shareable reports", () =>
+        {
+            var data = StructuredImportReportTests.Sample();
+            var result = data.Result! with { StructureReady = false, NativeReadiness = NativeAvatarReadiness.Ready,
+                Issues = new[] { ImportResultIssue.OwnershipUnresolved, ImportResultIssue.UnsupportedNestedPrefabs } };
+            data = data with { Result = result, IncludeNames = false };
+            string local = ImportFailureReport.LocalItemSummary(data, "private-avatar\r\nlocal-label");
+            Check(local.Contains("private-avatar  local-label") && local.Contains(data.ReportId.ToString("N")) &&
+                local.Contains("native readiness: Ready") && local.Contains("OwnershipUnresolved") && !local.Contains('\n') && !local.Contains('\r'),
+                "Local item attribution lost the exact report, gate reasons or single-line boundary.");
+            string shared = ImportFailureReport.Build(data, new ReportSanitizer());
+            Check(!shared.Contains("private-avatar") && !shared.Contains("local-label"), "Local-only item identity escaped into the shareable report.");
+        });
+        test("Local item correlation preserves an unavailable result snapshot as unknown", () =>
+        {
+            string local = ImportFailureReport.LocalItemSummary(Sample() with { Result = null }, "synthetic-item");
+            Check(local.Contains("structure ready: unknown") && local.Contains("native readiness: unknown") && local.Contains("issues: unknown"),
+                "An unavailable snapshot was represented as ready or successfully reconstructed.");
+        });
+        test("Native material mapping success preserves the exact result and leaves no failure", () =>
+        {
+            var state = new ModelImportFailureState(); var expected = new object();
+            Check(ReferenceEquals(state.MapMaterial(() => expected), expected) && state.MaterialFailure == null,
+                "Instrumentation changed a successful material mapping.");
+        });
+        test("Native material mapping failure retains original identity type and stack through interruption", () =>
+        {
+            var state = new ModelImportFailureState();
+            var original = new NullReferenceException("private-native-material");
+            bool rethrown = false;
+            try { state.MapMaterial<object>(() => throw original); }
+            catch (NullReferenceException error) { rethrown = ReferenceEquals(error, original); }
+            var captured = ImportFailureReport.CaptureExceptions(state.Interrupted(), out _);
+            Check(rethrown && ReferenceEquals(state.MaterialFailure, original) && ReferenceEquals(state.Interrupted(), original) &&
+                captured.Single().Type == nameof(NullReferenceException) && captured.Single().Reason == ReportFailureReason.NativeMaterialMappingFailed &&
+                captured.Single().Methods.Any(method => method.Contains(nameof(ModelImportFailureState))),
+                "A known native failure was replaced with a generic interruption or lost its caller.");
+        });
+        test("Native material fault capture does not invent a cause for unexplained interruption", () =>
+        {
+            var state = new ModelImportFailureState();
+            Check(ReportFailureDetails.Classify(state.Interrupted()) == ReportFailureReason.ModelImportInterrupted && state.MaterialFailure == null,
+                "An unexplained interruption was attributed to a material failure.");
+        });
+        test("Native cancellation remains cancellation and is not recorded as a mapper fault", () =>
+        {
+            var state = new ModelImportFailureState();
+            var original = new OperationCanceledException(); bool rethrown = false;
+            try { state.MapMaterial<object>(() => throw original); }
+            catch (OperationCanceledException error) { rethrown = ReferenceEquals(error, original); }
+            Check(rethrown && state.MaterialFailure == null, "Cancellation was misclassified or swallowed.");
+        });
+        test("Native material fault states isolate concurrent model imports", () =>
+        {
+            var failed = new ModelImportFailureState(); var other = new ModelImportFailureState();
+            var original = new InvalidOperationException();
+            try { failed.MapMaterial<object>(() => throw original); }
+            catch (InvalidOperationException error) { Check(ReferenceEquals(error, original), "Mapper exception identity changed."); }
+            Check(other.MaterialFailure == null && ReportFailureDetails.Classify(other.Interrupted()) == ReportFailureReason.ModelImportInterrupted,
+                "A failure from one model was assigned to another model.");
+        });
+        test("Concurrent native material faults keep one original cause without replacing it", () =>
+        {
+            var state = new ModelImportFailureState();
+            var errors = Enumerable.Range(0, 32).Select(_ => new InvalidOperationException()).ToArray();
+            Parallel.ForEach(errors, original =>
+            {
+                try { state.MapMaterial<object>(() => throw original); }
+                catch (InvalidOperationException error) { Check(ReferenceEquals(original, error), "Mapper rethrew a different exception."); }
+            });
+            Check(errors.Any(error => ReferenceEquals(error, state.MaterialFailure)) && ReferenceEquals(state.Interrupted(), state.MaterialFailure),
+                "Fault attribution was not stable across concurrent callbacks.");
+        });
         const string idError = "Error importing file: FBX-Parser (TOK_DATA, offset 0x20) failed to parse ID, unexpected data type, expected L(ong) (binary)";
         test("Native FBX ID-type failure preserves its technical meaning without raw text", () =>
         {

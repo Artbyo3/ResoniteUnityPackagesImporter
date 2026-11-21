@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,10 +12,10 @@ using UnityPackageImporter.FrooxEngineRepresentation;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>
-/// Executes a validated AvatarBuildPlan on the staged FrooxEngine slots
-/// before native humanoid and avatar creation take ownership.
-/// </summary>
+
+
+
+
 public static class AvatarBuildPlanExecutor
 {
     public static async Task ExecutePlanAsync(
@@ -51,6 +52,8 @@ public static class AvatarBuildPlanExecutor
             return;
         }
         var modelBones = await ReadModelBonesAsync(unityObjects, cancellationToken);
+        await ReadAuthoredModelBonesAsync(modelBones, manifest?.Avatars ?? Array.Empty<VrcAvatarDefinition>(),
+            unityObjects, importer, cancellationToken);
         var mergeRoots = plan.Operations.OfType<ArmatureMergeOperation>()
             .Select(operation => ResolveObjectSlot(operation.SourceArmatureRootFileId, unityObjects))
             .Where(slot => slot != null).ToHashSet();
@@ -104,7 +107,7 @@ public static class AvatarBuildPlanExecutor
     {
         await default(ToWorld);
 
-        // 1. Resolve source armature slot
+
         Slot sourceSlot = ResolveObjectSlot(merge.SourceArmatureRootFileId, unityObjects);
 
         if (sourceSlot == null)
@@ -116,7 +119,7 @@ public static class AvatarBuildPlanExecutor
             return;
         }
 
-        // Resolve the same declared-target contract for merges and attachments.
+
         Slot targetSlot = AvatarTargetResolution.Resolve(merge, avatarRootSlot,
             id => ResolveObjectSlot(id, unityObjects),
             bone => FindBoneInAvatar(avatarRootSlot, ModularAvatarAttachmentInstaller.MapUnityHumanoidBone(bone), sourceSlot, modelBones),
@@ -125,9 +128,17 @@ public static class AvatarBuildPlanExecutor
 
         if (!ValidateResolvedSlots(merge, avatarRootSlot, sourceSlot, targetSlot)) return;
 
+        float scaleFactor = 1;
+        if (merge.UseAutomaticRootScaleRatio &&
+            !VrcFuryArmatureSemantics.TryAutomaticRootScaleRatio(sourceSlot.GlobalScale.x, targetSlot.GlobalScale.x, out scaleFactor))
+        {
+            merge.AddDiagnostic(AvatarOperationSeverity.Error, "Automatic armature scaling requires finite nonzero source and target root scales and a representable positive ratio.", "VRCFURY_INVALID_AUTOMATIC_SCALE");
+            return;
+        }
+
         UnityPackageImporter.Msg($"Merging armature from '{sourceSlot.Name}' into '{targetSlot.Name}' (Source: {merge.Source.Framework})");
 
-        // 3. Build hierarchy nodes and plan merge
+
         var sourceSlotMap = new Dictionary<string, Slot>(StringComparer.Ordinal);
         var targetSlotMap = new Dictionary<string, Slot>(StringComparer.Ordinal);
         var sourceNode = BoneAttachmentHierarchy.Snapshot(sourceSlot, slot => slot.Children,
@@ -152,11 +163,22 @@ public static class AvatarBuildPlanExecutor
         var transfer = SkinBindingTransfer.Plan(boneMap.Select(pair => (pair.Key, pair.Value)), IsWithin);
         var originalTransforms = transfer.ToDictionary(pair => pair.Source,
             pair => (Position: pair.Source.GlobalPosition, Rotation: pair.Source.GlobalRotation, Scale: pair.Source.GlobalScale));
+        var targetTransforms = transfer.ToDictionary(pair => pair.Source,
+            pair => (Position: pair.Target.GlobalPosition, Rotation: pair.Target.GlobalRotation,
+                Scale: merge.UseAutomaticRootScaleRatio ? pair.Target.GlobalScale * scaleFactor : pair.Target.GlobalScale));
+        if (merge.UseAutomaticRootScaleRatio && targetTransforms.Values.Any(transform =>
+            !float.IsFinite(transform.Scale.x) || !float.IsFinite(transform.Scale.y) || !float.IsFinite(transform.Scale.z) ||
+            transform.Scale.x == 0 || transform.Scale.y == 0 || transform.Scale.z == 0))
+        {
+            merge.AddDiagnostic(AvatarOperationSeverity.Error, "Automatic armature scaling produced a nonfinite or singular target scale; no bones were moved.", "VRCFURY_INVALID_AUTOMATIC_SCALE");
+            return;
+        }
         SkinBindingTransfer.Apply(transfer, (source, target) =>
         {
             cancellationToken.ThrowIfCancellationRequested();
             var desired = VrcFuryArmatureSemantics.SelectWorldTransform(originalTransforms[source],
-                (target.GlobalPosition, target.GlobalRotation, target.GlobalScale), merge.AlignPosition, merge.AlignRotation, merge.AlignScale);
+                merge.UseAutomaticRootScaleRatio ? targetTransforms[source] : (target.GlobalPosition, target.GlobalRotation, target.GlobalScale),
+                merge.AlignPosition, merge.AlignRotation, merge.AlignScale);
             source.GlobalPosition = desired.Position;
             source.GlobalRotation = desired.Rotation;
             source.GlobalScale = desired.Scale;
@@ -176,7 +198,7 @@ public static class AvatarBuildPlanExecutor
     {
         await default(ToWorld);
 
-        // 1. Resolve source slot
+
         Slot sourceSlot = ResolveObjectSlot(attach.SourceObjectFileId, unityObjects);
 
         if (sourceSlot == null)
@@ -188,7 +210,7 @@ public static class AvatarBuildPlanExecutor
             return;
         }
 
-        // Resolve the same declared-target contract for merges and attachments.
+
         Slot targetSlot = AvatarTargetResolution.Resolve(attach, avatarRootSlot,
             id => ResolveObjectSlot(id, unityObjects),
             bone => FindBoneInAvatar(avatarRootSlot, ModularAvatarAttachmentInstaller.MapUnityHumanoidBone(bone), sourceSlot, modelBones),
@@ -270,6 +292,57 @@ public static class AvatarBuildPlanExecutor
         return result;
     }
 
+    private static async Task ReadAuthoredModelBonesAsync(ModelBoneIndex<Slot> modelBones,
+        IReadOnlyList<VrcAvatarDefinition> avatars, IReadOnlyDictionary<ulong, IUnityObject> unityObjects,
+        IUnityStructureImporter importer, CancellationToken cancellationToken)
+    {
+        if (avatars.Count == 0) return;
+        await default(ToBackground);
+        string yaml = importer switch
+        {
+            UnityPrefabImportTask prefab => prefab.ComposedYaml,
+            UnitySceneImportTask scene => scene.ComposedYaml,
+            _ => File.ReadAllText(importer.ID.Value)
+        };
+        var declarations = new List<(long RootId, string Guid, ParsedModelMeta Metadata)>();
+        foreach (var avatar in avatars)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!AuthoredHumanoidTargets.ReadAvatarGuid(yaml, avatar.GameObjectFileId, out string guid)) continue;
+            ParsedModelMeta metadata = null;
+            if (guid != null && !importer.unityProjectImporter.ConflictedGuids.Contains(guid, StringComparer.OrdinalIgnoreCase) &&
+                importer.unityProjectImporter.AssetIDDict.TryGetValue(guid, out string path) &&
+                string.Equals(Path.GetExtension(path), ".fbx", StringComparison.OrdinalIgnoreCase) && File.Exists(path))
+                metadata = ModelMetaParser.ParseFile(path + UnityPackageImporter.UNITY_META_EXTENSION);
+            declarations.Add((avatar.GameObjectFileId, guid, metadata));
+        }
+        await default(ToWorld);
+        foreach (var declaration in declarations)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Slot root = ResolveObjectSlot(declaration.RootId, unityObjects);
+            if (root == null || root.IsDestroyed || unityObjects.Values
+                .OfType<FrooxEngineRepresentation.GameObjectTypes.PrefabInstance>()
+                .Any(instance => instance.ImportRoot?.frooxEngineSlot == root)) continue;
+            var targets = declaration.Metadata == null ? new Dictionary<string, Slot>() :
+                AuthoredHumanoidTargets.Resolve(root, declaration.Guid, declaration.Metadata,
+                    slot => slot.Children.Where(child => !child.IsDestroyed), slot => slot.Name);
+            var mapped = new Dictionary<BodyNode, Slot>();
+            foreach (var target in targets)
+            {
+                BodyNode node = MetaDataFile.HumanoidNameToEnum(target.Key);
+                if (node == BodyNode.NONE) continue;
+                if (!mapped.TryAdd(node, target.Value)) mapped[node] = null;
+            }
+            foreach (BodyNode node in Enum.GetValues<BodyNode>())
+            {
+                if (node == BodyNode.NONE) continue;
+                mapped.TryGetValue(node, out Slot bone);
+                modelBones.Add(root, (int)node, bone);
+            }
+        }
+    }
+
     private static Slot FindBoneInAvatar(Slot avatarRoot, BodyNode node, Slot excludedSource,
         ModelBoneIndex<Slot> modelBones)
     {
@@ -283,8 +356,8 @@ public static class AvatarBuildPlanExecutor
             return mapped;
 
         string boneName = node.ToString();
-        // Before humanoid setup, accept a unique named bone outside the source.
-        // Multiple candidates must fail resolution rather than pick by traversal order.
+
+
         var candidates = new List<Slot>();
         CollectNamedSlots(avatarRoot, boneName, excludedSource, candidates);
         return candidates.Count == 1 ? candidates[0] : null;

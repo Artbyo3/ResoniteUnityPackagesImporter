@@ -17,7 +17,7 @@ internal static class LocalizationManager
     private const string ResourcePrefix = "UnityPackageImporter.Localization.";
     private const string KeyPrefix = "UI.Artbyo3.UnityPackageImporter.";
 
-    // localeCode -> (key -> messagePattern)
+
     private static readonly Dictionary<string, Dictionary<string, string>> Messages = new(StringComparer.OrdinalIgnoreCase);
     private static volatile IReadOnlyDictionary<string, IReadOnlyDictionary<string, string>> Snapshot =
         new Dictionary<string, IReadOnlyDictionary<string, string>>(StringComparer.OrdinalIgnoreCase);
@@ -281,7 +281,7 @@ internal static class LocalizationManager
         }
         catch (Exception)
         {
-            // Settings system may not be initialized yet; safely fall back to Userspace component.
+
         }
 
         try
@@ -305,7 +305,7 @@ internal static class LocalizationManager
         }
         catch (Exception)
         {
-            // Userspace world may be unavailable or destroyed; safely fall back to system culture.
+
         }
 #endif
 
@@ -326,7 +326,7 @@ internal static class LocalizationManager
         }
         catch (Exception)
         {
-            // System culture lookup failed; safely fall back to default English.
+
         }
 
         return "en";
@@ -349,15 +349,15 @@ internal static class LocalizationManager
             }
             catch (FormatException)
             {
-                // Return unformatted template if format string arguments do not match.
+
                 return template;
             }
         }
         return template;
     }
 
-    // A freshly loaded template has no selection or progress arguments yet.
-    // Do not show format tokens (or an unknown key) while that state is pending.
+
+
     public static bool TryGetStaticStringForLocale(string localeCode, string key, out string text)
     {
         text = "";
@@ -371,7 +371,7 @@ internal static class LocalizationManager
         }
         catch (FormatException)
         {
-            // Template contains invalid or unsatisfied format tokens; safely report not static.
+
             return false;
         }
     }
@@ -402,7 +402,7 @@ internal static class LocalizationManager
             }
         }
 
-        // Fallback to "en" if not found in requested locale
+
         if (template == null && !normalized.Equals("en", StringComparison.OrdinalIgnoreCase) && snapshot.TryGetValue("en", out var enDict))
         {
             enDict.TryGetValue(KeyPrefix + key, out template);

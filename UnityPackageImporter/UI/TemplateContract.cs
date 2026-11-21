@@ -8,7 +8,7 @@ using System.Text.Json;
 
 namespace UnityPackageImporter.UI;
 
-// No world RefIDs are persisted here. A contract is versioned alongside its native package.
+
 public sealed class TemplateContract
 {
     public int SchemaVersion { get; set; }

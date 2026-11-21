@@ -6,7 +6,7 @@ namespace UnityPackageImporter.UI;
 
 internal static class NativeButtonEvents
 {
-    // Publicizer exposes both the CLR event and its backing field with the same name.
+
     public static void Pressed(Button button, ButtonEventHandler handler)
     {
         var addMethod = FrooxInternalBridge.LocalPressedAddMethod;

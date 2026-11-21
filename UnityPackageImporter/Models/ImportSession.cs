@@ -7,8 +7,8 @@ using FrooxEngine;
 
 namespace UnityPackageImporter.Models;
 
-// A global, hidden staging hierarchy. Parenting under LocalUserSpace is NOT local-only.
-// Completed outputs remain global objects; no reference-ID promotion is assumed.
+
+
 internal sealed class ImportSession
 {
     private static readonly ConditionalWeakTable<Slot, ImportSession> Sessions = new();
@@ -75,9 +75,9 @@ internal sealed class ImportSession
 
     private void RetainAssets()
     {
-        // Committed outputs must survive even a manual destruction of the entire
-        // session root. Preserve provider identity so caches and later variants
-        // continue sharing assets. Cleanup prunes unused providers afterwards.
+
+
+
         if (retainedAssets) return;
         Assets.SetParent(world.AssetsSlot, true);
         Assets.PersistentSelf = true;
@@ -105,8 +105,8 @@ internal sealed class ImportSession
     public Slot Commit(PreparedImportItem item)
     {
         Check();
-        // The commit boundary repeats structural validation after asynchronous
-        // native setup. Native readiness is consumed by creation, not by release.
+
+
         item.ReadResult().Require(ImportOutputAction.KeepObject);
         var source = item.CurrentStructureRootSlot;
         var envelope = Envelope(source);
@@ -116,7 +116,7 @@ internal sealed class ImportSession
         return envelope;
     }
 
-    // Called on the world context. Reentrant close / external deletion share one cleanup.
+
     private readonly object cleanupLock = new();
     public Task CleanupAsync()
     {

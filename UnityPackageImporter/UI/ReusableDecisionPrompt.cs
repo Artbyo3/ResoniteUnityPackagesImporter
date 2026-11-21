@@ -21,7 +21,7 @@ internal sealed record DecisionPromptKeys(
     string SecondaryChoiceKey,
     string DismissChoiceKey);
 
-/// <summary>Reusable content and actions for the station's native two-choice decision prompt.</summary>
+
 internal sealed class ReusableDecisionPrompt
 {
     private readonly Action<string, string, string> setLocalized;

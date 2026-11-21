@@ -8,7 +8,7 @@ using YamlDotNet.Serialization;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>Reads each Unity document's identity from its own root anchor.</summary>
+
 public static class UnityYamlDocumentParser
 {
     public static Dictionary<ulong, T> Parse<T>(string yaml, IDeserializer deserializer, Action<ulong, int?>? documentClass = null)
@@ -37,7 +37,7 @@ public static class UnityYamlDocumentParser
                 throw new InvalidDataException("Unity YAML document must have a nonzero numeric root anchor.");
             }
 
-            // Deserialization errors must fail the import, rather than publish a partial object graph.
+
             string tag = root.Tag.IsEmpty ? "" : root.Tag.Value;
             int delimiter = Math.Max(tag.LastIndexOf(':'), tag.LastIndexOf('!'));
             int? classId = int.TryParse(tag[(delimiter + 1)..], NumberStyles.None, CultureInfo.InvariantCulture, out int parsedClass) ? parsedClass : null;

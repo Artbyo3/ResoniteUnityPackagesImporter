@@ -34,7 +34,7 @@ public sealed class MergePlanConflict
     public string Message { get; init; } = "";
 }
 
-/// <summary>Framework-neutral attachment operations. Adapters preserve their own matching semantics.</summary>
+
 public sealed class BoneAttachmentPlan
 {
     public IReadOnlyList<MergeBoneMapping> Mappings { get; init; } = Array.Empty<MergeBoneMapping>();

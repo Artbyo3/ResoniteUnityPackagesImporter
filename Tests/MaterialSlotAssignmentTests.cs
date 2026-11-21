@@ -4,6 +4,21 @@ internal static class MaterialSlotAssignmentTests
 {
     internal static void Register(Action<string, Action> test, Action<bool, string> check)
     {
+        test("Serialized skin material padding preserves null slots before later overrides", () =>
+        {
+            var slots = new List<string>();
+            MaterialSlotAssignment.EnsureSlotCount(slots, 3, () => "fallback");
+            slots[1] = "override";
+            check(slots.SequenceEqual(new[] { "fallback", "override", "fallback" }), "Override shifted over an unassigned slot.");
+        });
+        test("Serialized skin material padding retains existing slots and is idempotent", () =>
+        {
+            var slots = new List<string> { "authored" };
+            MaterialSlotAssignment.EnsureSlotCount(slots, 3, () => "fallback");
+            MaterialSlotAssignment.EnsureSlotCount(slots, 3, () => throw new Exception("Duplicate fallback."));
+            MaterialSlotAssignment.EnsureSlotCount(slots, 1, () => throw new Exception("Unexpected fallback."));
+            check(slots.SequenceEqual(new[] { "authored", "fallback", "fallback" }), "Material slots were truncated or replaced.");
+        });
         test("Material index inside the list replaces an existing slot", () =>
             check(MaterialSlotAssignment.ReplacesExistingSlot(1, 3), "An existing slot must be replaced."));
         test("Material index equal to Count appends", () =>

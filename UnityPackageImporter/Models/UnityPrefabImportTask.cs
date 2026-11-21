@@ -40,6 +40,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
         (Manifest?.HasUnsupportedVrcFuryFeatures ?? false) || (ConversionPlan?.HasErrors ?? false));
     internal PreparedImportItem PreparedItem { get; private set; }
     internal string ComposedYaml { get; private set; }
+    internal AuthoredAppearanceSnapshot AppearanceSnapshot { get; private set; }
     internal IReadOnlyDictionary<long, InitialAppearanceRenderer> AuthoredAppearanceRenderers { get; private set; } =
         new Dictionary<long, InitialAppearanceRenderer>();
     public UnityProjectImporter unityProjectImporter { get; set; }
@@ -51,14 +52,6 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
         this.GlobalIndicatorPosition = globalPosition;
         this.GlobalIndicatorRotation = globalRotation ?? floatQ.Identity;
     }
-
-    private static int ModelClassId(IUnityObject value) => value switch
-    {
-        FrooxEngineRepresentation.GameObjectTypes.GameObject => 1,
-        FrooxEngineRepresentation.GameObjectTypes.Transform => 4,
-        FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer => 137,
-        _ => 0
-    };
 
     public async Task StartImport()
     {
@@ -89,20 +82,9 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
 
 
             progressIndicator?.UpdateProgress(0f, "", "now loading unity YAML objects for Prefab.");
-            var modelObjects = unityProjectImporter.SharedImportedFBXScenes.ToDictionary(pair => pair.Key,
-                pair => (IReadOnlyDictionary<long, int>)pair.Value.FILEID_To_Slot_Pairs
-                    .Select(entry => (FileId: entry.Key.fileID, ClassId: ModelClassId(entry.Value)))
-                    .Concat(pair.Value.StaticRendererIdentities())
-                    .GroupBy(entry => entry.FileId).ToDictionary(group => group.Key,
-                        group => group.Select(entry => entry.ClassId).Distinct().Single()), StringComparer.OrdinalIgnoreCase);
-            foreach (var model in modelObjects.Values.Cast<Dictionary<long, int>>())
-            {
-                model.TryAdd(919132149155446097, 1);
-                model.TryAdd(-8679921383154817045, 4);
-            }
             var compositionDiagnostics = new PrefabCompositionDiagnostics();
-            string composedYaml = ComposedYaml = UnityPrefabComposer.Compose(File.ReadAllText(ID.Value),
-                unityProjectImporter.ListOfPrefabs, modelObjects, compositionDiagnostics);
+            string composedYaml = ComposedYaml = UnityStructureComposition.Read(ID.Value,
+                unityProjectImporter, compositionDiagnostics);
             deferredMissingAliases.UnionWith(compositionDiagnostics.DeferredMissingAliases.Select(id => unchecked((ulong)id)));
             if (compositionDiagnostics.MaterializedLocalObjects.Count > 0)
                 UnityPackageImporter.Warn($"Reconstructing {compositionDiagnostics.MaterializedLocalObjects.Count} fully serialized local objects whose source-prefab assets are unavailable; source warnings are retained.");
@@ -131,14 +113,14 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
             }
             totalProgress = Math.Max(totalProgress, 1);
 
-            // Some debugging for the user to show them it worked or failed.
+
 
             UnityPackageImporter.Msg("Loaded " + existingIUnityObjects.Count.ToString() + " Unity objects/components/meshes for prefab!");
 
             await default(ToWorld);
             int counter = 0;
             int progress = 0;
-            // Instanciate our objects to generate our prefab entirely, using the ids we assigned ealier to identify our prefab elements in our list.
+
             foreach (KeyValuePair<ulong,IUnityObject> obj in existingIUnityObjects)
             {
                 unityProjectImporter.Session?.Check();
@@ -212,7 +194,7 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
             }
 
             UnityPackageImporter.Msg("Moving orphaned objects");
-            // Getting rid of objects that should go under the prefab slot.
+
             foreach (var obj in movethese)
             {
                 FrooxEngineRepresentation.GameObjectTypes.GameObject gameobj = obj as FrooxEngineRepresentation.GameObjectTypes.GameObject;
@@ -223,19 +205,21 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
 
             UnityPackageImporter.Msg("Yaml generation done");
 
-            // Milestone 1: Unified Avatar Conversion Architecture
+
             if (avatarManifest != null)
             {
                 ConversionPlan = AvatarBuildPlanner.CreatePlan(avatarManifest, Path.GetFileName(ID.Value));
                 if (avatarManifest.IsModularAvatarAttachment)
                 {
-                    // The target skeleton is selected in the station. The existing
-                    // installer owns MA merge/proxy execution on a duplicate there.
+
+
                     AvatarPlanExecution.DeferSupportedInstallation(ConversionPlan);
                 }
                 else if (!ConversionPlan.HasErrors)
                 {
                     await default(ToWorld);
+                    if (avatarManifest.HasVrcFuryComponents)
+                        AppearanceSnapshot = AuthoredAppearanceSnapshot.Capture(this);
                     await AvatarBuildPlanExecutor.ExecutePlanAsync(
                         ConversionPlan,
                         this.CurrentStructureRootSlot,
@@ -266,8 +250,8 @@ internal class UnityPrefabImportTask : IUnityStructureImporter
             await PreparedItem.PrepareHumanoidsAsync();
 
             await default(ToWorld);
-            // The YAML index omits inherited FBX skins without overrides.
-            // Finalize the complete imported hierarchy, including inactive skins.
+
+
             var renderersToEnable = CurrentStructureRootSlot
                 .GetComponentsInChildren<FrooxEngine.SkinnedMeshRenderer>();
             await SkinnedBoundsPolicy.StabilizeBeforeEnableAsync(

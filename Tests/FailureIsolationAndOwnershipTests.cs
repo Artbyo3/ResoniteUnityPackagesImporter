@@ -81,7 +81,7 @@ internal static class FailureIsolationAndOwnershipTests
                 "The project must be able to distinguish total failure from an empty package.");
         }));
 
-        // 1. Avatar ownership validation rules
+
         test("AvatarOwnership: Local allocating user owns unprotected avatar", () =>
         {
             var local = new MockUser("local");
@@ -229,7 +229,7 @@ internal static class FailureIsolationAndOwnershipTests
             check(!nullUser, "Null local user must be rejected.");
         });
 
-        // 2. Transaction isolation and rollback on failure
+
         test("TransactionIsolation: Mid-installation failure rolls back cloned hierarchy and preserves target", () =>
         {
             var targetRoot = new MockSlot("TargetAvatar");
@@ -238,21 +238,21 @@ internal static class FailureIsolationAndOwnershipTests
 
             var transaction = new OwnedAttachmentTransaction<MockSlot>();
 
-            // Simulate cloning outfit and attaching to target
+
             var outfitClone = new MockSlot("OutfitClone");
             transaction.Track(outfitClone);
 
             var clonedAccessory = outfitClone.AddChild("Bag");
             transaction.Track(clonedAccessory);
 
-            // Simulate mid-installation failure
+
             var rollbackErrors = transaction.RollBack(slot => slot.Destroy());
 
             check(rollbackErrors.Count == 0, "Rollback should succeed without errors.");
             check(outfitClone.IsDestroyed, "Cloned outfit root must be destroyed by rollback.");
             check(clonedAccessory.IsDestroyed, "Cloned accessory must be destroyed by rollback.");
 
-            // Verify target avatar was completely untouched
+
             check(!targetRoot.IsDestroyed, "Target avatar root must remain alive.");
             check(!targetHips.IsDestroyed && !targetArm.IsDestroyed, "Target avatar bones must remain alive.");
             check(targetHips.Children.Contains(targetArm), "Target hierarchy must remain intact.");
@@ -267,19 +267,19 @@ internal static class FailureIsolationAndOwnershipTests
 
             transaction.Commit();
 
-            // Attempting rollback after commit must be a no-op
+
             var rollbackErrors = transaction.RollBack(slot => slot.Destroy());
             check(rollbackErrors.Count == 0, "Rollback on committed transaction should return no errors.");
             check(!committedObject.IsDestroyed, "Committed object must never be destroyed by rollback.");
 
-            // Attempting to track new objects after commit must throw
+
             bool threw = false;
             try { transaction.Track(new MockSlot("LateObject")); }
             catch (InvalidOperationException) { threw = true; }
             check(threw, "Tracking after commit must throw InvalidOperationException.");
         });
 
-        // 3. Sibling failure isolation during concurrent reconstruction
+
         test("SiblingIsolation: Failed sibling is cleaned up while successful sibling completes", () => Run(async () =>
         {
             var worldRoot = new MockSlot("WorldRoot");
@@ -318,7 +318,7 @@ internal static class FailureIsolationAndOwnershipTests
                 catch (Exception)
                 {
                     anyTaskFailed = true;
-                    // Sibling failure cleanup policy: destroy aborted structure slot
+
                     task.Slot.Destroy();
                 }
             }, maxDegreeOfParallelism: 2);
@@ -330,7 +330,7 @@ internal static class FailureIsolationAndOwnershipTests
             check(siblingBSlot.IsDestroyed, "Failed sibling's structure slot must be destroyed.");
             check(!siblingASlot.IsDestroyed, "Successful sibling's structure slot must remain alive.");
 
-            // Verify pre-existing committed avatar in world is completely untouched
+
             check(!committedAvatar.IsDestroyed, "Existing committed avatar in world must remain intact.");
             check(committedAvatar.Parent == worldRoot, "Existing committed avatar hierarchy must not change.");
         }));

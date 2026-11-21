@@ -257,8 +257,8 @@ internal static class BlendshapeInitialAppearance
                     foreach (var include in Sequence(data, "includes").OfType<YamlMappingNode>())
                     {
                         string from = Text(include, "nameOnBase"), to = Text(include, "nameOnLinked");
-                        // Unity serializes newly added inspector rows with empty scalar strings
-                        // ({nameOnBase: '', nameOnLinked: ''}); upstream VRCFury ignores blank rows as a no-op.
+
+
                         if (string.IsNullOrWhiteSpace(from) && string.IsNullOrWhiteSpace(to)) continue;
                         if (string.IsNullOrWhiteSpace(from)) from = to;
                         if (string.IsNullOrWhiteSpace(to)) to = from;

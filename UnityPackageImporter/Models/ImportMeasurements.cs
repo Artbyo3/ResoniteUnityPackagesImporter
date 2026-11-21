@@ -10,8 +10,8 @@ namespace UnityPackageImporter.Models;
 internal enum ImportStage { ModelAssets, SourceReconstruction }
 internal sealed record ImportStageMeasurement(ImportStage Stage, int ScheduledItems, TimeSpan Elapsed);
 
-// Wall time includes awaited engine work. Counts describe scheduled inputs,
-// not peak resources or successfully reconstructed objects. No asset identities.
+
+
 internal sealed class ImportMeasurements
 {
     private readonly List<ImportStageMeasurement> samples = new();

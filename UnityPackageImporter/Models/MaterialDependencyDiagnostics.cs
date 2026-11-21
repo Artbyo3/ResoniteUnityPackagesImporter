@@ -20,8 +20,8 @@ internal static class MaterialDependencyDiagnostics
     public static readonly HashSet<string> BuiltinUnityGuids = new(StringComparer.OrdinalIgnoreCase)
     {
         "00000000000000000000000000000000",
-        "0000000000000000f000000000000000", // Default-Material / unity default resources
-        "0000000000000000e000000000000000", // Sprites / UI default
+        "0000000000000000f000000000000000",
+        "0000000000000000e000000000000000",
     };
 
     public static bool IsBuiltinOrEmptyGuid(string? guid)
@@ -73,8 +73,8 @@ internal static class MaterialDependencyDiagnostics
             }
         }
 
-        // Texture assignments remain unresolved until their fields are repaired,
-        // even when a companion has added the file to the asset index.
+
+
         var missingTextures = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         foreach (var guid in unresolvedTextureGuids ?? Array.Empty<string>())
         {

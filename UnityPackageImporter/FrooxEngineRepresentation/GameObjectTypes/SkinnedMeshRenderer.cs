@@ -118,6 +118,7 @@ public partial class SkinnedMeshRenderer : IUnityObject
 
             }
             GameObject parentobj = null;
+            UnitySerializedSkinData serializedSkin = null;
             if (NotFromInLinePrefab)
             {
                 UnityPackageImporter.Msg("Importing skinned mesh renderer via mesh guid. this id is: \"" + this.id + "\"");
@@ -185,9 +186,30 @@ public partial class SkinnedMeshRenderer : IUnityObject
                         UnityPackageImporter.Warn("Skinned renderer " + id + " has no parent GameObject.");
                     }
                 }
+                else if (m_Mesh?.guid != null && importer.unityProjectImporter.AssetIDDict.TryGetValue(m_Mesh.guid, out string serializedPath) &&
+                    string.Equals(System.IO.Path.GetExtension(serializedPath), ".asset", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (m_GameObject == null || !m_GameObject.TryGetValue("fileID", out ulong ownerId) ||
+                        !importer.existingIUnityObjects.TryGetValue(ownerId, out var owner) || owner is not GameObject game)
+                        throw new InvalidDataException("Serialized skin renderer has no exact authored owner.");
+                    await game.InstanciateAsync(importer);
+                    var template = await UnitySerializedSkinMeshImporter.ResolveAsync(importer.unityProjectImporter, m_Mesh);
+                    await default(ToWorld);
+                    importer.unityProjectImporter.Session?.Check();
+                    if (game.frooxEngineSlot == null || game.frooxEngineSlot.IsDestroyed) throw new InvalidDataException("Serialized skin owner is unavailable.");
+                    serializedSkin = template.Skin;
+                    SourceBlendShapeNames = serializedSkin.Shapes.Select(shape => shape.Name).ToArray();
+                    createdMeshRenderer = game.frooxEngineSlot.AttachComponent<FrooxEngine.SkinnedMeshRenderer>();
+                    createdMeshRenderer.Enabled = false;
+                    createdMeshRenderer.Mesh.Target = template.Mesh;
+                }
                 else
                 {
-                    UnityPackageImporter.Warn("The prefab is malformed!!! a skinned mesh render with a guid of \"" + m_Mesh?.guid + "\" could not find the pre-imported FBX!");
+                    bool included = m_Mesh?.guid != null && importer.unityProjectImporter.AssetIDDict.ContainsKey(m_Mesh.guid);
+                    string extension = included ? System.IO.Path.GetExtension(importer.unityProjectImporter.AssetIDDict[m_Mesh.guid]) : null;
+                    var reason = ReportFailureDetails.MissingSkinSource(included, extension);
+                    UnityPackageImporter.Warn($"Skinned renderer {id} has no pre-imported native template. Reason: {reason}.");
+                    throw ReportFailureDetails.Tag(new InvalidDataException($"Skinned renderer {id} has no pre-imported native mesh template."), reason);
                 }
 
                 if (createdMeshRenderer == null)
@@ -199,21 +221,21 @@ public partial class SkinnedMeshRenderer : IUnityObject
         FrooxEngine.SkinnedMeshRenderer FoundMesh = this.createdMeshRenderer;
         if (FoundMesh == null)
         {
-            throw new InvalidDataException($"Skinned renderer {id} could not be reconstructed (mesh: {m_Mesh?.guid}).");
+            throw ReportFailureDetails.Tag(new InvalidDataException($"Skinned renderer {id} could not be reconstructed (mesh: {m_Mesh?.guid})."), ReportFailureReason.SkinRendererUnresolved);
         }
 
 
         int counter = 0;
-        if (NotFromInLinePrefab) //this basically says that this skinned renderer is not coming from an inline prefab from a scene import
+        if (NotFromInLinePrefab)
         {
 
-            //FoundMesh.Mesh.ReferenceID = (skinnedMeshRenderer as FrooxEngineRepresentation.GameObjectTypes.SkinnedMeshRenderer).createdMeshRenderer.Mesh.ReferenceID;
+
             await default(ToWorld);
             importer.progressIndicator?.UpdateProgress(0f, "", "now loading a skinned mesh renderer named \"" + FoundMesh.Slot.Name + "\" ");
             await ImportMeshReadiness.WaitAsync(new[] { FoundMesh }, importer.unityProjectImporter.Session?.Token ?? default);
             await default(ToWorld);
-            //below comment is done at the humanoid stage, so that shite doesn't get in the way of players - @989onan
-            //FoundMesh.Enabled = this.m_Enabled == 1; //in case it's disabled in unity, this will make it disabled when imported;
+
+
             FoundMesh.Enabled = false;
 
 
@@ -221,11 +243,13 @@ public partial class SkinnedMeshRenderer : IUnityObject
 
             await default(ToWorld);
             var authored = new List<(string Name, Slot Bone)>();
+            var indexedAuthored = new List<Slot>();
             foreach (var reference in m_Bones ?? new List<Dictionary<string, ulong>>())
             {
+                indexedAuthored.Add(null);
                 if (!reference.TryGetValue("fileID", out var fileId) ||
                     !importer.existingIUnityObjects.TryGetValue(fileId, out var entry) || entry is not Transform transform)
-                    continue; // Native import may strip unused bones; required names are validated below.
+                    continue;
                 await transform.InstanciateAsync(importer);
                 await default(ToWorld);
                 importer.unityProjectImporter.Session?.Check();
@@ -233,8 +257,18 @@ public partial class SkinnedMeshRenderer : IUnityObject
                     gameEntry is not GameObject game || game.frooxEngineSlot == null)
                     continue;
                 authored.Add((game.frooxEngineSlot.Name, game.frooxEngineSlot));
+                indexedAuthored[indexedAuthored.Count - 1] = game.frooxEngineSlot;
             }
-            var mapped = SkinBoneMapping.Resolve(FoundMesh.Mesh.Asset.Data.Bones.Select(bone => bone.Name), authored);
+            var meshData = FoundMesh.Mesh.Asset.Data;
+            if (serializedSkin != null)
+                MaterialSlotAssignment.EnsureSlotCount(materials, meshData.SubmeshCount,
+                    () => new FileImportHelperTaskMaterial(importer.unityProjectImporter));
+            if (serializedSkin != null && (meshData.VertexCount != serializedSkin.Vertices.Length ||
+                meshData.BoneCount != serializedSkin.BindPoses.Length || meshData.BlendShapeCount != serializedSkin.Shapes.Length))
+                throw new InvalidDataException("Native serialized skin data no longer matches its decoded vertex, bone or shape indices.");
+            var mapped = serializedSkin != null ? serializedSkin.ResolveBones(indexedAuthored) :
+                SkinBoneMapping.Resolve(meshData.Bones.Select(bone => bone.Name), authored,
+                    readInfluences: () => (meshData.VertexCount, ReadSkinInfluences(meshData)));
             FoundMesh.Bones.Clear();
             foreach (var bone in mapped) FoundMesh.Bones.Add().Target = bone;
             SkinnedBoundsPolicy.ApplyAfterBones(FoundMesh, "Unity prefab import");
@@ -368,6 +402,19 @@ public partial class SkinnedMeshRenderer : IUnityObject
         UnityPackageImporter.Msg("Skinned Mesh Renderer \"" + FoundMesh.Slot.Name + "\" imported, and imported \"" + counter.ToString() + "\" materials with it.");
     }
 
+    private static IEnumerable<(int BoneIndex, float Weight)> ReadSkinInfluences(Elements.Assets.MeshX mesh)
+    {
+        var bindings = mesh.RawBoneBindings;
+        if (!mesh.HasBoneBindings || bindings == null || bindings.Length < mesh.VertexCount)
+            throw new InvalidDataException("Native skin influences are unavailable.");
+        for (int vertex = 0; vertex < mesh.VertexCount; vertex++)
+            for (int influence = 0; influence < 4; influence++)
+            {
+                bindings[vertex].GetBinding(influence, out int boneIndex, out float weight);
+                yield return (boneIndex, weight);
+            }
+    }
+
     public override string ToString()
     {
         StringBuilder result = new StringBuilder();
@@ -412,7 +459,7 @@ public partial class SkinnedMeshRenderer : IUnityObject
 
 
 }
-//to store aabb data to bring into froox engine for skinned mesh renderers
+
 public class AABB
 {
     public Dictionary<string, float> m_Center;

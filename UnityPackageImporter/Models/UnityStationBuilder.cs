@@ -20,6 +20,7 @@ internal sealed class UnityStationHandle
     private readonly HashSet<PreparedImportItem> failedCreation = new();
     private readonly Dictionary<PreparedImportItem, string> names = new();
     private readonly Dictionary<PreparedImportItem, string> presets = new();
+    private readonly Dictionary<PreparedImportItem, string> actionGateEvidence = new();
     private readonly SelectableImportItems<PreparedImportItem> items = new();
     private Slot preview, rowTemplate;
     private BooleanValueDriver<float3> previewScaleDriver;
@@ -86,7 +87,7 @@ internal sealed class UnityStationHandle
         Get<Slot>("nameCard").ActiveSelf = false;
         SetImportingPanel(true);
         SetCompanionState(false, false);
-        // The source importer has no Shape Changer handler yet. Expose its actual availability.
+
         ui.SetLocalizedKey("bodyShapeDescription", "bodyShapeDescriptionUnsupported");
         SetActions(false);
         rowTemplate = Get<Button>("avatarRow").Slot;
@@ -147,7 +148,7 @@ internal sealed class UnityStationHandle
                 }
                 catch (OperationCanceledException) when (session.Token.IsCancellationRequested)
                 {
-                    // Action was cancelled by user; safe to ignore.
+
                 }
                 catch (Exception ex)
                 {
@@ -219,7 +220,7 @@ internal sealed class UnityStationHandle
         Get<BooleanValueDriver<float3>>("cardPosition").State.Value = true;
         Get<SmoothValue<float>>("arc").TargetValue.Value = 0f;
         Get<Slot>("progressPedestal").ActiveSelf = true;
-        // Keep the tablet's Close action accessible when import cannot stage.
+
         Get<BooleanValueDriver<float3>>("tabletScale").State.Value = true;
         SetImportingPanel(false);
     }
@@ -248,8 +249,8 @@ internal sealed class UnityStationHandle
         await default(ToWorld);
         if (IsAlive && generation == lifecycle)
         {
-            // The canvas animation does not include the 3D logo. Retire the
-            // entire disclosure hierarchy after its closing transition.
+
+
             Get<Slot>("progressCard").ActiveSelf = false;
             Get<SmoothValue<float>>("arc").Speed.Value = 10f;
         }
@@ -273,8 +274,8 @@ internal sealed class UnityStationHandle
             return;
         }
         Get<BooleanValueDriver<float3>>("tabletScale").State.Value = true;
-        // Reset already selects the first entry; its saved name must not be
-        // replaced by the template's example input on this initial display.
+
+
         await SelectAsync(0, saveCurrentName: false);
         if (project.GetMissingMaterialSummary(Current?.CurrentStructureRootSlot).HasMissingAssets)
         {
@@ -310,9 +311,27 @@ internal sealed class UnityStationHandle
     private void SetActions(bool enabled)
     {
         var result = Current?.ReadResult();
-        if (enabled && ready && Current != null && result?.StructureReady == false)
-            ImportReportService.Record(session.Reports, Current, item: Current, project: importer, stage: ImportReportStage.Validation);
-        bool canPerformMainAction = ImportActionPolicy.CanPerformMainAction(result, IsAvatar, IsOutfit);
+        var actionGate = ImportActionPolicy.EvaluateMainAction(result, IsAvatar, IsOutfit, enabled,
+            Current != null, Current != null && created.Contains(Current), Current != null && failedCreation.Contains(Current));
+        if (ready && Current != null && result != null)
+        {
+            try
+            {
+                string evidence = ImportReportService.CaptureActionGateEvidence(session.Reports, Current, result, actionGate);
+                if (!actionGateEvidence.TryGetValue(Current, out string previous) || previous != evidence)
+                {
+                    actionGateEvidence[Current] = evidence;
+                    ImportReportService.SaveActionGateEvidence(evidence);
+                    if (!actionGate.Enabled)
+                        ImportReportService.Record(session.Reports, new object(), item: Current, project: importer,
+                            stage: ImportReportStage.Validation, actionGate: actionGate);
+                }
+            }
+            catch (Exception reportingError)
+            {
+                UnityPackageImporter.Warn("Could not capture local action-gate evidence: " + reportingError.GetType().Name);
+            }
+        }
 
         var intendedAction = ImportActionPolicy.Intended(IsAvatar, IsOutfit);
         ui.SetLocalizedKey("createAvatar", ImportActionPolicy.Label(intendedAction));
@@ -325,8 +344,7 @@ internal sealed class UnityStationHandle
             ui.SetLocalizedKey("avatarContext", !result.CanPerform(action) ? "resultBlockedContext" :
                 (!IsAvatar && !IsOutfit) ? "prefabContext" : "avatarContext", items.SelectedIndex + 1, items.Count);
         }
-        Get<Button>("create").Enabled = enabled && Current != null && !created.Contains(Current) && !failedCreation.Contains(Current)
-            && canPerformMainAction;
+        Get<Button>("create").Enabled = actionGate.Enabled;
         Get<Button>("install").Enabled = enabled && Current != null && selectedAvatar != null &&
             result.CanPerform(ImportOutputAction.InstallOutfit) &&
             ModularAvatarAttachmentInstaller.IsOwnedAvatar(selectedAvatar, RootSlot.World.LocalUser);
@@ -356,7 +374,7 @@ internal sealed class UnityStationHandle
             }
             catch (OperationCanceledException) when (session.Token.IsCancellationRequested)
             {
-                // Action was cancelled by user; safe to ignore.
+
             }
             catch (Exception ex)
             {
@@ -539,10 +557,10 @@ internal sealed class UnityStationHandle
         }
         catch
         {
-            // Roll back the failed creation preview, then rethrow.
+
             await default(ToWorld);
-            // Native creation can have partially configured a rig. Never release or
-            // finalize that same partial object a second time; cleanup still owns it.
+
+
             failedCreation.Add(item);
             if (preview != null && !preview.IsDestroyed) preview.Destroy();
             throw;
@@ -790,7 +808,7 @@ internal static class UnityStationBuilder
             new System.Numerics.Vector3(groundPosition.x, groundPosition.y, groundPosition.z),
             new System.Numerics.Vector3(userUp.x, userUp.y, userUp.z));
         position = new float3(grounded.X, grounded.Y, grounded.Z);
-        // Preserve yaw while removing gaze pitch and roll from the floor pedestal.
+
         float3 forward = rotation * float3.Forward;
         float yaw = forward.x * forward.x + forward.z * forward.z < 0.000001f ? 0f
             : MathF.Atan2(forward.x, forward.z) * (180f / MathF.PI);

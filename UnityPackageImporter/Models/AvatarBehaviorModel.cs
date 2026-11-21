@@ -20,7 +20,10 @@ internal sealed record AvatarBreathingBinding(
     float MaxWeight,
     long TargetObjectFileId,
     float PeriodSeconds = 3.5f
-);
+)
+{
+    internal float AngularSpeed => 2f * MathF.PI / Math.Max(0.5f, PeriodSeconds);
+}
 
 internal sealed record AvatarBlinkingBinding(
     long FeatureSourceId,

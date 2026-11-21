@@ -147,7 +147,7 @@ internal static class AvatarConstraintTests
 
         test("Constraint self-reference fails closed with error diagnostic", () =>
         {
-            // Target 2 (trans 102) referencing itself (trans 102)
+
             string yaml = BaseScene() + UnityRotationConstraint(srcTransId: 102);
             var plan = AvatarConstraintPlanner.Compile(yaml, 1);
             check(!plan.CanBuild, "Constraint referencing itself must fail plan");
@@ -156,7 +156,7 @@ internal static class AvatarConstraintTests
 
         test("Cyclic constraint dependency is detected and fails closed", () =>
         {
-            // Target 102 constrained to 103; Target 103 constrained to 102
+
             string yaml = BaseScene() +
                 UnityRotationConstraint(compId: 501, goId: 2, srcTransId: 103) +
                 UnityRotationConstraint(compId: 502, goId: 3, srcTransId: 102);

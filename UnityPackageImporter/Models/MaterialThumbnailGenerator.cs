@@ -13,15 +13,15 @@ using FrooxEngine;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>
-/// Pre-bakes 128x128 pseudo-3D material sphere thumbnails with specular, diffuse,
-/// rim fresnel, MatCap, emission and anti-aliased edge cutout.
-/// </summary>
+
+
+
+
 internal static class MaterialThumbnailGenerator
 {
     private const int ThumbnailSize = 128;
     private const float OrbRadius = 54.0f;
-    private const float Center = (ThumbnailSize - 1) / 2.0f; // 63.5f
+    private const float Center = (ThumbnailSize - 1) / 2.0f;
 
     private static readonly SemaphoreSlim ThumbnailThrottle = new(1, 1);
 
@@ -128,7 +128,7 @@ internal static class MaterialThumbnailGenerator
     internal static async Task<string?> GetOrCreateThumbnailAsync(MaterialThumbnailSource source,
         CancellationToken cancellationToken = default, TextureReader? customTextureReader = null)
     {
-        // Use one source snapshot for the task key, disk key and rendered YAML.
+
         string materialGuid = source.Guid;
         string yaml = source.Yaml;
         var assetIndex = source.AssetIndex;
@@ -148,7 +148,7 @@ internal static class MaterialThumbnailGenerator
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                // Another caller may have published this source while we waited.
+
                 if (File.Exists(cacheFilePath) && new FileInfo(cacheFilePath).Length > 0)
                     return cacheFilePath;
                 var data = UnityMaterialData.Parse(yaml);
@@ -172,7 +172,7 @@ internal static class MaterialThumbnailGenerator
                 }
                 catch (Exception)
                 {
-                    // Roll back an unpublished thumbnail, preserving the I/O failure.
+
                     if (File.Exists(tempFile)) File.Delete(tempFile);
                     throw;
                 }
@@ -208,7 +208,7 @@ internal static class MaterialThumbnailGenerator
         float cutoff = data.Number("_Cutoff", 0.5f);
         bool isCutout = data.RenderType != null && data.RenderType.Contains("Cutout", StringComparison.OrdinalIgnoreCase);
 
-        // Main Texture
+
         (int width, int height, byte[] rgba)? mainTex = null;
         float sx = 1f, sy = 1f, ox = 0f, oy = 0f;
         string[] mainTexCandidates = { "_MainTex", "_BaseMap", "_BaseColorMap", "_MainTexture", "_MainColorTex", "_1st_ShadeMap" };
@@ -237,7 +237,7 @@ internal static class MaterialThumbnailGenerator
             mainTex = textureReader(texPath, 128);
         }
 
-        // MatCap
+
         (int width, int height, byte[] rgba)? matcapTex = null;
         var matcapColor = data.Color("_MatCapColor", (1f, 1f, 1f, 1f));
         float matcapBlend = data.Number("_MatCapBlend", 1f);
@@ -248,7 +248,7 @@ internal static class MaterialThumbnailGenerator
             matcapTex = textureReader(matcapPath, 128);
         }
 
-        // Emission
+
         (int width, int height, byte[] rgba)? emissionTex = null;
         var emissionColor = data.Color("_EmissionColor", (0f, 0f, 0f, 1f));
         bool useEmission = data.Enabled("_UseEmission") || (emissionColor.r > 0 || emissionColor.g > 0 || emissionColor.b > 0) || data.Texture("_EmissionMap") != null;
@@ -289,7 +289,7 @@ internal static class MaterialThumbnailGenerator
                 float ny = -dy;
                 float nz = dz;
 
-                // Spherical UV
+
                 float u = MathF.Asin(Math.Clamp(dx, -1.0f, 1.0f)) / MathF.PI + 0.5f;
                 float v = MathF.Asin(Math.Clamp(-dy, -1.0f, 1.0f)) / MathF.PI + 0.5f;
 
@@ -322,7 +322,7 @@ internal static class MaterialThumbnailGenerator
                     continue;
                 }
 
-                // Diffuse Lighting (Half-Lambert)
+
                 float nDotL = nx * KeyLight.X + ny * KeyLight.Y + nz * KeyLight.Z;
                 float diffKey = Math.Clamp(nDotL * 0.55f + 0.45f, 0.0f, 1.0f);
 
@@ -331,7 +331,7 @@ internal static class MaterialThumbnailGenerator
 
                 float totalDiffuse = Math.Clamp(diffKey * 0.70f + diffFill + 0.25f, 0.0f, 1.2f);
 
-                // Specular
+
                 float nDotH = MathF.Max(0.0f, nx * HalfDir.X + ny * HalfDir.Y + nz * HalfDir.Z);
                 float specExponent = 12.0f + smoothness * 116.0f;
                 float specIntensity = MathF.Pow(nDotH, specExponent) * (0.15f + 0.85f * smoothness);
@@ -340,11 +340,11 @@ internal static class MaterialThumbnailGenerator
                 float specG = (1.0f - metallic) + metallic * albedoG;
                 float specB = (1.0f - metallic) + metallic * albedoB;
 
-                // Rim Fresnel
+
                 float fresnel = 1.0f - nz;
                 float rim = MathF.Pow(Math.Clamp(fresnel, 0.0f, 1.0f), 3.0f) * (0.30f + 0.20f * smoothness);
 
-                // MatCap
+
                 float matcapR = 0f, matcapG = 0f, matcapB = 0f;
                 if (matcapTex.HasValue)
                 {
@@ -360,7 +360,7 @@ internal static class MaterialThumbnailGenerator
                     matcapB = (mTex.rgba[mOff + 2] / 255.0f) * matcapColor.b * matcapBlend;
                 }
 
-                // Emission
+
                 float emissR = emissionColor.r;
                 float emissG = emissionColor.g;
                 float emissB = emissionColor.b;
@@ -376,7 +376,7 @@ internal static class MaterialThumbnailGenerator
                     emissB *= eTex.rgba[eOff + 2] / 255.0f;
                 }
 
-                // Combine Color
+
                 float litR = albedoR * totalDiffuse * (1.0f - metallic * 0.7f) + specIntensity * specR + rim * 0.8f + matcapR + emissR;
                 float litG = albedoG * totalDiffuse * (1.0f - metallic * 0.7f) + specIntensity * specG + rim * 0.8f + matcapG + emissG;
                 float litB = albedoB * totalDiffuse * (1.0f - metallic * 0.7f) + specIntensity * specB + rim * 0.8f + matcapB + emissB;

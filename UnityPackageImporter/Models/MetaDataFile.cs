@@ -22,20 +22,20 @@ public class MetaDataFile
     public Dictionary<BodyNode, Slot> storagebones = new Dictionary<BodyNode, Slot>();
     public Dictionary<long, string> fileIDToRecycleName = new Dictionary<long, string>();
     public MetaDataFile() { }
-            
+
     private static readonly IDeserializer SharedDeserializer =
         new DeserializerBuilder().IgnoreUnmatchedProperties().Build();
 
-    // The second I tried to make this a yaml parser the parser broke. if anyone else can get it to work that's fine by me. - @989onan
-    // This creates our biped rig under the slot we specify. in this case, it is the root.
-    // This MetaDataFile object class gives us access to the biped rig component directly if desired
-    public async Task GenerateComponents(BipedRig rig) 
+
+
+
+    public async Task GenerateComponents(BipedRig rig)
     {
         UnityPackageImporter.Msg("Humanoid bone description being instanciated is: " + (rig != null));
         await default(ToBackground);
 
-        // So that we add the bone without parsing it's children
-        // If we use """AssignBones(Rig.BoneNode root, bool ignoreDuplicates)""" that will cause errors.
+
+
         foreach (var BoneNode in storagebones)
         {
             if (BoneNode.Key != BodyNode.NONE && BoneNode.Value != null)
@@ -52,7 +52,7 @@ public class MetaDataFile
         }
     }
 
-    // Parses the model's .meta YAML via ModelMetaParser and resolves humanoid bone slots in a single world-thread pass.
+
     public async Task ScanFile(FileImportTaskScene task, Slot ModelRootSlot)
     {
         await default(ToBackground);
@@ -113,7 +113,7 @@ public class MetaDataFile
         UnityPackageImporter.Msg($"Parsed model scale for '{Path.GetFileName(task.file)}': globalScale={GlobalScale}, useFileUnits={UseFileUnits}, useFileScale={UseFileScale}, unitScaleFactor={UnitScaleFactor} -> CalculatedScaleFactor={CalculatedScaleFactor}");
     }
 
-    // Maps Unity HumanDescription humanName values to Resonite BodyNode enum values.
+
     public static BodyNode HumanoidNameToEnum(string boneNameHuman)
     {
         string normalized = SkinBoneMapping.NormalizeUnityHumanoidBoneName(boneNameHuman);

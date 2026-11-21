@@ -103,7 +103,7 @@ internal static class ImportCompatibilityPhase1Tests
                 string basePath = Path.Combine(tempDir, "BaseAvatar.prefab");
                 string variantPath = Path.Combine(tempDir, "VariantWithMA.prefab");
 
-                // Base prefab contains VrcAvatarDescriptor
+
                 string baseYaml = $$"""
                     --- !u!1 &100000
                     GameObject:
@@ -118,7 +118,7 @@ internal static class ImportCompatibilityPhase1Tests
                     """;
                 File.WriteAllText(basePath, baseYaml);
 
-                // Variant prefab points to BaseAvatar and adds a Modular Avatar MenuInstaller
+
                 string variantYaml = $$"""
                     --- !u!1001 &200000
                     PrefabInstance:
@@ -198,23 +198,23 @@ internal static class ImportCompatibilityPhase1Tests
             string fbxGuid = "fbx00000000000000000000000000001";
             var lineage = new HashSet<string> { "variant00000000000000000000000002", "base00000000000000000000000000003" };
 
-            // 1. Foreign GUID not in lineage must be rejected
+
             bool foreignResolved = PrefabVariantResolver.TryResolveTargetKey(
                 100, "foreign00000000000000000000000099", fbxGuid, lineage, out string foreignOut);
             check(!foreignResolved, "Foreign GUID not in lineage must be rejected");
             check(foreignOut == null, "Resolved GUID must be null for foreign GUID");
 
-            // 2. Exact resolved FBX GUID matches
+
             bool fbxResolved = PrefabVariantResolver.TryResolveTargetKey(
                 100, fbxGuid, fbxGuid, lineage, out string fbxOut);
             check(fbxResolved && fbxOut == fbxGuid, "Resolved FBX GUID must be accepted");
 
-            // 3. Empty GUID matches resolved FBX GUID
+
             bool emptyResolved = PrefabVariantResolver.TryResolveTargetKey(
                 100, "", fbxGuid, lineage, out string emptyOut);
             check(emptyResolved && emptyOut == fbxGuid, "Empty GUID must be resolved to FBX GUID");
 
-            // 4. Lineage variant GUID matches
+
             bool lineageResolved = PrefabVariantResolver.TryResolveTargetKey(
                 100, "variant00000000000000000000000002", fbxGuid, lineage, out string lineageOut);
             check(lineageResolved && lineageOut == fbxGuid, "Lineage variant GUID must be resolved to FBX GUID");
@@ -229,7 +229,7 @@ internal static class ImportCompatibilityPhase1Tests
             var objectA = "TargetA";
             var objectB = "TargetB";
 
-            // If candidates return multiple distinct objects, ambiguity must be detected and result in failure
+
             IEnumerable<string> AmbiguousFinder(long id)
             {
                 if (id == cand1) yield return objectA;
@@ -247,7 +247,7 @@ internal static class ImportCompatibilityPhase1Tests
             check(ambiguous, "Ambiguity flag must be set to true");
             check(resultObj == null, "Result object must be null on ambiguous match");
 
-            // If only one unique candidate matches, it resolves cleanly
+
             IEnumerable<string> UniqueFinder(long id)
             {
                 if (id == cand1) yield return objectA;
@@ -271,11 +271,11 @@ internal static class ImportCompatibilityPhase1Tests
             PrefabVariantResolver.RegisterUniqueTarget(map, 100L, "FirstInstance");
             check(map[100L] == "FirstInstance", "Initial target registration must succeed");
 
-            // Duplicate same reference remains
+
             PrefabVariantResolver.RegisterUniqueTarget(map, 100L, "FirstInstance");
             check(map[100L] == "FirstInstance", "Duplicate identical reference must remain");
 
-            // Conflicting reference sets entry to null to mark ambiguity
+
             PrefabVariantResolver.RegisterUniqueTarget(map, 100L, "ConflictingInstance");
             check(map[100L] == null, "Conflicting reference must set entry to null to detect collision");
         });
@@ -287,8 +287,8 @@ internal static class ImportCompatibilityPhase1Tests
 
         test("Missing optional renderers produce partial compatibility status and preserve avatar base", () =>
         {
-            // Scenario: Avatar with 2 authored skinned mesh renderers (Body and Glasses accessory).
-            // Glasses fails to reconstruct (e.g. missing mesh asset), while Body succeeds.
+
+
             int authoredSkins = 2;
             int successfulSkins = 1;
             string prefabName = "AvatarWithGlasses.prefab";
@@ -298,19 +298,19 @@ internal static class ImportCompatibilityPhase1Tests
             check(reconstructionSurvived, "Reconstruction must survive when base avatar skin succeeds");
             check(failureReason == null, "Failure reason must be null for non-critical partial reconstruction");
 
-            // Incomplete component is recorded for the failed optional accessory
+
             var incompleteComponents = new List<string> { "SkinnedMeshRenderer (13700002)" };
             bool isPartial = PrefabVariantResolver.EvaluatePartialCompatibility(incompleteComponents.Count, hasVrcFury: false);
             check(isPartial, "Import must report partial compatibility when optional renderer is incomplete");
 
-            // When all renderers succeed, partial compatibility must be false (full success)
+
             bool fullSuccessPartial = PrefabVariantResolver.EvaluatePartialCompatibility(0, hasVrcFury: false);
             check(!fullSuccessPartial, "Full reconstruction without incomplete components must not flag partial compatibility");
         });
 
         test("Failure to reconstruct all required skinned renderers cannot report full success", () =>
         {
-            // Scenario: Avatar where ALL authored skinned mesh renderers fail reconstruction.
+
             int authoredSkins = 2;
             int successfulSkins = 0;
             string prefabName = "BrokenAvatar.prefab";
@@ -339,7 +339,7 @@ internal static class ImportCompatibilityPhase1Tests
                 string variantAPath = Path.Combine(tempDir, "VariantA.prefab");
                 string childVariantPath = Path.Combine(tempDir, "ChildVariant.prefab");
 
-                // Base prefab referencing FBX
+
                 File.WriteAllText(basePath, $"""
                     --- !u!1001 &100100000
                     PrefabInstance:
@@ -349,7 +349,7 @@ internal static class ImportCompatibilityPhase1Tests
                         type: 3
                     """);
 
-                // Variant A referencing Base
+
                 File.WriteAllText(variantAPath, $"""
                     --- !u!1001 &200100000
                     PrefabInstance:
@@ -359,7 +359,7 @@ internal static class ImportCompatibilityPhase1Tests
                         type: 3
                     """);
 
-                // Child Variant referencing Variant A
+
                 File.WriteAllText(childVariantPath, $"""
                     --- !u!1001 &300100000
                     PrefabInstance:
@@ -376,13 +376,13 @@ internal static class ImportCompatibilityPhase1Tests
                     [childVariantGuid] = childVariantPath
                 };
 
-                // Traverse the full lineage chain
+
                 var lineage = PrefabVariantResolver.GetLineageGuids(variantAGuid, fbxGuid, prefabs);
                 check(lineage.Contains(variantAGuid), "Lineage must contain parent variant GUID");
                 check(lineage.Contains(baseGuid), "Lineage must contain root ancestor GUID");
                 check(lineage.Contains(fbxGuid), "Lineage must contain resolved FBX GUID");
 
-                // Validate target key resolution across the multi-level hierarchy
+
                 bool resolved = PrefabVariantResolver.TryResolveTargetKey(
                     13700000, baseGuid, fbxGuid, lineage, out string targetGuid);
                 check(resolved && targetGuid == fbxGuid, "Legitimate ancestor target key must resolve to underlying FBX");
@@ -414,7 +414,7 @@ internal static class ImportCompatibilityPhase1Tests
             check(mod.m_TransformParent.TryGetValue("fileID", out ulong parentTransformId) && parentTransformId == 0,
                 "Serialized fileID must be 0 for root object");
 
-            // Resolution must validate fileID 0 as a legitimate root placement
+
             bool resolved = PrefabVariantResolver.TryResolveParentTransform(
                 parentTransformId,
                 id => (exists: false, gameObjectId: 0),
@@ -445,7 +445,7 @@ internal static class ImportCompatibilityPhase1Tests
             check(mod.m_TransformParent.TryGetValue("fileID", out ulong parsedParentId) && parsedParentId == parentTrId,
                 "Parsed nested parent ID must match authored ID");
 
-            // Parent Transform exists, GameObject exists, slot is valid
+
             bool resolved = PrefabVariantResolver.TryResolveParentTransform(
                 parsedParentId,
                 id => id == parentTrId ? (exists: true, gameObjectId: parentGoId) : (exists: false, gameObjectId: 0),
@@ -474,7 +474,7 @@ internal static class ImportCompatibilityPhase1Tests
             var mod = docs[300100000].PrefabInstance.m_Modification;
             mod.m_TransformParent.TryGetValue("fileID", out ulong parsedParentId);
 
-            // Parent transform does NOT exist in existing objects
+
             bool resolved = PrefabVariantResolver.TryResolveParentTransform(
                 parsedParentId,
                 id => (exists: false, gameObjectId: 0),
@@ -493,7 +493,7 @@ internal static class ImportCompatibilityPhase1Tests
             ulong missingGoId = 1000000000000002;
             ulong validGoId = 1000000000000003;
 
-            // Case A: Parent Transform exists, but its referenced GameObject is missing
+
             bool caseAResolved = PrefabVariantResolver.TryResolveParentTransform(
                 parentTrId,
                 id => (exists: true, gameObjectId: missingGoId),
@@ -503,7 +503,7 @@ internal static class ImportCompatibilityPhase1Tests
             check(caseAFailure != null && caseAFailure.Contains("GameObject does not exist"),
                 "Failure reason must state that referenced GameObject does not exist");
 
-            // Case B: Parent Transform and GameObject exist, but GameObject slot is null
+
             bool caseBResolved = PrefabVariantResolver.TryResolveParentTransform(
                 parentTrId,
                 id => (exists: true, gameObjectId: validGoId),
@@ -517,8 +517,8 @@ internal static class ImportCompatibilityPhase1Tests
         test("Hierarchy integrity: Parent transforms with direct slots (stripped FBX bones) resolve parent hierarchy", () =>
         {
             ulong strippedParentTrId = 7832099146100378785;
-            // The stripped parent transform has a direct slot from the imported FBX (hasDirectSlot: true)
-            // even if its GameObject was not serialized as an independent scene object.
+
+
             bool resolved = PrefabVariantResolver.TryResolveParentTransform(
                 strippedParentTrId,
                 id => id == strippedParentTrId ? (exists: true, gameObjectId: 0UL, hasDirectSlot: true) : (exists: false, gameObjectId: 0UL, hasDirectSlot: false),
@@ -628,7 +628,7 @@ internal static class ImportCompatibilityPhase1Tests
                         Kind = ModularAvatarComponentKind.BoneProxy,
                         GameObjectFileId = 1002,
                         GameObjectName = "MA_Glasses_Proxy",
-                        BoneReference = 10, // Head
+                        BoneReference = 10,
                         BoneProxyMatchScale = true
                     }
                 },
@@ -647,7 +647,7 @@ internal static class ImportCompatibilityPhase1Tests
                                 RemoveBoneSuffix = "_Skirt",
                                 LinkToTargets = new List<VrcFuryLinkToTarget>
                                 {
-                                    new() { UseBone = true, Bone = 0 } // Hips
+                                    new() { UseBone = true, Bone = 0 }
                                 }
                             },
                             new()
@@ -659,7 +659,7 @@ internal static class ImportCompatibilityPhase1Tests
                                 AlignRotation = true,
                                 LinkToTargets = new List<VrcFuryLinkToTarget>
                                 {
-                                    new() { UseBone = true, Bone = 18 } // RightHand
+                                    new() { UseBone = true, Bone = 18 }
                                 }
                             }
                         }
@@ -726,7 +726,7 @@ internal static class ImportCompatibilityPhase1Tests
                                 Name = "Chest_outfit",
                                 Children = new List<MergeHierarchyNode>
                                 {
-                                    new() { Id = "104", Name = "Skirt_Special_Bone" } // Unique bone not on base avatar
+                                    new() { Id = "104", Name = "Skirt_Special_Bone" }
                                 }
                             }
                         }
@@ -756,21 +756,21 @@ internal static class ImportCompatibilityPhase1Tests
         {
             var plan = new AvatarBuildPlan { AvatarName = "ConflictedAvatar" };
 
-            // 1. Conflicting targets for same source object
+
             plan.Operations.Add(new BoneAttachmentOperation
             {
                 SourceObjectFileId = 500,
                 SourceObjectName = "Hat",
-                TargetHumanoidBone = 10 // Head
+                TargetHumanoidBone = 10
             });
             plan.Operations.Add(new BoneAttachmentOperation
             {
                 SourceObjectFileId = 500,
                 SourceObjectName = "Hat",
-                TargetHumanoidBone = 18 // RightHand
+                TargetHumanoidBone = 18
             });
 
-            // 2. Self-attachment
+
             plan.Operations.Add(new BoneAttachmentOperation
             {
                 SourceObjectFileId = 600,
@@ -778,7 +778,7 @@ internal static class ImportCompatibilityPhase1Tests
                 TargetObjectFileId = 600
             });
 
-            // 3. Undefined target
+
             plan.Operations.Add(new BoneAttachmentOperation
             {
                 SourceObjectFileId = 700,
@@ -798,7 +798,7 @@ internal static class ImportCompatibilityPhase1Tests
             check(plan.Operations.Any(op => op.Diagnostics.Any(d => d.Code == "TARGET_UNRESOLVED")),
                 "Must detect unresolved target specification");
 
-            // 4. Cyclic dependency
+
             var cyclicPlan = new AvatarBuildPlan { AvatarName = "CyclicPlan" };
             var op1 = new BoneAttachmentOperation { OperationId = "op1", SourceObjectFileId = 1, TargetObjectFileId = 2 };
             var op2 = new BoneAttachmentOperation { OperationId = "op2", SourceObjectFileId = 2, TargetObjectFileId = 1 };
@@ -814,28 +814,28 @@ internal static class ImportCompatibilityPhase1Tests
 
         test("Compatibility evaluation correctly distinguishes full success from partial compatibility", () =>
         {
-            // Case 1: 0 incomplete components, 0 unhandled VRCFury features, 0 plan errors -> Full Success (false)
+
             bool fullSuccess = PrefabVariantResolver.EvaluatePartialCompatibility(
                 incompleteComponentCount: 0,
                 unhandledVrcFuryFeatures: 0,
                 planErrors: 0);
             check(!fullSuccess, "Clean supported conversion must report full success");
 
-            // Case 2: Incomplete component -> Partial compatibility (true)
+
             bool incompleteComp = PrefabVariantResolver.EvaluatePartialCompatibility(
                 incompleteComponentCount: 1,
                 unhandledVrcFuryFeatures: 0,
                 planErrors: 0);
             check(incompleteComp, "Incomplete components must report partial compatibility");
 
-            // Case 3: Unhandled VRCFury feature -> Partial compatibility (true)
+
             bool unhandledVf = PrefabVariantResolver.EvaluatePartialCompatibility(
                 incompleteComponentCount: 0,
                 unhandledVrcFuryFeatures: 1,
                 planErrors: 0);
             check(unhandledVf, "Unhandled VRCFury features must report partial compatibility");
 
-            // Case 4: Plan errors -> Partial compatibility (true)
+
             bool planErr = PrefabVariantResolver.EvaluatePartialCompatibility(
                 incompleteComponentCount: 0,
                 unhandledVrcFuryFeatures: 0,

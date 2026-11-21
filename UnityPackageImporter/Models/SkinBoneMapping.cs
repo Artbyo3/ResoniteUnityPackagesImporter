@@ -7,9 +7,9 @@ namespace UnityPackageImporter.Models;
 
 internal static class SkinBoneMapping
 {
-    // Native ImportNode creates renderers before binding their bones. Prefer its
-    // per-mesh Assimp-node map; it disambiguates equal names in different rigs.
-    // Only older models without that map may use an unambiguous hierarchy lookup.
+
+
+
     internal static Dictionary<string, T> ResolveNative<T>(IEnumerable<string> meshBoneNames,
         IReadOnlyDictionary<string, T> nativeMapping, Func<IEnumerable<(string Name, T Bone)>> fallback) where T : class
     {
@@ -42,21 +42,35 @@ internal static class SkinBoneMapping
                 throw new InvalidDataException($"Skin bone {i} is missing, destroyed, or outside its imported hierarchy.");
     }
 
-    /// <summary>
-    /// Assimp and Unity can order bones differently. Resolve only within the
-    /// renderer's authored file-ID references, rejecting missing/ambiguous names.
-    /// </summary>
+
+
+
+
     internal static T[] Resolve<T>(IEnumerable<string> meshBoneNames, IEnumerable<(string Name, T Bone)> authored,
-        bool allowUnitySuffix = true) where T : class
+        bool allowUnitySuffix = true,
+        Func<(int VertexCount, IEnumerable<(int BoneIndex, float Weight)> Influences)> readInfluences = null!) where T : class
     {
+        var names = meshBoneNames.ToArray();
+        if (names.Any(string.IsNullOrWhiteSpace) || names.Distinct(StringComparer.Ordinal).Count() != names.Length)
+            throw new InvalidDataException("Skin bone names are empty or duplicated.");
         var candidates = authored.Where(item => item.Bone != null).ToArray();
-        return meshBoneNames.Select(name =>
+        bool[] unused = null!;
+        return names.Select((name, index) =>
         {
             var matches = candidates.Where(item => item.Name == name).Select(item => item.Bone).Distinct().ToArray();
-            // Unity may disambiguate a bone/mesh name collision with " 1".
-            // Exact names always take precedence.
+
+
             if (matches.Length == 0 && allowUnitySuffix)
                 matches = candidates.Where(item => item.Name == name + " 1").Select(item => item.Bone).Distinct().ToArray();
+            if (matches.Length == 0 && readInfluences != null)
+            {
+                if (unused == null)
+                {
+                    var evidence = readInfluences();
+                    unused = FindUnusedBones(names.Length, evidence.VertexCount, evidence.Influences);
+                }
+                if (unused[index]) return null!;
+            }
             if (matches.Length != 1)
                 throw new InvalidDataException(matches.Length == 0
                     ? "No authored skin bone matches '" + name + "'."
@@ -65,9 +79,30 @@ internal static class SkinBoneMapping
         }).ToArray();
     }
 
+    private static bool[] FindUnusedBones(int boneCount, int vertexCount,
+        IEnumerable<(int BoneIndex, float Weight)> influences)
+    {
+        if (vertexCount <= 0 || influences == null)
+            throw new InvalidDataException("Native skin influences are unavailable.");
+        var unused = Enumerable.Repeat(true, boneCount).ToArray();
+        long expected = (long)vertexCount * 4;
+        long observed = 0;
+        foreach (var influence in influences)
+        {
+            if (++observed > expected || !float.IsFinite(influence.Weight) || influence.Weight < 0 ||
+                influence.BoneIndex < -1 || influence.BoneIndex >= boneCount ||
+                (influence.BoneIndex == -1 && influence.Weight != 0))
+                throw new InvalidDataException("Native skin influences are malformed.");
+            if (influence.Weight != 0) unused[influence.BoneIndex] = false;
+        }
+        if (observed != expected)
+            throw new InvalidDataException("Native skin influences are incomplete.");
+        return unused;
+    }
+
     private static readonly Dictionary<string, string> UnityHumanoidToBodyNodeMap = new(StringComparer.OrdinalIgnoreCase)
     {
-        // Torso & Head
+
         ["Hips"] = "Hips",
         ["Spine"] = "Spine",
         ["Chest"] = "Chest",
@@ -81,7 +116,7 @@ internal static class SkinBoneMapping
         ["Right Eye"] = "RightEye",
         ["Jaw"] = "Jaw",
 
-        // Arms & Legs
+
         ["LeftShoulder"] = "LeftShoulder",
         ["Left Shoulder"] = "LeftShoulder",
         ["LeftUpperArm"] = "LeftUpperArm",
@@ -123,7 +158,7 @@ internal static class SkinBoneMapping
         ["RightToes"] = "RightToes",
         ["Right Toes"] = "RightToes",
 
-        // Left Hand Fingers (Unity HumanTrait.BoneName + compact variants + Metacarpals)
+
         ["Left Thumb Metacarpal"] = "LeftThumb_Metacarpal",
         ["LeftThumbMetacarpal"] = "LeftThumb_Metacarpal",
         ["Left Thumb Proximal"] = "LeftThumb_Proximal",
@@ -169,7 +204,7 @@ internal static class SkinBoneMapping
         ["Left Little Distal"] = "LeftPinky_Distal",
         ["LeftLittleDistal"] = "LeftPinky_Distal",
 
-        // Right Hand Fingers (Unity HumanTrait.BoneName + compact variants + Metacarpals)
+
         ["Right Thumb Metacarpal"] = "RightThumb_Metacarpal",
         ["RightThumbMetacarpal"] = "RightThumb_Metacarpal",
         ["Right Thumb Proximal"] = "RightThumb_Proximal",
@@ -216,10 +251,10 @@ internal static class SkinBoneMapping
         ["RightLittleDistal"] = "RightPinky_Distal",
     };
 
-    /// <summary>
-    /// Normalizes a Unity HumanDescription <c>humanName</c> string into the corresponding
-    /// Resonite <c>BodyNode</c> enum identifier string via an O(1) lookup table.
-    /// </summary>
+
+
+
+
     internal static string NormalizeUnityHumanoidBoneName(string? boneNameHuman)
     {
         if (string.IsNullOrWhiteSpace(boneNameHuman))

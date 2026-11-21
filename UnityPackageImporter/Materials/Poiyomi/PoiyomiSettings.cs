@@ -10,7 +10,7 @@ namespace UnityPackageImporter.Materials.Poiyomi;
 internal enum PoiyomiBlend { Opaque, Cutout, Alpha, Transparent, Additive, Multiply }
 internal enum PoiyomiLighting { TextureRamp, MultilayerMath, Wrapped, Skin, ShadeMap, Flat, Realistic, Cloth, SDF }
 
-/// <summary>Shader-specific decisions, independent of Unity and FrooxEngine.</summary>
+
 internal static class PoiyomiSettings
 {
     internal static bool Matches(UnityMaterialData data, string shaderName) =>
@@ -32,7 +32,7 @@ internal static class PoiyomiSettings
         if (data.Number("_SrcBlend", 1) == 2) return PoiyomiBlend.Multiply;
         if (data.Enabled("_AlphaToCoverage") || data.Enabled("_AlphaDithering") || data.Enabled("_AlphaDistanceFade"))
             return PoiyomiBlend.Alpha;
-        // Unity materials can omit shader defaults. In that case prefer their explicit render tag.
+
         if (!data.Numbers.ContainsKey("_SrcBlend") && !data.Numbers.ContainsKey("_DstBlend"))
             return data.RenderType switch { "Transparent" => PoiyomiBlend.Transparent, "TransparentCutout" => PoiyomiBlend.Cutout, _ => PoiyomiBlend.Opaque };
         return PoiyomiBlend.Cutout;

@@ -195,7 +195,7 @@ public static partial class ModularAvatarInitialAppearance
             return false;
         }
 
-        // 1. Resolve ModularAvatarParameters scopes (outermost to innermost)
+
         var paramComponentsByObject = components.Where(item => Script(item) == AvatarPackageIndex.ParametersScriptGuid)
             .GroupBy(item => Reference(item.Body, "m_GameObject")).ToDictionary(group => group.Key, group => group.ToList());
         var remapAtObject = new Dictionary<long, Dictionary<string, (string Mapped, bool Internal, AvatarParameterType? Type, double? DefaultValue, bool? Saved, bool? Synced, long SourceId)>>();
@@ -317,7 +317,7 @@ public static partial class ModularAvatarInitialAppearance
             return rawName;
         }
 
-        // 2. Reconstruct Modular Avatar menu tree (MenuInstaller, MenuInstallTarget, MenuItem, MenuGroup)
+
         var menusByOwner = menuItems.GroupBy(item => Reference(item.Body, "m_GameObject")).ToDictionary(group => group.Key, group => group.ToList());
         var installersByOwner = components.Where(item => Script(item) == AvatarPackageIndex.MenuInstallerScriptGuid)
             .GroupBy(item => Reference(item.Body, "m_GameObject")).ToDictionary(group => group.Key, group => group.ToList());
@@ -409,7 +409,7 @@ public static partial class ModularAvatarInitialAppearance
                 string fullPath = string.IsNullOrEmpty(prefix) ? label : prefix + "/" + label;
                 var control = Get(menu.Body, "Control") as YamlMappingNode;
                 string typeStr = Text(control, "type");
-                if (typeStr == "103") // SubMenu
+                if (typeStr == "103")
                 {
                     var msNode = Get(menu.Body, "MenuSource");
                     if (msNode != null && (msNode is not YamlScalarNode msScalar || !int.TryParse(msScalar.Value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _)))
@@ -418,7 +418,7 @@ public static partial class ModularAvatarInitialAppearance
                         return;
                     }
                     int subSource = msNode is YamlScalarNode msVal ? int.Parse(msVal.Value!, CultureInfo.InvariantCulture) : 0;
-                    if (subSource == 0) // VRCExpressionsMenu asset
+                    if (subSource == 0)
                     {
                         Report("MENU_SUBMENU_ASSET", "SubMenu referencing an external VRCExpressionsMenu asset is not supported in this slice.", menu.Id);
                         return;
@@ -483,7 +483,7 @@ public static partial class ModularAvatarInitialAppearance
             }
         }
 
-        // 3. Parse Toggle MenuItems and resolve parameters
+
         var menuControlByMenuId = new Dictionary<long, (string Path, string ParameterName, double Value, bool IsDefault, string IconGuid, long OwnerObj)>();
         var usedPaths = new HashSet<string>(StringComparer.Ordinal);
         foreach (var menu in menuItems)
@@ -493,7 +493,7 @@ public static partial class ModularAvatarInitialAppearance
             var control = Get(menu.Body, "Control") as YamlMappingNode;
             string typeStr = Text(control, "type");
             if (typeStr == "103") continue;
-            if (typeStr != "2") // 2 = Toggle; 1 = Button (momentary press, not a persistent toggle)
+            if (typeStr != "2")
             {
                 Report("MENU_CONTROL_TYPE", "Only Toggle (2) and SubMenu (103) ModularAvatarMenuItem controls are supported in wardrobe compilation; momentary Button controls are not persistent toggles.", menu.Id);
                 continue;
@@ -542,14 +542,14 @@ public static partial class ModularAvatarInitialAppearance
             menuControlByMenuId[menu.Id] = (path, resolvedParam, val, isDefault, iconGuid, ownerObj);
         }
 
-        // Check if two MenuItems share the same resolved parameter in this independent toggle slice
+
         foreach (var group in menuControlByMenuId.Values.GroupBy(item => item.ParameterName, StringComparer.Ordinal))
         {
             if (group.Count() > 1)
                 Report("PARAMETER_SHARED_MENU", "Multiple ModularAvatarMenuItem controls write the same parameter '" + group.Key + "'; radio/shared-parameter menus are not supported by independent toggle bindings.");
         }
 
-        // 4. Parse Reactive Components (ObjectToggle, ShapeChanger, MaterialSetter)
+
         long ResolveTarget(YamlMappingNode? reference, long source)
         {
             string path = Text(reference, "referencePath");
@@ -611,7 +611,7 @@ public static partial class ModularAvatarInitialAppearance
                 Report("INVERTED", "Reactive component has malformed m_inverted.", component.Id);
                 continue;
             }
-            // Walk ancestors            // Walk ancestors from compOwner to AvatarRootId to find the controlling MenuItem and verify no other active-state dependencies exist
+
             long? controllingMenuId = null;
             for (long cursor = compOwner; cursor != 0 && cursor != context.AvatarRootId; cursor = parent.GetValueOrDefault(cursor))
             {

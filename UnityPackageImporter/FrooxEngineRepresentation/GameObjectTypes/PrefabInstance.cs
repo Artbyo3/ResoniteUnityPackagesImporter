@@ -27,7 +27,7 @@ public class PrefabInstance : IUnityObject
     public bool HasMissingSource { get; private set; }
     public HashSet<string> LineageGuids { get; internal set; }
 
-    // Retain the identity aliases already built for ancestor override replay.
+
     private readonly Dictionary<SourceObj, IUnityObject> ancestorTargets = new(new SourceObjCompare());
 
     public bool TryFindObject(SourceObj source, out IUnityObject result)
@@ -55,7 +55,7 @@ public class PrefabInstance : IUnityObject
             UnityPackageImporter.Warn($"Unsupported nested prefab instance {id} (GUID {m_SourcePrefab?.guid}) is not expanded. " +
                 (deferred ? "Mesh-free content and its operations are deferred." : "Mesh-bearing or unverified content cannot be deferred."));
             if (!deferred)
-                throw new InvalidDataException($"Nested prefab instance {id} is not expanded; mesh-bearing or unverified content prevents complete reconstruction.");
+                throw ReportFailureDetails.Tag(new InvalidDataException($"Nested prefab instance {id} is not expanded; mesh-bearing or unverified content prevents complete reconstruction."), ReportFailureReason.PrefabExpansionUnsupported);
             instanciated = true;
             return;
         }
@@ -76,10 +76,10 @@ public class PrefabInstance : IUnityObject
         if (importer.unityProjectImporter.AssetIDDict.ContainsKey(m_SourcePrefab.guid))
         {
             UnityPackageImporter.Msg("starting instanciation of inline prefab \"" + id.ToString() + "\"");
-            // Find FBX's in our scene that need importing, so we can import them and then attach our prefab objects to it.
-            // We are sharing the FBX's, so if it's a project with X prefabs of the same model but with different changes can all use the same base model
-            // Next we associate each shared FBX to prefabs that use them. then we duplicate the shared FBX's to each scene including this one, and then those duplicated FBXs become the prefabs themselves
-            // Instanciate our objects to generate our prefab entirely, using the ids we assigned ealier to identify our prefab elements in our list.
+
+
+
+
             Slot targetParent;
             ulong parentTransformId = 0;
             bool hasParentRef = m_Modification?.m_TransformParent != null &&
@@ -88,16 +88,16 @@ public class PrefabInstance : IUnityObject
 
             if (!hasParentRef)
             {
-                // Explicitly no parent or root-level prefab instance
+
                 targetParent = importer.CurrentStructureRootSlot;
             }
             else
             {
-                // Non-zero parent reference exists: it MUST resolve successfully.
+
                 if (!importer.existingIUnityObjects.TryGetValue(parentTransformId, out IUnityObject foundtransformparent) ||
                     foundtransformparent is not Transform parentTransform)
                 {
-                    throw new InvalidDataException($"PrefabInstance {id} specifies parent transform fileID {parentTransformId}, but parent transform does not exist. Cannot reconstruct object hierarchy.");
+                    throw ReportFailureDetails.Tag(new InvalidDataException($"PrefabInstance {id} specifies parent transform fileID {parentTransformId}, but parent transform does not exist. Cannot reconstruct object hierarchy."), ReportFailureReason.PrefabParentMissing);
                 }
 
                 await default(ToWorld);
@@ -120,7 +120,7 @@ public class PrefabInstance : IUnityObject
 
                 if (resolvedParentSlot == null)
                 {
-                    throw new InvalidDataException($"PrefabInstance {id} parent transform {parentTransformId} could not resolve to a valid slot. Cannot reconstruct object hierarchy.");
+                    throw ReportFailureDetails.Tag(new InvalidDataException($"PrefabInstance {id} parent transform {parentTransformId} could not resolve to a valid slot. Cannot reconstruct object hierarchy."), ReportFailureReason.PrefabParentUnresolved);
                 }
 
                 targetParent = resolvedParentSlot;
@@ -137,14 +137,14 @@ public class PrefabInstance : IUnityObject
                 importask = await importer.unityProjectImporter.SharedImportedFBXScenes[resolvedFbxGuid].MakeCopyAndPopulatePrefabData();
                 ImportRoot.frooxEngineSlot = importask.FinishedFileSlot;
                 await default(ToWorld);
-                // The template is authored in prefab-local space. Keeping its world
-                // transform cancels the import container's placement near the user.
+
+
                 ImportRoot.frooxEngineSlot.SetParent(targetParent, false);
                 await default(ToBackground);
 
                 SourceObj importrootsource = new SourceObj();
                 importrootsource.guid = this.m_SourcePrefab.guid;
-                importrootsource.fileID = 919132149155446097; // Hash of root object path
+                importrootsource.fileID = 919132149155446097;
                 importrootsource.type = 3;
 
                 FrooxEngineRepresentation.GameObjectTypes.Transform rootTransform = new FrooxEngineRepresentation.GameObjectTypes.Transform();
@@ -153,7 +153,7 @@ public class PrefabInstance : IUnityObject
 
                 SourceObj rootTransformSource = new SourceObj();
                 rootTransformSource.guid = this.m_SourcePrefab.guid;
-                rootTransformSource.fileID = -8679921383154817045; // Hash of root transform
+                rootTransformSource.fileID = -8679921383154817045;
                 rootTransformSource.type = 3;
 
                 ImportRoot.m_CorrespondingSourceObject = importrootsource;
@@ -176,7 +176,7 @@ public class PrefabInstance : IUnityObject
                     resolvedFbxGuid,
                     importer.unityProjectImporter?.ListOfPrefabs);
 
-                // Dictionary to map ancestor file IDs (and GUIDs) to the instantiated objects in PrefabHashes
+
                 var ancestorTargetMap = ancestorTargets;
                 var ancestorIdToTarget = new Dictionary<long, IUnityObject>();
                 var hashIdToTarget = new Dictionary<long, IUnityObject>();
@@ -189,7 +189,7 @@ public class PrefabInstance : IUnityObject
                 if (this.id != 0)
                     ancestorPiIds.Add((long)this.id);
 
-                // 1. Replay modifications from ancestor prefabs (oldest ancestor first)
+
                 var ancestors = PrefabVariantResolver.GetAncestorPrefabs(
                     this.m_SourcePrefab?.guid,
                     importer.unityProjectImporter?.ListOfPrefabs);
@@ -218,7 +218,7 @@ public class PrefabInstance : IUnityObject
                                 ancestorPiIds.Add((long)piVal);
                         }
 
-                        // Pre-populate derived IDs for any ancestor PrefabInstances
+
                         foreach (long piId in ancestorPiIds)
                         {
                             foreach (var kvp in this.PrefabHashes)
@@ -442,19 +442,19 @@ public class PrefabInstance : IUnityObject
                     }
                 }
 
-                // 2. Apply this variant's modifications on top
+
                 if (m_Modification != null && this.PrefabHashes != null)
                 {
                     ApplyModifications(m_Modification.m_Modifications, importer, resolvedFbxGuid, lineageGuids, modifiedObjects, ancestorTargetMap, ancestorIdToTarget, ancestorPiIds, hashIdToTarget);
                 }
 
                 instanciated = true;
-                // Instanciate our objects with our modifications, so in case they're not referenced in the scene, the imported FBX we duplicated to make this inline prefab has the M_Modifications still applied.
-                //this is important to do, especially for skinned mesh renderers! - @989onan
+
+
                 UnityPackageImporter.Msg("reinitializing objects that were modified.");
                 foreach (IUnityObject obj in modifiedObjects)
                 {
-                    // This is so that it can find it's source, which is ourselves to prevent errors - @989onan
+
                     obj.m_PrefabInstance = new Dictionary<string, ulong> { { "fileID", this.id } };
                     obj.instanciated = false;
                     try
@@ -512,7 +512,7 @@ public class PrefabInstance : IUnityObject
     }
 
 
-    //a detailed to string for debugging.
+
     public override string ToString()
     {
         StringBuilder result = new StringBuilder();
@@ -565,11 +565,11 @@ public class PrefabInstance : IUnityObject
     {
         if (mod?.target == null) return null;
 
-        // 1. Direct match in PrefabHashes
+
         if (this.PrefabHashes != null && this.PrefabHashes.TryGetValue(mod.target, out IUnityObject directTarget))
             return directTarget;
 
-        // 2. Ancestor target map match (by SourceObj or fileID across ancestor prefabs)
+
         if (ancestorTargetMap != null && ancestorTargetMap.TryGetValue(mod.target, out IUnityObject ancestorTarget))
             return ancestorTarget;
 
@@ -587,8 +587,8 @@ public class PrefabInstance : IUnityObject
         if (ancestorIdToTarget != null && ancestorIdToTarget.TryGetValue(mod.target.fileID, out IUnityObject idTarget))
             return idTarget;
 
-        // 3. Lineage match: if mod.target.guid belongs to the ancestor lineage or is empty,
-        // map it to the underlying FBX GUID that keys the duplicated slot components in PrefabHashes.
+
+
         if (this.PrefabHashes != null && !string.IsNullOrEmpty(resolvedFbxGuid))
         {
             if (PrefabVariantResolver.TryResolveTargetKey(
@@ -611,8 +611,8 @@ public class PrefabInstance : IUnityObject
                 return directHashTarget;
         }
 
-        // 4. Reverse derived file ID match: when a Prefab Variant modifies objects inside a nested
-        // PrefabInstance, Unity derives targetFileId = (parentPrefabInstanceId ^ baseFileId) & 0x7FFFFFFFFFFFFFFF.
+
+
         if (ancestorPiIds != null && ancestorPiIds.Count > 0)
         {
             if (PrefabVariantResolver.TryResolveDerivedTarget(mod.target.fileID, ancestorPiIds,
@@ -626,7 +626,7 @@ public class PrefabInstance : IUnityObject
             }
         }
 
-        // 5. Fallback: match by file ID in existing objects deserialized in current task
+
         if (importer?.existingIUnityObjects != null)
         {
             if (importer.existingIUnityObjects.TryGetValue((ulong)mod.target.fileID, out IUnityObject localTarget))

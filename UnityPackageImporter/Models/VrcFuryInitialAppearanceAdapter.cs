@@ -48,7 +48,7 @@ public static class VrcFuryInitialAppearanceAdapter
             "No VRChat animator first-frame, saved parameters, menus, transitions, security or runtime parity is claimed. " +
             "Unsupported actions are explicitly skipped; no destructive mesh/component editing is performed.", code: "VRCFURY_INITIAL_STATIC_ONLY");
         var stage = importer.CurrentStructureRootSlot;
-        var manifest = importer is UnityPrefabImportTask prefab ? prefab.Manifest : null;
+        var manifest = UnityStructureComposition.ManifestFor(importer);
         var roots = (manifest?.Avatars ?? Array.Empty<VrcAvatarDefinition>()).Select(avatar =>
             (Avatar: avatar, Slot: unityObjects.TryGetValue(unchecked((ulong)avatar.GameObjectFileId), out var entry) && entry is UnityGameObject game ? game.frooxEngineSlot : null))
             .Where(root => root.Slot != null && !root.Slot.IsDestroyed && PreparedImportItem.Contains(stage, root.Slot)).ToArray();
@@ -74,16 +74,35 @@ public static class VrcFuryInitialAppearanceAdapter
             var context = new InitialAppearanceContext
             {
                 AvatarRootId = root.Avatar.GameObjectFileId,
+                AuthoredHierarchy = AuthoredAppearanceSnapshot.For(importer)?.Hierarchy,
                 Renderers = InitialAppearanceRuntime.CaptureRenderers(unityObjects, avatarRoot),
                 ExternalAnimationAndParameterContextVerifiedAbsent = !hasRuntimeContext
             };
             await default(ToBackground);
-            UnityStaticClipResult? ResolveClip(string guid, long fileId) =>
-                UnityStaticAnimationClip.Resolve(importer.unityProjectImporter.AssetIDDict, guid, fileId, token);
+            var clipInputs = new Dictionary<(string Guid, long Id), AppearanceClipInput>();
+            var clipResults = new Dictionary<(string Guid, long Id), UnityStaticClipResult?>();
+            UnityStaticClipResult? ResolveClip(string guid, long fileId)
+            {
+                if (clipResults.TryGetValue((guid, fileId), out var prior)) return prior;
+                var parsed = UnityStaticAnimationClip.Resolve(importer.unityProjectImporter.AssetIDDict, guid, fileId, token, source =>
+                {
+                    importer.unityProjectImporter.AssetIDDict.TryGetValue(guid, out var path);
+                    clipInputs.Add((guid, fileId), new(guid, fileId, path, source, source == null ? null : InitialAppearanceReplay.Hash(source)));
+                });
+                clipResults.Add((guid, fileId), parsed);
+                return parsed;
+            }
             var result = VrcFuryInitialAppearance.Evaluate(yaml, context, ResolveClip, token);
+            var replay = InitialAppearanceReplay.Capture(yaml, context, clipInputs.Values, result, ImportReportService.LoadedBuildIdentity,
+                importer.unityProjectImporter.Session?.Reports?.SessionId ?? Guid.Empty, importer.ID.Value);
+            string? replayPath = await ImportReportService.SaveAppearanceReplayAsync(replay, token);
             await default(ToWorld);
             token.ThrowIfCancellationRequested();
             Report(result, plan);
+            plan.AddDiagnostic(replayPath == null ? AvatarOperationSeverity.Warning : AvatarOperationSeverity.Info,
+                replayPath == null ? "Exact appearance replay could not be saved; check local diagnostic storage before requesting another import." :
+                    "Exact local compiler inputs and clip dependencies captured: " + System.IO.Path.GetFileName(replayPath) + ". No native writes or playback are certified by replay.",
+                rootContext, replayPath == null ? "APPEARANCE_REPLAY_UNAVAILABLE" : "APPEARANCE_REPLAY_SAVED");
             if (!result.CanApply) continue;
             await InitialAppearanceRuntime.ApplyAsync(result.Writes, avatarRoot, unityObjects, importer, plan, token, "VRCFURY_INITIAL");
         }

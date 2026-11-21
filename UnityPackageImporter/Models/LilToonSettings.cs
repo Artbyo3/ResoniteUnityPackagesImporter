@@ -7,7 +7,7 @@ namespace UnityPackageImporter.Models;
 
 internal enum ToonBlend { Opaque, Cutout, Alpha, Additive }
 
-/// <summary>Runtime-compatible SDK rules. No engine state or Unity editor dependencies.</summary>
+
 internal static class LilToonSettings
 {
     public static ToonBlend Blend(UnityMaterialData data, string? shaderName)
@@ -29,8 +29,8 @@ internal static class LilToonSettings
             (shaderName?.Contains("/[Optional] FurOnly/", StringComparison.OrdinalIgnoreCase) ?? false))
             return ToonBlend.Alpha;
         if (leaf.Contains("Gem", StringComparison.OrdinalIgnoreCase)) return ToonBlend.Additive;
-        // Missing shader source: use its serialized RenderType, never the filename,
-        // presence of an alpha mask, or an opaque shader's saved cutoff property.
+
+
         if (string.IsNullOrEmpty(shaderName))
             return data.RenderType switch
             {

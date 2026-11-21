@@ -108,7 +108,7 @@ internal static class AvatarImportSelectionTests
     private static VrcAvatarDefinition Avatar(long id, string source) => new() { GameObjectFileId = id, SourcePath = source };
     private sealed record Node(string Name, Node? Parent = null)
     {
-        // Match engine object identity, even when names and parents coincide.
+
         public bool Equals(Node? other) => ReferenceEquals(this, other);
         public override int GetHashCode() => System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
     }

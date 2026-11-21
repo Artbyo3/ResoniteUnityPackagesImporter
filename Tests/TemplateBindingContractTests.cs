@@ -1,15 +1,15 @@
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
-// Text-only contract audit: no mod assembly, engine types, or compiler services needed.
+
 internal static class TemplateBindingContractTests
 {
     private const string Station = "Models/UnityStationBuilder.cs";
     private const string Loader = "UI/StationTemplateLoader.cs";
     private const string Prompt = "UI/PreImportPrompt.cs";
 
-    // Explicit ownership follows LoadAsync and the StationTemplate constructor handoffs.
-    // A lookup in a new consumer fails until its matching contract is recorded here.
+
+
     private static readonly Dictionary<string, string> Contracts = new(StringComparer.Ordinal)
     {
         [Station] = "station",
@@ -23,35 +23,35 @@ internal static class TemplateBindingContractTests
     private sealed record DynamicUse(string File, string Method, string Argument, int Count,
         string Reason, params string[] Names);
 
-    // These are call-site exceptions, not blanket permission to ignore nonliteral arguments.
-    // Counts make newly added forwarding/dynamic calls require an explicit review.
+
+
     private static readonly DynamicUse[] DynamicAllowlist =
     [
-        // Get/Bind forward key; the two foreach loops select these four literal binding names.
+
         new(Station, "Get", "key", 4, "Get/Bind forwarding and navigation/title loops",
             "previous", "next", "avatarTitle", "outfitTitle"),
-        // The callback forwards keys from ReusableDecisionPrompt, whose literals are scanned.
+
         new(Station, "SetLocalizedKey", "driverKey", 1, "ReusableDecisionPrompt callback forwarding"),
-        // Bind forwards the import/raw/cancel literals scanned at its callers.
+
         new(Prompt, "Get", "key", 1, "Pre-import Bind forwarding"),
-        // Locale builds locale.<key>.<index> from the caller's base key.
+
         new(Loader, "Locale", "key", 1, "ApplyRawText forwards a locale group name"),
-        // SetLocalized overloads forward their caller's key to the implementation.
+
         new(Loader, "SetLocalizedRaw", "key", 1, "SetLocalized overload forwarding"),
         new(Loader, "SetLocalizedKey", "key", 1, "SetLocalized overload forwarding"),
-        // The loader enumerates locale groups from whichever contract it is loading.
+
         new(Loader, "SetLocalizedKey", "baseKey", 1, "Loader initializes each contract's locale groups"),
         new(Loader, "SetLocalizedRaw", "baseKey", 1, "Loader clears parameterized locale groups"),
-        // Text application and locale refresh forward keys already checked at entry points.
+
         new(Loader, "ApplyRawText", "key", 1, "SetLocalizedRaw forwards its key"),
         new(Loader, "ApplyRawText", "driverKey", 1, "SetLocalizedKey forwards its driver key"),
         new(Loader, "ApplyRawText", "pair.Key", 3, "RefreshLocale replays active locale entries")
     ];
 
-    // Loader-only reverse allowlist. Every unused key is still printed with its reason.
+
     private static readonly (Regex Pattern, string Reason)[] ReverseAllowlist =
     [
-        // StationTemplateLoader enumerates these keys and initializes static translated text.
+
         (new(@"^locale\.[^.]+\.[0-9]+$", RegexOptions.CultureInvariant),
             "loader enumerates locale.<key>.<index> groups")
     ];
@@ -62,9 +62,9 @@ internal static class TemplateBindingContractTests
         public bool Localized => Method is not ("Get" or "TryGet" or "Bind");
     }
 
-    // Tokenize comments, strings, and chars before looking for invocations, so examples in
-    // comments/strings cannot create false lookups. Single-character angle tokens handle
-    // nested generics without depending on the engine-bound source being compilable.
+
+
+
     private static readonly Regex Tokens = new(""""
         //[^\r\n]*|/\*[\s\S]*?\*/|(?<raw>"{3,})[\s\S]*?\k<raw>|\$?@"(?:""|[^"])*"|@?\$?"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[A-Za-z_][A-Za-z_0-9]*|[^\s]
         """", RegexOptions.IgnorePatternWhitespace | RegexOptions.CultureInvariant);
@@ -103,7 +103,7 @@ internal static class TemplateBindingContractTests
             if (method is not ("Get" or "TryGet" or "Bind" or "SetLocalizedKey" or
                 "SetLocalizedRaw" or "SetLocalized" or "Locale" or "ApplyRawText" or
                 "setLocalizedKey" or "setLocalized")) continue;
-            // InitialToggleBinding.Bind is a model-state API, not a template lookup.
+
             if (method == "Bind" && i >= 2 && tokens[i - 1].Text == "." &&
                 tokens[i - 2].Text == "InitialToggleBinding") continue;
             int next = i + 1;
@@ -118,7 +118,7 @@ internal static class TemplateBindingContractTests
                     next++;
                 } while (next < tokens.Count && depth > 0);
             }
-            // Generic Bind<T> is InitialToggleBinding's declaration, not the UI helper.
+
             if (method == "Bind" && generic) continue;
             if (method is "Get" or "TryGet" && !generic) continue;
             if (next >= tokens.Count || tokens[next].Text != "(") continue;
@@ -131,10 +131,10 @@ internal static class TemplateBindingContractTests
                 if (text is ")" or "]" or "}") nesting--;
                 next++;
             }
-            // Method declarations have a string parameter; invocations do not.
+
             if (start == next || next - start == 2 && tokens[start].Text == "string" &&
                 Regex.IsMatch(tokens[start + 1].Text, @"^[A-Za-z_][A-Za-z_0-9]*$", RegexOptions.CultureInvariant)) continue;
-            // Accept named first arguments as well as positional ones.
+
             if (start + 1 < next && tokens[start + 1].Text == ":") start += 2;
             string argument = string.Concat(tokens.Skip(start).Take(next - start).Select(t => t.Text));
             string normalizedMethod = method switch
@@ -151,7 +151,7 @@ internal static class TemplateBindingContractTests
 
     private static string FindRepositoryRoot()
     {
-        // dotnet run puts the executable beneath Tests/bin on Windows and Ubuntu.
+
         for (var directory = new DirectoryInfo(AppContext.BaseDirectory); directory != null; directory = directory.Parent)
             if (File.Exists(Path.Combine(directory.FullName, "Tests", "Importer.RegressionTests.csproj")) &&
                 Directory.Exists(Path.Combine(directory.FullName, "UnityPackageImporter", "UI", "Templates")))
@@ -274,7 +274,7 @@ internal static class TemplateBindingContractTests
             string copy = Path.Combine(Path.GetTempPath(), "binding-contract-" + Guid.NewGuid().ToString("N"));
             try
             {
-                // Copy the real consumers and contracts; exercise the same Audit as CI.
+
                 foreach (string file in Contracts.Keys.Concat(new[]
                     { "UI/Templates/station.bindings.json", "UI/Templates/pre-import.bindings.json", "UI/Templates/error-report.bindings.json" }))
                 {
@@ -313,7 +313,7 @@ internal static class TemplateBindingContractTests
         });
         test("Template binding audit rejects new dynamic expressions and unmapped consumers", () =>
         {
-            // Use a tiny repository copy so the real audit (including dispatch) must fail.
+
             string root = Path.Combine(Path.GetTempPath(), "binding-contract-" + Guid.NewGuid().ToString("N"));
             try
             {

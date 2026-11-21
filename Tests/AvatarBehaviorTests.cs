@@ -8,6 +8,18 @@ internal static class AvatarBehaviorTests
 {
     public static void Register(Action<string, Action> test, Action<bool, string> check)
     {
+        test("Breathing native sine speed preserves the authored period", () =>
+        {
+            var breathing = new AvatarBreathingBinding(1, AvatarBreathingTargetMode.BlendShape,
+                30, "Chest", 0f, 100f, 0, PeriodSeconds: 4f);
+            check(Math.Abs(breathing.AngularSpeed * breathing.PeriodSeconds - 2f * MathF.PI) < 0.00001f,
+                "A full breathing cycle must span two pi radians, not one radian.");
+            check(Math.Abs((breathing with { PeriodSeconds = 0f }).AngularSpeed - 4f * MathF.PI) < 0.00001f,
+                "Zero periods must retain the half-second minimum.");
+            check(Math.Abs((breathing with { PeriodSeconds = -1f }).AngularSpeed - 4f * MathF.PI) < 0.00001f,
+                "Negative periods must retain the half-second minimum.");
+        });
+
         test("VRCFury Blinking compiles BlendShapeAction target to native blinking binding", () =>
         {
             string yaml = @"--- !u!1 &1

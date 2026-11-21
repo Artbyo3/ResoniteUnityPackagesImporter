@@ -16,8 +16,8 @@ public static partial class VrcFuryInitialAppearance
 {
     public const string UpstreamRevision = "6bd33f4cb453df816c943a335e47f64e6a37e188";
     public const string ScriptGuid = "d9e94e501a2d4c95bff3d5601013d923";
-    private static readonly Regex Header = new(@"^--- !u!(?<class>\d+) &(?<id>-?\d+)(?: stripped)?\s*$", RegexOptions.Multiline | RegexOptions.CultureInvariant);
-    private sealed record Document(long Id, int ClassId, YamlMappingNode Body);
+    private static readonly Regex Header = new(@"^--- !u!(?<class>\d+) &(?<id>-?\d+)(?<stripped> stripped)?\s*$", RegexOptions.Multiline | RegexOptions.CultureInvariant);
+    private sealed record Document(long Id, int ClassId, YamlMappingNode Body, bool Stripped);
     private sealed record Managed(string Class, string Namespace, string Assembly, YamlMappingNode Data);
     private sealed record Feature(long Source, long Owner, string Class, YamlMappingNode Data, IReadOnlyList<Managed> Actions, long Rid = 0);
 
@@ -40,18 +40,7 @@ public static partial class VrcFuryInitialAppearance
             Report("YAML", "Malformed composed Unity YAML: " + exception.Message);
             return new() { Diagnostics = diagnostics.AsReadOnly() };
         }
-        var objects = documents.Values.Where(item => item.ClassId == 1).ToDictionary(item => item.Id);
-        var parents = new Dictionary<long, long>();
-        foreach (var transform in documents.Values.Where(item => item.ClassId is 4 or 224))
-        {
-            long owner = Reference(transform.Body, "m_GameObject");
-            long father = Reference(transform.Body, "m_Father");
-            if (!objects.ContainsKey(owner) || parents.ContainsKey(owner))
-            { Report("HIERARCHY", "Missing or duplicate Transform ownership.", transform.Id); continue; }
-            if (father != 0 && (!documents.TryGetValue(father, out var parent) || parent.ClassId is not (4 or 224)))
-                Report("HIERARCHY", "Missing parent Transform.", transform.Id);
-            parents[owner] = father == 0 ? 0 : documents.TryGetValue(father, out var resolved) ? Reference(resolved.Body, "m_GameObject") : 0;
-        }
+        var (objects, parents) = ReadHierarchy(documents, context, Report);
         bool Within(long candidate)
         {
             var visited = new HashSet<long>();
@@ -67,7 +56,12 @@ public static partial class VrcFuryInitialAppearance
         foreach (var item in objects.Values.Where(item => Within(item.Id)))
         {
             string value = Text(item.Body, "m_IsActive");
-            if (value is not ("0" or "1")) Report("ACTIVE", "Missing or malformed authored m_IsActive.", item.Id);
+            if (value is not ("0" or "1"))
+            {
+                if (item.Stripped && Get(item.Body, "m_IsActive") == null)
+                    Report("SOURCE_STATE_INCOMPLETE", "Stripped model GameObject needs its resolved authored active state; no default visibility is inferred from an alias.", item.Id);
+                else Report("ACTIVE", "Missing or malformed authored m_IsActive.", item.Id);
+            }
             authored[item.Id] = value == "1";
         }
         foreach (long owner in authored.Keys)
@@ -85,8 +79,80 @@ public static partial class VrcFuryInitialAppearance
         var animationPaths = new AvatarAnimationPathResolver(context.AvatarRootId,
             objects.Values.Select(item => new AvatarAnimationObject(item.Id, parents.GetValueOrDefault(item.Id), Text(item.Body, "m_Name"))));
         long ResolvePath(long owner, string path, int classId) => animationPaths.Resolve(owner, path,
-            identity => classId == 1 || documents.Values.Any(item => item.ClassId == classId && Reference(item.Body, "m_GameObject") == identity));
+            identity => classId == 1 || (classId == 4 && context.AuthoredHierarchy?.Objects.ContainsKey(identity) == true) ||
+                documents.Values.Any(item => item.ClassId == classId && Reference(item.Body, "m_GameObject") == identity));
         return Compile(features, context, authored, Within, documents, ResolvePath, clipResolver, diagnostics, Report, token);
+    }
+
+    private static (Dictionary<long, Document> Objects, Dictionary<long, long> Parents) ReadHierarchy(
+        Dictionary<long, Document> documents, InitialAppearanceContext context, Action<string, string, long, InitialAppearanceSeverity> report)
+    {
+        void Report(string code, string message, long source = 0, InitialAppearanceSeverity severity = InitialAppearanceSeverity.Error) =>
+            report(code, message, source, severity);
+        var objects = documents.Values.Where(item => item.ClassId == 1).ToDictionary(item => item.Id);
+        var hierarchy = context.AuthoredHierarchy;
+        if (hierarchy != null)
+            Report("SOURCE_GRAPH_RESOLVED", "Using immutable pre-conversion source hierarchy: " + hierarchy.Objects.Count +
+                " objects, " + hierarchy.TransformOwners.Count + " exact Transform aliases.", context.AvatarRootId, InitialAppearanceSeverity.Info);
+        var parents = hierarchy?.Objects.Values.ToDictionary(item => item.Id, item => item.ParentId) ?? new Dictionary<long, long>();
+        if (hierarchy != null)
+            foreach (var node in hierarchy.Objects.Values)
+            {
+                if (documents.TryGetValue(node.Id, out var original) && original.ClassId != 1)
+                {
+                    Report("SOURCE_GRAPH_CONFLICT", "Resolved model GameObject identity collides with a different source component.", node.Id);
+                    continue;
+                }
+                if (original != null && !original.Stripped) continue;
+                var body = new YamlMappingNode();
+                if (original != null)
+                    foreach (var field in original.Body.Children) body.Add(field.Key, field.Value);
+                if (Get(body, "m_Name") == null) body.Add("m_Name", node.Name);
+                if (Get(body, "m_IsActive") == null) body.Add("m_IsActive", node.ActiveSelf ? "1" : "0");
+                objects[node.Id] = new(node.Id, 1, body, original?.Stripped ?? false);
+            }
+        var transformedOwners = new HashSet<long>();
+        long ParentOwner(long identity) => identity == 0 ? 0 :
+            hierarchy != null && hierarchy.TransformOwners.TryGetValue(identity, out long knownOwner) ? knownOwner :
+            documents.TryGetValue(identity, out var resolved) && resolved.ClassId is 4 or 224 &&
+            Get(resolved.Body, "m_GameObject") is YamlMappingNode ownerReference && Text(ownerReference, "guid").Trim('0').Length == 0 &&
+            long.TryParse(Text(ownerReference, "fileID"), NumberStyles.Integer, CultureInfo.InvariantCulture, out long ownerIdentity) ? ownerIdentity : 0;
+        bool MatchesReference(YamlMappingNode body, string field, long expected, bool parent)
+        {
+            var value = Get(body, field);
+            if (value == null) return true;
+            if (value is not YamlMappingNode reference || Text(reference, "guid").Trim('0').Length != 0 ||
+                !long.TryParse(Text(reference, "fileID"), NumberStyles.Integer, CultureInfo.InvariantCulture, out long identity)) return false;
+            if (!parent) return identity == expected;
+            if (identity == 0) return expected == 0;
+            long owner = ParentOwner(identity);
+            return owner != 0 && owner == expected;
+        }
+        foreach (var transform in documents.Values.Where(item => item.ClassId is 4 or 224))
+        {
+            if (transform.Stripped && (hierarchy != null || Get(transform.Body, "m_GameObject") == null || Get(transform.Body, "m_Father") == null))
+            {
+                if (hierarchy != null && hierarchy.TransformOwners.TryGetValue(transform.Id, out long inheritedOwner) &&
+                    hierarchy.Objects.TryGetValue(inheritedOwner, out var inherited))
+                {
+                    if (!MatchesReference(transform.Body, "m_GameObject", inheritedOwner, false) ||
+                        !MatchesReference(transform.Body, "m_Father", inherited.ParentId, true) ||
+                        !transformedOwners.Add(inheritedOwner))
+                        Report("SOURCE_GRAPH_CONFLICT", "Stripped Transform fields conflict with the exact resolved model instance.", transform.Id);
+                    continue;
+                }
+                Report("SOURCE_GRAPH_INCOMPLETE", "Stripped model Transform needs resolved source owner and parent metadata before appearance scope can be verified; the alias alone is not a malformed hierarchy.", transform.Id);
+                continue;
+            }
+            long owner = Reference(transform.Body, "m_GameObject");
+            long father = Reference(transform.Body, "m_Father");
+            if (!objects.ContainsKey(owner) || !transformedOwners.Add(owner))
+            { Report("HIERARCHY", "Missing or duplicate Transform ownership.", transform.Id); continue; }
+            if (father != 0 && (!documents.TryGetValue(father, out var parent) || parent.ClassId is not (4 or 224)))
+                Report("HIERARCHY", "Missing parent Transform.", transform.Id);
+            parents[owner] = ParentOwner(father);
+        }
+        return (objects, parents);
     }
 
     private static InitialAppearanceResult Compile(List<Feature> features, InitialAppearanceContext context, Dictionary<long, bool> authored,
@@ -205,7 +271,17 @@ public static partial class VrcFuryInitialAppearance
                         if (clipResolver == null) { Unsupported("AnimationClipAction requires a caller-supplied exact GUID/fileID constant-clip resolver; skipped.", feature.Source, "CLIP_UNSUPPORTED"); continue; }
                         var clip = clipResolver(reference.Guid, reference.FileId);
                         if (clip == null) { Error("CLIP_MISSING", "AnimationClipAction GUID/fileID cannot be resolved from this package.", feature.Source); continue; }
-                        foreach (var diagnostic in clip.Diagnostics) diagnostics.Add(diagnostic with { SourceId = feature.Source });
+                        foreach (var diagnostic in clip.Diagnostics) diagnostics.Add(diagnostic with
+                        {
+                            SourceId = feature.Source,
+                            Message = "Clip " + reference.Guid + ":" + reference.FileId.ToString(CultureInfo.InvariantCulture) + ": " + diagnostic.Message
+                        });
+                        if (clip.RequiresTransformPlayback && feature.Class != "Toggle")
+                            Error("CLIP_TRANSFORM_BUILD_ACTION_UNSUPPORTED", "A build-time transform clip cannot be deferred as optional runtime Toggle playback; no authored pose was guessed.", feature.Source);
+                        if (clip.RequiresTransformPlayback)
+                            foreach (string path in clip.TransformPaths)
+                                if (resolvePath(feature.Owner, path, 4) == 0)
+                                    Error("CLIP_PATH", "Deferred animation binding '" + path + "' has no exact owned Transform target.", feature.Source);
                         if (!clip.CanApply) continue;
                         foreach (var curve in clip.Curves)
                         {
@@ -331,7 +407,7 @@ public static partial class VrcFuryInitialAppearance
             stream.Load(new StringReader(yaml.Substring(start, end - start)));
             if (stream.Documents.Count != 1 || stream.Documents[0].RootNode is not YamlMappingNode root || root.Children.Count != 1 || root.Children.Values.Single() is not YamlMappingNode body) throw new InvalidDataException("Malformed Unity document root.");
             long identity = long.Parse(header.Groups["id"].Value, CultureInfo.InvariantCulture);
-            if (identity == 0 || !documents.TryAdd(identity, new(identity, int.Parse(header.Groups["class"].Value, CultureInfo.InvariantCulture), body))) throw new InvalidDataException("Duplicate or invalid Unity document identity.");
+            if (identity == 0 || !documents.TryAdd(identity, new(identity, int.Parse(header.Groups["class"].Value, CultureInfo.InvariantCulture), body, header.Groups["stripped"].Success))) throw new InvalidDataException("Duplicate or invalid Unity document identity.");
         }
         return documents;
     }

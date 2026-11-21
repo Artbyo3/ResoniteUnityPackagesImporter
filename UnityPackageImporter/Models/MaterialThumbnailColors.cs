@@ -4,7 +4,7 @@ using System.Collections.Concurrent;
 
 namespace UnityPackageImporter.Models;
 
-// Owned by one ImportSession, never shared across packages or worlds.
+
 internal sealed class MaterialThumbnailColors
 {
     private readonly ConcurrentDictionary<string, (float r, float g, float b, float a)> colors = new(StringComparer.Ordinal);

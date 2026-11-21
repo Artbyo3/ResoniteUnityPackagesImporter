@@ -126,7 +126,7 @@ internal static class BoundedTaskSchedulerTests
                             {
                                 tcsReadyToCancel.TrySetResult();
                             }
-                            // Wait until cancellation fires
+
                             while (!token.IsCancellationRequested)
                             {
                                 await Task.Delay(5, CancellationToken.None);
@@ -142,10 +142,10 @@ internal static class BoundedTaskSchedulerTests
                 }
             });
 
-            // Wait until exactly maxConcurrency items are actively running
+
             tcsReadyToCancel.Task.GetAwaiter().GetResult();
 
-            // Cancel and drain through ImportLifetime
+
             var drainTask = lifetime.CancelAndDrainAsync();
             drainTask.GetAwaiter().GetResult();
             runTask.GetAwaiter().GetResult();

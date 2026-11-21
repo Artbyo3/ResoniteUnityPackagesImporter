@@ -49,7 +49,7 @@ internal static class BoundedTaskScheduler
                     using var lease = lifetime?.Enter();
                     int inFlight = Interlocked.Increment(ref currentInFlight);
 
-                    // Thread-safe update of peak concurrent in-flight items
+
                     int initialPeak;
                     do
                     {
@@ -76,14 +76,14 @@ internal static class BoundedTaskScheduler
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
-            // Drain already-launched tasks before rethrowing cancellation so no orphaned work is left behind
+
             try
             {
                 await Task.WhenAll(tasks).ConfigureAwait(false);
             }
             catch (Exception)
             {
-                // Discard exceptions from tasks that were cancelled during drain before rethrowing original cancellation.
+
             }
             throw;
         }

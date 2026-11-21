@@ -182,7 +182,7 @@ public static class PrefabVariantResolver
             break;
         }
 
-        // Return oldest ancestor first (root -> leaf)
+
         result.Reverse();
         return result;
     }
@@ -324,8 +324,8 @@ public static class PrefabVariantResolver
                 if (matches == null) continue;
                 foreach (var match in matches)
                 {
-                    // A null entry records an ID that already collided while the
-                    // ancestor maps were built. It must not look like a missing ID.
+
+
                     if (match is null)
                     {
                         ambiguous = true;
@@ -393,11 +393,11 @@ public static class PrefabVariantResolver
         failureReason = null;
         if (parentTransformId == 0)
         {
-            // Explicitly no parent -> valid root-level placement
+
             return true;
         }
 
-        // Non-zero parent reference exists: it MUST resolve successfully.
+
         var (transformExists, gameObjectId, hasDirectSlot) = getTransformInfo(parentTransformId);
         if (!transformExists)
         {

@@ -8,9 +8,9 @@ using FrooxEngine;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>
-/// Reads base display color from known importer material types without reflection.
-/// </summary>
+
+
+
 internal static class MaterialColorReader
 {
     public static readonly (float r, float g, float b, float a) NeutralTint = (0.5f, 0.5f, 0.5f, 1f);

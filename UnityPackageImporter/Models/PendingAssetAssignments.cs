@@ -6,8 +6,8 @@ using System.Threading.Tasks;
 
 namespace UnityPackageImporter.Models;
 
-// Retains the assignment as well as the missing GUID. Asset availability alone
-// does not mean a material field has actually been repaired.
+
+
 internal sealed class PendingAssetAssignments<TAsset> where TAsset : class
 {
     private sealed record Assignment(string[] AssetGuids, Func<Task<TAsset>> Load,
@@ -49,8 +49,8 @@ internal sealed class PendingAssetAssignments<TAsset> where TAsset : class
         lock (sync) return assignments.Values.Any(value => value.AssetGuids.Any(available.Contains));
     }
 
-    // The import session serializes resolution requests. Registration can still
-    // happen while a material is being converted; snapshot only this attempt.
+
+
     public async Task<int> ResolveAsync(IEnumerable<string> availableGuids, CancellationToken cancellation,
         Action<string, Exception> reportFailure)
     {
@@ -67,7 +67,7 @@ internal sealed class PendingAssetAssignments<TAsset> where TAsset : class
                 var asset = await entry.Value.Load();
                 cancellation.ThrowIfCancellationRequested();
                 if (asset == null) continue;
-                // A field can be rebound while its old asset is loading.
+
                 lock (sync)
                     if (!assignments.TryGetValue(entry.Key, out var expected) || !ReferenceEquals(expected, entry.Value))
                         continue;

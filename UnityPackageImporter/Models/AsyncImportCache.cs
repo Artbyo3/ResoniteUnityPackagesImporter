@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace UnityPackageImporter.Models;
 
-// Cache the task, not an unfinished asset. All callers observe the same result or failure.
+
 internal sealed class AsyncImportCache<T>
 {
     private readonly ConcurrentDictionary<string, Lazy<Task<T>>> tasks = new(StringComparer.Ordinal);
@@ -17,9 +17,9 @@ internal sealed class AsyncImportCache<T>
 
     public bool Contains(string assetId) => !string.IsNullOrEmpty(assetId) && tasks.ContainsKey(assetId);
 
-    // A companion package may make previously unavailable assets loadable. Retry
-    // only unsuccessful completed attempts: successful and in-flight imports
-    // must retain their identity for all materials that share them.
+
+
+
     public void RetryUnsuccessful(string? assetId = null)
     {
         if (assetId != null)

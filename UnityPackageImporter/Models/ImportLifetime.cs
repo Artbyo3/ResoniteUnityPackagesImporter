@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace UnityPackageImporter.Models;
 
-// Cancellation stops new work immediately; cleanup waits for existing native work to yield.
+
 internal sealed class ImportLifetime
 {
     private readonly object sync = new();

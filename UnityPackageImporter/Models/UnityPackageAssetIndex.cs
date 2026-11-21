@@ -60,8 +60,8 @@ internal sealed class UnityPackageAssetIndex
 
                 if (AreAssetsEquivalent(existingAsset, assetPath))
                 {
-                    // Equivalent duplicates deduplicate safely.
-                    // Pick the canonical path deterministically so reversing input order yields identical selection.
+
+
                     if (string.Compare(assetPath, existingAsset, StringComparison.OrdinalIgnoreCase) < 0)
                     {
                         result.Assets[guid] = assetPath;
@@ -71,7 +71,7 @@ internal sealed class UnityPackageAssetIndex
                     continue;
                 }
 
-                // Conflicting assets!
+
                 result.ConflictedGuids.Add(guid);
                 result.Assets.Remove(guid);
                 result.Prefabs.Remove(guid);
@@ -100,7 +100,7 @@ internal sealed class UnityPackageAssetIndex
         var result = new CompanionMergeResult();
         if (companionAssets == null) return result;
 
-        // First register any internal conflicts reported by the companion
+
         if (companionConflictedGuids != null)
         {
             foreach (var rawGuid in companionConflictedGuids)
@@ -145,7 +145,7 @@ internal sealed class UnityPackageAssetIndex
                     continue;
                 }
 
-                // Conflicting asset!
+
                 conflictedGuids.Add(guid);
                 result.ConflictedGuids.Add(guid);
                 string message = $"Companion asset '{companionPath}' conflicts with existing asset '{existingPath}' for GUID '{guid}'.";
@@ -161,7 +161,7 @@ internal sealed class UnityPackageAssetIndex
                 continue;
             }
 
-            // Legitimate missing / new dependency
+
             currentAssets.Add(guid, companionPath);
             result.AddedGuids.Add(guid);
         }
@@ -174,7 +174,7 @@ internal sealed class UnityPackageAssetIndex
         if (string.Equals(Path.GetFullPath(assetPathA), Path.GetFullPath(assetPathB), StringComparison.OrdinalIgnoreCase))
             return true;
 
-        // Check metadata first
+
         string metaA = assetPathA.EndsWith(".meta", StringComparison.OrdinalIgnoreCase) ? assetPathA : assetPathA + ".meta";
         string metaB = assetPathB.EndsWith(".meta", StringComparison.OrdinalIgnoreCase) ? assetPathB : assetPathB + ".meta";
         bool metaExistsA = File.Exists(metaA);
@@ -182,7 +182,7 @@ internal sealed class UnityPackageAssetIndex
         if (metaExistsA != metaExistsB) return false;
         if (metaExistsA && !AreMetadataEquivalent(metaA, metaB)) return false;
 
-        // Check payloads
+
         bool isDirA = Directory.Exists(assetPathA);
         bool isDirB = Directory.Exists(assetPathB);
         if (isDirA != isDirB) return false;
@@ -191,7 +191,7 @@ internal sealed class UnityPackageAssetIndex
         bool existsA = File.Exists(assetPathA);
         bool existsB = File.Exists(assetPathB);
         if (existsA != existsB) return false;
-        if (!existsA) return true; // Neither file exists on disk, metadata matched
+        if (!existsA) return true;
 
         var fileInfoA = new FileInfo(assetPathA);
         var fileInfoB = new FileInfo(assetPathB);
@@ -238,15 +238,15 @@ internal sealed class UnityPackageAssetIndex
         }
         catch (YamlException)
         {
-            // Invalid metadata cannot establish that two assets are equivalent.
+
             return false;
         }
     }
 
     private static bool MetadataNodesEqual(YamlNode a, YamlNode b, int depth)
     {
-        // Metadata does not need recursive aliases or arbitrary nesting. Fail
-        // conservatively instead of recursing indefinitely on cyclic input.
+
+
         if (depth > 64 || !a.Tag.Equals(b.Tag)) return false;
         if (a is YamlScalarNode scalarA && b is YamlScalarNode scalarB)
             return scalarA.Style == scalarB.Style &&

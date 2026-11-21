@@ -57,7 +57,7 @@ internal static class AvatarEyeLookRuntime
             Slot? leftEyeSlot = ResolveTransformSlot(eyeLook.LeftEyeTransform);
             Slot? rightEyeSlot = ResolveTransformSlot(eyeLook.RightEyeTransform);
 
-            // 1. Configure EyeRotationDriver if custom eye bones are specified
+
             if (leftEyeSlot != null || rightEyeSlot != null)
             {
                 var rotationDrivers = avatarRoot.GetComponentsInChildren<EyeRotationDriver>();
@@ -76,8 +76,8 @@ internal static class AvatarEyeLookRuntime
                 }
             }
 
-            // 2. Configure Eyelid Blinking
-            if (eyeLook.EyelidType == 1) // Blendshapes
+
+            if (eyeLook.EyelidType == 1)
             {
                 if (eyeLook.EyelidsMesh != null &&
                     item.existingIUnityObjects.TryGetValue(unchecked((ulong)eyeLook.EyelidsMesh.FileId), out var meshObj) &&
@@ -108,7 +108,7 @@ internal static class AvatarEyeLookRuntime
                     Report("MESH_UNRESOLVED", "Authored eyelidsMesh could not be resolved to a uniquely owned skinned renderer.");
                 }
             }
-            else if (eyeLook.EyelidType == 2) // Bones
+            else if (eyeLook.EyelidType == 2)
             {
                 Report("BONES_INFO", "Authored bone eyelids are driven through standard skeleton hierarchy.", AvatarOperationSeverity.Info);
             }

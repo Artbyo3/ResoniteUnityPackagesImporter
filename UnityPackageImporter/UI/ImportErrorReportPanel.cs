@@ -8,8 +8,8 @@ using UnityPackageImporter.Models;
 
 namespace UnityPackageImporter.UI;
 
-// The native template owns layout, scrolling, Close, clipboard and hyperlink interaction.
-// This controller only supplies real report data in the local user's private world.
+
+
 internal sealed class ImportErrorReportPanel
 {
     private readonly World world;
@@ -38,7 +38,7 @@ internal sealed class ImportErrorReportPanel
         }
         catch (Exception error)
         {
-            // UI availability never prevents the independent local report-file write.
+
             UnityPackageImporter.Warn("Could not schedule the private import report panel: " + error.GetType().Name);
         }
     }
@@ -63,7 +63,7 @@ internal sealed class ImportErrorReportPanel
                 throw new InvalidDataException("The report binding must be an undriven plain-text source.");
             if (template.Get<ButtonClipboardCopyText>("copyReportAction").Source.Target != text.Content)
                 throw new InvalidDataException("The report clipboard source must reference the report text.");
-            // Close is the template's native ButtonActionTrigger. Observe its lifetime only.
+
             ((IDestroyable)template.Root).Destroyed += OnPanelDestroyed;
             template.LocaleChanged += RefreshLinkReason;
             RefreshLinkReason(LocalizationManager.DetectLocaleCode());

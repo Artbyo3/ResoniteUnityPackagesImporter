@@ -45,7 +45,7 @@ internal static class SelectableImportItemsTests
             var source = new object();
             items.Reset(new[] { source });
 
-            // A reusable operation, such as outfit installation, leaves the list untouched.
+
             Check(ReferenceEquals(items.Current, source) && items.Count == 1,
                 "A reusable source must remain available after a non-consuming operation.");
             Check(items.Consume(source), "A later consuming operation must remove the same source.");

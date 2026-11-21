@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 
 namespace UnityPackageImporter.Models;
 
-/// <summary>
-/// Thread-safe and cancellation-resilient cache for material thumbnails.
-/// Decouples shared background thumbnail generation from transient UI tokens,
-/// safely evicts faulted or canceled tasks, and prevents cache poisoning.
-/// </summary>
+
+
+
+
+
 internal sealed class ThumbnailTaskCache
 {
     private readonly ConcurrentDictionary<string, Uri> uriCache = new(StringComparer.OrdinalIgnoreCase);
@@ -36,12 +36,12 @@ internal sealed class ThumbnailTaskCache
         }
     }
 
-    /// <summary>
-    /// Gets or creates a background task to generate/import a thumbnail.
-    /// The generator factory produces the shared background task, which runs independent
-    /// of transient UI tokens.
-    /// The caller can await with their own UI cancellation token via <paramref name="callerToken"/>.
-    /// </summary>
+
+
+
+
+
+
     public async Task<Uri?> GetOrLoadThumbnailAsync(
         string guid,
         Func<string, Task<Uri?>> generator,
@@ -80,8 +80,8 @@ internal sealed class ThumbnailTaskCache
         }
         catch (OperationCanceledException)
         {
-            // Transient caller UI cancellation.
-            // If the underlying shared task was itself canceled or faulted, evict it.
+
+
             if (task.IsFaulted || task.IsCanceled)
             {
                 taskCache.TryRemove(new KeyValuePair<string, Task<Uri?>>(guid, task));
@@ -90,7 +90,7 @@ internal sealed class ThumbnailTaskCache
         }
         catch (Exception)
         {
-            // Shared task faulted
+
             taskCache.TryRemove(new KeyValuePair<string, Task<Uri?>>(guid, task));
             throw;
         }

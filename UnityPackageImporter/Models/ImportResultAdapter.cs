@@ -10,8 +10,8 @@ using UnityTypes = UnityPackageImporter.FrooxEngineRepresentation.GameObjectType
 
 namespace UnityPackageImporter.Models;
 
-// Engine observations stay at this boundary; the readiness policy is engine-independent.
-// Called only on the world context, including again immediately before an output action.
+
+
 internal static class ImportResultAdapter
 {
     internal static ReportResult CaptureReport(PreparedImportItem item, UnityProjectImporter project, bool includeNames)
@@ -53,7 +53,12 @@ internal static class ImportResultAdapter
             result.OperationCount, result.CompletedOperationCount, result.MissingMaterialAssets, result.MissingMeshReferences,
             result.UnsupportedNestedPrefabCount, result.MissingNestedPrefabCount, native, objects, operations,
             item.ConversionPlan?.Diagnostics.Count ?? 0, item.ConversionPlan?.Diagnostics.Select(d => d.Code).Distinct().Take(24).ToArray(),
-            includeNames ? item.DisplayName : null, result.UnsupportedFeatureCount, result.MaterialWarningCount, result.RequiresInstallation);
+            includeNames ? item.DisplayName : null, result.UnsupportedFeatureCount, result.MaterialWarningCount, result.RequiresInstallation,
+            ImportActionDiagnostics.Prioritize(item.ConversionPlan?.Diagnostics ?? new List<AvatarOperationDiagnostic>())
+                .Select(diagnostic => new ReportPlanDiagnostic(diagnostic.Severity, diagnostic.Code,
+                    long.TryParse(diagnostic.SourceContext, System.Globalization.NumberStyles.Integer, System.Globalization.CultureInfo.InvariantCulture, out long id) ? id : 0)).ToArray(),
+            item.ConversionPlan?.Diagnostics.Count(diagnostic => diagnostic.Severity == AvatarOperationSeverity.Error) ?? 0,
+            item.ConversionPlan?.Diagnostics.Count(diagnostic => diagnostic.Severity == AvatarOperationSeverity.Warning) ?? 0);
     }
 
     internal static ImportResult Read(PreparedImportItem item, UnityProjectImporter project)
@@ -78,8 +83,8 @@ internal static class ImportResultAdapter
             .Concat(item.NestedPrefabs?.MissingInstanceIds ?? Enumerable.Empty<ulong>()).Distinct()
             .Count(id => !item.IsScopedSceneItem || DeferredInstanceAffects(item, id));
         int unsupported = item.Manifest?.UnsupportedVrcFuryFeatureCount ?? 0;
-        // These components are indexed, but are not executed by the structural planner.
-        // An outfit's installer handles its own additional MA features at installation.
+
+
         if (!outfit && item.Manifest != null)
             unsupported += item.Manifest.ModularAvatarComponents.Count(c => c.Kind is not
                 (ModularAvatarComponentKind.MergeArmature or ModularAvatarComponentKind.BoneProxy or ModularAvatarComponentKind.OutfitRoot));

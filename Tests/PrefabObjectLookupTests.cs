@@ -9,6 +9,15 @@ internal static class PrefabObjectLookupTests
 
     public static void Register(Action<string, Action> test, Action<bool, string> check)
     {
+        test("Model Transform owner aliases never cross repeated source instances", () =>
+        {
+            var target = new SourceObj(314, FbxGuid, 3);
+            check(PrefabObjectLookup.IsSameInstanceAlias(new SourceObj(314, FbxGuid.ToUpperInvariant(), 3), 200, target, 200), "Exact instance/source identity should bind.");
+            check(!PrefabObjectLookup.IsSameInstanceAlias(target, 100, target, 200), "Another instance of the same model must not own this Transform.");
+            check(!PrefabObjectLookup.IsSameInstanceAlias(target, 0, target, 0), "Missing instance identity must not authorize a match.");
+            check(!PrefabObjectLookup.IsSameInstanceAlias(new SourceObj(315, FbxGuid, 3), 200, target, 200), "A different source GameObject must not match.");
+            check(!PrefabObjectLookup.IsSameInstanceAlias(new SourceObj(314, PrefabGuid, 3), 200, target, 200), "A different source asset must not match.");
+        });
         Dictionary<SourceObj, object> Map() => new(new SourceObjCompare());
         var lineage = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { PrefabGuid, FbxGuid, "ancestor-a", "ancestor-b" };
         bool Find(SourceObj source, Dictionary<SourceObj, object> hashes,
@@ -18,7 +27,7 @@ internal static class PrefabObjectLookupTests
 
         void RegisterAlias(Dictionary<SourceObj, object> aliases, long sourceId, object target)
         {
-            // Same registration and shared formula as PrefabInstance's override replay.
+
             long derivedId = PrefabVariantResolver.ComputeDerivedFileId(InstanceId, sourceId);
             PrefabVariantResolver.RegisterUniqueTarget(aliases, new SourceObj(derivedId, PrefabGuid, 3), target);
         }
@@ -81,6 +90,17 @@ internal static class PrefabObjectLookupTests
                 check(error.Message == "Transform 8773007775650283060 could not resolve prefab target 6866332237670371181 in e9357ac6af6331a4d9538b7fc8745d6d. Hierarchy integrity cannot be guaranteed.",
                     "The actual Transform failure factory must retain the original message exactly.");
             }
+        });
+
+        test("Unresolved stripped Transform reports a typed cause without source identity", () =>
+        {
+            var error = PrefabObjectLookup.UnresolvedTransform(8773007775650283060, new SourceObj(6866332237670371181, PrefabGuid, 3));
+            var captured = ImportFailureReport.CaptureExceptions(error, out bool truncated);
+            check(!truncated && captured.Single().Reason == ReportFailureReason.PrefabTargetUnresolved,
+                "The real failure factory must retain a precise anonymous diagnosis.");
+            string report = ImportFailureReport.Build(StructuredImportReportTests.Sample() with { Exceptions = captured }, new ReportSanitizer());
+            check(report.Contains("Reason: PrefabTargetUnresolved") && !report.Contains(PrefabGuid) && !report.Contains("6866332237670371181"),
+                "The missing-target report lost its cause or exposed original source identity.");
         });
 
         test("Ordinary exact prefab references retain precedence over derived aliases", () =>
