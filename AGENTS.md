@@ -78,6 +78,7 @@ A wrong or misspelled audit argument currently falls through to the full test ru
 - Every named binding the code uses must exist in `station.bindings.json` / `pre-import.bindings.json`.
 
 ## Code rules
+- Fix the root cause. A change that only hides a symptom — guards, retries, swallowed errors, special cases — does not count as a fix. If the root cause sits outside the task's scope, report it instead of patching around it.
 - No source comments (inline, block, XML doc) or nonfunctional docstrings. Keep legal notices, compiler/tool directives, shebangs, and encoding declarations; never alter strings or fixtures with comment-like text. Rationale and evidence go in `docs/`, agent rules here.
 - Identify Unity components by script GUID + fileID, never by name or type text.
 - Malformed source values (unparseable numbers, conflicting fields, missing references) produce a diagnostic, never a silent default or a guess.
