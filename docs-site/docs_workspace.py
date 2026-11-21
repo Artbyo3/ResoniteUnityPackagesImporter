@@ -11,6 +11,7 @@ from urllib.parse import urlsplit
 from docs_navigation import strip_section_links
 from support_map import render_support_map
 from visual_guides import load_visual_guides, render_visual_guide
+from local_stage import render_local_stage
 
 HERE = Path(__file__).resolve().parent
 HEADING = re.compile(r"^(#{1,6}) (.+)$", re.MULTILINE)
@@ -109,6 +110,8 @@ def render_answer(root, topic, host):
                 marker = '<details class="visual-reference"'
                 body = body.replace(marker, support + "\n\n" + marker, 1)
     composed = bool(guide and guide.get("composition"))
+    if topic["id"] == "compatibility":
+        body = render_local_stage() + "\n\n" + body
     answer_class = "docs-answer docs-answer--composed" if composed else "docs-answer"
     heading = "" if composed else f'<h1 id="answer-title-{topic["id"]}" tabindex="-1">{html.escape(topic["title"])}</h1>'
     return (f'<section class="{answer_class}" data-doc-answer="{topic["id"]}" id="{identifier}" markdown="1">\n'

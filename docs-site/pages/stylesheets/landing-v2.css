@@ -1,4 +1,4 @@
-/* Landing page layout. The theme provides the typography, buttons, and cards. */
+
 .md-typeset .landing-hero {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -95,7 +95,7 @@
 .avatar-comparison__art {
   position: absolute;
   inset: 0;
-  /* Set --avatar-image on either slot when its PNG is ready. */
+
   background-image: var(--avatar-image, none);
   background-position: center;
   background-repeat: no-repeat;
@@ -246,7 +246,7 @@
     transition: none;
   }
 }
-/* Front door: the docs theme palette with a compact contributor ticker. */
+
 .md-typeset .simple-landing {
   position: relative;
   box-sizing: border-box;
@@ -328,8 +328,8 @@ body:has(.simple-landing) .md-main__inner {
   margin-top: 0;
 }
 
-/* The front door is a single viewport, so the theme's article spacing must not
-   add a second page height or leave a scroll bar around it. */
+
+
 html:has(.simple-landing),
 body:has(.simple-landing) {
   height: 100%;
@@ -344,8 +344,8 @@ body:has(.simple-landing) .md-container {
   overflow: hidden;
 }
 
-/* The theme reserves a scrollbar gutter on every page. The front door has no
-   page scroll, so release that space and let the surface reach the viewport. */
+
+
 html:has(.simple-landing) {
   scrollbar-gutter: auto;
 }
@@ -376,8 +376,8 @@ body:has(.simple-landing) .md-content__inner {
   padding: 0;
 }
 
-/* At wide breakpoints the theme adds a left offset for its sidebar. The landing
-   page has no sidebar, so keep its content flush with the viewport. */
+
+
 body:has(.simple-landing) .md-main__inner.md-grid > .md-content > .md-content__inner {
   margin: 0;
 }

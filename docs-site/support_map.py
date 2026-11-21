@@ -1,11 +1,13 @@
 import html
 import json
+import os
 import re
 from collections import Counter
 from pathlib import Path
 from urllib.parse import quote
 
 from release_baseline import load_release_baseline
+from local_support_snapshot import local_support_snapshot
 
 HERE = Path(__file__).resolve().parent
 LABELS = {"supported": "Supported", "limited": "Partial support", "missing": "Not supported", "re-evaluation": "Needs re-evaluation", "not-applicable": "Not applicable", "legacy": "Legacy"}
@@ -44,10 +46,14 @@ def load_capabilities(path=HERE / "capabilities.json"):
     return data
 
 
-def render_support_map(scope="all", data=None):
+def render_support_map(scope="all", data=None, local=None):
     if scope not in {"all", "ma", "vrcfury", "vrchat"}:
         raise ValueError("Unknown capability scope")
     data = data or load_capabilities(HERE / ("vrchat-capabilities.json" if scope == "vrchat" else "capabilities.json"))
+    if local is None:
+        local = os.environ.get("IMPORTER_DOCS_LOCAL_SNAPSHOT") == "1"
+    if local:
+        data = local_support_snapshot(data)
     entries = [entry for entry in data["entries"] if scope == "all" or entry["framework"] == scope]
     counts = Counter(entry["status"] for entry in entries if not entry["legacy"])
     escape = html.escape
@@ -67,8 +73,14 @@ def render_support_map(scope="all", data=None):
     for entry in entries:
         source = entry["source"]
         url = "https://github.com/" + source["repo"] + "/blob/" + source["revision"] + "/" + source["path"]
-        evidence = "".join('<li><a href="' + evidence_base + quote(item, safe="/") + '"><code>' + escape(item) + "</code></a></li>" for item in entry["evidence"])
-        proof = '<p>Released-source implementation and regression evidence, not a live visual guarantee:</p><ul>' + evidence + '</ul>' if evidence else ''
+        evidence = "".join(
+            '<li><code>' + escape(item) + '</code></li>' if local else
+            '<li><a href="' + evidence_base + quote(item, safe="/") + '"><code>' + escape(item) + "</code></a></li>"
+            for item in entry["evidence"])
+        proof_label = "Local working-tree implementation and regression evidence; unreleased, not live-tested:" if local else "Released-source implementation and regression evidence, not a live visual guarantee:"
+        proof = '<p>' + proof_label + '</p><ul>' + evidence + '</ul>' if evidence else ''
+        if local:
+            proof += '<p>' + escape(entry["runtime_note"]) + '</p>'
         tracking = '<a href="' + escape(entry["issue"], quote=True) + '">Tracking issue</a>' if entry.get("issue") else 'No scheduled delivery or tracking issue.'
         work_badge = '<span class="support-work">' + WORK[entry["work"]] + "</span>" if entry["work"] != "unplanned" else ""
         boundary = '<span class="support-row__outcome">' + escape(entry["summary"]) + "</span>" if entry.get("summary") else ""
@@ -98,12 +110,22 @@ def render_support_map(scope="all", data=None):
         if grouped_rows[group]:
             groups += '<section class="support-map__group support-map__group--excluded" data-support-group="' + group + '"><h3>' + title + '</h3><p class="support-map__group-note">' + description + '</p><div class="support-map__rows">' + ''.join(grouped_rows[group]) + '</div></section>'
     heading = "<h2>VRChat SDK components</h2>" if scope == "vrchat" else "<h2>MA + VRCFury support</h2>" if scope == "all" else ""
+    caution = "Local working tree (unreleased). Live test pending. Initial appearance is not live behavior; partial support is not whole-avatar fidelity." if local else escape(release["version"]) + " &middot; Initial appearance is not live behavior. Partial support has limits."
+    provenance = (
+        "Local checkout at build time, including uncommitted changes. Evidence paths refer to local files, not the released source. "
+        "The previously installed mod and this working tree may differ; building documentation does not build or install the mod."
+        if local else escape(release['version']) + ", published " + escape(release['published']) + ". Source review: " + escape(release['reviewed']) + "."
+    )
+    boundary = (
+        "Unsupported does not mean planned. Semantic-audit concerns remain visible and receive no support credit. No user live-import success is claimed."
+        if local else "Unsupported does not mean planned. Statuses describe the documented release source, not newer local changes or a completed Resonite live test. Native alternatives may still need design, even where a direct port is unnecessary."
+    )
     exclusions = '<p>Excluded framework/helper types: ' + escape(', '.join(item['type'] for item in data['excluded'])) + '.</p>' if data['excluded'] else ''
     return f'''<section class="support-map" id="component-support" data-support-map data-support-scope="{scope}" aria-label="Component support map">
 {heading}
 
 <div class="support-collection" aria-label="Component collection progress">{snapshot}</div>
-<p class="support-map__caution">{escape(release["version"])} &middot; Initial appearance is not live behavior. Partial support has limits.</p>
+<p class="support-map__caution">{caution}</p>
 <div class="support-map__tools" data-support-tools hidden>
 <label class="support-map__search"><span class="support-sr-only">Find a component</span><input type="search" data-support-search placeholder="Find a component" autocomplete="off"></label>
 {scope_control}
@@ -111,5 +133,5 @@ def render_support_map(scope="all", data=None):
 </div>
 <p class="support-map__count" data-support-count role="status" aria-live="polite"></p>
 {groups}
-<details class="support-map__scope"><summary>Inventory scope &amp; release</summary><p>{escape(release['version'])}, published {escape(release['published'])}. Source review: {escape(release['reviewed'])}. {escape(data['scope'])}</p><p>Unsupported does not mean planned. Statuses describe the documented release source, not newer local changes or a completed Resonite live test. Native alternatives may still need design, even where a direct port is unnecessary.</p>{exclusions}</details>
+<details class="support-map__scope"><summary>Inventory scope &amp; {"local snapshot" if local else "release"}</summary><p>{provenance} {escape(data['scope'])}</p><p>{boundary}</p>{exclusions}</details>
 </section>'''.replace('><', '>\n<')

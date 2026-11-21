@@ -1,0 +1,17 @@
+<section class="admonition note" data-local-mod-stage aria-labelledby="local-mod-stage-title">
+<h2 id="local-mod-stage-title">Current mod stage: ready for live test</h2>
+<p><strong>Local development preview / reviewed October 26, 2026 / installed checkpoint DF35C43D.</strong> This is not a public release announcement or a claim of whole-avatar compatibility. The component cards describe the working tree; the installed checkpoint is recorded separately.</p>
+<h3>Implemented and checked</h3>
+<ul>
+<li><strong>Source hierarchy:</strong> instance-scoped object identities, parentage and active state are captured before conversion changes the hierarchy. Retained native evidence confirms the earlier inherited-model graph failure is cleared; avatar creation is not yet confirmed.</li>
+<li><strong>Initial appearance:</strong> validated transform-only runtime Toggle clips are distinguished from static build poses, without sampling or writing a bone pose. Deferred clips still need exact owned targets. Missing targets, malformed data, mixed bindings and required upload poses remain blocking.</li>
+<li><strong>Serialized skinned meshes:</strong> bounded version-11 mesh decoding, ordered bone bindings and sparse blendshapes are implemented. Five retained meshes passed native storage round trips; renderer loading and deformation still need live verification.</li>
+<li><strong>Diagnostics:</strong> action-gate reports preserve build identity and exact blockers. Private local replay capsules preserve compiler inputs, renderer state and requested clip dependencies, instead of relying on a replay that skips dependencies.</li>
+</ul>
+<h3>Validation is not acceptance</h3>
+<p>The installed batch passed <strong>1,471 regression tests</strong>, built with <strong>0 errors and 79 warnings</strong>, and passed all three embedded UI bundle audits. Both retained idle clips passed source classification; an exploratory composed-source check using the real resolver reported zero compiler errors. Its assumed context and missing native renderers mean it is not native acceptance.</p>
+<p><strong>Installed, not live-verified:</strong> the next check is an actual import after restarting Resonite, including the creation action, appearance and a saved replay locator or explicit capture failure. Native replay capture has not yet been confirmed. Wing/tail runtime playback, arbitrary Animator behavior and full visual fidelity are not implemented or certified by these checks.</p>
+<h3>If creation is still disabled</h3>
+<p>Keep the selected item's exact blocker and loaded-build evidence. Do not treat a ready rig or successful operations as proof that the appearance plan passed. Reproduce compiler failures with captured dependencies before requesting another import.</p>
+<p><strong>Privacy:</strong> replay capsules contain source assets and context. They are not filtered reports: do not attach them, private packages or raw logs to a public issue. Nothing is uploaded automatically. Review the filtered report before sharing.</p>
+</section>

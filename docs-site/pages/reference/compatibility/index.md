@@ -22,7 +22,7 @@ Standard metallic materials convert to native PBS. lilToon and Poiyomi have supp
 
 ### [Build-time components](modular-avatar.md)
 
-Selected structural operations and initial appearance transfer. Initial blendshape weights, visibility or materials are not live controls. Full menus, runtime toggles, animation-controller behavior and contact interactions are not recreated. The dedicated MA and VRCFury inventories give the exact boundaries. The SDK inventory here covers VRChat-authored components, not those build-time tools.
+Selected structural operations, initial appearance and specific native wardrobe controls have distinct support boundaries. Initial blendshape weights, visibility or materials alone do not establish live controls. Some independent binary controls and blendshape-sync adapters are implemented; arbitrary Unity/VRChat menus, Animator behavior and contact interactions are not recreated. Consult the dedicated MA and VRCFury inventories for exact limits and verification status. The SDK inventory here covers VRChat-authored components, not those build-time tools.
 
 </div>
 

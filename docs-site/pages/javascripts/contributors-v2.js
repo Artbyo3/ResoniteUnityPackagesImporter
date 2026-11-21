@@ -41,7 +41,7 @@
             profile.append(avatar);
           }
         } catch {
-          // Keep the contributor name if GitHub returns an invalid avatar URL.
+
         }
       }
 
@@ -66,9 +66,9 @@
       lastViewportWidth = viewport.clientWidth;
       if (list.scrollWidth === 0) return;
 
-      // Keep one full cycle at least as wide as the viewport. With only two
-      // copies of a short list, the track can expose empty space near the loop
-      // point even though the animation itself is continuous.
+
+
+
       while (list.scrollWidth < lastViewportWidth) {
         list.append(...contributorItems.map(makeVisualCopy));
       }

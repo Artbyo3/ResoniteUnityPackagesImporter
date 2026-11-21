@@ -9,7 +9,7 @@
   const updatePlayback = () => {
     if (shouldPlay()) {
       video.play().catch(() => {
-        // Keep the static theme background if autoplay is unavailable.
+
       });
     } else {
       video.pause();

@@ -3,6 +3,8 @@ hide:
   - toc
 ---
 
+<!-- local-mod-stage -->
+
 <div class="landing-hero" markdown>
 
 <div class="landing-hero__copy" markdown>

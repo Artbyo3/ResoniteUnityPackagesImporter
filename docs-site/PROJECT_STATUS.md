@@ -1,5 +1,18 @@
 # Reports and public project updates
 
+## Local development stage is not the issue feed
+
+`python docs-site/build.py --local` adds a dated, curated development-stage
+summary to the local overview, compatibility reader and project-status page.
+It distinguishes source changes, automated validation, the installed checkpoint
+and pending native acceptance. English and Japanese summaries live in
+`local-stage/`; update them together from repository evidence.
+
+This summary does not create an issue, select public status labels, update a
+release, or certify whole-avatar behavior. Ordinary builds omit it and retain
+the documented release baseline. Private action-gate logs and appearance replay
+capsules are never inputs to the public issue feed or copied into the site.
+
 ## For users: report the problem, not our roadmap
 
 Choose **Report a problem** on GitHub. Only two answers are required:

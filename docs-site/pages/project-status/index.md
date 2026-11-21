@@ -6,6 +6,8 @@ hide:
 
 # Project status
 
+<!-- local-mod-stage -->
+
 <section class="project-activity" data-project-activity aria-label="Project status">
 <p class="project-status-notice" data-activity-notice role="status">Project updates appear here when the issue feed is available.</p>
 <noscript><p>The update list requires JavaScript. <a href="https://github.com/Artbyo3/ResoniteUnityPackagesImporter/issues?q=is%3Aissue+is%3Aopen+label%3Aproject-status">Read published updates on GitHub.</a></p></noscript>

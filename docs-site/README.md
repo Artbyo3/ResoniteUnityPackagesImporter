@@ -2,8 +2,9 @@
 
 This folder contains the public documentation site source for the Unity Package Importer.
 All documentation pages, compatibility guides, importing workflows, and legal notices
-are maintained here. Keep private development notes outside this source directory; the
-site build reads only `pages/`.
+are maintained here. Keep private development notes outside this source directory.
+Site pages come from `pages/`; local previews also read the curated, public-safe
+`local-stage/` summaries. They never copy private logs or replay capsules.
 
 ## Preview locally
 
@@ -23,6 +24,40 @@ python build.py
 ```
 
 The generated site is written to `site/` (with English at `/` and Japanese at `/ja/`) and is ignored by Git.
+
+To preview the current local mod's component cards, including uncommitted changes:
+
+```powershell
+python build.py --local
+python serve.py
+```
+
+This local-only build derives card statuses, limits and evidence from
+`../docs/AVATAR_COMPONENT_COVERAGE.json`, retaining existing card IDs and adding
+all 19 VRCFury action cards. Known semantic-audit concerns (Modes, Puppet, Toes,
+FxFloatAction and MaterialPropertyAction) stay under re-evaluation rather than
+receiving behavior credit. Counts describe this card inventory, not whole-avatar
+success or the coverage catalog's different denominator. Local file evidence is
+not linked to a released GitHub revision. All native behavior remains live-unverified.
+The installed DLL can differ from the working tree; this command does not install it.
+Do not publish the local preview. Ordinary `python build.py` retains the release
+cards and pinned release evidence; neither source inventory nor release baseline
+is rewritten by local preview generation. `serve.py` serves the most recent build.
+
+Local previews also show the current development stage on the documentation
+overview, project-status page and compatibility reader, with a Japanese summary
+on the Japanese overview and compatibility page. The October 26, 2026 summary
+distinguishes installed checkpoint DF35C43D, automated validation and unresolved
+native acceptance. It covers source-graph repair, runtime-only clip classification,
+bounded serialized skin reconstruction, and private exact-input replay diagnostics.
+Runtime playback and whole-avatar success are not claimed. Ordinary release builds
+omit this summary and remain tied to `release-baseline.json`; the issue feed is
+still a separate maintainer-approved source, not a mirror of local work.
+
+When updating the checkpoint, maintain both `local-stage/en.html` and
+`local-stage/ja.html` from evidence in `docs/WORKING_STATE.md` and the domain docs.
+Keep test results dated and separate implemented, validated, installed and
+user-live-verified status. Never infer release availability from a local install.
 
 ## GitHub-connected project activity
 

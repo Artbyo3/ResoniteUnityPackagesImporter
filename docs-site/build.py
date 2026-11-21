@@ -1,6 +1,8 @@
-"""Build both English and Japanese documentation sites into docs-site/site."""
 
+
+import argparse
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -10,6 +12,7 @@ import tomllib
 from pathlib import Path
 
 from docs_workspace import export_workspace, prepare_workspace
+from local_stage import prepare_local_stage
 
 HERE = Path(__file__).resolve().parent
 
@@ -31,6 +34,7 @@ def run_build(config_file: str, clean: bool = False) -> None:
             prepare_workspace(HERE / project["docs_dir"], staging / "pages")
         else:
             shutil.copytree(HERE / project["docs_dir"], staging / "pages")
+        prepare_local_stage(staging / "pages", "en" if config_file == "zensical.toml" else "ja")
         paths = {
             "docs_dir": (staging / "pages").relative_to(HERE).as_posix(),
             "site_dir": project["site_dir"],
@@ -56,16 +60,20 @@ def run_build(config_file: str, clean: bool = False) -> None:
 
 
 def main() -> None:
-    # 1. Build English site to docs-site/site
+    parser = argparse.ArgumentParser(description='Build both English and Japanese documentation sites into docs-site/site.')
+    parser.add_argument("--local", action="store_true", help="Preview unreleased working-tree component cards; do not publish this build.")
+    args = parser.parse_args()
+    os.environ["IMPORTER_DOCS_LOCAL_SNAPSHOT"] = "1" if args.local else "0"
+
     print("\n--- [1/3] Building English documentation site ---")
     run_build("zensical.toml", clean=True)
     export_workspace(HERE / "site")
 
-    # 2. Build Japanese site to docs-site/site/ja
+
     print("\n--- [2/3] Building Japanese documentation site ---")
     run_build("zensical.ja.toml", clean=False)
 
-    # 3. Share media assets to site/ja
+
     print("\n--- [3/3] Synchronizing shared media assets ---")
     site_images = HERE / "site" / "images"
     ja_images = HERE / "site" / "ja" / "images"
