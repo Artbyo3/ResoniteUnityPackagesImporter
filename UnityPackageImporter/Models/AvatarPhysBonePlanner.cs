@@ -112,12 +112,8 @@ public static class AvatarPhysBonePlanner
             var script = Get(body, "m_Script") as YamlMappingNode;
             string guid = Text(script, "guid");
             long scriptId = ParseLong(Text(script, "fileID"));
-            string name = Text(body, "m_Name");
-            string idClass = Text(body, "m_EditorClassIdentifier");
 
-            bool isPhysBoneCollider = (scriptId == PhysBoneColliderScriptFileId && guid.Equals(PhysBoneScriptGuid, StringComparison.OrdinalIgnoreCase))
-                || idClass.Contains("PhysBoneCollider", StringComparison.OrdinalIgnoreCase)
-                || name.Contains("DynamicBoneCollider", StringComparison.OrdinalIgnoreCase);
+            bool isPhysBoneCollider = scriptId == PhysBoneColliderScriptFileId && guid.Equals(PhysBoneScriptGuid, StringComparison.OrdinalIgnoreCase);
 
             if (!isPhysBoneCollider) continue;
 
@@ -184,14 +180,10 @@ public static class AvatarPhysBonePlanner
             var script = Get(body, "m_Script") as YamlMappingNode;
             string guid = Text(script, "guid");
             long scriptId = ParseLong(Text(script, "fileID"));
-            string name = Text(body, "m_Name");
-            string idClass = Text(body, "m_EditorClassIdentifier");
 
-            bool isPhysBone = (scriptId == PhysBoneScriptFileId && guid.Equals(PhysBoneScriptGuid, StringComparison.OrdinalIgnoreCase))
-                || idClass.Contains("VRCPhysBone", StringComparison.OrdinalIgnoreCase)
-                || name.Contains("DynamicBone", StringComparison.OrdinalIgnoreCase);
+            bool isPhysBone = scriptId == PhysBoneScriptFileId && guid.Equals(PhysBoneScriptGuid, StringComparison.OrdinalIgnoreCase);
 
-            if (!isPhysBone) continue;
+            if (!isPhysBone || colliderIds.Contains(compFileId)) continue;
 
             long goId = ReferenceNode(Get(body, "m_GameObject"));
             long transId = gameObjectToTransform.GetValueOrDefault(goId);

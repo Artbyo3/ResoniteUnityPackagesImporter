@@ -148,5 +148,30 @@ internal static class AvatarPhysBoneTests
             check(plan.Bones.Count == 4, "Expected 4 bone chains, got: " + plan.Bones.Count);
             check(plan.Colliders.Count == 3, "Expected 3 colliders, got: " + plan.Colliders.Count);
         });
+        test("VRCPhysBoneCollider is identified by script fileID and never planned as a bone chain", () =>
+        {
+            string collider = PhysBoneCollider(compId: 600, goId: 2, rootTransId: 102).Replace("m_EditorClassIdentifier: \n",
+                "m_EditorClassIdentifier: VRC.SDK3.Dynamics.PhysBone.Components::VRCPhysBoneCollider\n");
+            var plan = AvatarPhysBonePlanner.Compile(BaseScene() + collider, 1);
+            check(plan.Bones.Count == 0, "A collider was planned as a bone chain: " + plan.Bones.Count);
+            check(plan.Colliders.Count == 1 && plan.Colliders[0].ComponentId == 600, "The collider was not planned as a collider.");
+        });
+        test("PhysBone identity ignores name and editor class text without the exact script GUID and fileID", () =>
+        {
+            string Impostor(long compId, string scriptFileId, string scriptGuid, string name, string editorClass) =>
+                "--- !u!114 &" + compId + "\nMonoBehaviour:\n  m_GameObject: {fileID: 2}\n" +
+                "  m_Script: {fileID: " + scriptFileId + ", guid: " + scriptGuid + ", type: 3}\n" +
+                "  m_Name: " + name + "\n  m_EditorClassIdentifier: " + editorClass + "\n" +
+                "  rootTransform: {fileID: 102}\n  ignoreTransforms: []\n  colliders: []\n";
+            string yaml = BaseScene() +
+                Impostor(801, "11500000", "0123456789abcdef0123456789abcdef", "DynamicBone", "VRC.SDK3.Dynamics.PhysBone::VRCPhysBone") +
+                Impostor(802, "11500000", "0123456789abcdef0123456789abcdef", "DynamicBoneCollider", "VRC.SDK3.Dynamics.PhysBone::VRCPhysBoneCollider") +
+                Impostor(803, "11500000", AvatarPhysBonePlanner.PhysBoneScriptGuid, "VRCPhysBone", "VRCPhysBone");
+            var plan = AvatarPhysBonePlanner.Compile(yaml, 1);
+            check(plan.Bones.Count == 0, "A name-only impostor was planned as a PhysBone: " + plan.Bones.Count);
+            check(plan.Colliders.Count == 0, "A name-only impostor was planned as a collider: " + plan.Colliders.Count);
+            var real = AvatarPhysBonePlanner.Compile(yaml + PhysBone(compId: 500), 1);
+            check(real.Bones.Count == 1 && real.Bones[0].ComponentId == 500, "The real PhysBone did not plan beside impostors.");
+        });
     }
 }
