@@ -322,7 +322,7 @@ internal sealed class UnityStationHandle
                 {
                     actionGateEvidence[Current] = evidence;
                     ImportReportService.SaveActionGateEvidence(evidence);
-                    if (!actionGate.Enabled)
+                    if (ImportActionPolicy.ReportsFailure(actionGate))
                         ImportReportService.Record(session.Reports, new object(), item: Current, project: importer,
                             stage: ImportReportStage.Validation, actionGate: actionGate);
                 }

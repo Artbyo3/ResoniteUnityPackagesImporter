@@ -61,6 +61,35 @@ internal static class ImportActionDiagnosticsTests
             var absent = ImportActionPolicy.EvaluateMainAction(null!, true, false, true, false, false, false);
             check(absent.Blockers.Contains(ImportActionBlocker.MissingResult) && absent.Blockers.Contains(ImportActionBlocker.MissingItem), "Unknown result was presented as ready.");
         });
+        test("State-only action blockers record no import error report", () =>
+        {
+            var outfit = ImportResult.Evaluate(true, true, NativeAvatarReadiness.Ready, 0, 0, 0);
+            var outfitGate = ImportActionPolicy.EvaluateMainAction(outfit, false, true, true, true, false, false);
+            check(outfitGate.Blockers.SequenceEqual(new[] { ImportActionBlocker.OutfitRequiresInstallAction }) &&
+                !ImportActionPolicy.ReportsFailure(outfitGate), "An outfit waiting for its install action recorded an error report.");
+            var ready = ImportResult.Evaluate(true, false, NativeAvatarReadiness.Ready, 0, 0, 0);
+            var busyGate = ImportActionPolicy.EvaluateMainAction(ready, true, false, false, true, false, false);
+            check(busyGate.Blockers.SequenceEqual(new[] { ImportActionBlocker.StationDisabled }) &&
+                !ImportActionPolicy.ReportsFailure(busyGate), "A transient station-disabled state recorded an error report.");
+            var createdGate = ImportActionPolicy.EvaluateMainAction(ready, true, false, true, true, true, false);
+            check(createdGate.Blockers.SequenceEqual(new[] { ImportActionBlocker.AlreadyCreated }) &&
+                !ImportActionPolicy.ReportsFailure(createdGate), "An already-created item recorded an error report.");
+            var installGate = ImportActionPolicy.EvaluateMainAction(outfit, false, false, true, true, false, false);
+            check(installGate.Blockers.SequenceEqual(new[] { ImportActionBlocker.RequiresInstallation }) &&
+                !ImportActionPolicy.ReportsFailure(installGate), "An item requiring installation recorded an error report.");
+            check(!ImportActionPolicy.ReportsFailure(ImportActionPolicy.EvaluateMainAction(ready, true, false, true, true, false, false)),
+                "An enabled main action recorded an error report.");
+        });
+        test("Genuine action-gate failures still record an import error report", () =>
+        {
+            var failed = ImportResult.Evaluate(true, false, NativeAvatarReadiness.Ready, 0, 0, 1);
+            var gate = ImportActionPolicy.EvaluateMainAction(failed, true, false, true, true, false, false);
+            check(gate.Blockers.Contains(ImportActionBlocker.StructureNotReady) && ImportActionPolicy.ReportsFailure(gate),
+                "A structure failure no longer recorded an error report.");
+            var busy = ImportActionPolicy.EvaluateMainAction(failed, true, false, false, true, false, false);
+            check(busy.Blockers.Contains(ImportActionBlocker.StationDisabled) && ImportActionPolicy.ReportsFailure(busy),
+                "A state blocker suppressed the report of a genuine structure failure.");
+        });
         test("Successful operations cannot conceal a plan-level error and warnings do not independently block", () =>
         {
             var plan = new AvatarBuildPlan();

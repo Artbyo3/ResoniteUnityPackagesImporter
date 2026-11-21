@@ -14,7 +14,10 @@ Modular Avatar, VRCFury, and mixed-source packages into Resonite. Contract:
 ## Workspace
 
 Branch `feature/avatar-conversion-scope`. Code changes after 992c506:
-PhysBone and PhysBone collider detection by script GUID + fileID only (#49).
+PhysBone and PhysBone collider detection by script GUID + fileID only (#49);
+the main-action gate records an import error report only for failure blockers,
+not for StationDisabled, OutfitRequiresInstallAction, AlreadyCreated, or
+RequiresInstallation (#63 step 1).
 
 ## Next actionable dependency
 
@@ -31,10 +34,10 @@ PhysBone and PhysBone collider detection by script GUID + fileID only (#49).
   arguments run the full suite and exit 0.
 - Runtime wing/tail playback is unimplemented and stays a visible limitation.
 
-## Latest automated validation (2026-11-20, PhysBone identity commit)
+## Latest automated validation (2026-11-20, action-gate report commit)
 
 - Build: 0 errors, 79 warnings.
-- Test: 1473/1473 (Python, docs-site, and UI bundle audit last run at 992c506).
+- Test: 1475/1475 (Python, docs-site, and UI bundle audit last run at 992c506).
 - At 992c506: Test 1471/1471. Python: 28/28. Docs-site: 95/95. UI bundle audit: 3/3 PASS.
 - Not run (engine-bound): ModelUnits, Textures, `--serialized-skin`,
   `--engine-api`/`--dump-type`, RunStationDemo.py, Install-Mod.ps1, in-game checks.

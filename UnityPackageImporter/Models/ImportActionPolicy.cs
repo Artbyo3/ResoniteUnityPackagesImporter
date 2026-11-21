@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 
 namespace UnityPackageImporter.Models;
 
@@ -43,4 +44,9 @@ internal static class ImportActionPolicy
         }
         return new(action, blockers.AsReadOnly());
     }
+
+    internal static bool ReportsFailure(ImportActionGate gate) => gate.Blockers.Any(blocker => !IsStateBlocker(blocker));
+
+    private static bool IsStateBlocker(ImportActionBlocker blocker) => blocker is ImportActionBlocker.StationDisabled
+        or ImportActionBlocker.OutfitRequiresInstallAction or ImportActionBlocker.AlreadyCreated or ImportActionBlocker.RequiresInstallation;
 }
