@@ -965,7 +965,7 @@
           "name": "Breathing",
           "status": "partial",
           "source": "Runtime/Model/Feature/Breathing.cs",
-          "reason": "Cyclic motion and chest expansion mapped to native Wiggler drivers.",
+          "reason": "Cyclic motion and chest expansion mapped to native TimeSineDriver and Float3Driver components; preserves planned period and authored bone scale. Live validation pending.",
           "runtime": true,
           "evidence": [
             "UnityPackageImporter/Models/AvatarBehaviorPlanner.cs",
@@ -1580,10 +1580,10 @@
         },
         {
           "name": "ScaleAction",
-          "status": "partial",
+          "status": "missing",
           "source": "Runtime/Model/StateAction/ScaleAction.cs",
-          "reason": "VRCFury ScaleAction compiles to wardrobe visibility and scale toggle bindings.",
-          "runtime": true,
+          "reason": "Animated/compensated scale and authored restoration remain pending. Wardrobe rejects this action; visibility is not a scale adapter.",
+          "runtime": false,
           "evidence": [
             "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs"
           ],
@@ -1620,10 +1620,10 @@
         },
         {
           "name": "WorldDropAction",
-          "status": "partial",
+          "status": "missing",
           "source": "Runtime/Model/StateAction/WorldDropAction.cs",
-          "reason": "Compiles prop world-drop into wardrobe toggle active states.",
-          "runtime": true,
+          "reason": "World-space drop/reset, permissions, authority and lifecycle remain pending. Wardrobe rejects this action; visibility is not world-drop behavior.",
+          "runtime": false,
           "evidence": [
             "UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs"
           ],

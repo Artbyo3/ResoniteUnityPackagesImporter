@@ -8,10 +8,10 @@ Partial receives one component credit only because a documented functional subse
 | Base VRChat SDK types | 10 / 28 | 35.7% | 0 | 10 | 3 | 15 | 0 | 10 |
 | Modular Avatar components | 19 / 40 | 47.5% | 0 | 19 | 1 | 17 | 3 | 17 |
 | VRCFury feature models | 21 / 56 | 37.5% | 0 | 21 | 0 | 27 | 8 | 19 |
-| VRCFury action models | 10 / 19 | 52.6% | 0 | 10 | 0 | 9 | 0 | 10 |
+| VRCFury action models | 8 / 19 | 42.1% | 0 | 8 | 0 | 11 | 0 | 8 |
 | VRCFury wrapper components | 0 / 12 | 0.0% | 0 | 0 | 1 | 5 | 6 | 0 |
 
-VRCFury combined concrete authoring-type coverage: 31 / 87 = 35.6% (feature models + action models + wrapper components). The breakdown stays visible rather than changing denominators silently.
+VRCFury combined concrete authoring-type coverage: 29 / 87 = 33.3% (feature models + action models + wrapper components). The breakdown stays visible rather than changing denominators silently.
 
 ## Base VRChat SDK types
 
@@ -114,7 +114,7 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 56 concrete top-level
 | BoneConstraint | partial | yes | Compiles humanoid bone constraint to native FrooxEngine CopyGlobalTransform pointing to biped rig target bone slot. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/BoneConstraint.cs |
 | BoundingBoxFix | partial | yes | Legacy bounding box fix compiles explicit bounds and static compute mode across descendant renderers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/BoundingBoxFix.cs |
 | BoundingBoxFix2 | partial | yes | Current bounding box fix compiles explicit bounds and static compute mode across descendant renderers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/BoundingBoxFix2.cs |
-| Breathing | partial | yes | Cyclic motion and chest expansion mapped to native Wiggler drivers. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/Breathing.cs |
+| Breathing | partial | yes | Cyclic motion and chest expansion mapped to native TimeSineDriver and Float3Driver components; preserves planned period and authored bone scale. Live validation pending. | UnityPackageImporter/Models/AvatarBehaviorPlanner.cs, UnityPackageImporter/Models/AvatarBehaviorRuntime.cs | Tests/AvatarBehaviorTests.cs | Runtime/Model/Feature/Breathing.cs |
 | ConstraintRetarget | missing | no | Reference rewrite within verified ownership. |  |  | Runtime/Model/Feature/ConstraintRetarget.cs |
 | CrossEyeFix | missing | no | Diagnose native eye solver; no blind compensating constraints. |  |  | Runtime/Model/Feature/CrossEyeFix.cs |
 | CrossEyeFix2 | missing | no | Diagnose native eye solver; no blind compensating constraints. |  |  | Runtime/Model/Feature/CrossEyeFix2.cs |
@@ -178,11 +178,11 @@ Source revision: 6bd33f4cb453df816c943a335e47f64e6a37e188. 19 concrete Action-de
 | ObjectToggleAction | partial | yes | Initial active state subset; independent runtime explicit on/off modes with inverse off state; legacy invert mode pending. | UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs | Tests/VrcFuryWardrobeTests.cs | Runtime/Model/StateAction/ObjectToggleAction.cs |
 | PoiyomiUVTileAction | missing | no | UV-tile visibility needs compatible native rendering design; property names alone not support. |  |  | Runtime/Model/StateAction/PoiyomiUVTileAction.cs |
 | ResetPhysboneAction | missing | no | Native chain reset, not guessed object toggling. |  |  | Runtime/Model/StateAction/ResetPhysboneAction.cs |
-| ScaleAction | partial | yes | VRCFury ScaleAction compiles to wardrobe visibility and scale toggle bindings. | UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs | Tests/VrcFuryWardrobeTests.cs | Runtime/Model/StateAction/ScaleAction.cs |
+| ScaleAction | missing | no | Animated/compensated scale and authored restoration remain pending. Wardrobe rejects this action; visibility is not a scale adapter. | UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs | Tests/VrcFuryWardrobeTests.cs | Runtime/Model/StateAction/ScaleAction.cs |
 | ShaderInventoryAction | missing | no | SCSS shader inventory needs specific material adapter. |  |  | Runtime/Model/StateAction/ShaderInventoryAction.cs |
 | SmoothLoopAction | missing | no | Loop timing/composition/transitions. |  |  | Runtime/Model/StateAction/SmoothLoopAction.cs |
 | SpsOnAction | missing | no | Optional specialized interaction enablement. |  |  | Runtime/Model/StateAction/SpsOnAction.cs |
-| WorldDropAction | partial | yes | Compiles prop world-drop into wardrobe toggle active states. | UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs | Tests/VrcFuryWardrobeTests.cs | Runtime/Model/StateAction/WorldDropAction.cs |
+| WorldDropAction | missing | no | World-space drop/reset, permissions, authority and lifecycle remain pending. Wardrobe rejects this action; visibility is not world-drop behavior. | UnityPackageImporter/Models/VrcFuryWardrobeCompiler.cs | Tests/VrcFuryWardrobeTests.cs | Runtime/Model/StateAction/WorldDropAction.cs |
 
 ## VRCFury wrapper components
 

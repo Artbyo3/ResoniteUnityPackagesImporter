@@ -1,11 +1,33 @@
 # Workflow (read first)
 
+## Repository-owned continuity
+
+- The repository is the session handoff; do not require a previous chat or agent summary to continue. Start with `docs/WORKING_STATE.md`, then inspect the actual branch, HEAD, dirty diff, referenced implementation, and tests before acting.
+- User requirements and these instructions define the contract. Code defines current behavior; tests provide executable examples, not proof of complete fidelity. State documents are evidence-backed navigation, not extra authority or permanent implementation limits. Resolve disagreements by inspecting the evidence and correcting stale records.
+- Keep `docs/WORKING_STATE.md` short and current: objective, evidence links, next actionable dependency, latest automated validation, installed checkpoint, and unresolved live verification. Replace superseded state instead of accumulating chat transcripts. Do not duplicate the detailed backlog, coverage catalog, or acceptance checklist.
+- At each meaningful checkpoint and before handing off, update that state alongside the change. Record exact commands/results and dates; separate implemented, automatically validated, installed, user-live-verified, and approved. Carry forward unverified evidence with its original date; never imply it was rechecked.
+- Preserve knowledge through clear names, small explicit interfaces, faithful regression fixtures, and maintained docs, not source comments or agent-specific memory. Add a reproducing regression for each behavior fix when the existing test harness can express it. Keep rationale and native evidence in the relevant domain document and link it from the state record.
+- Record actionable work without freezing a previous agent's assumptions: include the observed failure, source/test pointers, missing evidence, and acceptance condition. A failed delegate or quota limit is not an implementation result. Re-inspect the working tree before retrying work.
+
+## Local execution
+
 - Work locally. Do NOT push, open a PR, or create extra branches unless the
   user explicitly says "ship it". One branch per task.
 - Before reporting: run Test and Build below. Never say "done" or "works";
   say "ready for live test". Only the user's live test in Resonite confirms it.
-- Flow: change -> Test + Build -> Install -> user tests live -> user approves -> ship (one PR).
+- Flow: batch related fixes -> automated Test + Build and applicable audits ->
+  integrated Install -> consolidated user live test -> adjustments -> user approves
+  -> ship (one PR).
+- Do not require a manual import, restart, or installation after every small fix.
+  Continue autonomously across the known failure backlog, adding faithful
+  regressions and recording native verification gaps. Install only at meaningful
+  integrated checkpoints, with Resonite closed; never stop it automatically.
+- Keep one consolidated final live acceptance checklist. Ask for an intermediate
+  live probe only when specific inaccessible runtime evidence blocks safe progress,
+  and explain what cannot be established automatically. Synthetic passes do not
+  establish whole-avatar appearance or native behavior.
 - Never delete, skip or weaken tests to get a pass.
+- Diagnose repeat import failures from the newest loaded-build/item evidence. Reproduce the failing production boundary with the same resolvers and captured context before calling an offline result representative. A replay without clip dependencies, renderer state, inherited visibility, or external-context flags is exploratory, not an end-to-end pass. Add a regression for the missed boundary and record what still needs native evidence; do not substitute repeated user imports for an available local reproduction.
 - When your task ends, remove your worktree and delete your merged branch.
 - Throwaway scripts go in `scratch/` (gitignored), never in `scripts/`.
 - If you rename or change a command below, update this table in the same commit.
@@ -17,7 +39,10 @@
 | Test | `dotnet run --project Tests/Importer.RegressionTests.csproj -c Release` |
 | Build | `dotnet build UnityPackageImporter/UnityPackageImporter.csproj -c Release --no-incremental` |
 | UI audit | `dotnet run --project Tests/Importer.RegressionTests.csproj -- --ui-bundle <built dll> UnityPackageImporter/UI/Templates` |
+| Native skin asset audit | `dotnet run --project Tests/Importer.RegressionTests.csproj -c Release -- --serialized-skin <built dll> <Resonite directory> [local mesh assets...]` |
 | Component coverage | `dotnet run --project Tests/Importer.RegressionTests.csproj -c Release -- --component-coverage docs/AVATAR_COMPONENT_COVERAGE.json` |
+| Appearance compiler replay | `dotnet run --project Tests/Importer.RegressionTests.csproj -c Release -- --appearance-replay <local capsule.json>` |
+| Source animation clip audit | `dotnet run --project Tests/Importer.RegressionTests.csproj -c Release -- --animation-clips <fileID> <local .anim files...>` |
 | Install to Resonite | `scripts/Install-Mod.ps1` (then fully restart Resonite) |
 | Station demo | `python scripts/RunStationDemo.py` |
 | Bundle templates | `python scripts/Prepare-StationTemplates.py` |
@@ -64,7 +89,9 @@ Commands:
 - Every named binding the code uses must exist in station.bindings.json / pre-import.bindings.json.
 
 ## Code rules
-- No reflection into engine internals except through the documented bridge (FrooxInternalBridge.cs); note the Resonite version it was verified on.
+- Do not add source comments (inline, block, or XML documentation) or nonfunctional source docstrings. Preserve required legal notices and functional compiler/tool directives, shebangs, and encoding declarations; do not alter strings or test fixtures that contain comment-like text.
+- Keep agent instructions in AGENTS.md and durable rationale or verification evidence in docs, not in source comments. Never put session history, agent plans, TODO instructions, or speculative limitations in source comments. Existing comments are not authority over user requirements, actual code, or tests.
+- No reflection into engine internals except through the documented bridge (FrooxInternalBridge.cs); record the verified Resonite version in docs/ENGINE_COMPATIBILITY.md.
 - No empty or bare catch blocks, and no catch used as control flow. Cleanup catches must roll back and rethrow.
 - Logic that does not need the engine goes into classes that the test project compiles, with unit tests. Keep UI controllers thin.
 

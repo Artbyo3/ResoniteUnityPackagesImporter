@@ -71,6 +71,23 @@ tangents, nonfinite values, compression/packed samples, additive poses, transfor
 atomically. Present-but-malformed safety metadata also rejects the clip. This is
 not arbitrary first-frame sampling or a runtime animation decoder.
 
+A separately validated transform-only clip on a runtime Toggle is classified as
+requiring playback, not a static appearance failure. It contributes no pose or
+appearance writes and reports `STATIC_CLIP_TRANSFORM_PLAYBACK_PENDING`. Playback
+is still unimplemented. Deferred binding paths must still resolve to exact owned
+Transform targets; absent or ambiguous targets and malformed paths reject.
+Upload/build actions requiring that pose remain blocking,
+as do malformed clips and mixed transform/appearance clips. Empty scalar Euler
+editor placeholders are accepted only beside a validated runtime Euler curve at
+the same path; they are not animation samples.
+
+Native VRCFury evaluation now captures exact local compiler inputs, renderer
+snapshots, authored hierarchy, context flags and every requested clip dependency
+before applying writes. The local-only replay command in AGENTS.md re-evaluates
+those captured sources, rejects uncaptured dependencies and reports recorded-result
+parity separately from current applicability. It cannot certify native writes or
+avatar creation. See IMPORT_ACTION_DIAGNOSTICS.md for retention, privacy and limits.
+
 ## Blendshape snapshot
 
 MA Blendshape Sync preserves source renderer references, avatar-relative path
