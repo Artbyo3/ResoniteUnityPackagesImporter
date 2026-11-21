@@ -1,6 +1,6 @@
 # Current working state
 
-Last updated: 2026-11-20. Short entry point; history lives in the
+Last updated: 2026-11-21. Short entry point; history lives in the
 [conversion ledger](AVATAR_CONVERSION_PROGRESS.md). Updated in the same commit as
 the work it describes (rules in AGENTS.md).
 
@@ -21,7 +21,7 @@ RequiresInstallation (#63 step 1).
 
 ## Next actionable dependency
 
-- Owner's consolidated live test of installed `93E760CB` (after full restart).
+- Owner's consolidated live test of installed `89B37964` (after full restart).
   The last native gate on `5DE646C0` showed 24 errors from two transform-only idle
   clips entering the static appearance compiler; see
   [action diagnostics](IMPORT_ACTION_DIAGNOSTICS.md). The next native report must
@@ -44,8 +44,12 @@ RequiresInstallation (#63 step 1).
 
 ## Installed versus live-verified
 
-- Installed and loaded, per the owner's live log of 2026-11-20: Release DLL SHA-256
-  `93E760CB82DD94B30B8C11847C1E7F3559F5B44F7CD5CD0351E6A792D59263E8`.
+- Installed 2026-11-21 from 70a4f38 (Release, `--no-incremental`, 0 errors) into
+  `rml_mods`; one UnityPackageImporter DLL in the game tree: SHA-256
+  `89B379649FF64526DE334E8C883E2720F197CAD9A8BFE842EF900DB656EB86E4`.
+  Replaces `93E760CB82DD94B30B8C11847C1E7F3559F5B44F7CD5CD0351E6A792D59263E8`
+  (backed up beside it with a `.93E760CB.bak` suffix). Load confirmation comes from
+  the next Resonite log.
 - No live acceptance yet. The consolidated checklist in the ledger is the
   acceptance boundary: appearance/deformation, authored targets, wardrobe,
   breathing timing, nonuniform scale/driver ownership, owner/observer/reset/re-equip.
